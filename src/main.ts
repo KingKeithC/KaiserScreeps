@@ -77,11 +77,9 @@ class Harvester implements Role {
             structure.hits < structure.hitsMax
           );
         },
-      }) ?? room.find(FIND_MY_CONSTRUCTION_SITES, {
+      }) ?? creep.pos.findClosestByPath(FIND_MY_CONSTRUCTION_SITES, {
         filter: (site) => site.progress < site.progressTotal,
-      }).sort(
-        (siteA, siteB) => (siteA.progressTotal - siteA.progress) - (siteB.progressTotal - siteB.progress)
-      ).pop();
+      });
 
       // Skip if no target found
       if (target === null || target === undefined) {
@@ -91,19 +89,22 @@ class Harvester implements Role {
 
       // Move until in range of target
       if (!creep.pos.inRangeTo(target?.pos, 1)) {
-        console.log(`${creep.name} is moving to ${target}`);
         creep.moveTo(target, { visualizePathStyle: { stroke: COLOURS.PATH_TARGET }, reusePath: 5 });
         return;
       }
 
       // Deliver energy
       if (target.structureType === STRUCTURE_CONTROLLER) {
+        console.log(`${creep.name} is upgrading ${target}`);
         creep.upgradeController(target);
       } else if (target instanceof ConstructionSite) {
+        console.log(`${creep.name} is building ${target}`);
         creep.build(target);
       } else if (target.hits < target.hitsMax) {
+        console.log(`${creep.name} is repairing ${target}`);
         creep.repair(target);
       } else {
+        console.log(`${creep.name} is transferring to ${target}`);
         creep.transfer(target, RESOURCE_ENERGY);
       }
 
