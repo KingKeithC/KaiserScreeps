@@ -142,10 +142,10 @@ class Harvester extends Role {
         console.log(`${creep.name} is upgrading ${target} (Downgrade in ${target.ticksToDowngrade})`);
         creep.upgradeController(target);
       } else if (target instanceof ConstructionSite) {
-        console.log(`${creep.name} is building ${target} (${target.progress}/${target.progressTotal}) %${(target.progress / target.progressTotal).toFixed(2)}`);
+        console.log(`${creep.name} is building ${target} (${target.progress}/${target.progressTotal}) %${(target.progress / target.progressTotal * 100).toFixed(2)}`);
         creep.build(target);
       } else if (target.hits < target.hitsMax) {
-        console.log(`${creep.name} is repairing ${target} (${target.hits}/${target.hitsMax}) %${(target.hits / target.hitsMax).toFixed(2)}`);
+        console.log(`${creep.name} is repairing ${target} (${target.hits}/${target.hitsMax}) %${(target.hits / target.hitsMax * 100).toFixed(2)}`);
         creep.repair(target);
       } else {
         console.log(`${creep.name} is transferring to ${target}.`);
