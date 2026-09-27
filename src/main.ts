@@ -42,7 +42,7 @@ interface Role {
 
 class Harvester implements Role {
   RoleName = "harvester";
-  CountPerRoom = 2;
+  CountPerRoom = 3;
   BodyParts = [WORK, CARRY, MOVE];
   InitJobMemory: { isWorking: boolean } = { isWorking: false };
 
