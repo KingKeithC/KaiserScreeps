@@ -37,7 +37,7 @@ interface Role {
   CountPerRoom: number;
   BodyParts: BodyPartConstant[];
   InitJobMemory: object;
-  OnTick: (creep: Creep) => void;
+  OnTick: (creep: Creep, room: Room) => void;
 }
 
 class Harvester implements Role {
@@ -46,7 +46,7 @@ class Harvester implements Role {
   BodyParts = [WORK, CARRY, MOVE];
   InitJobMemory: { isWorking: boolean } = { isWorking: false };
 
-  OnTick(creep: Creep): void {
+  OnTick(creep: Creep, room: Room): void {
     const jobMemory = creep.memory.jobMemory as { isWorking: boolean };
 
     if (jobMemory.isWorking && creep.store[RESOURCE_ENERGY] === 0) {
@@ -134,7 +134,7 @@ export const loop = ErrorMapper.wrapLoop(() => {
       // Perform role logic
       const role = Roles[creep.memory.role];
       if (role) {
-        role.OnTick(creep);
+        role.OnTick(creep, room);
       } else if (creep.memory.role === undefined) {
         creep.memory.role = "harvester";
       } else {
