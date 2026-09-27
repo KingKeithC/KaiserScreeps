@@ -66,7 +66,7 @@ class Harvester implements Role {
       // Spend Energy
 
       // Select target
-      const target = creep.pos.findClosestByPath(FIND_STRUCTURES, {
+      const target = creep.pos.findClosestByPath(FIND_MY_STRUCTURES, {
         filter: (structure) => {
           return (
             ((structure.structureType === STRUCTURE_EXTENSION ||
@@ -77,12 +77,14 @@ class Harvester implements Role {
             structure.hits < structure.hitsMax
           );
         },
-      }) ?? creep.pos.findClosestByPath(FIND_MY_CONSTRUCTION_SITES, {
+      }) ?? room.find(FIND_MY_CONSTRUCTION_SITES, {
         filter: (site) => site.progress < site.progressTotal,
-      });
+      }).sort(
+        (siteA, siteB) => (siteA.progressTotal - siteA.progress) - (siteB.progressTotal - siteB.progress)
+      ).pop();
 
       // Skip if no target found
-      if (target === null) {
+      if (target === null || target === undefined) {
         creep.say("no target :(");
         return;
       }
