@@ -18,7 +18,7 @@ declare global {
   interface CreepMemory {
     role: string;
     room: string;
-    working: boolean;
+    jobMemory: object;
   }
 
 }
@@ -27,52 +27,71 @@ declare const global: {
   log: any;
 }
 
+const COLOURS = {
+  PATH_SOURCE: "#ffaa00",
+  PATH_TARGET: "#ffffff",
+}
+
 interface Role {
+  RoleName: string;
   CountPerRoom: number;
   BodyParts: BodyPartConstant[];
+  InitJobMemory: object;
   OnTick: (creep: Creep) => void;
 }
 
-const Roles: { [key: string]: Role } = {
-  "harvester": {
-    CountPerRoom: 2,
-    BodyParts: [WORK, CARRY, MOVE],
-    OnTick: (creep: Creep) => {
-      if (creep.memory.working && creep.store[RESOURCE_ENERGY] === 0) {
-        creep.memory.working = false;
-        creep.say("🔄 harvest");
-      }
-      if (!creep.memory.working && creep.store.getFreeCapacity() === 0) {
-        creep.memory.working = true;
-        creep.say("⚡ transfer");
-      }
+class Harvester implements Role {
+  RoleName = "harvester";
+  CountPerRoom = 2;
+  BodyParts = [WORK, CARRY, MOVE];
+  InitJobMemory: { isWorking: boolean } = { isWorking: false };
 
-      if (creep.memory.working) {
-        const target = creep.pos.findClosestByPath(FIND_STRUCTURES, {
-          filter: (structure) => {
-            return (
-              (structure.structureType === STRUCTURE_EXTENSION ||
-                structure.structureType === STRUCTURE_SPAWN ||
-                structure.structureType === STRUCTURE_TOWER) &&
-              structure.store.getFreeCapacity(RESOURCE_ENERGY) > 0
-            );
-          },
-        });
-        if (target) {
-          if (creep.transfer(target, RESOURCE_ENERGY) === ERR_NOT_IN_RANGE) {
-            creep.moveTo(target, { visualizePathStyle: { stroke: "#ffffff" } });
-          }
+  OnTick(creep: Creep): void {
+    const jobMemory = creep.memory.jobMemory as { isWorking: boolean };
+
+    if (jobMemory.isWorking && creep.store[RESOURCE_ENERGY] === 0) {
+      jobMemory.isWorking = false;
+      creep.say("🔄 harvest");
+    }
+    if (!jobMemory.isWorking && creep.store.getFreeCapacity() === 0) {
+      jobMemory.isWorking = true;
+      creep.say("⚡ transfer");
+    }
+
+    if (jobMemory.isWorking) {
+      const target = creep.pos.findClosestByPath(FIND_STRUCTURES, {
+        filter: (structure) => {
+          return (
+            ((structure.structureType === STRUCTURE_EXTENSION ||
+              structure.structureType === STRUCTURE_SPAWN ||
+              structure.structureType === STRUCTURE_TOWER) &&
+              structure.store.getFreeCapacity(RESOURCE_ENERGY) > 0) ||
+            structure.structureType === STRUCTURE_CONTROLLER
+          );
+        },
+      });
+      if (target && target.structureType !== STRUCTURE_CONTROLLER) {
+        if (creep.transfer(target, RESOURCE_ENERGY) === ERR_NOT_IN_RANGE) {
+          creep.moveTo(target, { visualizePathStyle: { stroke: COLOURS.PATH_TARGET } });
         }
-      } else {
-        const source = creep.pos.findClosestByPath(FIND_SOURCES_ACTIVE);
-        if (source) {
-          if (creep.harvest(source) === ERR_NOT_IN_RANGE) {
-            creep.moveTo(source, { visualizePathStyle: { stroke: "#ffaa00" } });
-          }
+      } else if (target && target.structureType === STRUCTURE_CONTROLLER) {
+        if (creep.upgradeController(target) === ERR_NOT_IN_RANGE) {
+          creep.moveTo(target, { visualizePathStyle: { stroke: COLOURS.PATH_TARGET } });
         }
       }
-    },
-  },
+    } else {
+      const source = creep.pos.findClosestByPath(FIND_SOURCES_ACTIVE);
+      if (source) {
+        if (creep.harvest(source) === ERR_NOT_IN_RANGE) {
+          creep.moveTo(source, { visualizePathStyle: { stroke: COLOURS.PATH_SOURCE } });
+        }
+      }
+    }
+  }
+}
+
+const Roles: { [roleName: string]: Role } = {
+  harvester: new Harvester(),
 };
 
 // When compiling TS to JS and bundling with rollup, the line numbers and file names in error messages change
@@ -87,31 +106,31 @@ export const loop = ErrorMapper.wrapLoop(() => {
     }
   }
 
-  for (const roomName in Game.rooms) {
-    const room = Game.rooms[roomName];
-
+  for (const [roomName, room] of Object.entries(Game.rooms)) {
     const spawns = room.find(FIND_MY_SPAWNS);
-    if (spawns.length == 0) {
-      continue;
-    }
+    if (spawns.length === 0) continue; // Skip rooms without spawns
     const mainSpawn = spawns[0];
 
-    // Spawn logic
-    const harvesters = room.find(FIND_MY_CREEPS, {
-      filter: (creep) => creep.memory.role === "harvester",
-    });
-    if (harvesters.length < Roles.harvester.CountPerRoom && !mainSpawn.spawning && mainSpawn.store.getUsedCapacity(RESOURCE_ENERGY) >= 200) {
-      const newName = `Harvester${Game.time}`;
-      mainSpawn.spawnCreep(Roles.harvester.BodyParts, newName, {
-        memory: { role: "harvester", working: false, room: room.name },
+    // Check if we need to spawn more creeps for each role in the room
+    for (const [roleName, role] of Object.entries(Roles)) {
+      const creeps = room.find(FIND_MY_CREEPS, {
+        filter: (creep) => creep.memory.role === roleName,
       });
-      console.log(`Spawning new harvester: ${newName}`);
+      if (creeps.length < role.CountPerRoom) {
+        console.log(`Room ${roomName} has ${creeps.length} ${roleName}s, needs ${role.CountPerRoom}`);
+
+        if (creeps.length < role.CountPerRoom && !mainSpawn.spawning && mainSpawn.store.getUsedCapacity(RESOURCE_ENERGY) >= 200) {
+          const newName = `${roleName}${Game.time}`;
+          mainSpawn.spawnCreep(role.BodyParts, newName, {
+            memory: { role: roleName, jobMemory: role.InitJobMemory, room: room.name },
+          });
+          console.log(`Spawning new ${roleName}: ${newName}`);
+        }
+      }
     }
 
+    // Run role logic for each creep in the room
     for (const creep of room.find(FIND_MY_CREEPS)) {
-      // Update the creep's room name
-      creep.memory.room = room.name;
-
       // Perform role logic
       const role = Roles[creep.memory.role];
       if (role) {
