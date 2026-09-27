@@ -2,6 +2,13 @@
   "name": "KaiserScreeps",
   "version": "1.0.0",
   "main": "main.js",
+  "devEngines": {
+    "packageManager": {
+      "name": "pnpm",
+      "version": "12.6.0",
+      "onFail": "download"
+    }
+  },
   "scripts": {
     "lint": "eslint \"src/**/*.ts\"",
     "build": "rollup -c",
