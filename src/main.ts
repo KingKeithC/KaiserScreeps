@@ -77,7 +77,7 @@ class Harvester implements Role {
             structure.hits < structure.hitsMax
           );
         },
-      }) ?? creep.pos.findClosestByPath(FIND_CONSTRUCTION_SITES, {
+      }) ?? creep.pos.findClosestByPath(FIND_MY_CONSTRUCTION_SITES, {
         filter: (site) => site.progress < site.progressTotal,
       });
 
