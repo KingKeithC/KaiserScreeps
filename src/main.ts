@@ -1,3 +1,4 @@
+import { object } from "lodash";
 import { ErrorMapper } from "utils/ErrorMapper";
 
 declare global {
@@ -49,16 +50,22 @@ class Harvester implements Role {
   OnTick(creep: Creep, room: Room): void {
     const jobMemory = creep.memory.jobMemory as { isWorking: boolean };
 
+    // Switch out of 'deliver' state when delivery is complete
     if (jobMemory.isWorking && creep.store[RESOURCE_ENERGY] === 0) {
       jobMemory.isWorking = false;
       creep.say("🔄 harvest");
     }
+
+    // Switch into delivery state when filled up
     if (!jobMemory.isWorking && creep.store.getFreeCapacity() === 0) {
       jobMemory.isWorking = true;
       creep.say("⚡ transfer");
     }
 
     if (jobMemory.isWorking) {
+      // Spend Energy
+
+      // Select target
       const target = creep.pos.findClosestByPath(FIND_STRUCTURES, {
         filter: (structure) => {
           return (
@@ -66,25 +73,48 @@ class Harvester implements Role {
               structure.structureType === STRUCTURE_SPAWN ||
               structure.structureType === STRUCTURE_TOWER) &&
               structure.store.getFreeCapacity(RESOURCE_ENERGY) > 0) ||
-            structure.structureType === STRUCTURE_CONTROLLER
+            (structure.structureType === STRUCTURE_CONTROLLER && structure.ticksToDowngrade < 1000) ||
+            structure.hits < structure.hitsMax
           );
         },
+      }) ?? creep.pos.findClosestByPath(FIND_CONSTRUCTION_SITES, {
+        filter: (site) => site.progress < site.progressTotal,
       });
-      if (target && target.structureType !== STRUCTURE_CONTROLLER) {
-        if (creep.transfer(target, RESOURCE_ENERGY) === ERR_NOT_IN_RANGE) {
-          creep.moveTo(target, { visualizePathStyle: { stroke: COLOURS.PATH_TARGET } });
-        }
-      } else if (target && target.structureType === STRUCTURE_CONTROLLER) {
-        if (creep.upgradeController(target) === ERR_NOT_IN_RANGE) {
-          creep.moveTo(target, { visualizePathStyle: { stroke: COLOURS.PATH_TARGET } });
-        }
+
+      // Skip if no target found
+      if (target === null) {
+        creep.say("no target :(");
+        return;
       }
+
+      // Move until in range of target
+      if (!creep.pos.inRangeTo(target?.pos, 1)) {
+        console.log(`${creep.name} is moving to ${target}`);
+        creep.moveTo(target, { visualizePathStyle: { stroke: COLOURS.PATH_TARGET }, reusePath: 5 });
+        return;
+      }
+
+      // Deliver energy
+      if (target.structureType === STRUCTURE_CONTROLLER) {
+        creep.upgradeController(target);
+      } else if (target instanceof ConstructionSite) {
+        creep.build(target);
+      } else if (target.hits < target.hitsMax) {
+        creep.repair(target);
+      } else {
+        creep.transfer(target, RESOURCE_ENERGY);
+      }
+
     } else {
+      // Collect Energy
       const source = creep.pos.findClosestByPath(FIND_SOURCES_ACTIVE);
-      if (source) {
-        if (creep.harvest(source) === ERR_NOT_IN_RANGE) {
-          creep.moveTo(source, { visualizePathStyle: { stroke: COLOURS.PATH_SOURCE } });
-        }
+      if (!source) {
+        creep.say("no sources :(");
+        return;
+      }
+
+      if (creep.harvest(source) === ERR_NOT_IN_RANGE) {
+        creep.moveTo(source, { visualizePathStyle: { stroke: COLOURS.PATH_SOURCE }, reusePath: 5 });
       }
     }
   }
@@ -97,11 +127,10 @@ const Roles: { [roleName: string]: Role } = {
 // When compiling TS to JS and bundling with rollup, the line numbers and file names in error messages change
 // This utility uses source maps to get the line numbers and file names of the original, TS source code
 export const loop = ErrorMapper.wrapLoop(() => {
-  console.log(`Current game tick is ${Game.time}`);
-
   // Automatically delete memory of missing creeps
   for (const name in Memory.creeps) {
     if (!(name in Game.creeps)) {
+      console.log(`Cleanup memory for ${name}`);
       delete Memory.creeps[name];
     }
   }
