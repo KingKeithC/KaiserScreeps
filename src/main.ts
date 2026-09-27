@@ -27,6 +27,50 @@ declare const global: {
   log: any;
 }
 
+interface Role {
+  OnTick: (creep: Creep) => void;
+}
+
+const Roles: { [key: string]: Role } = {
+  "harvester": {
+    OnTick: (creep: Creep) => {
+      if (creep.memory.working && creep.store[RESOURCE_ENERGY] === 0) {
+        creep.memory.working = false;
+        creep.say("🔄 harvest");
+      }
+      if (!creep.memory.working && creep.store.getFreeCapacity() === 0) {
+        creep.memory.working = true;
+        creep.say("⚡ transfer");
+      }
+
+      if (creep.memory.working) {
+        const target = creep.pos.findClosestByPath(FIND_STRUCTURES, {
+          filter: (structure) => {
+            return (
+              (structure.structureType === STRUCTURE_EXTENSION ||
+                structure.structureType === STRUCTURE_SPAWN ||
+                structure.structureType === STRUCTURE_TOWER) &&
+              structure.store.getFreeCapacity(RESOURCE_ENERGY) > 0
+            );
+          },
+        });
+        if (target) {
+          if (creep.transfer(target, RESOURCE_ENERGY) === ERR_NOT_IN_RANGE) {
+            creep.moveTo(target, { visualizePathStyle: { stroke: "#ffffff" } });
+          }
+        }
+      } else {
+        const source = creep.pos.findClosestByPath(FIND_SOURCES_ACTIVE);
+        if (source) {
+          if (creep.harvest(source) === ERR_NOT_IN_RANGE) {
+            creep.moveTo(source, { visualizePathStyle: { stroke: "#ffaa00" } });
+          }
+        }
+      }
+    },
+  },
+};
+
 // When compiling TS to JS and bundling with rollup, the line numbers and file names in error messages change
 // This utility uses source maps to get the line numbers and file names of the original, TS source code
 export const loop = ErrorMapper.wrapLoop(() => {
@@ -36,6 +80,30 @@ export const loop = ErrorMapper.wrapLoop(() => {
   for (const name in Memory.creeps) {
     if (!(name in Game.creeps)) {
       delete Memory.creeps[name];
+    }
+  }
+
+  for (const roomName in Game.rooms) {
+    const room = Game.rooms[roomName];
+
+    for (const creepName in room.find(FIND_MY_CREEPS)) {
+      const creep = Game.creeps[creepName];
+
+      // Skip the ones that are still spawning
+      if (creep.spawning) continue;
+
+      // Update the creep's room name
+      creep.memory.room = room.name;
+
+      // Perform role logic
+      const role = Roles[creep.memory.role];
+      if (role) {
+        role.OnTick(creep);
+      } else if (creep.memory.role === undefined) {
+        creep.memory.role = "harvester";
+      } else {
+        console.log(`Unknown role: ${creep.memory.role}`);
+      }
     }
   }
 });
