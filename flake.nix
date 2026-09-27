@@ -18,6 +18,9 @@
             typescript
             typescript-language-server
           ];
+          shellHook = ''
+            pnpm install
+          '';
         };
       }
     );
