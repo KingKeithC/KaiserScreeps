@@ -1,4 +1,3 @@
-import { object } from "lodash";
 import { ErrorMapper } from "utils/ErrorMapper";
 
 declare global {
@@ -140,16 +139,16 @@ class Harvester extends Role {
 
       // Deliver energy
       if (target.structureType === STRUCTURE_CONTROLLER) {
-        console.log(`${creep.name} is upgrading ${target}`);
+        console.log(`${creep.name} is upgrading ${target} (Downgrade in ${target.ticksToDowngrade})`);
         creep.upgradeController(target);
       } else if (target instanceof ConstructionSite) {
-        console.log(`${creep.name} is building ${target}`);
+        console.log(`${creep.name} is building ${target} (${target.progress}/${target.progressTotal}) %${(target.progress / target.progressTotal).toFixed(2)}`);
         creep.build(target);
       } else if (target.hits < target.hitsMax) {
-        console.log(`${creep.name} is repairing ${target}`);
+        console.log(`${creep.name} is repairing ${target} (${target.hits}/${target.hitsMax}) %${(target.hits / target.hitsMax).toFixed(2)}`);
         creep.repair(target);
       } else {
-        console.log(`${creep.name} is transferring to ${target}`);
+        console.log(`${creep.name} is transferring to ${target} (${target.getFreeCapacity(RESOURCE_ENERGY)} free)`);
         creep.transfer(target, RESOURCE_ENERGY);
       }
 
