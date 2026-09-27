@@ -33,15 +33,60 @@ const COLOURS = {
   PATH_TARGET: "#ffffff",
 }
 
-interface Role {
-  RoleName: string;
-  CountPerRoom: number;
-  BodyParts: BodyPartConstant[];
-  InitJobMemory: object;
-  OnTick: (creep: Creep, room: Room) => void;
+abstract class Role {
+  abstract RoleName: string;
+  abstract CountPerRoom: number;
+  abstract BodyParts: BodyPartConstant[];
+  abstract InitJobMemory: object;
+  abstract OnTick(creep: Creep, room: Room): void;
+
+  RoleBodyCost(): number {
+    var total: number = 0;
+    for (const part of this.BodyParts) total += BODYPART_COST[part];
+    return total;
+  }
+
+  // Run role logic for each creep in the room
+  RunForRoom(room: Room): void {
+    for (const creep of room.find(FIND_MY_CREEPS,
+      { filter: (creep) => creep.memory.role === this.RoleName })
+    ) {
+      this.OnTick(creep, room);
+    }
+  }
+
+  TopUpRoomCount(room: Room): void {
+    const currentCount = room.find(FIND_MY_CREEPS).length;
+    if (currentCount >= this.CountPerRoom) return;
+
+    var msg: string = `${room} has ${currentCount}/${this.CountPerRoom}, `;
+
+    const spawns = room.find(FIND_MY_SPAWNS, {
+      filter: (spawn) =>
+        !spawn.spawning && spawn.store.energy >= this.RoleBodyCost()
+    });
+
+    if (spawns.length === 0) {
+      msg += "no spawns available."
+      console.log(msg);
+      return;
+    }
+
+    spawns[0].spawnCreep(
+      this.BodyParts,
+      `${this.RoleName}-${Game.time}`,
+      {
+        memory: {
+          role: this.RoleName,
+          jobMemory: this.InitJobMemory,
+          room: room.name
+        },
+      }
+    );
+  }
 }
 
-class Harvester implements Role {
+class Harvester extends Role {
   RoleName = "harvester";
   CountPerRoom = 3;
   BodyParts = [WORK, CARRY, MOVE];
@@ -138,40 +183,11 @@ export const loop = ErrorMapper.wrapLoop(() => {
     }
   }
 
+  // Iterate the Rooms and Roles
   for (const [roomName, room] of Object.entries(Game.rooms)) {
-    const spawns = room.find(FIND_MY_SPAWNS);
-    if (spawns.length === 0) continue; // Skip rooms without spawns
-    const mainSpawn = spawns[0];
-
-    // Check if we need to spawn more creeps for each role in the room
     for (const [roleName, role] of Object.entries(Roles)) {
-      const creeps = room.find(FIND_MY_CREEPS, {
-        filter: (creep) => creep.memory.role === roleName,
-      });
-      if (creeps.length < role.CountPerRoom) {
-        console.log(`Room ${roomName} has ${creeps.length} ${roleName}s, needs ${role.CountPerRoom}`);
-
-        if (creeps.length < role.CountPerRoom && !mainSpawn.spawning && mainSpawn.store.getUsedCapacity(RESOURCE_ENERGY) >= 200) {
-          const newName = `${roleName}${Game.time}`;
-          mainSpawn.spawnCreep(role.BodyParts, newName, {
-            memory: { role: roleName, jobMemory: role.InitJobMemory, room: room.name },
-          });
-          console.log(`Spawning new ${roleName}: ${newName}`);
-        }
-      }
-    }
-
-    // Run role logic for each creep in the room
-    for (const creep of room.find(FIND_MY_CREEPS)) {
-      // Perform role logic
-      const role = Roles[creep.memory.role];
-      if (role) {
-        role.OnTick(creep, room);
-      } else if (creep.memory.role === undefined) {
-        creep.memory.role = "harvester";
-      } else {
-        console.log(`Unknown role: ${creep.memory.role}`);
-      }
+      role.TopUpRoomCount(room);
+      role.RunForRoom(room);
     }
   }
 });
