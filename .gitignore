@@ -21,6 +21,10 @@ screeps.json
 # ScreepsServer data from integration tests
 /server
 
+# Screeps script if repo is in game folder
+main.js
+main.js.map.js
+
 # Numerous always-ignore extensions
 *.diff
 *.err
