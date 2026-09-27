@@ -1,7 +1,9 @@
 {
   "compilerOptions": {
     "module": "esnext",
-    "lib": ["es2018"],
+    "lib": [
+      "es2018"
+    ],
     "target": "es2018",
     "moduleResolution": "Node",
     "outDir": "dist",
@@ -13,5 +15,7 @@
     "allowSyntheticDefaultImports": true,
     "allowUnreachableCode": false
   },
-  "exclude": ["node_modules"]
+  "exclude": [
+    "node_modules"
+  ]
 }
