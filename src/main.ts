@@ -100,7 +100,7 @@ export const loop = ErrorMapper.wrapLoop(() => {
     const harvesters = room.find(FIND_MY_CREEPS, {
       filter: (creep) => creep.memory.role === "harvester",
     });
-    if (harvesters.length < Roles.harvester.CountPerRoom && !mainSpawn.spawning) {
+    if (harvesters.length < Roles.harvester.CountPerRoom && !mainSpawn.spawning && mainSpawn.store.getUsedCapacity(RESOURCE_ENERGY) >= 200) {
       const newName = `Harvester${Game.time}`;
       mainSpawn.spawnCreep(Roles.harvester.BodyParts, newName, {
         memory: { role: "harvester", working: false, room: room.name },
@@ -108,12 +108,7 @@ export const loop = ErrorMapper.wrapLoop(() => {
       console.log(`Spawning new harvester: ${newName}`);
     }
 
-    for (const creepName in room.find(FIND_MY_CREEPS)) {
-      const creep = Game.creeps[creepName];
-
-      // Skip the ones that are still spawning
-      if (creep.spawning) continue;
-
+    for (const creep of room.find(FIND_MY_CREEPS)) {
       // Update the creep's room name
       creep.memory.room = room.name;
 
