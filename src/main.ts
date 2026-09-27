@@ -148,7 +148,7 @@ class Harvester extends Role {
         console.log(`${creep.name} is repairing ${target} (${target.hits}/${target.hitsMax}) %${(target.hits / target.hitsMax).toFixed(2)}`);
         creep.repair(target);
       } else {
-        console.log(`${creep.name} is transferring to ${target} (${target.getFreeCapacity(RESOURCE_ENERGY)} free)`);
+        console.log(`${creep.name} is transferring to ${target}.`);
         creep.transfer(target, RESOURCE_ENERGY);
       }
 
