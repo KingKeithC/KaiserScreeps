@@ -28,11 +28,15 @@ declare const global: {
 }
 
 interface Role {
+  CountPerRoom: number;
+  BodyParts: BodyPartConstant[];
   OnTick: (creep: Creep) => void;
 }
 
 const Roles: { [key: string]: Role } = {
   "harvester": {
+    CountPerRoom: 2,
+    BodyParts: [WORK, CARRY, MOVE],
     OnTick: (creep: Creep) => {
       if (creep.memory.working && creep.store[RESOURCE_ENERGY] === 0) {
         creep.memory.working = false;
@@ -85,6 +89,24 @@ export const loop = ErrorMapper.wrapLoop(() => {
 
   for (const roomName in Game.rooms) {
     const room = Game.rooms[roomName];
+
+    const spawns = room.find(FIND_MY_SPAWNS);
+    if (spawns.length == 0) {
+      continue;
+    }
+    const mainSpawn = spawns[0];
+
+    // Spawn logic
+    const harvesters = room.find(FIND_MY_CREEPS, {
+      filter: (creep) => creep.memory.role === "harvester",
+    });
+    if (harvesters.length < Roles.harvester.CountPerRoom) {
+      const newName = `Harvester${Game.time}`;
+      mainSpawn.spawnCreep(Roles.harvester.BodyParts, newName, {
+        memory: { role: "harvester", working: false, room: room.name },
+      });
+      console.log(`Spawning new harvester: ${newName}`);
+    }
 
     for (const creepName in room.find(FIND_MY_CREEPS)) {
       const creep = Game.creeps[creepName];
