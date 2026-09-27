@@ -172,9 +172,7 @@ const Roles: { [roleName: string]: Role } = {
   harvester: new Harvester(),
 };
 
-// When compiling TS to JS and bundling with rollup, the line numbers and file names in error messages change
-// This utility uses source maps to get the line numbers and file names of the original, TS source code
-export const loop = ErrorMapper.wrapLoop(() => {
+const MainLoop = () => {
   // Automatically delete memory of missing creeps
   for (const name in Memory.creeps) {
     if (!(name in Game.creeps)) {
@@ -190,4 +188,8 @@ export const loop = ErrorMapper.wrapLoop(() => {
       role.RunForRoom(room);
     }
   }
-});
+}
+
+// When compiling TS to JS and bundling with rollup, the line numbers and file names in error messages change
+// This utility uses source maps to get the line numbers and file names of the original, TS source code
+export const loop = ErrorMapper.wrapLoop(MainLoop);
