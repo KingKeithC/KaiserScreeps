@@ -255,11 +255,13 @@ class Harvester extends Role {
     const m = creep.memory.jobMemory as HarvesterMemory;
     if (m.target == null || m.target == undefined) {
       creep.say("X_X");
+      console.log(`Act: ${creep} forgot their target`)
       return;
     }
     const targetObject = Game.getObjectById(m.target);
     if (targetObject == null || targetObject == undefined) {
       creep.say("H_X");
+      console.log(`Act: ${creep} target dissappeared`)
       return;
     }
 
@@ -301,7 +303,7 @@ class Harvester extends Role {
 
     switch (result) {
       case ERR_NOT_IN_RANGE: creep.moveTo(targetObject, { visualizePathStyle: { stroke: COLOURS.PATH_TARGET } });
-      case ERR_NOT_ENOUGH_ENERGY || ERR_NOT_ENOUGH_RESOURCES: this.Reassign(creep);
+      case ERR_NOT_ENOUGH_ENERGY: this.Reassign(creep);
     }
   }
 
@@ -309,11 +311,13 @@ class Harvester extends Role {
     const m = creep.memory.jobMemory as HarvesterMemory;
     if (m.target == null || m.target == undefined) {
       creep.say("X_X");
+      console.log(`IsDeliveryComplete: ${creep} forgot their target`)
       return true;
     }
     const targetObject = Game.getObjectById(m.target);
     if (targetObject == null || targetObject == undefined) {
       creep.say("H_X");
+      console.log(`IsDeliveryComplete: ${creep} target dissappeared`)
       return true;
     }
 
