@@ -28,8 +28,8 @@ declare const global: {
 }
 
 const COLOURS = {
-  PATH_SHORT: "#d70cb8",
-  PATH_LONG: "#ffffff",
+  PATH_SHORT: "#08ed04",
+  PATH_LONG: "#cb06c5",
 }
 
 abstract class Role {
