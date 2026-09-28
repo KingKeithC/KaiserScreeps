@@ -177,22 +177,22 @@ class Harvester extends Role {
   OnTick(creep: Creep, room: Room): void {
     if (creep.memory.jobMemory == null) {
       console.log(`${room}${creep}: OnTick: jobMemory == null`)
-      this.Reassign(creep);
+      this.Reassign(creep, room);
     }
     else if (creep.memory.jobMemory == undefined) {
       console.log(`${room}${creep}: OnTick: jobMemory == undefined`)
-      this.Reassign(creep);
+      this.Reassign(creep, room);
     }
     else if (this.IsDeliveryComplete(creep, room)) {
       // console.log(`${room}${creep}: OnTick: IsDeliveryComplete is true`)
-      this.Reassign(creep);
+      this.Reassign(creep, room);
     }
     else {
       this.Act(creep, room);
     }
   }
 
-  Reassign(creep: Creep): void {
+  Reassign(creep: Creep, room: Room): void {
     const mem = (creep.memory.jobMemory as HarvesterMemory) = new HarvesterMemory();
     // console.log(`Reassign ${creep}!`);
 
@@ -226,11 +226,13 @@ class Harvester extends Role {
     }
 
     // Controllers at risk of downgrade
-    targetObject = creep.pos.findClosestByPath(FIND_MY_STRUCTURES, {
-      filter: (structure) =>
-        structure.structureType === STRUCTURE_CONTROLLER
-        && structure.ticksToDowngrade < this.DowngradeStopThreshold
-    });
+    if (room)
+
+      targetObject = creep.pos.findClosestByPath(FIND_MY_STRUCTURES, {
+        filter: (structure) =>
+          structure.structureType === STRUCTURE_CONTROLLER
+          && structure.ticksToDowngrade < this.DowngradeStopThreshold
+      });
     if (targetObject) {
       mem.target = targetObject.id;
       mem.action = HarvesterAction.StopDowngrade;
@@ -358,7 +360,7 @@ class Harvester extends Role {
         // console.log(`${room}${creep}: Act: MoveTo for ${creep} resulted in: ${moveOutcome}`);
 
         if (moveOutcome === ERR_NO_PATH)
-          this.Reassign(creep);
+          this.Reassign(creep, room);
 
         return;
       }
