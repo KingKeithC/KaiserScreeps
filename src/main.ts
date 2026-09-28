@@ -156,7 +156,7 @@ class Harvester extends Role {
 
   Reassign(creep: Creep): void {
     const mem = (creep.memory.jobMemory as HarvesterMemory) = new HarvesterMemory();
-    console.log(`Reassigned called on ${creep}!`);
+    console.log(`Reassign ${creep}!`);
 
     // Harvest if we have extra space
     if (creep.store.getFreeCapacity(RESOURCE_ENERGY) > 0) {
@@ -164,8 +164,9 @@ class Harvester extends Role {
       if (source) {
         mem.target = source.id;
         mem.action = HarvesterAction.Harvest;
+        creep.say("⛏️⚡️")
       } else {
-        creep.say("no sources :(");
+        creep.say("🤷‍♂️⚡️");
       }
       return;
     }
@@ -182,6 +183,7 @@ class Harvester extends Role {
     if (targetObject) {
       mem.target = targetObject.id;
       mem.action = HarvesterAction.Transfer;
+      creep.say("💦");
       return;
     }
 
@@ -192,6 +194,7 @@ class Harvester extends Role {
     if (targetObject) {
       mem.target = targetObject.id;
       mem.action = HarvesterAction.StopDowngrade;
+      creep.say("🦸‍♀️");
       return;
     }
 
@@ -202,6 +205,7 @@ class Harvester extends Role {
     if (targetObject) {
       mem.target = targetObject.id;
       mem.action = HarvesterAction.Repair;
+      creep.say("🛠️");
       return;
     }
 
@@ -212,6 +216,7 @@ class Harvester extends Role {
     if (targetObject) {
       mem.target = targetObject.id;
       mem.action = HarvesterAction.Build;
+      creep.say("🏗️");
       return;
     }
 
@@ -222,10 +227,11 @@ class Harvester extends Role {
     if (targetObject) {
       mem.target = targetObject.id;
       mem.action = HarvesterAction.Upgrade;
+      creep.say("🆙");
       return;
     }
 
-    creep.say("no targets :(");
+    creep.say("🥱");
   }
 
   Act(creep: Creep): void {
