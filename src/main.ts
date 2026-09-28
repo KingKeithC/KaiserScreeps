@@ -183,8 +183,8 @@ class Harvester extends Role {
     const mem = (creep.memory.jobMemory as HarvesterMemory) = new HarvesterMemory();
     console.log(`Reassign ${creep}!`);
 
-    // Harvest if we have extra space
-    if (creep.store.getFreeCapacity(RESOURCE_ENERGY) > 0) {
+    // Harvest if we are empty
+    if (creep.store.getUsedCapacity(RESOURCE_ENERGY) === 0) {
       const source = creep.pos.findClosestByPath(FIND_SOURCES_ACTIVE);
       if (source) {
         mem.target = source.id;
@@ -199,7 +199,7 @@ class Harvester extends Role {
     // Select target in order of priority
     var targetObject;
 
-    // Spawns low on energy
+    // Spawns with room for energy
     targetObject = creep.pos.findClosestByPath(FIND_MY_STRUCTURES, {
       filter: (structure) =>
         (structure.structureType === STRUCTURE_EXTENSION || structure.structureType === STRUCTURE_SPAWN)
@@ -214,7 +214,9 @@ class Harvester extends Role {
 
     // Controllers at risk of downgrade
     targetObject = creep.pos.findClosestByPath(FIND_MY_STRUCTURES, {
-      filter: (structure) => structure.structureType === STRUCTURE_CONTROLLER && structure.ticksToDowngrade < this.DowngradeStopThreshold
+      filter: (structure) =>
+        structure.structureType === STRUCTURE_CONTROLLER
+        && (structure.ticksToDowngrade < this.DowngradeStopThreshold || structure.level < this.DesiredRCL)
     });
     if (targetObject) {
       mem.target = targetObject.id;
