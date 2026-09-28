@@ -194,7 +194,7 @@ class Harvester extends Role {
 
   Reassign(creep: Creep): void {
     const mem = (creep.memory.jobMemory as HarvesterMemory) = new HarvesterMemory();
-    console.log(`Reassign ${creep}!`);
+    // console.log(`Reassign ${creep}!`);
 
     // Harvest if we are empty
     if (creep.store.getUsedCapacity(RESOURCE_ENERGY) === 0) {
