@@ -278,7 +278,7 @@ class Harvester extends Role {
 
     switch (result) {
       case ERR_NOT_IN_RANGE: creep.moveTo(targetObject, { visualizePathStyle: { stroke: COLOURS.PATH_TARGET } });
-      // case ERR_NOT_ENOUGH_ENERGY || ERR_NOT_ENOUGH_RESOURCES: this.Reassign(creep);
+      case ERR_NOT_ENOUGH_ENERGY || ERR_NOT_ENOUGH_RESOURCES: this.Reassign(creep);
     }
   }
 
