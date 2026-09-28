@@ -331,7 +331,7 @@ class Harvester extends Role {
       case OK:
         return;
       case ERR_NOT_IN_RANGE: {
-        creep.moveTo(targetObject, { visualizePathStyle: { stroke: COLOURS.PATH_TARGET } });
+        creep.moveTo(targetObject, { visualizePathStyle: { stroke: COLOURS.PATH_TARGET }, ignoreCreeps: true });
         return;
       }
       default: {
