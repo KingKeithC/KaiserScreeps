@@ -72,7 +72,7 @@ abstract class Role {
 
     // or quota met
     if (this.CreepsInRole(room).length >= this.CountPerRoom) {
-      console.log(`SpawnRequirementsMet ${this.RoleName}: Quote met`);
+      console.log(`SpawnRequirementsMet ${this.RoleName}: Quota met`);
       return true;
     }
 
@@ -87,7 +87,7 @@ abstract class Role {
   }
 
   SpawnIfNeeded(room: Room): void {
-    if (Game.time % this.SpawnRate && this.SpawnRequirementsMet(room)) {
+    if (Game.time % this.SpawnRate == 0 && this.SpawnRequirementsMet(room)) {
       return;
     }
 
@@ -165,10 +165,21 @@ class Harvester extends Role {
   DowngradeStopThreshold = 1000;
 
   OnTick(creep: Creep, room: Room): void {
-    if (!creep.memory.jobMemory || this.IsDeliveryComplete(creep))
+    if (creep.memory.jobMemory == null) {
+      console.log(`${creep} jobMemory == null; reassigning`)
       this.Reassign(creep);
-    else
+    }
+    else if (creep.memory.jobMemory == undefined) {
+      console.log(`${creep} jobMemory == undefined; reassigning`)
+      this.Reassign(creep);
+    }
+    else if (this.IsDeliveryComplete(creep)) {
+      console.log(`${creep} IsDeliveryComplete; reassigning`)
+      this.Reassign(creep);
+    }
+    else {
       this.Act(creep);
+    }
   }
 
   Reassign(creep: Creep): void {
@@ -302,8 +313,20 @@ class Harvester extends Role {
     }
 
     switch (result) {
-      case ERR_NOT_IN_RANGE: creep.moveTo(targetObject, { visualizePathStyle: { stroke: COLOURS.PATH_TARGET } });
-      case ERR_NOT_ENOUGH_ENERGY: this.Reassign(creep);
+      case OK:
+        return;
+      case ERR_NOT_IN_RANGE: {
+        creep.moveTo(targetObject.pos, { visualizePathStyle: { stroke: COLOURS.PATH_TARGET }, reusePath: 5 });
+        return;
+      }
+      case ERR_NOT_ENOUGH_ENERGY: {
+        this.Reassign(creep);
+        return;
+      }
+      default: {
+        console.log(`Act ${m.action} for ${creep} was not successful: ${result}`);
+        return;
+      }
     }
   }
 
