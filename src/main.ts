@@ -73,7 +73,7 @@ abstract class Role {
   }
 
   SpawnIfNeeded(room: Room): void {
-    if (this.SpawnRequirementsMet(room)) return;
+    if (!this.SpawnRequirementsMet(room)) return;
     var msg: string = `${room} has ${this.CreepsInRole(room).length}/${this.CountPerRoom} of '${this.RoleName}', `;
 
     // Find a suitable spawn point
@@ -156,7 +156,7 @@ class Harvester extends Role {
 
   Reassign(creep: Creep): void {
     const mem = (creep.memory.jobMemory as HarvesterMemory) = new HarvesterMemory();
-    creep.say('Reassigned!')
+    console.log(`Reassigned called on ${creep}!`);
 
     // Harvest if we have extra space
     if (creep.store.getFreeCapacity(RESOURCE_ENERGY) > 0) {
@@ -277,9 +277,8 @@ class Harvester extends Role {
     }
 
     switch (result) {
-      case OK: { creep.say("OwO") }
-      case ERR_NOT_IN_RANGE: creep.moveTo(targetObject, { visualizePathStyle: { fill: COLOURS.PATH_TARGET } });
-      case ERR_NOT_ENOUGH_ENERGY || ERR_NOT_ENOUGH_RESOURCES: this.Reassign(creep);
+      case ERR_NOT_IN_RANGE: creep.moveTo(targetObject, { visualizePathStyle: { stroke: COLOURS.PATH_TARGET } });
+      // case ERR_NOT_ENOUGH_ENERGY || ERR_NOT_ENOUGH_RESOURCES: this.Reassign(creep);
     }
   }
 
