@@ -200,17 +200,17 @@ class Harvester extends Role {
   }
 
   Reassign(creep: Creep, room: Room): void {
+    const mem = creep.memory.jobMemory as HarvesterMemory;
     // console.log(`${room}${creep} Reassigned!`);
 
     // Run Cleanup Tasks
-    const oldMem = creep.memory.jobMemory as HarvesterMemory;
-    if (oldMem.action === HarvesterAction.StopDowngrade)
+    if (mem.action === HarvesterAction.StopDowngrade)
       room.memory.countPreventingDowngrade--;
-    if (oldMem.action === HarvesterAction.Upgrade)
+    if (mem.action === HarvesterAction.Upgrade)
       room.memory.countPerformingUpgrade--;
 
-    // Reset memory, and set new Task
-    const mem = (creep.memory.jobMemory as HarvesterMemory) = new HarvesterMemory();
+    // Reset target, and set new Task
+    mem.target = null;
 
     // Harvest if we are empty
     if (creep.store.getUsedCapacity(RESOURCE_ENERGY) === 0) {
