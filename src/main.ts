@@ -1,4 +1,3 @@
-import { object } from "lodash";
 import { ErrorMapper } from "utils/ErrorMapper";
 
 declare global {
@@ -62,51 +61,48 @@ abstract class Role {
 
   protected CreepsInRole = (room: Room) => room.find(FIND_MY_CREEPS, { filter: (creep) => creep.memory.role === this.RoleName });
 
-  protected SpawnRequirementsMet(room: Room): boolean {
-    // Skip spawn if RCL is wrong
+  protected NeedToSpawn(room: Room): boolean {
+    // Cannot spawn if RCL is wrong
     const rcl = room.controller?.level ?? -1;
     if (rcl < this.SpawnAtRCL || rcl >= this.StopSpawnAtRCL) {
-      console.log(`SpawnRequirementsMet ${this.RoleName}: RCL (${rcl}) LT ${this.SpawnAtRCL} or GE ${this.StopSpawnAtRCL}`);
-      return true;
+      console.log(`${room}[${this.RoleName}]: RCL (${rcl}) LT ${this.SpawnAtRCL} or GE ${this.StopSpawnAtRCL}`);
+      return false;
     };
 
     // or quota met
     const current = this.CreepsInRole(room).length;
     if (current >= this.CountPerRoom) {
-      console.log(`SpawnRequirementsMet ${this.RoleName}: Quota met ${current}/${this.CountPerRoom}`);
-      return true;
+      // console.log(`${room}[${this.RoleName}]: Quota Met ${current}/${this.CountPerRoom}`);
+      return false;
     }
 
     // or a spawn is already in progress
     if (room.find(FIND_MY_SPAWNS, { filter: (s) => s.spawning }).length) {
-      console.log(`SpawnRequirementsMet ${this.RoleName}: Spawn is in progress.`);
-      return true;
+      // console.log(`${room}[${this.RoleName}]: Another spawn is in progress.`);
+      return false;
     }
 
-    // otherwise requirements are unmet
-    return false;
+    // console.log(`${room}[${this.RoleName}]: Spawn Needed.`);
+    return true;
   }
 
   SpawnIfNeeded(room: Room): void {
-    // Nothing to spawn if reqs are met or it's the off season
-    if (this.SpawnRequirementsMet(room) || Game.time % this.SpawnRate !== 0) {
-      return;
-    }
+    if (Game.time % this.SpawnRate !== 0) return; // Attempt spawn infrequently
+    if (!this.NeedToSpawn(room)) return;          // Sometimes we don't need to spawn anything
 
-    var msg: string = `${room} has ${this.CreepsInRole(room).length}/${this.CountPerRoom} of '${this.RoleName}', `;
+    // It's Needed
 
     // Find a suitable spawn point
     const spawns = room.find(FIND_MY_SPAWNS, {
       filter: (spawn) => !spawn.spawning && spawn.store.energy >= this.RoleBodyCost()
     });
-
     if (spawns.length === 0) {
-      msg += "no spawns available."
-      console.log(msg);
       return;
     }
 
+    // Do the spawn
     const spawnPoint = spawns[0];
+    console.log(`${room}[${this.RoleName}]: ${this.CreepsInRole(room).length}/${this.CountPerRoom} +1 @ ${spawnPoint}...`);
     spawnPoint.spawnCreep(
       this.BodyParts,
       `${this.RoleName}-${Game.time}`,
@@ -118,7 +114,6 @@ abstract class Role {
         },
       }
     );
-    console.log(msg + `spawning at ${spawnPoint}...`);
   }
 
   RefreshEmptyCreeps(room: Room): void {
@@ -168,15 +163,15 @@ class Harvester extends Role {
 
   OnTick(creep: Creep, room: Room): void {
     if (creep.memory.jobMemory == null) {
-      console.log(`${creep} jobMemory == null; reassigning`)
+      console.log(`${room}[${this.RoleName}]: OnTick: jobMemory == null`)
       this.Reassign(creep);
     }
     else if (creep.memory.jobMemory == undefined) {
-      console.log(`${creep} jobMemory == undefined; reassigning`)
+      console.log(`${room}[${this.RoleName}]: OnTick: jobMemory == undefined`)
       this.Reassign(creep);
     }
     else if (this.IsDeliveryComplete(creep)) {
-      console.log(`${creep} IsDeliveryComplete; reassigning`)
+      console.log(`${room}[${this.RoleName}]: OnTick: IsDeliveryComplete is true`)
       this.Reassign(creep);
     }
     else {
@@ -267,14 +262,12 @@ class Harvester extends Role {
   Act(creep: Creep): void {
     const m = creep.memory.jobMemory as HarvesterMemory;
     if (m.target == null || m.target == undefined) {
-      creep.say("X_X");
-      console.log(`Act: ${creep} forgot their target`)
+      console.log(`${creep.memory.room}[${this.RoleName}]: Act: ${creep} has null/undefined target in memory`)
       return;
     }
     const targetObject = Game.getObjectById(m.target);
     if (targetObject == null || targetObject == undefined) {
-      creep.say("H_X");
-      console.log(`Act: ${creep} target dissappeared`)
+      console.log(`${creep.memory.room}[${this.RoleName}]: Act: ${creep} Game.getObjectById returned null`)
       return;
     }
 
@@ -307,7 +300,7 @@ class Harvester extends Role {
       case (HarvesterAction.Harvest): {
         const t = targetObject as Source;
         result = creep.harvest(t)
-        if (result === OK) console.log(`${creep.name} mined ${t}.`)
+        // if (result === OK) console.log(`${creep.name} mined ${t}.`)
         break;
       }
       default:
@@ -335,14 +328,12 @@ class Harvester extends Role {
   IsDeliveryComplete(creep: Creep): boolean {
     const m = creep.memory.jobMemory as HarvesterMemory;
     if (m.target == null || m.target == undefined) {
-      creep.say("X_X");
-      console.log(`IsDeliveryComplete: ${creep} forgot their target`)
+      console.log(`${creep.memory.room}[${this.RoleName}]: IsDeliveryComplete: ${creep} has null/undefined target in memory`)
       return true;
     }
     const targetObject = Game.getObjectById(m.target);
     if (targetObject == null || targetObject == undefined) {
-      creep.say("H_X");
-      console.log(`IsDeliveryComplete: ${creep} target dissappeared`)
+      console.log(`${creep.memory.room}[${this.RoleName}]: IsDeliveryComplete: ${creep} Game.getObjectById returned null`)
       return true;
     }
 
