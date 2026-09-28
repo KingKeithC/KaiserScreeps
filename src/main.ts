@@ -467,8 +467,10 @@ const MainLoop = () => {
   for (const [roomName, room] of Object.entries(Game.rooms)) {
 
     // Init Room Memory
-    if (room.memory.countPreventingDowngrade == null || room.memory.countPreventingDowngrade == undefined)
+    if (room.memory.countPreventingDowngrade == null || room.memory.countPreventingDowngrade == undefined || room.memory.countPreventingDowngrade < 0)
       room.memory.countPreventingDowngrade = 0;
+    if (room.memory.countPerformingUpgrade == null || room.memory.countPerformingUpgrade == undefined || room.memory.countPerformingUpgrade < 0)
+      room.memory.countPerformingUpgrade = 0;
 
     for (const [roleName, role] of Object.entries(Roles)) {
       role.RunForRoom(room);
