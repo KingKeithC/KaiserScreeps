@@ -216,7 +216,7 @@ class Harvester extends Role {
     targetObject = creep.pos.findClosestByPath(FIND_MY_STRUCTURES, {
       filter: (structure) =>
         structure.structureType === STRUCTURE_CONTROLLER
-        && (structure.ticksToDowngrade < this.DowngradeStopThreshold || structure.level < this.DesiredRCL)
+        && structure.ticksToDowngrade < this.DowngradeStopThreshold
     });
     if (targetObject) {
       mem.target = targetObject.id;
@@ -249,7 +249,7 @@ class Harvester extends Role {
 
     // Pending Upgrades
     targetObject = creep.pos.findClosestByPath(FIND_MY_STRUCTURES, {
-      filter: (structure) => structure.structureType === STRUCTURE_CONTROLLER && structure.level < 8
+      filter: (structure) => structure.structureType === STRUCTURE_CONTROLLER && structure.level < this.DesiredRCL
     });
     if (targetObject) {
       mem.target = targetObject.id;
@@ -319,11 +319,7 @@ class Harvester extends Role {
       case OK:
         return;
       case ERR_NOT_IN_RANGE: {
-        creep.moveTo(targetObject.pos, { visualizePathStyle: { stroke: COLOURS.PATH_TARGET }, reusePath: 5 });
-        return;
-      }
-      case ERR_NOT_ENOUGH_ENERGY: {
-        this.Reassign(creep);
+        creep.moveTo(targetObject, { visualizePathStyle: { stroke: COLOURS.PATH_TARGET } });
         return;
       }
       default: {
@@ -342,6 +338,11 @@ class Harvester extends Role {
     const targetObject = Game.getObjectById(m.target);
     if (targetObject == null || targetObject == undefined) {
       console.log(`${creep.memory.room}[${creep}]: IsDeliveryComplete: ${creep} Game.getObjectById returned null`)
+      return true;
+    }
+
+    if (m.action !== HarvesterAction.Harvest && creep.store.getUsedCapacity(RESOURCE_ENERGY) === 0) {
+      console.log(`${creep.memory.room}[${creep}]: IsDeliveryComplete: ${creep} ran out of Energy`)
       return true;
     }
 
