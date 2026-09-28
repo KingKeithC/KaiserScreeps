@@ -1,3 +1,4 @@
+import { object } from "lodash";
 import { ErrorMapper } from "utils/ErrorMapper";
 
 declare global {
@@ -35,13 +36,16 @@ const COLOURS = {
 abstract class Role {
   abstract RoleName: string;
   abstract CountPerRoom: number;
+
+  // Body for creeps spawned of this role
   abstract BodyParts: BodyPartConstant[];
-  abstract InitJobMemory: object;
-  abstract OnTick(creep: Creep, room: Room): void;
 
   // Minimum RCL needed to start using this role.
   abstract SpawnAtRCL: number;
   StopSpawnAtRCL: number = 100;
+
+  // Main logic for custom role
+  abstract OnTick(creep: Creep, room: Room): void;
 
   RoleBodyCost(): number {
     var total: number = 0;
@@ -75,7 +79,7 @@ abstract class Role {
     return false;
   }
 
-  TopUpRoomCount(room: Room): void {
+  SpawnIfNeeded(room: Room): void {
     if (this.SpawnRequirementsMet(room)) return;
     var msg: string = `${room} has ${this.CreepsInRole(room).length}/${this.CountPerRoom} of '${this.RoleName}', `;
 
@@ -106,85 +110,206 @@ abstract class Role {
   }
 }
 
+enum DeliveryAction {
+  Harvest,
+  Upgrade,
+  StopDowngrade,
+  Build,
+  Repair,
+  Transfer,
+}
+
+class HarvesterMemory {
+  action: DeliveryAction = DeliveryAction.Harvest;
+  target: Id<ConstructionSite<BuildableStructureConstant> | AnyOwnedStructure | Source> | null = null;
+}
+
 class Harvester extends Role {
   SpawnAtRCL = 0;
   RoleName = "harvester";
   CountPerRoom = 6;
   BodyParts = [WORK, CARRY, MOVE];
-  InitJobMemory: { isWorking: boolean } = { isWorking: false };
+  DesiredRCL = 3;
+  DowngradeStopThreshold = 1000;
+
+  Reassign(creep: Creep): void {
+    const m = (creep.memory.jobMemory as HarvesterMemory) = new HarvesterMemory();
+    creep.say('Reassigned!')
+
+    // Harvest if we have extra space
+
+    if (creep.store.getFreeCapacity(RESOURCE_ENERGY) > 0) {
+      const source = creep.pos.findClosestByPath(FIND_SOURCES_ACTIVE);
+      if (source) {
+        m.target = source.id;
+        m.action = DeliveryAction.Harvest;
+      } else {
+        creep.say("no sources :(");
+      }
+      return;
+    }
+
+    // Select target in order of priority
+    var targetObject;
+
+    // Spawns low on energy
+    targetObject = creep.pos.findClosestByPath(FIND_MY_STRUCTURES, {
+      filter: (structure) =>
+        (structure.structureType === STRUCTURE_EXTENSION || structure.structureType === STRUCTURE_SPAWN)
+        && structure.store.getFreeCapacity(RESOURCE_ENERGY) > 0
+    });
+    if (targetObject) {
+      m.target = targetObject.id;
+      m.action = DeliveryAction.Transfer;
+      return;
+    }
+
+    // Controllers at risk of downgrade
+    targetObject = creep.pos.findClosestByPath(FIND_MY_STRUCTURES, {
+      filter: (structure) => structure.structureType === STRUCTURE_CONTROLLER && structure.ticksToDowngrade < this.DowngradeStopThreshold
+    });
+    if (targetObject) {
+      m.target = targetObject.id;
+      m.action = DeliveryAction.StopDowngrade;
+      return;
+    }
+
+    // Structures in need of repair
+    targetObject = creep.pos.findClosestByPath(FIND_MY_STRUCTURES, {
+      filter: (structure) => structure.hits < structure.hitsMax
+    });
+    if (targetObject) {
+      m.target = targetObject.id;
+      m.action = DeliveryAction.Repair;
+      return;
+    }
+
+    // Ongoing Construction
+    targetObject = creep.pos.findClosestByPath(FIND_MY_CONSTRUCTION_SITES, {
+      filter: (site) => site.progress < site.progressTotal,
+    });
+    if (targetObject) {
+      m.target = targetObject.id;
+      m.action = DeliveryAction.Build;
+      return;
+    }
+
+    // Pending Upgrades
+    targetObject = creep.pos.findClosestByPath(FIND_MY_STRUCTURES, {
+      filter: (structure) => structure.structureType === STRUCTURE_CONTROLLER && structure.level < 8
+    });
+    if (targetObject) {
+      m.target = targetObject.id;
+      m.action = DeliveryAction.Upgrade;
+      return;
+    }
+
+    creep.say("nothing to do :(");
+  }
+
+  Act(creep: Creep): void {
+    const m = creep.memory.jobMemory as HarvesterMemory;
+    if (m.target == null) {
+      creep.say("X_X");
+      return;
+    }
+    const targetObject = Game.getObjectById(m.target);
+    if (targetObject == null) {
+      creep.say("H_X");
+      return;
+    }
+
+    var result: number | null = null;
+    switch (m.action) {
+      case (DeliveryAction.Upgrade || DeliveryAction.StopDowngrade): {
+        const t = targetObject as StructureController;
+        result = creep.upgradeController(t);
+        if (result === OK) console.log(`${creep.name} upgraded ${t} (Downgrade in ${t.ticksToDowngrade})`);
+        break;
+      }
+      case (DeliveryAction.Build): {
+        const t = targetObject as ConstructionSite;
+        result = creep.build(t);
+        if (result === OK) console.log(`${creep.name} builds ${t} (${t.progress}/${t.progressTotal}) %${(t.progress / t.progressTotal * 100).toFixed(2)}`);
+        break;
+      }
+      case (DeliveryAction.Repair): {
+        const t = targetObject as AnyOwnedStructure;
+        result = creep.repair(t);
+        if (result === OK) console.log(`${creep.name} repaired ${t} (${t.hits}/${t.hitsMax}) %${(t.hits / t.hitsMax * 100).toFixed(2)}`);
+        break;
+      }
+      case (DeliveryAction.Transfer): {
+        const t = targetObject as AnyStoreStructure;
+        result = creep.transfer(t, RESOURCE_ENERGY);
+        if (result === OK) console.log(`${creep.name} supplied ${t}.`);
+        break;
+      }
+      case (DeliveryAction.Harvest): {
+        const t = targetObject as Source;
+        result = creep.harvest(t)
+        if (result === OK) console.log(`${creep.name} mined ${t}.`)
+        break;
+      }
+      default:
+        return;
+    }
+
+    switch (result) {
+      case OK: { creep.say("OwO") }
+      case ERR_NOT_IN_RANGE: creep.moveTo(targetObject, { visualizePathStyle: { fill: COLOURS.PATH_TARGET } });
+      case ERR_NOT_ENOUGH_ENERGY || ERR_NOT_ENOUGH_RESOURCES: this.Reassign(creep);
+    }
+  }
+
+  IsDeliveryComplete(creep: Creep): boolean {
+    const m = creep.memory.jobMemory as HarvesterMemory;
+    if (m.target == null) {
+      creep.say("X_X");
+      return true;
+    }
+    const targetObject = Game.getObjectById(m.target);
+    if (targetObject == null) {
+      creep.say("H_X");
+      return true;
+    }
+
+    switch (m.action) {
+      case (DeliveryAction.Upgrade): {
+        const t = targetObject as StructureController;
+        return t.level >= this.DesiredRCL;
+      }
+      case (DeliveryAction.StopDowngrade): {
+        const t = targetObject as StructureController;
+        return t.ticksToDowngrade >= this.DowngradeStopThreshold
+      }
+      case (DeliveryAction.Build): {
+        const t = targetObject as ConstructionSite;
+        return t.progress === t.progressTotal;
+      }
+      case (DeliveryAction.Repair): {
+        const t = targetObject as AnyOwnedStructure;
+        return t.hits === t.hitsMax;
+      }
+      case (DeliveryAction.Transfer): {
+        const t = targetObject as AnyStoreStructure;
+        return t.store.getFreeCapacity(RESOURCE_ENERGY) === 0;
+      }
+      case (DeliveryAction.Harvest): {
+        return creep.store.getFreeCapacity(RESOURCE_ENERGY) === 0;
+      }
+      default:
+        return true;
+    }
+  }
 
   OnTick(creep: Creep, room: Room): void {
-    const jobMemory = creep.memory.jobMemory as { isWorking: boolean };
+    const mem = creep.memory.jobMemory as HarvesterMemory;
 
-    // Switch out of 'deliver' state when delivery is complete
-    if (jobMemory.isWorking && creep.store[RESOURCE_ENERGY] === 0) {
-      jobMemory.isWorking = false;
-      creep.say("🔄 harvest");
-    }
-
-    // Switch into delivery state when filled up
-    if (!jobMemory.isWorking && creep.store.getFreeCapacity() === 0) {
-      jobMemory.isWorking = true;
-      creep.say("⚡ transfer");
-    }
-
-    if (jobMemory.isWorking) {
-      // Spend Energy
-
-      // Select target
-      const target = creep.pos.findClosestByPath(FIND_MY_STRUCTURES, {
-        filter: (structure) =>
-          (structure.structureType === STRUCTURE_EXTENSION || structure.structureType === STRUCTURE_SPAWN)
-          && structure.store.getFreeCapacity(RESOURCE_ENERGY) > 0
-      }) ?? creep.pos.findClosestByPath(FIND_MY_STRUCTURES, {
-        filter: (structure) => structure.structureType === STRUCTURE_CONTROLLER && structure.ticksToDowngrade < 1000
-      }) ?? creep.pos.findClosestByPath(FIND_MY_STRUCTURES, {
-        filter: (structure) => structure.hits < structure.hitsMax
-      }) ?? creep.pos.findClosestByPath(FIND_MY_CONSTRUCTION_SITES, {
-        filter: (site) => site.progress < site.progressTotal,
-      }) ?? creep.pos.findClosestByPath(FIND_MY_STRUCTURES, {
-        filter: (structure) => structure.structureType === STRUCTURE_CONTROLLER && structure.level < 8
-      });
-
-      // Skip if no target found
-      if (target === null || target === undefined) {
-        creep.say("no target :(");
-        return;
-      }
-
-      // Deliver energy
-      var result: number;
-      if (target.structureType === STRUCTURE_CONTROLLER) {
-        result = creep.upgradeController(target);
-        if (result === OK) console.log(`${creep.name} is upgrading ${target} (Downgrade in ${target.ticksToDowngrade})`);
-      } else if (target instanceof ConstructionSite) {
-        result = creep.build(target);
-        if (result === OK) console.log(`${creep.name} is building ${target} (${target.progress}/${target.progressTotal}) %${(target.progress / target.progressTotal * 100).toFixed(2)}`);
-      } else if (target.hits < target.hitsMax) {
-        result = creep.repair(target);
-        if (result === OK) console.log(`${creep.name} is repairing ${target} (${target.hits}/${target.hitsMax}) %${(target.hits / target.hitsMax * 100).toFixed(2)}`);
-      } else {
-        result = creep.transfer(target, RESOURCE_ENERGY);
-        if (result === OK) console.log(`${creep.name} is transferring to ${target}.`);
-      }
-
-      // Handle Errors
-      if (result === ERR_NOT_IN_RANGE) {
-        creep.moveTo(target, { visualizePathStyle: { stroke: COLOURS.PATH_TARGET }, reusePath: 5 });
-      }
-
-    } else {
-      // Collect Energy
-      const source = creep.pos.findClosestByPath(FIND_SOURCES_ACTIVE);
-      if (!source) {
-        creep.say("no sources :(");
-        return;
-      }
-
-      if (creep.harvest(source) === ERR_NOT_IN_RANGE) {
-        creep.moveTo(source, { visualizePathStyle: { stroke: COLOURS.PATH_SOURCE } });
-      }
-    }
+    if (this.IsDeliveryComplete(creep))
+      this.Reassign(creep);
+    else
+      this.Act(creep);
   }
 }
 
@@ -204,7 +329,7 @@ const MainLoop = () => {
   // Iterate the Rooms and Roles
   for (const [roomName, room] of Object.entries(Game.rooms)) {
     for (const [roleName, role] of Object.entries(Roles)) {
-      role.TopUpRoomCount(room);
+      role.SpawnIfNeeded(room);
       role.RunForRoom(room);
     }
   }
