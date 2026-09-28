@@ -49,6 +49,7 @@ abstract class Role {
   SpawnRate: number = 20;
 
   ReusePath: number = 10;
+  ShortPathThreshold: number = 6;
 
   DefaultRoleName: string = "harvester";
 
@@ -99,6 +100,7 @@ abstract class Role {
       filter: (spawn) => !spawn.spawning && spawn.store.energy >= this.RoleBodyCost()
     });
     if (spawns.length === 0) {
+      console.log(`${room}[${this.RoleName}]: Need to spawn, but no points are suitable...`);
       return;
     }
 
@@ -292,7 +294,7 @@ class Harvester extends Role {
       case (HarvesterAction.Upgrade): {
         const t = targetObject as StructureController;
         result = creep.upgradeController(t);
-        if (result === OK) console.log(`${room}${creep}: Act: Upgraded ${t} to level ${t.level} (${t.progress}/${t.progressTotal}) %${(t.progress / t.progressTotal * 100).toFixed(2)}.`);
+        if (result === OK) console.log(`${room}${creep}: Act: Upgraded ${t} to RCL ${t.level} (${t.progress}/${t.progressTotal}) %${(t.progress / t.progressTotal * 100).toFixed(2)}.`);
         break;
       }
       case (HarvesterAction.StopDowngrade): {
@@ -316,13 +318,13 @@ class Harvester extends Role {
       case (HarvesterAction.Transfer): {
         const t = targetObject as AnyStoreStructure;
         result = creep.transfer(t, RESOURCE_ENERGY);
-        // if (result === OK) console.log(`${room}${creep}: Act: Supplied ${t}.`);
+        if (result === OK) console.log(`${room}${creep}: Act: Supplied ${t}.`);
         break;
       }
       case (HarvesterAction.Harvest): {
         const t = targetObject as Source;
         result = creep.harvest(t)
-        // if (result === OK) console.log(`${room}${creep}: Act: Harvested ${t}.`);
+        if (result === OK) console.log(`${room}${creep}: Act: Harvested ${t}.`);
         break;
       }
       default:
@@ -335,10 +337,19 @@ class Harvester extends Role {
       case ERR_NOT_IN_RANGE: {
         const range = creep.pos.getRangeTo(targetObject);
 
-        if (range <= 5)
-          creep.moveTo(targetObject, { visualizePathStyle: { stroke: COLOURS.PATH_SHORT, lineStyle: "dotted" } });
-        else
-          creep.moveTo(targetObject, { visualizePathStyle: { stroke: COLOURS.PATH_LONG, lineStyle: "solid" }, reusePath: this.ReusePath, ignoreCreeps: true });
+        // Move Long if we are farther than ShortPathThreshold away.
+        var moveOutcome: number = OK;
+        if (range > this.ShortPathThreshold)
+          moveOutcome = creep.moveTo(targetObject, { visualizePathStyle: { stroke: COLOURS.PATH_LONG, lineStyle: "solid" }, reusePath: this.ReusePath, ignoreCreeps: true });
+
+        // Move Short otherwise
+        if (range <= this.ShortPathThreshold)
+          moveOutcome = creep.moveTo(targetObject, { visualizePathStyle: { stroke: COLOURS.PATH_SHORT, lineStyle: "dotted" } });
+
+        // console.log(`${room}${creep}: Act: MoveTo for ${creep} resulted in: ${moveOutcome}`);
+
+        if (moveOutcome === ERR_NO_PATH)
+          this.Reassign(creep);
 
         return;
       }
