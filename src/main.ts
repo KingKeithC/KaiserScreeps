@@ -158,7 +158,7 @@ class Harvester extends Role {
   CountPerRoom = 10;
   BodyParts = [WORK, CARRY, MOVE];
 
-  DesiredRCL = 3;
+  DesiredRCL = 2;
   DowngradeStopThreshold = 1000;
 
   OnTick(creep: Creep, room: Room): void {
