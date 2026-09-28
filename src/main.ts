@@ -35,14 +35,19 @@ const COLOURS = {
 
 abstract class Role {
   abstract RoleName: string;
+
+  // How many creeps to have per room in this role
   abstract CountPerRoom: number;
 
   // Body for creeps spawned of this role
   abstract BodyParts: BodyPartConstant[];
 
-  // Minimum RCL needed to start using this role.
-  abstract SpawnAtRCL: number;
+  // RCL Ranges to constrain role
+  SpawnAtRCL: number = 0;
   StopSpawnAtRCL: number = 100;
+
+  // How ofter to check for spawn
+  SpawnRate: number = 20;
 
   DefaultRoleName: string = "harvester";
 
@@ -60,20 +65,33 @@ abstract class Role {
   protected SpawnRequirementsMet(room: Room): boolean {
     // Skip spawn if RCL is too low
     const rcl = room.controller?.level ?? -1;
-    if (rcl < this.SpawnAtRCL || rcl >= this.StopSpawnAtRCL) return true;
+    if (rcl < this.SpawnAtRCL || rcl >= this.StopSpawnAtRCL) {
+      console.log("RCL unmet");
+      return true;
+    };
 
     // or quota met
-    if (this.CreepsInRole(room).length >= this.CountPerRoom) return true;
+    if (this.CreepsInRole(room).length >= this.CountPerRoom) {
+      console.log("Quote met");
+      return true;
+    }
 
     // or a spawn is already in progress
-    if (room.find(FIND_MY_SPAWNS, { filter: (s) => s.spawning }).length) return true;
+    if (room.find(FIND_MY_SPAWNS, { filter: (s) => s.spawning }).length) {
+      console.log("Spawn in progress");
+      return true;
+    }
 
     // otherwise requirements are unmet
     return false;
   }
 
   SpawnIfNeeded(room: Room): void {
-    if (!this.SpawnRequirementsMet(room)) return;
+    if (Game.time % this.SpawnRate && this.SpawnRequirementsMet(room)) {
+      console.log("Spawn requirements met.")
+      return;
+    }
+
     var msg: string = `${room} has ${this.CreepsInRole(room).length}/${this.CountPerRoom} of '${this.RoleName}', `;
 
     // Find a suitable spawn point
@@ -183,7 +201,7 @@ class Harvester extends Role {
     if (targetObject) {
       mem.target = targetObject.id;
       mem.action = HarvesterAction.Transfer;
-      creep.say("💦");
+      creep.say("🫴🎁");
       return;
     }
 
