@@ -155,7 +155,7 @@ class Harvester extends Role {
   RoleName = "harvester";
 
   SpawnAtRCL = 0;
-  CountPerRoom = 6;
+  CountPerRoom = 10;
   BodyParts = [WORK, CARRY, MOVE];
 
   DesiredRCL = 3;
