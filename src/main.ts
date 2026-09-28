@@ -39,6 +39,12 @@ abstract class Role {
   abstract InitJobMemory: object;
   abstract OnTick(creep: Creep, room: Room): void;
 
+  // Minimum RCL needed to start using this role.
+  abstract SpawnAtRCL: number;
+
+  //
+  StopSpawnAtRCL: number = 100;
+
   RoleBodyCost(): number {
     var total: number = 0;
     for (const part of this.BodyParts) total += BODYPART_COST[part];
@@ -54,15 +60,30 @@ abstract class Role {
     }
   }
 
+  CurrentSpawns = (room: Room) => room.find(FIND_MY_CREEPS, { filter: (creep) => creep.memory.role === this.RoleName });
+
+  SpawnRequirementsMet(room: Room): boolean {
+    // Skip spawn if RCL is too low
+    const rcl = room.controller?.level ?? -1;
+    if (rcl < this.SpawnAtRCL || rcl >= this.StopSpawnAtRCL) return true;
+
+    // or quota met
+    if (this.CurrentSpawns(room).length >= this.CountPerRoom) return true;
+
+    // or a spawn is already in progress
+    if (room.find(FIND_MY_SPAWNS, { filter: (s) => s.spawning }).length) return true;
+
+    // otherwise requirements are unmet
+    return false;
+  }
+
   TopUpRoomCount(room: Room): void {
-    const currentCount = room.find(FIND_MY_CREEPS).length;
-    if (currentCount >= this.CountPerRoom) return;
+    if (this.SpawnRequirementsMet(room)) return;
+    var msg: string = `${room} has ${this.CurrentSpawns(room).length}/${this.CountPerRoom} of '${this.RoleName}', `;
 
-    var msg: string = `${room} has ${currentCount}/${this.CountPerRoom}, `;
-
+    // Find a suitable spawn point
     const spawns = room.find(FIND_MY_SPAWNS, {
-      filter: (spawn) =>
-        !spawn.spawning && spawn.store.energy >= this.RoleBodyCost()
+      filter: (spawn) => !spawn.spawning && spawn.store.energy >= this.RoleBodyCost()
     });
 
     if (spawns.length === 0) {
@@ -71,21 +92,24 @@ abstract class Role {
       return;
     }
 
-    spawns[0].spawnCreep(
+    const spawnPoint = spawns[0];
+    spawnPoint.spawnCreep(
       this.BodyParts,
       `${this.RoleName}-${Game.time}`,
       {
         memory: {
+          room: room.name,
           role: this.RoleName,
-          jobMemory: this.InitJobMemory,
-          room: room.name
+          jobMemory: {},
         },
       }
     );
+    console.log(msg + `spawning at ${spawnPoint}...`);
   }
 }
 
 class Harvester extends Role {
+  SpawnAtRCL = 0;
   RoleName = "harvester";
   CountPerRoom = 3;
   BodyParts = [WORK, CARRY, MOVE];
