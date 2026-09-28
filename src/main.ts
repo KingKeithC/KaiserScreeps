@@ -420,7 +420,7 @@ class HarvesterT2 extends Harvester {
   RoleName = "harvesterT2";
 
   SpawnAtRCL = 2;
-  CountPerRoom = 3;
+  CountPerRoom = 5;
   BodyParts = [MOVE, WORK, WORK, CARRY, CARRY, CARRY];
 
   DesiredRCL = 3;
