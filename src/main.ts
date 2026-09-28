@@ -21,6 +21,11 @@ declare global {
     jobMemory: object;
   }
 
+  interface RoomMemory {
+    countPreventingDowngrade: number
+    countPerformingUpgrade: number
+  }
+
 }
 // Syntax for adding properties to `global` (ex "global.log")
 declare const global: {
@@ -173,6 +178,8 @@ class Harvester extends Role {
 
   DesiredRCL = 2;
   DowngradeStopThreshold = 1000;
+  WorkersPreventingDowngrade = 2;
+  WorkersPerformingUpgrade = 2;
 
   OnTick(creep: Creep, room: Room): void {
     if (creep.memory.jobMemory == null) {
@@ -193,8 +200,17 @@ class Harvester extends Role {
   }
 
   Reassign(creep: Creep, room: Room): void {
+    // console.log(`${room}${creep} Reassigned!`);
+
+    // Run Cleanup Tasks
+    const oldMem = creep.memory.jobMemory as HarvesterMemory;
+    if (oldMem.action === HarvesterAction.StopDowngrade)
+      room.memory.countPreventingDowngrade--;
+    if (oldMem.action === HarvesterAction.Upgrade)
+      room.memory.countPerformingUpgrade--;
+
+    // Reset memory, and set new Task
     const mem = (creep.memory.jobMemory as HarvesterMemory) = new HarvesterMemory();
-    // console.log(`Reassign ${creep}!`);
 
     // Harvest if we are empty
     if (creep.store.getUsedCapacity(RESOURCE_ENERGY) === 0) {
@@ -226,29 +242,33 @@ class Harvester extends Role {
     }
 
     // Controllers at risk of downgrade
-    if (room)
-
+    if (room.memory.countPreventingDowngrade < this.WorkersPreventingDowngrade) {
       targetObject = creep.pos.findClosestByPath(FIND_MY_STRUCTURES, {
         filter: (structure) =>
           structure.structureType === STRUCTURE_CONTROLLER
           && structure.ticksToDowngrade < this.DowngradeStopThreshold
       });
-    if (targetObject) {
-      mem.target = targetObject.id;
-      mem.action = HarvesterAction.StopDowngrade;
-      creep.say("🦸‍♀️");
-      return;
+      if (targetObject) {
+        mem.target = targetObject.id;
+        mem.action = HarvesterAction.StopDowngrade;
+        room.memory.countPreventingDowngrade++;
+        creep.say("🦸‍♀️");
+        return;
+      }
     }
 
     // Pending Upgrades
-    targetObject = creep.pos.findClosestByPath(FIND_MY_STRUCTURES, {
-      filter: (structure) => structure.structureType === STRUCTURE_CONTROLLER && structure.level < this.DesiredRCL
-    });
-    if (targetObject) {
-      mem.target = targetObject.id;
-      mem.action = HarvesterAction.Upgrade;
-      creep.say("🆙");
-      return;
+    if (room.memory.countPerformingUpgrade < this.WorkersPerformingUpgrade) {
+      targetObject = creep.pos.findClosestByPath(FIND_MY_STRUCTURES, {
+        filter: (structure) => structure.structureType === STRUCTURE_CONTROLLER && structure.level < this.DesiredRCL
+      });
+      if (targetObject) {
+        mem.target = targetObject.id;
+        mem.action = HarvesterAction.Upgrade;
+        room.memory.countPerformingUpgrade++;
+        creep.say("🆙");
+        return;
+      }
     }
 
     // Structures in need of repair
@@ -445,6 +465,11 @@ const MainLoop = () => {
 
   // Iterate the Rooms and Roles
   for (const [roomName, room] of Object.entries(Game.rooms)) {
+
+    // Init Room Memory
+    if (room.memory.countPreventingDowngrade == null || room.memory.countPreventingDowngrade == undefined)
+      room.memory.countPreventingDowngrade = 0;
+
     for (const [roleName, role] of Object.entries(Roles)) {
       role.RunForRoom(room);
     }
