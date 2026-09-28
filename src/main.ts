@@ -100,7 +100,7 @@ abstract class Role {
       filter: (spawn) => !spawn.spawning && spawn.store.energy >= this.RoleBodyCost()
     });
     if (spawns.length === 0) {
-      console.log(`${room}[${this.RoleName}]: Need to spawn, but no points are suitable...`);
+      console.log(`${room}[${this.RoleName}]: Need to spawn, but no points are suitable (costs ${this.RoleBodyCost()})...`);
       return;
     }
 
