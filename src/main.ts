@@ -171,7 +171,7 @@ class Harvester extends Role {
       this.Reassign(creep);
     }
     else if (this.IsDeliveryComplete(creep, room)) {
-      console.log(`${room}${creep}: OnTick: IsDeliveryComplete is true`)
+      // console.log(`${room}${creep}: OnTick: IsDeliveryComplete is true`)
       this.Reassign(creep);
     }
     else {
