@@ -28,8 +28,8 @@ declare const global: {
 }
 
 const COLOURS = {
-  PATH_SOURCE: "#ffaa00",
-  PATH_TARGET: "#ffffff",
+  PATH_SHORT: "#d70cb8",
+  PATH_LONG: "#ffffff",
 }
 
 abstract class Role {
@@ -333,7 +333,13 @@ class Harvester extends Role {
       case OK:
         return;
       case ERR_NOT_IN_RANGE: {
-        creep.moveTo(targetObject, { visualizePathStyle: { stroke: COLOURS.PATH_TARGET }, reusePath: this.ReusePath });
+        const range = creep.pos.getRangeTo(targetObject);
+
+        if (range <= 5)
+          creep.moveTo(targetObject, { visualizePathStyle: { stroke: COLOURS.PATH_SHORT, lineStyle: "dotted" } });
+        else
+          creep.moveTo(targetObject, { visualizePathStyle: { stroke: COLOURS.PATH_LONG, lineStyle: "solid" }, reusePath: this.ReusePath, ignoreCreeps: true });
+
         return;
       }
       default: {
