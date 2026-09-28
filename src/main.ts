@@ -63,22 +63,23 @@ abstract class Role {
   protected CreepsInRole = (room: Room) => room.find(FIND_MY_CREEPS, { filter: (creep) => creep.memory.role === this.RoleName });
 
   protected SpawnRequirementsMet(room: Room): boolean {
-    // Skip spawn if RCL is too low
+    // Skip spawn if RCL is wrong
     const rcl = room.controller?.level ?? -1;
     if (rcl < this.SpawnAtRCL || rcl >= this.StopSpawnAtRCL) {
-      console.log(`SpawnRequirementsMet ${this.RoleName}: RCL unmet`);
+      console.log(`SpawnRequirementsMet ${this.RoleName}: RCL (${rcl}) LT ${this.SpawnAtRCL} or GE ${this.StopSpawnAtRCL}`);
       return true;
     };
 
     // or quota met
-    if (this.CreepsInRole(room).length >= this.CountPerRoom) {
-      console.log(`SpawnRequirementsMet ${this.RoleName}: Quota met`);
+    const current = this.CreepsInRole(room).length;
+    if (current >= this.CountPerRoom) {
+      console.log(`SpawnRequirementsMet ${this.RoleName}: Quota met ${current}/${this.CountPerRoom}`);
       return true;
     }
 
     // or a spawn is already in progress
     if (room.find(FIND_MY_SPAWNS, { filter: (s) => s.spawning }).length) {
-      console.log(`SpawnRequirementsMet ${this.RoleName}: Spawn in progress`);
+      console.log(`SpawnRequirementsMet ${this.RoleName}: Spawn is in progress.`);
       return true;
     }
 
@@ -87,7 +88,8 @@ abstract class Role {
   }
 
   SpawnIfNeeded(room: Room): void {
-    if (Game.time % this.SpawnRate == 0 && this.SpawnRequirementsMet(room)) {
+    // Nothing to spawn if reqs are met or it's the off season
+    if (this.SpawnRequirementsMet(room) || Game.time % this.SpawnRate !== 0) {
       return;
     }
 
