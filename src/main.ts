@@ -205,9 +205,9 @@ class Harvester extends Role {
 
     // Run Cleanup Tasks
     if (mem.action === HarvesterAction.StopDowngrade)
-      room.memory.countPreventingDowngrade--;
+      room.memory.countPreventingDowngrade -= 1;
     if (mem.action === HarvesterAction.Upgrade)
-      room.memory.countPerformingUpgrade--;
+      room.memory.countPerformingUpgrade -= 1;
 
     // Reset target, and set new Task
     mem.target = null;
@@ -251,7 +251,7 @@ class Harvester extends Role {
       if (targetObject) {
         mem.target = targetObject.id;
         mem.action = HarvesterAction.StopDowngrade;
-        room.memory.countPreventingDowngrade++;
+        room.memory.countPreventingDowngrade += 1;
         creep.say("🦸‍♀️");
         return;
       }
@@ -265,7 +265,7 @@ class Harvester extends Role {
       if (targetObject) {
         mem.target = targetObject.id;
         mem.action = HarvesterAction.Upgrade;
-        room.memory.countPerformingUpgrade++;
+        room.memory.countPerformingUpgrade += 1;
         creep.say("🆙");
         return;
       }
