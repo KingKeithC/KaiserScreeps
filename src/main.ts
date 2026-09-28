@@ -273,34 +273,40 @@ class Harvester extends Role {
 
     var result: number | null = null;
     switch (m.action) {
+      case (HarvesterAction.Upgrade): {
+        const t = targetObject as StructureController;
+        result = creep.upgradeController(t);
+        if (result === OK) console.log(`${creep.memory.room}[${this.RoleName}]: Act: Upgraded ${t} to level ${t.level} (${t.progress}/${t.progressTotal}) %${(t.progress / t.progressTotal * 100).toFixed(2)}.`);
+        break;
+      }
       case (HarvesterAction.Upgrade || HarvesterAction.StopDowngrade): {
         const t = targetObject as StructureController;
         result = creep.upgradeController(t);
-        if (result === OK) console.log(`${creep.name} upgraded ${t} (Downgrade in ${t.ticksToDowngrade})`);
+        if (result === OK) console.log(`${creep.memory.room}[${this.RoleName}]: Act: Prevented Downgrade of ${t} in ${t.ticksToDowngrade}.`);
         break;
       }
       case (HarvesterAction.Build): {
         const t = targetObject as ConstructionSite;
         result = creep.build(t);
-        if (result === OK) console.log(`${creep.name} builds ${t} (${t.progress}/${t.progressTotal}) %${(t.progress / t.progressTotal * 100).toFixed(2)}`);
+        if (result === OK) console.log(`${creep.memory.room}[${this.RoleName}]: Act: Built ${t} (${t.progress}/${t.progressTotal}) %${(t.progress / t.progressTotal * 100).toFixed(2)}.`);
         break;
       }
       case (HarvesterAction.Repair): {
         const t = targetObject as AnyOwnedStructure;
         result = creep.repair(t);
-        if (result === OK) console.log(`${creep.name} repaired ${t} (${t.hits}/${t.hitsMax}) %${(t.hits / t.hitsMax * 100).toFixed(2)}`);
+        if (result === OK) console.log(`${creep.memory.room}[${this.RoleName}]: Act: Repaired ${t} (${t.hits}/${t.hitsMax}) %${(t.hits / t.hitsMax * 100).toFixed(2)}.`);
         break;
       }
       case (HarvesterAction.Transfer): {
         const t = targetObject as AnyStoreStructure;
         result = creep.transfer(t, RESOURCE_ENERGY);
-        if (result === OK) console.log(`${creep.name} supplied ${t}.`);
+        // if (result === OK) console.log(`${creep.memory.room}[${this.RoleName}]: Act: Supplied ${t}.`);
         break;
       }
       case (HarvesterAction.Harvest): {
         const t = targetObject as Source;
         result = creep.harvest(t)
-        // if (result === OK) console.log(`${creep.name} mined ${t}.`)
+        // if (result === OK) console.log(`${creep.memory.room}[${this.RoleName}]: Act: Harvested ${t}.`);
         break;
       }
       default:
