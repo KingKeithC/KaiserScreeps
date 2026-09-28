@@ -58,7 +58,7 @@ abstract class Role {
     }
   }
 
-  CurrentSpawns = (room: Room) => room.find(FIND_MY_CREEPS, { filter: (creep) => creep.memory.role === this.RoleName });
+  CreepsInRole = (room: Room) => room.find(FIND_MY_CREEPS, { filter: (creep) => creep.memory.role === this.RoleName });
 
   SpawnRequirementsMet(room: Room): boolean {
     // Skip spawn if RCL is too low
@@ -66,7 +66,7 @@ abstract class Role {
     if (rcl < this.SpawnAtRCL || rcl >= this.StopSpawnAtRCL) return true;
 
     // or quota met
-    if (this.CurrentSpawns(room).length >= this.CountPerRoom) return true;
+    if (this.CreepsInRole(room).length >= this.CountPerRoom) return true;
 
     // or a spawn is already in progress
     if (room.find(FIND_MY_SPAWNS, { filter: (s) => s.spawning }).length) return true;
@@ -77,7 +77,7 @@ abstract class Role {
 
   TopUpRoomCount(room: Room): void {
     if (this.SpawnRequirementsMet(room)) return;
-    var msg: string = `${room} has ${this.CurrentSpawns(room).length}/${this.CountPerRoom} of '${this.RoleName}', `;
+    var msg: string = `${room} has ${this.CreepsInRole(room).length}/${this.CountPerRoom} of '${this.RoleName}', `;
 
     // Find a suitable spawn point
     const spawns = room.find(FIND_MY_SPAWNS, {
@@ -152,25 +152,25 @@ class Harvester extends Role {
         return;
       }
 
-      // Move until in range of target
-      if (!creep.pos.inRangeTo(target?.pos, 1)) {
-        creep.moveTo(target, { visualizePathStyle: { stroke: COLOURS.PATH_TARGET }, reusePath: 5 });
-        return;
+      // Deliver energy
+      var result: number;
+      if (target.structureType === STRUCTURE_CONTROLLER) {
+        result = creep.upgradeController(target);
+        if (result === OK) console.log(`${creep.name} is upgrading ${target} (Downgrade in ${target.ticksToDowngrade})`);
+      } else if (target instanceof ConstructionSite) {
+        result = creep.build(target);
+        if (result === OK) console.log(`${creep.name} is building ${target} (${target.progress}/${target.progressTotal}) %${(target.progress / target.progressTotal * 100).toFixed(2)}`);
+      } else if (target.hits < target.hitsMax) {
+        result = creep.repair(target);
+        if (result === OK) console.log(`${creep.name} is repairing ${target} (${target.hits}/${target.hitsMax}) %${(target.hits / target.hitsMax * 100).toFixed(2)}`);
+      } else {
+        result = creep.transfer(target, RESOURCE_ENERGY);
+        if (result === OK) console.log(`${creep.name} is transferring to ${target}.`);
       }
 
-      // Deliver energy
-      if (target.structureType === STRUCTURE_CONTROLLER) {
-        console.log(`${creep.name} is upgrading ${target} (Downgrade in ${target.ticksToDowngrade})`);
-        creep.upgradeController(target);
-      } else if (target instanceof ConstructionSite) {
-        console.log(`${creep.name} is building ${target} (${target.progress}/${target.progressTotal}) %${(target.progress / target.progressTotal * 100).toFixed(2)}`);
-        creep.build(target);
-      } else if (target.hits < target.hitsMax) {
-        console.log(`${creep.name} is repairing ${target} (${target.hits}/${target.hitsMax}) %${(target.hits / target.hitsMax * 100).toFixed(2)}`);
-        creep.repair(target);
-      } else {
-        console.log(`${creep.name} is transferring to ${target}.`);
-        creep.transfer(target, RESOURCE_ENERGY);
+      // Handle Errors
+      if (result === ERR_NOT_IN_RANGE) {
+        creep.moveTo(target, { visualizePathStyle: { stroke: COLOURS.PATH_TARGET }, reusePath: 5 });
       }
 
     } else {
@@ -182,7 +182,7 @@ class Harvester extends Role {
       }
 
       if (creep.harvest(source) === ERR_NOT_IN_RANGE) {
-        creep.moveTo(source, { visualizePathStyle: { stroke: COLOURS.PATH_SOURCE }, reusePath: 5 });
+        creep.moveTo(source, { visualizePathStyle: { stroke: COLOURS.PATH_SOURCE } });
       }
     }
   }
