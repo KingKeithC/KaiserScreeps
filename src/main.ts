@@ -293,7 +293,7 @@ class Harvester extends Role {
         if (result === OK) console.log(`${room}${creep}: Act: Upgraded ${t} to level ${t.level} (${t.progress}/${t.progressTotal}) %${(t.progress / t.progressTotal * 100).toFixed(2)}.`);
         break;
       }
-      case (HarvesterAction.Upgrade || HarvesterAction.StopDowngrade): {
+      case (HarvesterAction.StopDowngrade): {
         const t = targetObject as StructureController;
         result = creep.upgradeController(t);
         if (result === OK) console.log(`${room}${creep}: Act: Prevented Downgrade of ${t} in ${t.ticksToDowngrade}.`);
@@ -331,7 +331,7 @@ class Harvester extends Role {
       case OK:
         return;
       case ERR_NOT_IN_RANGE: {
-        creep.moveTo(targetObject, { visualizePathStyle: { stroke: COLOURS.PATH_TARGET }, ignoreCreeps: true });
+        creep.moveTo(targetObject, { visualizePathStyle: { stroke: COLOURS.PATH_TARGET }, reusePath: 3 });
         return;
       }
       default: {
@@ -344,17 +344,17 @@ class Harvester extends Role {
   IsDeliveryComplete(creep: Creep, room: Room): boolean {
     const m = creep.memory.jobMemory as HarvesterMemory;
     if (m.target == null || m.target == undefined) {
-      console.log(`${room}${creep}: IsDeliveryComplete: ${creep} has null/undefined target in memory`)
+      // console.log(`${room}${creep}: IsDeliveryComplete: ${creep} has null/undefined target in memory`)
       return true;
     }
     const targetObject = Game.getObjectById(m.target);
     if (targetObject == null || targetObject == undefined) {
-      console.log(`${room}${creep}: IsDeliveryComplete: ${creep} Game.getObjectById returned null`)
+      // console.log(`${room}${creep}: IsDeliveryComplete: ${creep} Game.getObjectById returned null`)
       return true;
     }
 
     if (m.action !== HarvesterAction.Harvest && creep.store.getUsedCapacity(RESOURCE_ENERGY) === 0) {
-      console.log(`${room}${creep}: IsDeliveryComplete: ${creep} ran out of Energy`)
+      // console.log(`${room}${creep}: IsDeliveryComplete: ${creep} ran out of Energy`)
       return true;
     }
 
