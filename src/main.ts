@@ -44,27 +44,20 @@ abstract class Role {
   abstract SpawnAtRCL: number;
   StopSpawnAtRCL: number = 100;
 
+  DefaultRoleName: string = "harvester";
+
   // Main logic for custom role
   abstract OnTick(creep: Creep, room: Room): void;
 
-  RoleBodyCost(): number {
+  protected RoleBodyCost(): number {
     var total: number = 0;
     for (const part of this.BodyParts) total += BODYPART_COST[part];
     return total;
   }
 
-  // Run role logic for each creep in the room
-  RunForRoom(room: Room): void {
-    for (const creep of room.find(FIND_MY_CREEPS,
-      { filter: (creep) => creep.memory.role === this.RoleName })
-    ) {
-      this.OnTick(creep, room);
-    }
-  }
+  protected CreepsInRole = (room: Room) => room.find(FIND_MY_CREEPS, { filter: (creep) => creep.memory.role === this.RoleName });
 
-  CreepsInRole = (room: Room) => room.find(FIND_MY_CREEPS, { filter: (creep) => creep.memory.role === this.RoleName });
-
-  SpawnRequirementsMet(room: Room): boolean {
+  protected SpawnRequirementsMet(room: Room): boolean {
     // Skip spawn if RCL is too low
     const rcl = room.controller?.level ?? -1;
     if (rcl < this.SpawnAtRCL || rcl >= this.StopSpawnAtRCL) return true;
@@ -108,9 +101,29 @@ abstract class Role {
     );
     console.log(msg + `spawning at ${spawnPoint}...`);
   }
+
+  RefreshEmptyCreeps(room: Room): void {
+    const missingRoles = room.find(FIND_MY_CREEPS, { filter: (creep) => !creep.memory.role || !creep.memory.room });
+    for (const creep of missingRoles) {
+      creep.memory.room = room.name;
+      creep.memory.role = this.DefaultRoleName;
+    }
+  }
+
+  // Run role logic for each creep in the room
+  RunForRoom(room: Room): void {
+    this.RefreshEmptyCreeps(room);
+    this.SpawnIfNeeded(room);
+
+    for (const creep of room.find(FIND_MY_CREEPS,
+      { filter: (creep) => creep.memory.role === this.RoleName })
+    ) {
+      this.OnTick(creep, room);
+    }
+  }
 }
 
-enum DeliveryAction {
+enum HarvesterAction {
   Harvest,
   Upgrade,
   StopDowngrade,
@@ -120,29 +133,37 @@ enum DeliveryAction {
 }
 
 class HarvesterMemory {
-  action: DeliveryAction = DeliveryAction.Harvest;
+  action: HarvesterAction = HarvesterAction.Harvest;
   target: Id<ConstructionSite<BuildableStructureConstant> | AnyOwnedStructure | Source> | null = null;
 }
 
 class Harvester extends Role {
-  SpawnAtRCL = 0;
   RoleName = "harvester";
+
+  SpawnAtRCL = 0;
   CountPerRoom = 6;
   BodyParts = [WORK, CARRY, MOVE];
+
   DesiredRCL = 3;
   DowngradeStopThreshold = 1000;
 
+  OnTick(creep: Creep, room: Room): void {
+    if (!creep.memory.jobMemory || this.IsDeliveryComplete(creep))
+      this.Reassign(creep);
+    else
+      this.Act(creep);
+  }
+
   Reassign(creep: Creep): void {
-    const m = (creep.memory.jobMemory as HarvesterMemory) = new HarvesterMemory();
+    const mem = (creep.memory.jobMemory as HarvesterMemory) = new HarvesterMemory();
     creep.say('Reassigned!')
 
     // Harvest if we have extra space
-
     if (creep.store.getFreeCapacity(RESOURCE_ENERGY) > 0) {
       const source = creep.pos.findClosestByPath(FIND_SOURCES_ACTIVE);
       if (source) {
-        m.target = source.id;
-        m.action = DeliveryAction.Harvest;
+        mem.target = source.id;
+        mem.action = HarvesterAction.Harvest;
       } else {
         creep.say("no sources :(");
       }
@@ -159,8 +180,8 @@ class Harvester extends Role {
         && structure.store.getFreeCapacity(RESOURCE_ENERGY) > 0
     });
     if (targetObject) {
-      m.target = targetObject.id;
-      m.action = DeliveryAction.Transfer;
+      mem.target = targetObject.id;
+      mem.action = HarvesterAction.Transfer;
       return;
     }
 
@@ -169,8 +190,8 @@ class Harvester extends Role {
       filter: (structure) => structure.structureType === STRUCTURE_CONTROLLER && structure.ticksToDowngrade < this.DowngradeStopThreshold
     });
     if (targetObject) {
-      m.target = targetObject.id;
-      m.action = DeliveryAction.StopDowngrade;
+      mem.target = targetObject.id;
+      mem.action = HarvesterAction.StopDowngrade;
       return;
     }
 
@@ -179,8 +200,8 @@ class Harvester extends Role {
       filter: (structure) => structure.hits < structure.hitsMax
     });
     if (targetObject) {
-      m.target = targetObject.id;
-      m.action = DeliveryAction.Repair;
+      mem.target = targetObject.id;
+      mem.action = HarvesterAction.Repair;
       return;
     }
 
@@ -189,8 +210,8 @@ class Harvester extends Role {
       filter: (site) => site.progress < site.progressTotal,
     });
     if (targetObject) {
-      m.target = targetObject.id;
-      m.action = DeliveryAction.Build;
+      mem.target = targetObject.id;
+      mem.action = HarvesterAction.Build;
       return;
     }
 
@@ -199,53 +220,53 @@ class Harvester extends Role {
       filter: (structure) => structure.structureType === STRUCTURE_CONTROLLER && structure.level < 8
     });
     if (targetObject) {
-      m.target = targetObject.id;
-      m.action = DeliveryAction.Upgrade;
+      mem.target = targetObject.id;
+      mem.action = HarvesterAction.Upgrade;
       return;
     }
 
-    creep.say("nothing to do :(");
+    creep.say("no targets :(");
   }
 
   Act(creep: Creep): void {
     const m = creep.memory.jobMemory as HarvesterMemory;
-    if (m.target == null) {
+    if (m.target == null || m.target == undefined) {
       creep.say("X_X");
       return;
     }
     const targetObject = Game.getObjectById(m.target);
-    if (targetObject == null) {
+    if (targetObject == null || targetObject == undefined) {
       creep.say("H_X");
       return;
     }
 
     var result: number | null = null;
     switch (m.action) {
-      case (DeliveryAction.Upgrade || DeliveryAction.StopDowngrade): {
+      case (HarvesterAction.Upgrade || HarvesterAction.StopDowngrade): {
         const t = targetObject as StructureController;
         result = creep.upgradeController(t);
         if (result === OK) console.log(`${creep.name} upgraded ${t} (Downgrade in ${t.ticksToDowngrade})`);
         break;
       }
-      case (DeliveryAction.Build): {
+      case (HarvesterAction.Build): {
         const t = targetObject as ConstructionSite;
         result = creep.build(t);
         if (result === OK) console.log(`${creep.name} builds ${t} (${t.progress}/${t.progressTotal}) %${(t.progress / t.progressTotal * 100).toFixed(2)}`);
         break;
       }
-      case (DeliveryAction.Repair): {
+      case (HarvesterAction.Repair): {
         const t = targetObject as AnyOwnedStructure;
         result = creep.repair(t);
         if (result === OK) console.log(`${creep.name} repaired ${t} (${t.hits}/${t.hitsMax}) %${(t.hits / t.hitsMax * 100).toFixed(2)}`);
         break;
       }
-      case (DeliveryAction.Transfer): {
+      case (HarvesterAction.Transfer): {
         const t = targetObject as AnyStoreStructure;
         result = creep.transfer(t, RESOURCE_ENERGY);
         if (result === OK) console.log(`${creep.name} supplied ${t}.`);
         break;
       }
-      case (DeliveryAction.Harvest): {
+      case (HarvesterAction.Harvest): {
         const t = targetObject as Source;
         result = creep.harvest(t)
         if (result === OK) console.log(`${creep.name} mined ${t}.`)
@@ -264,52 +285,43 @@ class Harvester extends Role {
 
   IsDeliveryComplete(creep: Creep): boolean {
     const m = creep.memory.jobMemory as HarvesterMemory;
-    if (m.target == null) {
+    if (m.target == null || m.target == undefined) {
       creep.say("X_X");
       return true;
     }
     const targetObject = Game.getObjectById(m.target);
-    if (targetObject == null) {
+    if (targetObject == null || targetObject == undefined) {
       creep.say("H_X");
       return true;
     }
 
     switch (m.action) {
-      case (DeliveryAction.Upgrade): {
+      case (HarvesterAction.Upgrade): {
         const t = targetObject as StructureController;
         return t.level >= this.DesiredRCL;
       }
-      case (DeliveryAction.StopDowngrade): {
+      case (HarvesterAction.StopDowngrade): {
         const t = targetObject as StructureController;
         return t.ticksToDowngrade >= this.DowngradeStopThreshold
       }
-      case (DeliveryAction.Build): {
+      case (HarvesterAction.Build): {
         const t = targetObject as ConstructionSite;
         return t.progress === t.progressTotal;
       }
-      case (DeliveryAction.Repair): {
+      case (HarvesterAction.Repair): {
         const t = targetObject as AnyOwnedStructure;
         return t.hits === t.hitsMax;
       }
-      case (DeliveryAction.Transfer): {
+      case (HarvesterAction.Transfer): {
         const t = targetObject as AnyStoreStructure;
         return t.store.getFreeCapacity(RESOURCE_ENERGY) === 0;
       }
-      case (DeliveryAction.Harvest): {
+      case (HarvesterAction.Harvest): {
         return creep.store.getFreeCapacity(RESOURCE_ENERGY) === 0;
       }
       default:
         return true;
     }
-  }
-
-  OnTick(creep: Creep, room: Room): void {
-    const mem = creep.memory.jobMemory as HarvesterMemory;
-
-    if (this.IsDeliveryComplete(creep))
-      this.Reassign(creep);
-    else
-      this.Act(creep);
   }
 }
 
@@ -329,7 +341,6 @@ const MainLoop = () => {
   // Iterate the Rooms and Roles
   for (const [roomName, room] of Object.entries(Game.rooms)) {
     for (const [roleName, role] of Object.entries(Roles)) {
-      role.SpawnIfNeeded(room);
       role.RunForRoom(room);
     }
   }
