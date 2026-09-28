@@ -109,7 +109,7 @@ abstract class Role {
 class Harvester extends Role {
   SpawnAtRCL = 0;
   RoleName = "harvester";
-  CountPerRoom = 3;
+  CountPerRoom = 6;
   BodyParts = [WORK, CARRY, MOVE];
   InitJobMemory: { isWorking: boolean } = { isWorking: false };
 
