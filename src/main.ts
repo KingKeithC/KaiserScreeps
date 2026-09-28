@@ -159,7 +159,7 @@ class Harvester extends Role {
   RoleName = "harvester";
 
   SpawnAtRCL = 0;
-  CountPerRoom = 10;
+  CountPerRoom = 3;
   BodyParts = [WORK, CARRY, MOVE];
 
   DesiredRCL = 2;
@@ -407,8 +407,20 @@ class Harvester extends Role {
   }
 }
 
+class HarvesterT2 extends Harvester {
+  RoleName = "harvesterT2";
+
+  SpawnAtRCL = 2;
+  CountPerRoom = 3;
+  BodyParts = [MOVE, WORK, WORK, CARRY, CARRY, CARRY];
+
+  DesiredRCL = 3;
+  DowngradeStopThreshold = 2000;
+}
+
 const Roles: { [roleName: string]: Role } = {
   harvester: new Harvester(),
+  harvesterT2: new HarvesterT2(),
 };
 
 const MainLoop = () => {
