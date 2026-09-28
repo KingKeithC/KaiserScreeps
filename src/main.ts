@@ -225,6 +225,17 @@ class Harvester extends Role {
       return;
     }
 
+    // Pending Upgrades
+    targetObject = creep.pos.findClosestByPath(FIND_MY_STRUCTURES, {
+      filter: (structure) => structure.structureType === STRUCTURE_CONTROLLER && structure.level < this.DesiredRCL
+    });
+    if (targetObject) {
+      mem.target = targetObject.id;
+      mem.action = HarvesterAction.Upgrade;
+      creep.say("🆙");
+      return;
+    }
+
     // Structures in need of repair
     targetObject = creep.pos.findClosestByPath(FIND_MY_STRUCTURES, {
       filter: (structure) => structure.hits < structure.hitsMax
@@ -247,14 +258,14 @@ class Harvester extends Role {
       return;
     }
 
-    // Pending Upgrades
+    // All Upgrades
     targetObject = creep.pos.findClosestByPath(FIND_MY_STRUCTURES, {
-      filter: (structure) => structure.structureType === STRUCTURE_CONTROLLER && structure.level < this.DesiredRCL
+      filter: (structure) => structure.structureType === STRUCTURE_CONTROLLER
     });
     if (targetObject) {
       mem.target = targetObject.id;
       mem.action = HarvesterAction.Upgrade;
-      creep.say("🆙");
+      creep.say("🆙🆙🆙!!!");
       return;
     }
 
