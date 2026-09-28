@@ -318,13 +318,13 @@ class Harvester extends Role {
       case (HarvesterAction.Transfer): {
         const t = targetObject as AnyStoreStructure;
         result = creep.transfer(t, RESOURCE_ENERGY);
-        if (result === OK) console.log(`${room}${creep}: Act: Supplied ${t}.`);
+        // if (result === OK) console.log(`${room}${creep}: Act: Supplied ${t}.`);
         break;
       }
       case (HarvesterAction.Harvest): {
         const t = targetObject as Source;
         result = creep.harvest(t)
-        if (result === OK) console.log(`${room}${creep}: Act: Harvested ${t}.`);
+        // if (result === OK) console.log(`${room}${creep}: Act: Harvested ${t}.`);
         break;
       }
       default:
