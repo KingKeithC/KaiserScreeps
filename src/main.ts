@@ -94,20 +94,21 @@ abstract class Role {
     if (!this.NeedToSpawn(room)) return;          // Sometimes we don't need to spawn anything
 
     // It's Needed
-
-    // Find a suitable spawn point
-    const spawns = room.find(FIND_MY_SPAWNS, {
-      filter: (spawn) => !spawn.spawning && spawn.store.energy >= this.RoleBodyCost()
-    });
-    if (spawns.length === 0) {
-      console.log(`${room}[${this.RoleName}]: Need to spawn, but no points are suitable (costs ${this.RoleBodyCost()})...`);
+    if (room.energyAvailable < this.RoleBodyCost()) {
+      console.log(`${room}[${this.RoleName}]: Need to spawn, but lack the energy (costs ${this.RoleBodyCost()}, have ${room.energyAvailable}/${room.energyCapacityAvailable})...`);
       return;
     }
 
-    // Do the spawn
+    // Find a suitable spawn point
+    const spawns = room.find(FIND_MY_SPAWNS, { filter: (spawn) => !spawn.spawning });
+    if (spawns.length === 0) {
+      console.log(`${room}[${this.RoleName}]: Need to spawn, but no points are available or all are in use.`);
+      return;
+    }
     const spawnPoint = spawns[0];
-    console.log(`${room}[${this.RoleName}]: ${this.CreepsInRole(room).length}/${this.CountPerRoom} +1 @ ${spawnPoint}...`);
-    spawnPoint.spawnCreep(
+
+    // Do the spawn
+    const result = spawnPoint.spawnCreep(
       this.BodyParts,
       `${this.RoleName}-${Game.time}`,
       {
@@ -118,6 +119,14 @@ abstract class Role {
         },
       }
     );
+
+    if (result === OK) {
+      console.log(`${room}[${this.RoleName}]: ${this.CreepsInRole(room).length}/${this.CountPerRoom} +1 Spawning @ ${spawnPoint}...`);
+      return;
+    } else {
+      console.log(`${room}[${this.RoleName}]: ${spawnPoint} Spawn failed with result: ${result}...`);
+      return;
+    }
   }
 
   RefreshEmptyCreeps(room: Room): void {
