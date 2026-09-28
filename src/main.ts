@@ -163,19 +163,19 @@ class Harvester extends Role {
 
   OnTick(creep: Creep, room: Room): void {
     if (creep.memory.jobMemory == null) {
-      console.log(`${room}[${creep}]: OnTick: jobMemory == null`)
+      console.log(`${room}${creep}: OnTick: jobMemory == null`)
       this.Reassign(creep);
     }
     else if (creep.memory.jobMemory == undefined) {
-      console.log(`${room}[${creep}]: OnTick: jobMemory == undefined`)
+      console.log(`${room}${creep}: OnTick: jobMemory == undefined`)
       this.Reassign(creep);
     }
-    else if (this.IsDeliveryComplete(creep)) {
-      console.log(`${room}[${creep}]: OnTick: IsDeliveryComplete is true`)
+    else if (this.IsDeliveryComplete(creep, room)) {
+      console.log(`${room}${creep}: OnTick: IsDeliveryComplete is true`)
       this.Reassign(creep);
     }
     else {
-      this.Act(creep);
+      this.Act(creep, room);
     }
   }
 
@@ -261,15 +261,16 @@ class Harvester extends Role {
     creep.say("🥱");
   }
 
-  Act(creep: Creep): void {
+  Act(creep: Creep, room: Room): void {
     const m = creep.memory.jobMemory as HarvesterMemory;
+
     if (m.target == null || m.target == undefined) {
-      console.log(`${creep.memory.room}[${creep}]: Act: ${creep} has null/undefined target in memory`)
+      console.log(`${room}${creep}: Act: ${creep} has null/undefined target in memory`)
       return;
     }
     const targetObject = Game.getObjectById(m.target);
     if (targetObject == null || targetObject == undefined) {
-      console.log(`${creep.memory.room}[${creep}]: Act: ${creep} Game.getObjectById returned null`)
+      console.log(`${room}${creep}: Act: ${creep} Game.getObjectById returned null`)
       return;
     }
 
@@ -278,37 +279,37 @@ class Harvester extends Role {
       case (HarvesterAction.Upgrade): {
         const t = targetObject as StructureController;
         result = creep.upgradeController(t);
-        if (result === OK) console.log(`${creep.memory.room}[${creep}]: Act: Upgraded ${t} to level ${t.level} (${t.progress}/${t.progressTotal}) %${(t.progress / t.progressTotal * 100).toFixed(2)}.`);
+        if (result === OK) console.log(`${room}${creep}: Act: Upgraded ${t} to level ${t.level} (${t.progress}/${t.progressTotal}) %${(t.progress / t.progressTotal * 100).toFixed(2)}.`);
         break;
       }
       case (HarvesterAction.Upgrade || HarvesterAction.StopDowngrade): {
         const t = targetObject as StructureController;
         result = creep.upgradeController(t);
-        if (result === OK) console.log(`${creep.memory.room}[${creep}]: Act: Prevented Downgrade of ${t} in ${t.ticksToDowngrade}.`);
+        if (result === OK) console.log(`${room}${creep}: Act: Prevented Downgrade of ${t} in ${t.ticksToDowngrade}.`);
         break;
       }
       case (HarvesterAction.Build): {
         const t = targetObject as ConstructionSite;
         result = creep.build(t);
-        if (result === OK) console.log(`${creep.memory.room}[${creep}]: Act: Built ${t} (${t.progress}/${t.progressTotal}) %${(t.progress / t.progressTotal * 100).toFixed(2)}.`);
+        if (result === OK) console.log(`${room}${creep}: Act: Built ${t} (${t.progress}/${t.progressTotal}) %${(t.progress / t.progressTotal * 100).toFixed(2)}.`);
         break;
       }
       case (HarvesterAction.Repair): {
         const t = targetObject as AnyOwnedStructure;
         result = creep.repair(t);
-        if (result === OK) console.log(`${creep.memory.room}[${creep}]: Act: Repaired ${t} (${t.hits}/${t.hitsMax}) %${(t.hits / t.hitsMax * 100).toFixed(2)}.`);
+        if (result === OK) console.log(`${room}${creep}: Act: Repaired ${t} (${t.hits}/${t.hitsMax}) %${(t.hits / t.hitsMax * 100).toFixed(2)}.`);
         break;
       }
       case (HarvesterAction.Transfer): {
         const t = targetObject as AnyStoreStructure;
         result = creep.transfer(t, RESOURCE_ENERGY);
-        // if (result === OK) console.log(`${creep.memory.room}[${creep}]: Act: Supplied ${t}.`);
+        // if (result === OK) console.log(`${room}${creep}: Act: Supplied ${t}.`);
         break;
       }
       case (HarvesterAction.Harvest): {
         const t = targetObject as Source;
         result = creep.harvest(t)
-        // if (result === OK) console.log(`${creep.memory.room}[${creep}]: Act: Harvested ${t}.`);
+        // if (result === OK) console.log(`${room}${creep}: Act: Harvested ${t}.`);
         break;
       }
       default:
@@ -323,26 +324,26 @@ class Harvester extends Role {
         return;
       }
       default: {
-        console.log(`${creep.memory.room}[${creep}]: Act: ${m.action} for ${creep} was not successful: ${result}`);
+        console.log(`${room}${creep}: Act: ${m.action} for ${creep} was not successful: ${result}`);
         return;
       }
     }
   }
 
-  IsDeliveryComplete(creep: Creep): boolean {
+  IsDeliveryComplete(creep: Creep, room: Room): boolean {
     const m = creep.memory.jobMemory as HarvesterMemory;
     if (m.target == null || m.target == undefined) {
-      console.log(`${creep.memory.room}[${creep}]: IsDeliveryComplete: ${creep} has null/undefined target in memory`)
+      console.log(`${room}${creep}: IsDeliveryComplete: ${creep} has null/undefined target in memory`)
       return true;
     }
     const targetObject = Game.getObjectById(m.target);
     if (targetObject == null || targetObject == undefined) {
-      console.log(`${creep.memory.room}[${creep}]: IsDeliveryComplete: ${creep} Game.getObjectById returned null`)
+      console.log(`${room}${creep}: IsDeliveryComplete: ${creep} Game.getObjectById returned null`)
       return true;
     }
 
     if (m.action !== HarvesterAction.Harvest && creep.store.getUsedCapacity(RESOURCE_ENERGY) === 0) {
-      console.log(`${creep.memory.room}[${creep}]: IsDeliveryComplete: ${creep} ran out of Energy`)
+      console.log(`${room}${creep}: IsDeliveryComplete: ${creep} ran out of Energy`)
       return true;
     }
 
