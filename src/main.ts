@@ -41,8 +41,6 @@ abstract class Role {
 
   // Minimum RCL needed to start using this role.
   abstract SpawnAtRCL: number;
-
-  //
   StopSpawnAtRCL: number = 100;
 
   RoleBodyCost(): number {
