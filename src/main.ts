@@ -66,19 +66,19 @@ abstract class Role {
     // Skip spawn if RCL is too low
     const rcl = room.controller?.level ?? -1;
     if (rcl < this.SpawnAtRCL || rcl >= this.StopSpawnAtRCL) {
-      console.log("RCL unmet");
+      console.log(`SpawnRequirementsMet ${this.RoleName}: RCL unmet`);
       return true;
     };
 
     // or quota met
     if (this.CreepsInRole(room).length >= this.CountPerRoom) {
-      console.log("Quote met");
+      console.log(`SpawnRequirementsMet ${this.RoleName}: Quote met`);
       return true;
     }
 
     // or a spawn is already in progress
     if (room.find(FIND_MY_SPAWNS, { filter: (s) => s.spawning }).length) {
-      console.log("Spawn in progress");
+      console.log(`SpawnRequirementsMet ${this.RoleName}: Spawn in progress`);
       return true;
     }
 
@@ -88,7 +88,6 @@ abstract class Role {
 
   SpawnIfNeeded(room: Room): void {
     if (Game.time % this.SpawnRate && this.SpawnRequirementsMet(room)) {
-      console.log("Spawn requirements met.")
       return;
     }
 
