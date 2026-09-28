@@ -142,6 +142,8 @@ class Harvester extends Role {
         filter: (structure) => structure.hits < structure.hitsMax
       }) ?? creep.pos.findClosestByPath(FIND_MY_CONSTRUCTION_SITES, {
         filter: (site) => site.progress < site.progressTotal,
+      }) ?? creep.pos.findClosestByPath(FIND_MY_STRUCTURES, {
+        filter: (structure) => structure.structureType === STRUCTURE_CONTROLLER && structure.level < 8
       });
 
       // Skip if no target found
