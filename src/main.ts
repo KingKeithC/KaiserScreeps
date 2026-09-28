@@ -48,6 +48,8 @@ abstract class Role {
   // How ofter to check for spawn
   SpawnRate: number = 20;
 
+  ReusePath: number = 10;
+
   DefaultRoleName: string = "harvester";
 
   // Main logic for custom role
@@ -331,7 +333,7 @@ class Harvester extends Role {
       case OK:
         return;
       case ERR_NOT_IN_RANGE: {
-        creep.moveTo(targetObject, { visualizePathStyle: { stroke: COLOURS.PATH_TARGET }, reusePath: 3 });
+        creep.moveTo(targetObject, { visualizePathStyle: { stroke: COLOURS.PATH_TARGET }, reusePath: this.ReusePath });
         return;
       }
       default: {
