@@ -186,7 +186,7 @@ export class Harvester extends Role {
     switch (mem.action) {
       case (HarvesterAction.CollectEnergy): {
         // No action as we should already have moved nearby
-        console.log(`${this.room}${creep}: Awaiting energy transfer.`);
+        console.log(`${this.room}${creep}: Awaiting energy transfer (${creep.store.energy}/${creep.store.getCapacity(RESOURCE_ENERGY)}).`);
         break;
       }
       case (HarvesterAction.Upgrade || HarvesterAction.IdleUpgrade || HarvesterAction.StopDowngrade): {
