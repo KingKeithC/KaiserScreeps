@@ -1,4 +1,3 @@
-import { Harvester, HarvesterT2 } from "harvester";
 import { Role } from "role";
 
 class MinerMemory extends Object {
@@ -38,7 +37,7 @@ export class Miner extends Role {
       // If there are nearby Harvesters low on energy
       for (const harvester of creep.pos.findInRange(FIND_MY_CREEPS, 2, {
         filter: (c) => (
-          (c.memory.role === Harvester.prototype.RoleName || c.memory.role === HarvesterT2.prototype.RoleName)
+          (c.memory.role === "harvester" || c.memory.role === "harvesterT2")
           && c.store.getFreeCapacity(RESOURCE_ENERGY) > 0
         )
       }))

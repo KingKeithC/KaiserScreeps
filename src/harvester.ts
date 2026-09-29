@@ -1,5 +1,3 @@
-import { min } from "lodash";
-import { Miner } from "miner";
 import { Role } from "role";
 
 enum HarvesterAction {
@@ -73,7 +71,7 @@ export class Harvester extends Role {
     if (creep.store.getUsedCapacity(RESOURCE_ENERGY) === 0) {
 
       // Collect from a miner if there are any
-      const miner = creep.pos.findClosestByPath(FIND_MY_CREEPS, { filter: (c) => c.memory.role === Miner.prototype.RoleName })
+      const miner = creep.pos.findClosestByPath(FIND_MY_CREEPS, { filter: (c) => c.memory.role === "Miner" })
       if (miner != null)
         return new HarvesterMemory(HarvesterAction.CollectEnergy, miner.id);
 
