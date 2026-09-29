@@ -1,8 +1,11 @@
+import { min } from "lodash";
+import { Miner } from "miner";
 import { Role } from "role";
 
 enum HarvesterAction {
   Idle = '💤',
   Harvest = '⛏️',
+  CollectEnergy = '🔌',
   Upgrade = '🆙',
   StopDowngrade = '🦸‍♀️',
   Build = '🏗️',
@@ -12,9 +15,9 @@ enum HarvesterAction {
 
 class HarvesterMemory extends Object {
   readonly action: HarvesterAction;
-  readonly target: Id<ConstructionSite<BuildableStructureConstant> | AnyOwnedStructure | Source> | null;
+  readonly target: Id<ConstructionSite<BuildableStructureConstant> | AnyOwnedStructure | Source | Creep> | null;
 
-  constructor(action: HarvesterAction, id: Id<ConstructionSite<BuildableStructureConstant> | AnyOwnedStructure | Source> | null = null) {
+  constructor(action: HarvesterAction, id: Id<ConstructionSite<BuildableStructureConstant> | AnyOwnedStructure | Source | Creep> | null = null) {
     super();
 
     if (id == null && action !== HarvesterAction.Idle) {
@@ -66,14 +69,22 @@ export class Harvester extends Role {
     if (mem.action === HarvesterAction.Transfer)
       this.room.memory.countPerformingTransfer -= 1;
 
-    // Harvest if we are empty
+    // If we are out of energy
     if (creep.store.getUsedCapacity(RESOURCE_ENERGY) === 0) {
+
+      // Collect from a miner if there are any
+      const miner = creep.pos.findClosestByPath(FIND_MY_CREEPS, { filter: (c) => c.memory.role === Miner.prototype.RoleName })
+      if (miner != null)
+        return new HarvesterMemory(HarvesterAction.CollectEnergy, miner.id);
+
+      // Do harverting on our own
       const source = creep.pos.findClosestByPath(FIND_SOURCES_ACTIVE);
       if (source) {
         return new HarvesterMemory(HarvesterAction.Harvest, source.id);
-      } else {
-        return new HarvesterMemory(HarvesterAction.Idle);
       }
+
+      // Nothing to do without energy
+      return new HarvesterMemory(HarvesterAction.Idle);
     }
 
     // Select target in order of priority
@@ -163,14 +174,21 @@ export class Harvester extends Role {
     }
 
     var minDistance = 3;
-    if (mem.action === HarvesterAction.Harvest || mem.action === HarvesterAction.Transfer)
+    if (mem.action === HarvesterAction.CollectEnergy)
+      minDistance = 2;
+    else if (mem.action === HarvesterAction.Harvest || mem.action === HarvesterAction.Transfer)
       minDistance = 1;
 
     if (this.MoveCreep(creep, targetObject.pos, minDistance) != null)
       return; // We had to move so don't bother to act
 
-    var result: number | null = null;
+    var result: number = OK;
     switch (mem.action) {
+      case (HarvesterAction.CollectEnergy): {
+        // No action as we should already have moved nearby
+        console.log(`${this.room}${creep}: Awaiting energy transfer.`);
+        break;
+      }
       case (HarvesterAction.Upgrade): {
         const t = targetObject as StructureController;
         result = creep.upgradeController(t);
@@ -269,6 +287,9 @@ export class Harvester extends Role {
     }
 
     switch (mem.action) {
+      case (HarvesterAction.CollectEnergy): {
+        return creep.store.getFreeCapacity(RESOURCE_ENERGY) === 0;
+      }
       case (HarvesterAction.Upgrade): {
         const t = targetObject as StructureController;
         return t.level >= this.DesiredRCL;
