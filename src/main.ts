@@ -24,7 +24,7 @@ declare global {
   interface RoomMemory {
     countPreventingDowngrade: number
     countPerformingUpgrade: number
-    lastSpawnTick: number
+    lastSpawnTick: { [roleName: string]: number }
   }
 
 }
@@ -63,10 +63,7 @@ abstract class Role {
   ReusePath: number = 10;
   ShortPathThreshold: number = 6;
 
-  // Shared Tick Logic. Should be called via `super.Tick()` in child classes.
-  Tick(): void {
-    if ((Game.time - this.room.memory.lastSpawnTick) > this.SpawnRate) this.DoSpawns(); // Attempt spawn infrequently.
-  }
+  abstract Tick(): void;
 
   protected RoleBodyCost(): number {
     var total: number = 0;
@@ -77,6 +74,10 @@ abstract class Role {
   protected CreepsInRole = () => this.room.find(FIND_MY_CREEPS, { filter: (creep) => creep.memory.role === this.RoleName });
 
   DoSpawns(): void {
+    const timeSinceSpawn = Game.time - (this.room.memory.lastSpawnTick[this.RoleName] ?? 0);
+    if (timeSinceSpawn < this.SpawnRate) return; // Not ready
+    this.room.memory.lastSpawnTick[this.RoleName] = Game.time; // Reset
+
     // Cannot spawn if RCL is wrong
     const rcl = this.room.controller?.level ?? 0;
     if (rcl < this.SpawnAtRCL || rcl >= this.StopSpawnAtRCL) {
@@ -129,8 +130,6 @@ abstract class Role {
       console.log(`${this.room}[${this.RoleName}]: ${this.CreepsInRole().length}/${this.CountPerRoom} +1 Spawning @ ${spawnPoint}...`);
     else
       console.log(`${this.room}[${this.RoleName}]: ${spawnPoint} Spawn failed with result: ${result}...`);
-
-    this.room.memory.lastSpawnTick = Game.time;
   }
 }
 
@@ -172,9 +171,7 @@ class Harvester extends Role {
   WorkersPreventingDowngrade = 2;
   WorkersPerformingUpgrade = 2;
 
-  override Tick(): void {
-    super.Tick();
-
+  Tick(): void {
     for (const creep of this.CreepsInRole()) {
       this.Act(creep);
       if (this.IsActComplete(creep)) {
@@ -448,7 +445,7 @@ const MainLoop = () => {
     if (room.memory.countPerformingUpgrade == null || room.memory.countPerformingUpgrade == undefined || room.memory.countPerformingUpgrade < 0)
       room.memory.countPerformingUpgrade = 0;
     if (room.memory.lastSpawnTick == null || room.memory.lastSpawnTick == undefined)
-      room.memory.lastSpawnTick = Game.time;
+      room.memory.lastSpawnTick = {};
 
     // Run each role in the room
     for (const role of [
