@@ -347,6 +347,9 @@ class Harvester extends Role {
         return;
       }
       case ERR_NOT_IN_RANGE: {
+        // Can't move anyways so don't bother
+        if (creep.fatigue) return;
+
         const range = creep.pos.getRangeTo(targetObject);
 
         var moveOutcome: number = OK;
