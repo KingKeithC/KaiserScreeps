@@ -22,7 +22,7 @@ export abstract class Role {
 
   InitialJobMemory: object = {}
 
-  ReusePath: number = 10;
+  ReusePath: number = 20;
   ShortPathThreshold: number = 6;
 
   abstract Tick(): void;
