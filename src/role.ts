@@ -26,7 +26,7 @@ export abstract class Role {
   InitialJobMemory: object = {}
 
   ReusePath: number = 20;
-  ShortPathThreshold: number = 6;
+  ShortPathThreshold: number = 4;
 
   abstract Tick(): void;
 
