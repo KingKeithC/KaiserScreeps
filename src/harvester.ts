@@ -32,10 +32,10 @@ export class Harvester extends Role {
 
   StartSpawnAtRCL = 0;
   StopSpawnAtRCL = 3;
+  UpgradeToRCL = 2;
   CountPerRoom = 1;
   BodyParts = [WORK, CARRY, MOVE];
 
-  UpgradeToRCL = 2;
   DowngradeStopThreshold = 5000;
   WorkersPreventingDowngrade = 2;
   WorkersPerformingUpgrade = 2;
