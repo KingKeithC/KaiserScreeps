@@ -57,6 +57,27 @@ const MainLoop = () => {
     if (room.memory.lastSpawnTick == null || room.memory.lastSpawnTick == undefined)
       room.memory.lastSpawnTick = {};
 
+    // Run each tower in the room
+    for (const tower of room.find(FIND_MY_STRUCTURES, { filter: s => s.structureType === STRUCTURE_TOWER })) {
+      const t = tower as StructureTower;
+      if (t == null || t == undefined) continue;
+
+      if (t.store.getUsedCapacity(RESOURCE_ENERGY) === 0)
+        continue; // No energy to work
+
+      const tgt = t.pos.findClosestByRange(FIND_MY_STRUCTURES, { filter: s => s.hits < s.hitsMax })
+      if (tgt != null && tgt != undefined) {
+        t.repair(tgt);
+        continue;
+      }
+
+      const weakling = t.pos.findClosestByRange(FIND_MY_CREEPS, { filter: c => c.hits < c.hitsMax })
+      if (weakling != null && weakling != undefined) {
+        t.heal(weakling);
+        continue;
+      }
+    }
+
     // Run each role in the room
     for (const role of [
       new Harvester(room),
