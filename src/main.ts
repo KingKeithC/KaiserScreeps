@@ -41,11 +41,9 @@ const COLOURS = {
 abstract class Role {
   abstract RoleName: string;
 
-  protected creep: Creep;
   protected room: Room;
 
-  constructor(creep: Creep, room: Room) {
-    this.creep = creep;
+  constructor(room: Room) {
     this.room = room;
   }
 
@@ -162,19 +160,21 @@ class Harvester extends Role {
   WorkersPreventingDowngrade = 2;
   WorkersPerformingUpgrade = 2;
 
-  Tick(): void {
+  override Tick(): void {
     super.Tick();
 
-    if (this.IsDeliveryComplete()) {
-      console.log(`${this.room}${this.creep}: ${this.creep.memory.jobMemory}: Task Complete.`)
-      this.Reassign();
-    } else {
-      this.Act();
+    for (const creep of this.CreepsInRole()) {
+      if (this.IsDeliveryComplete(creep)) {
+        console.log(`${this.room}${creep}: ${creep.memory.jobMemory}: Task Complete.`)
+        this.Reassign(creep);
+      } else {
+        this.Act(creep);
+      }
     }
   }
 
-  Reassign(): void {
-    const mem = this.creep.memory.jobMemory as HarvesterMemory;
+  Reassign(creep: Creep): void {
+    const mem = creep.memory.jobMemory as HarvesterMemory;
     // console.log(`${room}${creep} Reassigned!`);
 
     // Run Cleanup Tasks
@@ -187,14 +187,14 @@ class Harvester extends Role {
     mem.target = null;
 
     // Harvest if we are empty
-    if (this.creep.store.getUsedCapacity(RESOURCE_ENERGY) === 0) {
-      const source = this.creep.pos.findClosestByPath(FIND_SOURCES_ACTIVE);
+    if (creep.store.getUsedCapacity(RESOURCE_ENERGY) === 0) {
+      const source = creep.pos.findClosestByPath(FIND_SOURCES_ACTIVE);
       if (source) {
         mem.target = source.id;
         mem.action = HarvesterAction.Harvest;
-        this.creep.say("⛏️⚡️")
+        creep.say("⛏️⚡️")
       } else {
-        this.creep.say("🤷‍♂️⚡️");
+        creep.say("🤷‍♂️⚡️");
       }
       return;
     }
@@ -203,7 +203,7 @@ class Harvester extends Role {
     var targetObject;
 
     // Spawns with room for energy
-    targetObject = this.creep.pos.findClosestByPath(FIND_MY_STRUCTURES, {
+    targetObject = creep.pos.findClosestByPath(FIND_MY_STRUCTURES, {
       filter: (structure) =>
         (structure.structureType === STRUCTURE_EXTENSION || structure.structureType === STRUCTURE_SPAWN)
         && structure.store.getFreeCapacity(RESOURCE_ENERGY) > 0
@@ -211,13 +211,13 @@ class Harvester extends Role {
     if (targetObject) {
       mem.target = targetObject.id;
       mem.action = HarvesterAction.Transfer;
-      this.creep.say("🫴🎁");
+      creep.say("🫴🎁");
       return;
     }
 
     // Controllers at risk of downgrade
     if (this.room.memory.countPreventingDowngrade < this.WorkersPreventingDowngrade) {
-      targetObject = this.creep.pos.findClosestByPath(FIND_MY_STRUCTURES, {
+      targetObject = creep.pos.findClosestByPath(FIND_MY_STRUCTURES, {
         filter: (structure) =>
           structure.structureType === STRUCTURE_CONTROLLER
           && structure.ticksToDowngrade < this.DowngradeStopThreshold
@@ -226,71 +226,71 @@ class Harvester extends Role {
         mem.target = targetObject.id;
         mem.action = HarvesterAction.StopDowngrade;
         this.room.memory.countPreventingDowngrade += 1;
-        this.creep.say("🦸‍♀️");
+        creep.say("🦸‍♀️");
         return;
       }
     }
 
     // Pending Upgrades
     if (this.room.memory.countPerformingUpgrade < this.WorkersPerformingUpgrade) {
-      targetObject = this.creep.pos.findClosestByPath(FIND_MY_STRUCTURES, {
+      targetObject = creep.pos.findClosestByPath(FIND_MY_STRUCTURES, {
         filter: (structure) => structure.structureType === STRUCTURE_CONTROLLER && structure.level < this.DesiredRCL
       });
       if (targetObject) {
         mem.target = targetObject.id;
         mem.action = HarvesterAction.Upgrade;
         this.room.memory.countPerformingUpgrade += 1;
-        this.creep.say("🆙");
+        creep.say("🆙");
         return;
       }
     }
 
     // Structures in need of repair
-    targetObject = this.creep.pos.findClosestByPath(FIND_MY_STRUCTURES, {
+    targetObject = creep.pos.findClosestByPath(FIND_MY_STRUCTURES, {
       filter: (structure) => structure.hits < structure.hitsMax
     });
     if (targetObject) {
       mem.target = targetObject.id;
       mem.action = HarvesterAction.Repair;
-      this.creep.say("🛠️");
+      creep.say("🛠️");
       return;
     }
 
     // Ongoing Construction
-    targetObject = this.creep.pos.findClosestByPath(FIND_MY_CONSTRUCTION_SITES, {
+    targetObject = creep.pos.findClosestByPath(FIND_MY_CONSTRUCTION_SITES, {
       filter: (site) => site.progress < site.progressTotal,
     });
     if (targetObject) {
       mem.target = targetObject.id;
       mem.action = HarvesterAction.Build;
-      this.creep.say("🏗️");
+      creep.say("🏗️");
       return;
     }
 
     // All Upgrades
-    targetObject = this.creep.pos.findClosestByPath(FIND_MY_STRUCTURES, {
+    targetObject = creep.pos.findClosestByPath(FIND_MY_STRUCTURES, {
       filter: (structure) => structure.structureType === STRUCTURE_CONTROLLER
     });
     if (targetObject) {
       mem.target = targetObject.id;
       mem.action = HarvesterAction.Upgrade;
-      this.creep.say("🆙🆙🆙!!!");
+      creep.say("🆙🆙🆙!!!");
       return;
     }
 
-    this.creep.say("🥱");
+    creep.say("🥱");
   }
 
-  Act(): void {
-    const mem = this.creep.memory.jobMemory as HarvesterMemory;
+  Act(creep: Creep): void {
+    const mem = creep.memory.jobMemory as HarvesterMemory;
 
     if (mem.target == null || mem.target == undefined) {
-      console.log(`${this.room}${this.creep}: Act: ${this.creep} has null/undefined target in memory`)
+      console.log(`${this.room}${creep}: Act: ${creep} has null/undefined target in memory`)
       return;
     }
     const targetObject = Game.getObjectById(mem.target);
     if (targetObject == null || targetObject == undefined) {
-      console.log(`${this.room}${this.creep}: Act: ${this.creep} Game.getObjectById returned null`)
+      console.log(`${this.room}${creep}: Act: ${creep} Game.getObjectById returned null`)
       return;
     }
 
@@ -298,38 +298,38 @@ class Harvester extends Role {
     switch (mem.action) {
       case (HarvesterAction.Upgrade): {
         const t = targetObject as StructureController;
-        result = this.creep.upgradeController(t);
-        if (result === OK) console.log(`${this.room}${this.creep}: Act: Upgraded ${t} to RCL ${t.level} (${t.progress}/${t.progressTotal}) %${(t.progress / t.progressTotal * 100).toFixed(2)}.`);
+        result = creep.upgradeController(t);
+        if (result === OK) console.log(`${this.room}${creep}: Act: Upgraded ${t} to RCL ${t.level} (${t.progress}/${t.progressTotal}) %${(t.progress / t.progressTotal * 100).toFixed(2)}.`);
         break;
       }
       case (HarvesterAction.StopDowngrade): {
         const t = targetObject as StructureController;
-        result = this.creep.upgradeController(t);
-        if (result === OK) console.log(`${this.room}${this.creep}: Act: Prevented Downgrade of ${t} in ${t.ticksToDowngrade}.`);
+        result = creep.upgradeController(t);
+        if (result === OK) console.log(`${this.room}${creep}: Act: Prevented Downgrade of ${t} in ${t.ticksToDowngrade}.`);
         break;
       }
       case (HarvesterAction.Build): {
         const t = targetObject as ConstructionSite;
-        result = this.creep.build(t);
-        if (result === OK) console.log(`${this.room}${this.creep}: Act: Built ${t} (${t.progress}/${t.progressTotal}) %${(t.progress / t.progressTotal * 100).toFixed(2)}.`);
+        result = creep.build(t);
+        if (result === OK) console.log(`${this.room}${creep}: Act: Built ${t} (${t.progress}/${t.progressTotal}) %${(t.progress / t.progressTotal * 100).toFixed(2)}.`);
         break;
       }
       case (HarvesterAction.Repair): {
         const t = targetObject as AnyOwnedStructure;
-        result = this.creep.repair(t);
-        if (result === OK) console.log(`${this.room}${this.creep}: Act: Repaired ${t} (${t.hits}/${t.hitsMax}) %${(t.hits / t.hitsMax * 100).toFixed(2)}.`);
+        result = creep.repair(t);
+        if (result === OK) console.log(`${this.room}${creep}: Act: Repaired ${t} (${t.hits}/${t.hitsMax}) %${(t.hits / t.hitsMax * 100).toFixed(2)}.`);
         break;
       }
       case (HarvesterAction.Transfer): {
         const t = targetObject as AnyStoreStructure;
-        result = this.creep.transfer(t, RESOURCE_ENERGY);
-        // if (result === OK) console.log(`${this.room}${this.creep}: Act: Supplied ${t}.`);
+        result = creep.transfer(t, RESOURCE_ENERGY);
+        // if (result === OK) console.log(`${this.room}${creep}: Act: Supplied ${t}.`);
         break;
       }
       case (HarvesterAction.Harvest): {
         const t = targetObject as Source;
-        result = this.creep.harvest(t)
-        // if (result === OK) console.log(`${this.room}${this.creep}: Act: Harvested ${t}.`);
+        result = creep.harvest(t)
+        // if (result === OK) console.log(`${this.room}${creep}: Act: Harvested ${t}.`);
         break;
       }
       default:
@@ -340,46 +340,46 @@ class Harvester extends Role {
       case OK:
         return;
       case ERR_NOT_IN_RANGE: {
-        const range = this.creep.pos.getRangeTo(targetObject);
+        const range = creep.pos.getRangeTo(targetObject);
 
         // Move Long if we are farther than ShortPathThreshold away.
         var moveOutcome: number = OK;
         if (range > this.ShortPathThreshold)
-          moveOutcome = this.creep.moveTo(targetObject, { visualizePathStyle: { stroke: COLOURS.PATH_LONG, lineStyle: "solid" }, reusePath: this.ReusePath, ignoreCreeps: true });
+          moveOutcome = creep.moveTo(targetObject, { visualizePathStyle: { stroke: COLOURS.PATH_LONG, lineStyle: "solid" }, reusePath: this.ReusePath, ignoreCreeps: true });
 
         // Move Short otherwise
         if (range <= this.ShortPathThreshold)
-          moveOutcome = this.creep.moveTo(targetObject, { visualizePathStyle: { stroke: COLOURS.PATH_SHORT, lineStyle: "dotted" } });
+          moveOutcome = creep.moveTo(targetObject, { visualizePathStyle: { stroke: COLOURS.PATH_SHORT, lineStyle: "dotted" } });
 
         // console.log(`${room}${creep}: Act: MoveTo for ${creep} resulted in: ${moveOutcome}`);
 
         if (moveOutcome === ERR_NO_PATH)
-          this.Reassign();
+          this.Reassign(creep);
 
         return;
       }
       default: {
-        console.log(`${this.room}${this.creep}: Act: ${mem.action} for ${this.creep} was not successful: ${result}`);
+        console.log(`${this.room}${creep}: Act: ${mem.action} for ${creep} was not successful: ${result}`);
         return;
       }
     }
   }
 
-  IsDeliveryComplete(): boolean {
-    const mem = this.creep.memory.jobMemory as HarvesterMemory;
+  IsDeliveryComplete(creep: Creep): boolean {
+    const mem = creep.memory.jobMemory as HarvesterMemory;
 
     if (mem.target == null || mem.target == undefined) {
-      console.log(`${this.room}${this.creep}: IsDeliveryComplete: null/undefined target in memory`)
+      console.log(`${this.room}${creep}: IsDeliveryComplete: null/undefined target in memory`)
       return true;
     }
     const targetObject = Game.getObjectById(mem.target);
     if (targetObject == null || targetObject == undefined) {
-      console.log(`${this.room}${this.creep}: IsDeliveryComplete: Game.getObjectById of ${mem.target} is null`)
+      console.log(`${this.room}${creep}: IsDeliveryComplete: Game.getObjectById of ${mem.target} is null`)
       return true;
     }
 
-    if (mem.action !== HarvesterAction.Harvest && this.creep.store.getUsedCapacity(RESOURCE_ENERGY) === 0) {
-      console.log(`${this.room}${this.creep}: IsDeliveryComplete: out of Energy`)
+    if (mem.action !== HarvesterAction.Harvest && creep.store.getUsedCapacity(RESOURCE_ENERGY) === 0) {
+      console.log(`${this.room}${creep}: IsDeliveryComplete: out of Energy`)
       return true;
     }
 
@@ -405,10 +405,10 @@ class Harvester extends Role {
         return t.store.getFreeCapacity(RESOURCE_ENERGY) === 0;
       }
       case (HarvesterAction.Harvest): {
-        return this.creep.store.getFreeCapacity(RESOURCE_ENERGY) === 0;
+        return creep.store.getFreeCapacity(RESOURCE_ENERGY) === 0;
       }
       default: {
-        console.log(`${this.room}${this.creep}: IsDeliveryComplete: action is null`)
+        console.log(`${this.room}${creep}: IsDeliveryComplete: action is null`)
         return true;
       }
     }
@@ -445,19 +445,13 @@ const MainLoop = () => {
     if (room.memory.lastSpawnTick == null || room.memory.lastSpawnTick == undefined)
       room.memory.lastSpawnTick = Game.time;
 
-    // Tick each creep
-    for (const creep of room.find(FIND_MY_CREEPS)) {
-      var creepRole;
-
-      if (creep.memory.role === "harvester")
-        creepRole = new Harvester(creep, room);
-      else if (creep.memory.role === "harvesterT2")
-        creepRole = new HarvesterT2(creep, room);
-      else
-        creepRole = new Harvester(creep, room)
-
-      if (creepRole == null) continue; // Creep has no role
-      creepRole.Tick();
+    // Run each role in the room
+    for (const role of [
+      new Harvester(room),
+      new HarvesterT2(room)
+    ]) {
+      role.DoSpawns();
+      role.Tick();
     }
   }
 }
