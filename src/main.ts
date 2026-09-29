@@ -26,7 +26,6 @@ declare global {
   interface RoomMemory {
     countPreventingDowngrade: number
     countPerformingUpgrade: number
-    countPerformingTransfer: number
     lastSpawnTick: { [roleName: string]: number }
   }
 
@@ -52,8 +51,6 @@ const MainLoop = () => {
       room.memory.countPreventingDowngrade = 0;
     if (room.memory.countPerformingUpgrade == null || room.memory.countPerformingUpgrade == undefined)
       room.memory.countPerformingUpgrade = 0;
-    if (room.memory.countPerformingTransfer == null || room.memory.countPerformingTransfer == undefined)
-      room.memory.countPerformingTransfer = 0;
     if (room.memory.lastSpawnTick == null || room.memory.lastSpawnTick == undefined)
       room.memory.lastSpawnTick = {};
 
