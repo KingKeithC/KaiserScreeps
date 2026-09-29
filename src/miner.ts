@@ -1,3 +1,4 @@
+import { Harvester, HarvesterT2 } from "harvester";
 import { Role } from "role";
 
 class MinerMemory extends Object {
@@ -33,6 +34,15 @@ export class Miner extends Role {
       // Move right next to the source
       if (this.MoveCreep(creep, mineObj.pos, 1) != null)
         return; // We had to move so don't bother to act
+
+      // If there are nearby Harvesters low on energy
+      for (const harvester of creep.pos.findInRange(FIND_MY_CREEPS, 2, {
+        filter: (c) => (
+          (c.memory.role === Harvester.prototype.RoleName || c.memory.role === HarvesterT2.prototype.RoleName)
+          && c.store.getFreeCapacity(RESOURCE_ENERGY) > 0
+        )
+      }))
+        creep.transfer(harvester, RESOURCE_ENERGY); // Transer ours to them
 
       // Mine it
       creep.harvest(mineObj);
