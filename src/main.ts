@@ -65,7 +65,7 @@ const MainLoop = () => {
       if (t.store.getUsedCapacity(RESOURCE_ENERGY) === 0)
         continue; // No energy to work
 
-      const tgt = t.pos.findClosestByRange(FIND_MY_STRUCTURES, { filter: s => s.hits < s.hitsMax })
+      const tgt = t.pos.findClosestByRange(FIND_STRUCTURES, { filter: s => s.hits < s.hitsMax })
       if (tgt != null && tgt != undefined) {
         t.repair(tgt);
         continue;
