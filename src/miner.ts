@@ -32,7 +32,7 @@ export class Miner extends Role {
 
       // Move right next to the source
       if (this.MoveCreep(creep, mineObj.pos, 1) != null)
-        return; // We had to move so don't bother to act
+        continue; // We had to move so don't bother to act
 
       // Mine it
       creep.harvest(mineObj);
