@@ -34,6 +34,9 @@ export class Miner extends Role {
       if (this.MoveCreep(creep, mineObj.pos, 1) != null)
         return; // We had to move so don't bother to act
 
+      // Mine it
+      creep.harvest(mineObj);
+
       // If there are nearby Harvesters low on energy
       for (const harvester of creep.pos.findInRange(FIND_MY_CREEPS, 2, {
         filter: (c) => (
@@ -42,9 +45,6 @@ export class Miner extends Role {
         )
       }))
         creep.transfer(harvester, RESOURCE_ENERGY); // Transer ours to them
-
-      // Mine it
-      creep.harvest(mineObj);
     }
   }
 
