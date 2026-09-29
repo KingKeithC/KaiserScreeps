@@ -39,7 +39,7 @@ export class Harvester extends Role {
   DowngradeStopThreshold = 5000;
   WorkersPreventingDowngrade = 2;
   WorkersPerformingUpgrade = 2;
-  WorkersPerformingTransfer = 2;
+  WorkersPerformingTransfer = 4;
   InitialJobMemory = new HarvesterMemory(HarvesterAction.Idle);
 
   Tick(): void {
@@ -88,11 +88,11 @@ export class Harvester extends Role {
     // Select target in order of priority
     var targetObject;
 
-    // Spawns with room for energy
+    // Spawns/Towers with room for energy
     if (this.room.memory.countPerformingTransfer < this.WorkersPerformingTransfer) {
       targetObject = creep.pos.findClosestByPath(FIND_MY_STRUCTURES, {
         filter: (structure) =>
-          (structure.structureType === STRUCTURE_EXTENSION || structure.structureType === STRUCTURE_SPAWN)
+          (structure.structureType === STRUCTURE_EXTENSION || structure.structureType === STRUCTURE_SPAWN || structure.structureType === STRUCTURE_TOWER)
           && structure.store.getFreeCapacity(RESOURCE_ENERGY) > 0
       });
       if (targetObject) {
