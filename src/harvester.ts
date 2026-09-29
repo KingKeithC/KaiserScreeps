@@ -42,7 +42,7 @@ export class Harvester extends Role {
   WorkersPerformingUpgrade = 2;
   WorkersPerformingTransfer = 4;
   InitialJobMemory = new HarvesterMemory(HarvesterAction.Idle);
-  MinerSearchRange = 30;
+  MinerSearchRange = 20;
 
   Tick(): void {
     for (const creep of this.CreepsInRole()) {
