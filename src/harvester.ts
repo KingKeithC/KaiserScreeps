@@ -9,6 +9,7 @@ enum HarvesterAction {
   Build = '🏗️',
   Repair = '🛠️',
   Transfer = '🫴',
+  IdleUpgrade = '🔼',
 }
 
 class HarvesterMemory extends Object {
@@ -114,6 +115,14 @@ export class Harvester extends Role {
       }
     }
 
+    // Pending Upgrades
+    if (this.room.memory.countPerformingUpgrade < this.WorkersPerformingUpgrade) {
+      if (this.room.controller && this.room.controller.level < this.UpgradeToRCL) {
+        this.room.memory.countPerformingUpgrade += 1;
+        return new HarvesterMemory(HarvesterAction.Upgrade, this.room.controller.id);
+      }
+    }
+
     // Structures in need of repair
     targetObject = creep.pos.findClosestByPath(FIND_MY_STRUCTURES, {
       filter: (structure) => structure.hits < structure.hitsMax
@@ -130,16 +139,9 @@ export class Harvester extends Role {
       return new HarvesterMemory(HarvesterAction.Build, targetObject.id);
     }
 
-    // Pending Upgrades
-    if (this.room.memory.countPerformingUpgrade < this.WorkersPerformingUpgrade) {
-      targetObject = creep.pos.findClosestByPath(FIND_MY_STRUCTURES, {
-        filter: (structure) => structure.structureType === STRUCTURE_CONTROLLER && structure.level < this.UpgradeToRCL
-      });
-      if (targetObject) {
-        this.room.memory.countPerformingUpgrade += 1;
-        return new HarvesterMemory(HarvesterAction.Upgrade, targetObject.id);
-      }
-    }
+    // Nothing else to do so just upgrade forever
+    if (this.room.controller)
+      return new HarvesterMemory(HarvesterAction.IdleUpgrade, this.room.controller.id);
 
     return new HarvesterMemory(HarvesterAction.Idle);
   }
@@ -185,16 +187,10 @@ export class Harvester extends Role {
         console.log(`${this.room}${creep}: Awaiting energy transfer.`);
         break;
       }
-      case (HarvesterAction.Upgrade): {
+      case (HarvesterAction.Upgrade || HarvesterAction.IdleUpgrade || HarvesterAction.StopDowngrade): {
         const t = targetObject as StructureController;
         result = creep.upgradeController(t);
         // if (result === OK) console.log(`${this.room}${creep}: Act: Upgraded ${t} to RCL ${t.level} (${t.progress}/${t.progressTotal}) %${(t.progress / t.progressTotal * 100).toFixed(2)}.`);
-        break;
-      }
-      case (HarvesterAction.StopDowngrade): {
-        const t = targetObject as StructureController;
-        result = creep.upgradeController(t);
-        if (result === OK) console.log(`${this.room}${creep}: Act: Prevented Downgrade of ${t} in ${t.ticksToDowngrade}.`);
         break;
       }
       case (HarvesterAction.Build): {
@@ -283,9 +279,9 @@ export class Harvester extends Role {
     }
 
     switch (mem.action) {
-      case (HarvesterAction.CollectEnergy): {
+      case (HarvesterAction.Harvest):
+      case (HarvesterAction.CollectEnergy):
         return creep.store.getFreeCapacity(RESOURCE_ENERGY) === 0;
-      }
       case (HarvesterAction.Upgrade): {
         const t = targetObject as StructureController;
         return t.level >= this.UpgradeToRCL;
@@ -306,9 +302,8 @@ export class Harvester extends Role {
         const t = targetObject as AnyStoreStructure;
         return t.store.getFreeCapacity(RESOURCE_ENERGY) === 0;
       }
-      case (HarvesterAction.Harvest): {
-        return creep.store.getFreeCapacity(RESOURCE_ENERGY) === 0;
-      }
+      default:
+        return true;
     }
   }
 }
