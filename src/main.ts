@@ -165,7 +165,7 @@ class Harvester extends Role {
   RoleName = "harvester";
 
   SpawnAtRCL = 0;
-  CountPerRoom = 3;
+  CountPerRoom = 1;
   BodyParts = [WORK, CARRY, MOVE];
 
   DesiredRCL = 2;
@@ -273,14 +273,27 @@ class Harvester extends Role {
   Act(creep: Creep): void {
     const mem = creep.memory.jobMemory as HarvesterMemory;
 
+    // Target may be null in this one case
+    if (mem.target == null && mem.action === HarvesterAction.Idle)
+      return;
+
     if (mem.target == null || mem.target == undefined) {
-      console.log(`${this.room}${creep}: Act: ${creep} has null/undefined target in memory`)
+
       // If we just spawned this can happen
+      if (creep.ticksToLive && creep.ticksToLive >= 1500)
+        console.log(`${this.room}${creep}: Happy Birthday!!!`)
+      else
+        console.log(`${this.room}${creep}: Act: ${creep} has null/undefined target in memory`)
+
       return;
     }
     const targetObject = Game.getObjectById(mem.target);
     if (targetObject == null || targetObject == undefined) {
-      console.log(`${this.room}${creep}: Act: ${creep} Game.getObjectById returned null`)
+
+      if (mem.action === HarvesterAction.Build)
+        console.log(`${this.room}${creep}: Act: ${creep} Finished a construction!`)
+      else
+        console.log(`${this.room}${creep}: Act: ${creep} Game.getObjectById returned null`)
       return;
     }
 
@@ -289,7 +302,7 @@ class Harvester extends Role {
       case (HarvesterAction.Upgrade): {
         const t = targetObject as StructureController;
         result = creep.upgradeController(t);
-        if (result === OK) console.log(`${this.room}${creep}: Act: Upgraded ${t} to RCL ${t.level} (${t.progress}/${t.progressTotal}) %${(t.progress / t.progressTotal * 100).toFixed(2)}.`);
+        // if (result === OK) console.log(`${this.room}${creep}: Act: Upgraded ${t} to RCL ${t.level} (${t.progress}/${t.progressTotal}) %${(t.progress / t.progressTotal * 100).toFixed(2)}.`);
         break;
       }
       case (HarvesterAction.StopDowngrade): {
@@ -301,13 +314,13 @@ class Harvester extends Role {
       case (HarvesterAction.Build): {
         const t = targetObject as ConstructionSite;
         result = creep.build(t);
-        if (result === OK) console.log(`${this.room}${creep}: Act: Built ${t} (${t.progress}/${t.progressTotal}) %${(t.progress / t.progressTotal * 100).toFixed(2)}.`);
+        // if (result === OK) console.log(`${this.room}${creep}: Act: Built ${t} (${t.progress}/${t.progressTotal}) %${(t.progress / t.progressTotal * 100).toFixed(2)}.`);
         break;
       }
       case (HarvesterAction.Repair): {
         const t = targetObject as AnyOwnedStructure;
         result = creep.repair(t);
-        if (result === OK) console.log(`${this.room}${creep}: Act: Repaired ${t} (${t.hits}/${t.hitsMax}) %${(t.hits / t.hitsMax * 100).toFixed(2)}.`);
+        // if (result === OK) console.log(`${this.room}${creep}: Act: Repaired ${t} (${t.hits}/${t.hitsMax}) %${(t.hits / t.hitsMax * 100).toFixed(2)}.`);
         break;
       }
       case (HarvesterAction.Transfer): {
@@ -330,31 +343,25 @@ class Harvester extends Role {
       case OK:
       case ERR_FULL:
       case ERR_NOT_ENOUGH_RESOURCES: {
-        this.Reassign(creep);
+        // These are fine, and should be handled by IsActComplete.
         return;
       }
       case ERR_NOT_IN_RANGE: {
         const range = creep.pos.getRangeTo(targetObject);
 
-        // Move Long if we are farther than ShortPathThreshold away.
         var moveOutcome: number = OK;
         if (range > this.ShortPathThreshold)
+          // Move Long if we are farther than ShortPathThreshold away.
           moveOutcome = creep.moveTo(targetObject, { visualizePathStyle: { stroke: COLOURS.PATH_LONG, lineStyle: "solid" }, reusePath: this.ReusePath, ignoreCreeps: true });
-
-        // Move Short otherwise
-        if (range <= this.ShortPathThreshold)
+        else
+          // Move Short otherwise
           moveOutcome = creep.moveTo(targetObject, { visualizePathStyle: { stroke: COLOURS.PATH_SHORT, lineStyle: "dotted" } });
 
         // console.log(`${room}${creep}: Act: MoveTo for ${creep} resulted in: ${moveOutcome}`);
-
-        if (moveOutcome === ERR_NO_PATH)
-          this.Reassign(creep);
-
         return;
       }
       default: {
         console.log(`${this.room}${creep}: Act: ${mem.action} for ${creep} was not successful: ${result}`);
-        this.Reassign(creep);
         return;
       }
     }
