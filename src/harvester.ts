@@ -36,7 +36,7 @@ export class Harvester extends Role {
   BodyParts = [WORK, CARRY, MOVE];
 
   UpgradeToRCL = 2;
-  DowngradeStopThreshold = 1000;
+  DowngradeStopThreshold = 5000;
   WorkersPreventingDowngrade = 2;
   WorkersPerformingUpgrade = 2;
   WorkersPerformingTransfer = 2;
