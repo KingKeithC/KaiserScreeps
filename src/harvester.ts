@@ -45,9 +45,9 @@ export class Harvester extends Role {
     for (const creep of this.CreepsInRole()) {
       this.Act(creep);
       if (this.IsActComplete(creep)) {
-        console.log(`${this.room}${creep}: Finished: ${JSON.stringify(creep.memory.jobMemory)}`)
+        const oldMem = JSON.stringify(creep.memory.jobMemory);
         creep.memory.jobMemory = this.Reassign(creep);
-        console.log(`${this.room}${creep} Reassigned: ${JSON.stringify(creep.memory.jobMemory)}`);
+        console.log(`${this.room}${creep} Reassigned: ${oldMem} -> ${JSON.stringify(creep.memory.jobMemory)}`);
         creep.say((creep.memory.jobMemory as HarvesterMemory).action);
       }
     }
