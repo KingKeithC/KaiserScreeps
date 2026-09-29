@@ -35,6 +35,7 @@ declare const global: {
   log: any;
 }
 
+const TowerAttackRange = 12;
 const MainLoop = () => {
   // Automatically delete memory of missing creeps
   for (const name in Memory.creeps) {
@@ -65,7 +66,8 @@ const MainLoop = () => {
       if (t.store.getUsedCapacity(RESOURCE_ENERGY) === 0)
         continue; // No energy to work
 
-      const hostile = t.pos.findClosestByRange(FIND_HOSTILE_CREEPS)
+      // Find lowest health hostile in range
+      const hostile = t.pos.findInRange(FIND_HOSTILE_CREEPS, TowerAttackRange).sort((a, b) => a.hits - b.hits).pop()
       if (hostile != null && hostile != undefined) {
         t.attack(hostile);
         continue;
