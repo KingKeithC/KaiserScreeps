@@ -7,7 +7,7 @@ class MinerMemory extends Object {
 export class Miner extends Role {
   RoleName = "Miner";
   CountPerRoom = 4;
-  BodyParts = [MOVE, WORK, WORK, WORK];
+  BodyParts = [MOVE, CARRY, CARRY, WORK, WORK, WORK];
 
   Tick(): void {
     for (const creep of this.CreepsInRole()) {
