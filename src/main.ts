@@ -60,6 +60,8 @@ abstract class Role {
   // How ofter to check for spawn
   SpawnRate: number = 80;
 
+  InitialJobMemory: object = {}
+
   ReusePath: number = 10;
   ShortPathThreshold: number = 6;
 
@@ -120,7 +122,7 @@ abstract class Role {
         memory: {
           room: this.room.name,
           role: this.RoleName,
-          jobMemory: {},
+          jobMemory: this.InitialJobMemory,
         },
       }
     );
@@ -170,6 +172,7 @@ class Harvester extends Role {
   DowngradeStopThreshold = 1000;
   WorkersPreventingDowngrade = 2;
   WorkersPerformingUpgrade = 2;
+  InitialJobMemory = new HarvesterMemory(HarvesterAction.Idle);
 
   Tick(): void {
     for (const creep of this.CreepsInRole()) {
