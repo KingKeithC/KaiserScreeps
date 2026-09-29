@@ -1,3 +1,6 @@
+import { min } from "lodash";
+import { COLOURS } from "utils/Colours";
+
 export abstract class Role {
   abstract RoleName: string;
 
@@ -92,5 +95,25 @@ export abstract class Role {
       console.log(`${this.room}[${this.RoleName}]: ${this.CreepsInRole().length}/${this.CountPerRoom} +1 Spawning @ ${spawnPoint}...`);
     else
       console.log(`${this.room}[${this.RoleName}]: ${spawnPoint} Spawn failed with result: ${result}...`);
+  }
+
+  MoveCreep(creep: Creep, target: RoomPosition, minRange: number = 3): number | null {
+    // Can't move anyways so don't bother
+    if (creep.fatigue) return ERR_TIRED;
+
+    const range = creep.pos.getRangeTo(target);
+
+    // Close enough we shouldn't need to move
+    if (range <= minRange) return null;
+
+    var moveOutcome: number = OK;
+    if (range > this.ShortPathThreshold)
+      // Move Long if we are farther than ShortPathThreshold away.
+      moveOutcome = creep.moveTo(target, { visualizePathStyle: { stroke: COLOURS.PATH_LONG, lineStyle: "solid" }, reusePath: this.ReusePath, ignoreCreeps: true, range: 3, maxOps: 300 });
+    else
+      // Move Short otherwise
+      moveOutcome = creep.moveTo(target, { visualizePathStyle: { stroke: COLOURS.PATH_SHORT, lineStyle: "dotted" }, range: 1 });
+
+    return moveOutcome;
   }
 }

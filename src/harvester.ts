@@ -163,6 +163,9 @@ export class Harvester extends Role {
       return;
     }
 
+    if (this.MoveCreep(creep, targetObject.pos, mem.action === HarvesterAction.Harvest ? 1 : 3) != null)
+      return; // We had to move so don't bother to act
+
     var result: number | null = null;
     switch (mem.action) {
       case (HarvesterAction.Upgrade): {
@@ -213,20 +216,7 @@ export class Harvester extends Role {
         return;
       }
       case ERR_NOT_IN_RANGE: {
-        // Can't move anyways so don't bother
-        if (creep.fatigue) return;
-
-        const range = creep.pos.getRangeTo(targetObject);
-
-        var moveOutcome: number = OK;
-        if (range > this.ShortPathThreshold)
-          // Move Long if we are farther than ShortPathThreshold away.
-          moveOutcome = creep.moveTo(targetObject, { visualizePathStyle: { stroke: COLOURS.PATH_LONG, lineStyle: "solid" }, reusePath: this.ReusePath, ignoreCreeps: true, range: 3, maxOps: 300 });
-        else
-          // Move Short otherwise
-          moveOutcome = creep.moveTo(targetObject, { visualizePathStyle: { stroke: COLOURS.PATH_SHORT, lineStyle: "dotted" }, range: 1 });
-
-        // console.log(`${room}${creep}: Act: MoveTo for ${creep} resulted in: ${moveOutcome}`);
+        console.log(`${this.room}${creep}: Not in range to act.`);
         return;
       }
       default: {
