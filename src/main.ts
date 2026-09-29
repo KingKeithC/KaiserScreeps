@@ -73,15 +73,24 @@ const MainLoop = () => {
         continue;
       }
 
-      const tgt = t.pos.findClosestByRange(FIND_STRUCTURES, { filter: s => s.hits < s.hitsMax })
-      if (tgt != null && tgt != undefined) {
-        t.repair(tgt);
+      // Find my structures in need of repair
+      const myStruct = t.pos.findClosestByRange(FIND_MY_STRUCTURES, { filter: s => s.hits < s.hitsMax })
+      if (myStruct != null && myStruct != undefined) {
+        t.repair(myStruct);
         continue;
       }
 
-      const weakling = t.pos.findClosestByRange(FIND_MY_CREEPS, { filter: c => c.hits < c.hitsMax })
+      // My creeps in need of healing, weakest first
+      const weakling = room.find(FIND_MY_CREEPS, { filter: c => c.hits < c.hitsMax }).sort((a, b) => a.hits - b.hits).pop()
       if (weakling != null && weakling != undefined) {
         t.heal(weakling);
+        continue;
+      }
+
+      // All other structures
+      const allStruct = t.pos.findClosestByRange(FIND_STRUCTURES, { filter: s => s.hits < s.hitsMax })
+      if (allStruct != null && allStruct != undefined) {
+        t.repair(allStruct);
         continue;
       }
     }
