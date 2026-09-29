@@ -70,10 +70,10 @@ export class Harvester extends Role {
     if (creep.store.getUsedCapacity(RESOURCE_ENERGY) === 0) {
 
       // Collect from the fullest miner miner if there are any
-      const miner = creep.pos.findInRange(FIND_MY_CREEPS, this.MinerSearchRange, { filter: (c) => c.memory.role === "Miner" })
-        .sort((a, b) => a.store.energy - b.store.energy).pop()
-      if (miner != null && miner != undefined)
-        return new HarvesterMemory(HarvesterAction.CollectEnergy, miner.id);
+      // const miner = creep.pos.findInRange(FIND_MY_CREEPS, this.MinerSearchRange, { filter: (c) => c.memory.role === "Miner" })
+      //   .sort((a, b) => a.store.energy - b.store.energy).pop()
+      // if (miner != null && miner != undefined)
+      //   return new HarvesterMemory(HarvesterAction.CollectEnergy, miner.id);
 
       // Do harverting on our own
       const source = creep.pos.findClosestByPath(FIND_SOURCES_ACTIVE);
