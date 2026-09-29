@@ -273,6 +273,7 @@ class Harvester extends Role {
 
     if (mem.target == null || mem.target == undefined) {
       console.log(`${this.room}${creep}: Act: ${creep} has null/undefined target in memory`)
+      // If we just spawned this can happen
       return;
     }
     const targetObject = Game.getObjectById(mem.target);
@@ -367,6 +368,7 @@ class Harvester extends Role {
 
     if (!mem.action) {
       console.log(`${this.room}${creep}: IsDeliveryComplete: missing action`);
+      // If we just spawned this can happen
       return true;
     }
 
