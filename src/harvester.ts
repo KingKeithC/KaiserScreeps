@@ -172,9 +172,7 @@ export class Harvester extends Role {
     }
 
     var minDistance = 3;
-    if (mem.action === HarvesterAction.CollectEnergy)
-      minDistance = 2;
-    else if (mem.action === HarvesterAction.Harvest || mem.action === HarvesterAction.Transfer)
+    if (mem.action === HarvesterAction.Harvest || mem.action === HarvesterAction.Transfer || mem.action === HarvesterAction.CollectEnergy)
       minDistance = 1;
 
     if (this.MoveCreep(creep, targetObject.pos, minDistance) != null)
