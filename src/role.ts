@@ -17,7 +17,7 @@ export abstract class Role {
   abstract BodyParts: BodyPartConstant[];
 
   // RCL Ranges to constrain role
-  SpawnAtRCL: number = 0;
+  StartSpawnAtRCL: number = 0;
   StopSpawnAtRCL: number = 100;
 
   // How ofter to check for spawn
@@ -45,8 +45,8 @@ export abstract class Role {
 
     // Cannot spawn if RCL is wrong
     const rcl = this.room.controller?.level ?? 0;
-    if (rcl < this.SpawnAtRCL || rcl >= this.StopSpawnAtRCL) {
-      console.log(`${this.room}[${this.RoleName}]: RCL (${rcl}) LT ${this.SpawnAtRCL} or GE ${this.StopSpawnAtRCL}`);
+    if (rcl < this.StartSpawnAtRCL || rcl >= this.StopSpawnAtRCL) {
+      console.log(`${this.room}[${this.RoleName}]: RCL (${rcl}) LT ${this.StartSpawnAtRCL} or GE ${this.StopSpawnAtRCL}`);
       return;
     };
 

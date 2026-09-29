@@ -30,11 +30,12 @@ class HarvesterMemory extends Object {
 export class Harvester extends Role {
   RoleName = "harvester";
 
-  SpawnAtRCL = 0;
+  StartSpawnAtRCL = 0;
+  StopSpawnAtRCL = 3;
   CountPerRoom = 1;
   BodyParts = [WORK, CARRY, MOVE];
 
-  DesiredRCL = 2;
+  UpgradeToRCL = 2;
   DowngradeStopThreshold = 1000;
   WorkersPreventingDowngrade = 2;
   WorkersPerformingUpgrade = 2;
@@ -132,7 +133,7 @@ export class Harvester extends Role {
     // Pending Upgrades
     if (this.room.memory.countPerformingUpgrade < this.WorkersPerformingUpgrade) {
       targetObject = creep.pos.findClosestByPath(FIND_MY_STRUCTURES, {
-        filter: (structure) => structure.structureType === STRUCTURE_CONTROLLER && structure.level < this.DesiredRCL
+        filter: (structure) => structure.structureType === STRUCTURE_CONTROLLER && structure.level < this.UpgradeToRCL
       });
       if (targetObject) {
         this.room.memory.countPerformingUpgrade += 1;
@@ -289,7 +290,7 @@ export class Harvester extends Role {
       }
       case (HarvesterAction.Upgrade): {
         const t = targetObject as StructureController;
-        return t.level >= this.DesiredRCL;
+        return t.level >= this.UpgradeToRCL;
       }
       case (HarvesterAction.StopDowngrade): {
         const t = targetObject as StructureController;
@@ -317,10 +318,8 @@ export class Harvester extends Role {
 export class HarvesterT2 extends Harvester {
   RoleName = "harvesterT2";
 
-  SpawnAtRCL = 2;
+  StartSpawnAtRCL = 2;
+  UpgradeToRCL = 3;
   CountPerRoom = 5;
   BodyParts = [MOVE, MOVE, WORK, WORK, WORK, CARRY, CARRY, CARRY];
-
-  DesiredRCL = 3;
-  DowngradeStopThreshold = 2000;
 }
