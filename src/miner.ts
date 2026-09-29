@@ -39,8 +39,9 @@ export class Miner extends Role {
       if (this.MoveCreep(creep, mineObj.pos, 1) != null)
         continue; // We had to move so don't bother to act
 
-      // Mine it
-      creep.harvest(mineObj);
+      // Mine it if we have room
+      if (creep.store.getFreeCapacity(RESOURCE_ENERGY) > 0)
+        creep.harvest(mineObj);
 
       // If there are nearby Harvesters low on energy
       for (const harvester of creep.pos.findInRange(FIND_MY_CREEPS, 2, {
