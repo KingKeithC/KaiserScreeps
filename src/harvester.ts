@@ -59,6 +59,7 @@ export class Harvester extends Role {
     // Run Cleanup Tasks
     if (mem.action === HarvesterAction.StopDowngrade)
       this.room.memory.countPreventingDowngrade -= 1;
+
     if (mem.action === HarvesterAction.Upgrade)
       this.room.memory.countPerformingUpgrade -= 1;
 
@@ -146,7 +147,7 @@ export class Harvester extends Role {
     if (mem.target == null || mem.target == undefined) {
 
       // If we just spawned this can happen
-      if (creep.ticksToLive && creep.ticksToLive >= 1500)
+      if (creep.ticksToLive && creep.ticksToLive === CREEP_LIFE_TIME)
         console.log(`${this.room}${creep}: Happy Birthday!!!`)
       else
         console.log(`${this.room}${creep}: Act: ${creep} has null/undefined target in memory`)
