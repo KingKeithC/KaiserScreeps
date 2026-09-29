@@ -182,7 +182,6 @@ class Harvester extends Role {
         creep.memory.jobMemory = this.Reassign(creep);
         console.log(`${this.room}${creep} Reassigned: ${JSON.stringify(creep.memory.jobMemory)}`);
         creep.say((creep.memory.jobMemory as HarvesterMemory).action);
-      } else {
       }
     }
   }
@@ -329,7 +328,7 @@ class Harvester extends Role {
 
     switch (result) {
       case OK:
-        return;
+      case ERR_FULL:
       case ERR_NOT_ENOUGH_RESOURCES: {
         this.Reassign(creep);
         return;
