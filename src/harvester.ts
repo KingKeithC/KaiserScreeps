@@ -55,7 +55,6 @@ export class Harvester extends Role {
 
   Reassign(creep: Creep): HarvesterMemory {
     const mem = creep.memory.jobMemory as HarvesterMemory;
-    // console.log(`${room}${creep} Reassigned!`);
 
     // Run Cleanup Tasks
     if (mem.action === HarvesterAction.StopDowngrade)
