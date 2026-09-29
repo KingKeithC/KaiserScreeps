@@ -38,6 +38,7 @@ export class Harvester extends Role {
   DowngradeStopThreshold = 1000;
   WorkersPreventingDowngrade = 2;
   WorkersPerformingUpgrade = 2;
+  WorkersPerformingTransfer = 3;
   InitialJobMemory = new HarvesterMemory(HarvesterAction.Idle);
 
   Tick(): void {
@@ -63,6 +64,9 @@ export class Harvester extends Role {
     if (mem.action === HarvesterAction.Upgrade)
       this.room.memory.countPerformingUpgrade -= 1;
 
+    if (mem.action === HarvesterAction.Transfer)
+      this.room.memory.countPerformingTransfer -= 1;
+
     // Harvest if we are empty
     if (creep.store.getUsedCapacity(RESOURCE_ENERGY) === 0) {
       const source = creep.pos.findClosestByPath(FIND_SOURCES_ACTIVE);
@@ -77,13 +81,16 @@ export class Harvester extends Role {
     var targetObject;
 
     // Spawns with room for energy
-    targetObject = creep.pos.findClosestByPath(FIND_MY_STRUCTURES, {
-      filter: (structure) =>
-        (structure.structureType === STRUCTURE_EXTENSION || structure.structureType === STRUCTURE_SPAWN)
-        && structure.store.getFreeCapacity(RESOURCE_ENERGY) > 0
-    });
-    if (targetObject) {
-      return new HarvesterMemory(HarvesterAction.Transfer, targetObject.id);
+    if (this.room.memory.countPerformingTransfer < this.WorkersPerformingTransfer) {
+      targetObject = creep.pos.findClosestByPath(FIND_MY_STRUCTURES, {
+        filter: (structure) =>
+          (structure.structureType === STRUCTURE_EXTENSION || structure.structureType === STRUCTURE_SPAWN)
+          && structure.store.getFreeCapacity(RESOURCE_ENERGY) > 0
+      });
+      if (targetObject) {
+        this.room.memory.countPerformingTransfer += 1;
+        return new HarvesterMemory(HarvesterAction.Transfer, targetObject.id);
+      }
     }
 
     // Controllers at risk of downgrade
