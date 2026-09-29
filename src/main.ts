@@ -79,7 +79,7 @@ abstract class Role {
 
   DoSpawns(): void {
     // Cannot spawn if RCL is wrong
-    const rcl = this.room.controller?.level ?? -1;
+    const rcl = this.room.controller?.level ?? 0;
     if (rcl < this.SpawnAtRCL || rcl >= this.StopSpawnAtRCL) {
       console.log(`${this.room}[${this.RoleName}]: RCL (${rcl}) LT ${this.SpawnAtRCL} or GE ${this.StopSpawnAtRCL}`);
       return;
@@ -88,13 +88,13 @@ abstract class Role {
     // or quota met
     const current = this.CreepsInRole().length;
     if (current >= this.CountPerRoom) {
-      // console.log(`${this.room}[${this.RoleName}]: Quota Met ${current}/${this.CountPerRoom}`);
+      console.log(`${this.room}[${this.RoleName}]: Quota Met ${current}/${this.CountPerRoom}`);
       return;
     }
 
     // or a spawn is already in progress
     if (this.room.find(FIND_MY_SPAWNS, { filter: (s) => s.spawning }).length) {
-      // console.log(`${this.room}[${this.RoleName}]: Another spawn is in progress.`);
+      console.log(`${this.room}[${this.RoleName}]: Another spawn is in progress.`);
       return;
     }
 
@@ -172,7 +172,7 @@ class Harvester extends Role {
   }
 
   Reassign(): void {
-    const mem = (this.creep.memory.jobMemory ?? {}) as HarvesterMemory;
+    const mem = this.creep.memory.jobMemory as HarvesterMemory;
     // console.log(`${room}${creep} Reassigned!`);
 
     // Run Cleanup Tasks
@@ -280,20 +280,20 @@ class Harvester extends Role {
   }
 
   Act(): void {
-    const m = this.creep.memory.jobMemory as HarvesterMemory;
+    const mem = this.creep.memory.jobMemory as HarvesterMemory;
 
-    if (m.target == null || m.target == undefined) {
+    if (mem.target == null || mem.target == undefined) {
       console.log(`${this.room}${this.creep}: Act: ${this.creep} has null/undefined target in memory`)
       return;
     }
-    const targetObject = Game.getObjectById(m.target);
+    const targetObject = Game.getObjectById(mem.target);
     if (targetObject == null || targetObject == undefined) {
       console.log(`${this.room}${this.creep}: Act: ${this.creep} Game.getObjectById returned null`)
       return;
     }
 
     var result: number | null = null;
-    switch (m.action) {
+    switch (mem.action) {
       case (HarvesterAction.Upgrade): {
         const t = targetObject as StructureController;
         result = this.creep.upgradeController(t);
@@ -357,30 +357,31 @@ class Harvester extends Role {
         return;
       }
       default: {
-        console.log(`${this.room}${this.creep}: Act: ${m.action} for ${this.creep} was not successful: ${result}`);
+        console.log(`${this.room}${this.creep}: Act: ${mem.action} for ${this.creep} was not successful: ${result}`);
         return;
       }
     }
   }
 
   IsDeliveryComplete(): boolean {
-    const m = (this.creep.memory.jobMemory ?? {}) as HarvesterMemory;
-    if (m.target == null || m.target == undefined) {
-      // console.log(`${room}${creep}: IsDeliveryComplete: ${creep} has null/undefined target in memory`)
+    const mem = this.creep.memory.jobMemory as HarvesterMemory;
+
+    if (mem.target == null || mem.target == undefined) {
+      console.log(`${this.room}${this.creep}: IsDeliveryComplete: null/undefined target in memory`)
       return true;
     }
-    const targetObject = Game.getObjectById(m.target);
+    const targetObject = Game.getObjectById(mem.target);
     if (targetObject == null || targetObject == undefined) {
-      // console.log(`${room}${creep}: IsDeliveryComplete: ${creep} Game.getObjectById returned null`)
+      console.log(`${this.room}${this.creep}: IsDeliveryComplete: Game.getObjectById of ${mem.target} is null`)
       return true;
     }
 
-    if (m.action !== HarvesterAction.Harvest && this.creep.store.getUsedCapacity(RESOURCE_ENERGY) === 0) {
-      // console.log(`${room}${creep}: IsDeliveryComplete: ${creep} ran out of Energy`)
+    if (mem.action !== HarvesterAction.Harvest && this.creep.store.getUsedCapacity(RESOURCE_ENERGY) === 0) {
+      console.log(`${this.room}${this.creep}: IsDeliveryComplete: out of Energy`)
       return true;
     }
 
-    switch (m.action) {
+    switch (mem.action) {
       case (HarvesterAction.Upgrade): {
         const t = targetObject as StructureController;
         return t.level >= this.DesiredRCL;
@@ -404,8 +405,10 @@ class Harvester extends Role {
       case (HarvesterAction.Harvest): {
         return this.creep.store.getFreeCapacity(RESOURCE_ENERGY) === 0;
       }
-      default:
+      default: {
+        console.log(`${this.room}${this.creep}: IsDeliveryComplete: action is null`)
         return true;
+      }
     }
   }
 }
