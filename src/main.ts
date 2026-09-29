@@ -65,6 +65,12 @@ const MainLoop = () => {
       if (t.store.getUsedCapacity(RESOURCE_ENERGY) === 0)
         continue; // No energy to work
 
+      const hostile = t.pos.findClosestByRange(FIND_HOSTILE_CREEPS)
+      if (hostile != null && hostile != undefined) {
+        t.attack(hostile);
+        continue;
+      }
+
       const tgt = t.pos.findClosestByRange(FIND_STRUCTURES, { filter: s => s.hits < s.hitsMax })
       if (tgt != null && tgt != undefined) {
         t.repair(tgt);
