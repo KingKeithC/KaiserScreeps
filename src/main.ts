@@ -135,17 +135,29 @@ abstract class Role {
 }
 
 enum HarvesterAction {
-  Harvest,
-  Upgrade,
-  StopDowngrade,
-  Build,
-  Repair,
-  Transfer,
+  Idle = '💤',
+  Harvest = '⛏️',
+  Upgrade = '🆙',
+  StopDowngrade = '🦸‍♀️',
+  Build = '🏗️',
+  Repair = '🛠️',
+  Transfer = '🫴',
 }
 
-class HarvesterMemory {
-  action: HarvesterAction = HarvesterAction.Harvest;
-  target: Id<ConstructionSite<BuildableStructureConstant> | AnyOwnedStructure | Source> | null = null;
+class HarvesterMemory extends Object {
+  readonly action: HarvesterAction;
+  readonly target: Id<ConstructionSite<BuildableStructureConstant> | AnyOwnedStructure | Source> | null;
+
+  constructor(action: HarvesterAction, id: Id<ConstructionSite<BuildableStructureConstant> | AnyOwnedStructure | Source> | null = null) {
+    super();
+
+    if (id == null && action !== HarvesterAction.Idle) {
+      throw new Error(`Id was null with a non idle action: ${action}`);
+    }
+
+    this.action = action;
+    this.target = id;
+  }
 }
 
 class Harvester extends Role {
@@ -164,16 +176,18 @@ class Harvester extends Role {
     super.Tick();
 
     for (const creep of this.CreepsInRole()) {
-      if (this.IsDeliveryComplete(creep)) {
-        console.log(`${this.room}${creep}: ${creep.memory.jobMemory}: Task Complete.`)
-        this.Reassign(creep);
+      this.Act(creep);
+      if (this.IsActComplete(creep)) {
+        console.log(`${this.room}${creep}: Finished: ${JSON.stringify(creep.memory.jobMemory)}`)
+        creep.memory.jobMemory = this.Reassign(creep);
+        console.log(`${this.room}${creep} Reassigned: ${JSON.stringify(creep.memory.jobMemory)}`);
+        creep.say((creep.memory.jobMemory as HarvesterMemory).action);
       } else {
-        this.Act(creep);
       }
     }
   }
 
-  Reassign(creep: Creep): void {
+  Reassign(creep: Creep): HarvesterMemory {
     const mem = creep.memory.jobMemory as HarvesterMemory;
     // console.log(`${room}${creep} Reassigned!`);
 
@@ -183,20 +197,14 @@ class Harvester extends Role {
     if (mem.action === HarvesterAction.Upgrade)
       this.room.memory.countPerformingUpgrade -= 1;
 
-    // Reset target, and set new Task
-    mem.target = null;
-
     // Harvest if we are empty
     if (creep.store.getUsedCapacity(RESOURCE_ENERGY) === 0) {
       const source = creep.pos.findClosestByPath(FIND_SOURCES_ACTIVE);
       if (source) {
-        mem.target = source.id;
-        mem.action = HarvesterAction.Harvest;
-        creep.say("⛏️⚡️")
+        return new HarvesterMemory(HarvesterAction.Harvest, source.id);
       } else {
-        creep.say("🤷‍♂️⚡️");
+        return new HarvesterMemory(HarvesterAction.Idle);
       }
-      return;
     }
 
     // Select target in order of priority
@@ -209,10 +217,7 @@ class Harvester extends Role {
         && structure.store.getFreeCapacity(RESOURCE_ENERGY) > 0
     });
     if (targetObject) {
-      mem.target = targetObject.id;
-      mem.action = HarvesterAction.Transfer;
-      creep.say("🫴🎁");
-      return;
+      return new HarvesterMemory(HarvesterAction.Transfer, targetObject.id);
     }
 
     // Controllers at risk of downgrade
@@ -223,11 +228,8 @@ class Harvester extends Role {
           && structure.ticksToDowngrade < this.DowngradeStopThreshold
       });
       if (targetObject) {
-        mem.target = targetObject.id;
-        mem.action = HarvesterAction.StopDowngrade;
         this.room.memory.countPreventingDowngrade += 1;
-        creep.say("🦸‍♀️");
-        return;
+        return new HarvesterMemory(HarvesterAction.StopDowngrade, targetObject.id);
       }
     }
 
@@ -237,11 +239,8 @@ class Harvester extends Role {
         filter: (structure) => structure.structureType === STRUCTURE_CONTROLLER && structure.level < this.DesiredRCL
       });
       if (targetObject) {
-        mem.target = targetObject.id;
-        mem.action = HarvesterAction.Upgrade;
         this.room.memory.countPerformingUpgrade += 1;
-        creep.say("🆙");
-        return;
+        return new HarvesterMemory(HarvesterAction.Upgrade, targetObject.id);
       }
     }
 
@@ -250,10 +249,7 @@ class Harvester extends Role {
       filter: (structure) => structure.hits < structure.hitsMax
     });
     if (targetObject) {
-      mem.target = targetObject.id;
-      mem.action = HarvesterAction.Repair;
-      creep.say("🛠️");
-      return;
+      return new HarvesterMemory(HarvesterAction.Repair, targetObject.id);
     }
 
     // Ongoing Construction
@@ -261,10 +257,7 @@ class Harvester extends Role {
       filter: (site) => site.progress < site.progressTotal,
     });
     if (targetObject) {
-      mem.target = targetObject.id;
-      mem.action = HarvesterAction.Build;
-      creep.say("🏗️");
-      return;
+      return new HarvesterMemory(HarvesterAction.Build, targetObject.id);
     }
 
     // All Upgrades
@@ -272,13 +265,10 @@ class Harvester extends Role {
       filter: (structure) => structure.structureType === STRUCTURE_CONTROLLER
     });
     if (targetObject) {
-      mem.target = targetObject.id;
-      mem.action = HarvesterAction.Upgrade;
-      creep.say("🆙🆙🆙!!!");
-      return;
+      return new HarvesterMemory(HarvesterAction.Upgrade, targetObject.id);
     }
 
-    creep.say("🥱");
+    return new HarvesterMemory(HarvesterAction.Idle);
   }
 
   Act(creep: Creep): void {
@@ -365,16 +355,35 @@ class Harvester extends Role {
     }
   }
 
-  IsDeliveryComplete(creep: Creep): boolean {
+  IsActComplete(creep: Creep): boolean {
     const mem = creep.memory.jobMemory as HarvesterMemory;
 
-    if (mem.target == null || mem.target == undefined) {
+    if (!mem) {
+      console.log(`${this.room}${creep}: IsDeliveryComplete: amnesia`);
+      return true;
+    }
+
+    if (!mem.action) {
+      console.log(`${this.room}${creep}: IsDeliveryComplete: missing action`);
+      return true;
+    }
+
+    // Idle tasks are always done.
+    if (mem.action === HarvesterAction.Idle) return true;
+
+    if (!mem.target) {
       console.log(`${this.room}${creep}: IsDeliveryComplete: null/undefined target in memory`)
       return true;
     }
+
     const targetObject = Game.getObjectById(mem.target);
-    if (targetObject == null || targetObject == undefined) {
-      console.log(`${this.room}${creep}: IsDeliveryComplete: Game.getObjectById of ${mem.target} is null`)
+    if (!targetObject) {
+
+      if (mem.action === HarvesterAction.Build)
+        console.log(`${this.room}${creep}: IsDeliveryComplete: Construction Finished!`)
+      else
+        console.log(`${this.room}${creep}: IsDeliveryComplete: Game.getObjectById of ${mem.target} is null`)
+
       return true;
     }
 
@@ -406,10 +415,6 @@ class Harvester extends Role {
       }
       case (HarvesterAction.Harvest): {
         return creep.store.getFreeCapacity(RESOURCE_ENERGY) === 0;
-      }
-      default: {
-        console.log(`${this.room}${creep}: IsDeliveryComplete: action is null`)
-        return true;
       }
     }
   }
