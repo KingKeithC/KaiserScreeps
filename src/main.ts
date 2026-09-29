@@ -24,6 +24,7 @@ declare global {
   interface RoomMemory {
     countPreventingDowngrade: number
     countPerformingUpgrade: number
+    lastSpawnTick: number
   }
 
 }
@@ -66,7 +67,7 @@ abstract class Role {
 
   // Shared Tick Logic. Should be called via `super.Tick()` in child classes.
   Tick(): void {
-    if (Game.time % this.SpawnRate !== 0) this.DoSpawns(); // Attempt spawn infrequently.
+    if ((Game.time - this.room.memory.lastSpawnTick) > this.SpawnRate) this.DoSpawns(); // Attempt spawn infrequently.
   }
 
   protected RoleBodyCost(): number {
@@ -88,7 +89,7 @@ abstract class Role {
     // or quota met
     const current = this.CreepsInRole().length;
     if (current >= this.CountPerRoom) {
-      console.log(`${this.room}[${this.RoleName}]: Quota Met ${current}/${this.CountPerRoom}`);
+      console.log(`${this.room}[${this.RoleName}]: ${Game.time} Quota Met ${current}/${this.CountPerRoom}`);
       return;
     }
 
@@ -131,6 +132,7 @@ abstract class Role {
     else
       console.log(`${this.room}[${this.RoleName}]: ${spawnPoint} Spawn failed with result: ${result}...`);
 
+    this.room.memory.lastSpawnTick = Game.time;
   }
 }
 
@@ -440,20 +442,22 @@ const MainLoop = () => {
       room.memory.countPreventingDowngrade = 0;
     if (room.memory.countPerformingUpgrade == null || room.memory.countPerformingUpgrade == undefined || room.memory.countPerformingUpgrade < 0)
       room.memory.countPerformingUpgrade = 0;
+    if (room.memory.lastSpawnTick == null || room.memory.lastSpawnTick == undefined)
+      room.memory.lastSpawnTick = Game.time;
 
     // Tick each creep
     for (const creep of room.find(FIND_MY_CREEPS)) {
-      var role: Role | null = null;
+      var creepRole;
 
       if (creep.memory.role === "harvester")
-        role = new Harvester(creep, room);
-      if (creep.memory.role === "harvesterT2")
-        role = new HarvesterT2(creep, room);
+        creepRole = new Harvester(creep, room);
+      else if (creep.memory.role === "harvesterT2")
+        creepRole = new HarvesterT2(creep, room);
       else
-        role = new Harvester(creep, room)
+        creepRole = new Harvester(creep, room)
 
-      if (role == null) continue;
-      role.Tick();
+      if (creepRole == null) continue; // Creep has no role
+      creepRole.Tick();
     }
   }
 }
