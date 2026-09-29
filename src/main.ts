@@ -58,7 +58,7 @@ abstract class Role {
   StopSpawnAtRCL: number = 100;
 
   // How ofter to check for spawn
-  SpawnRate: number = 20;
+  SpawnRate: number = 80;
 
   ReusePath: number = 10;
   ShortPathThreshold: number = 6;
