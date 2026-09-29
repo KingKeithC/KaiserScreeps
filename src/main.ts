@@ -47,11 +47,11 @@ const MainLoop = () => {
   for (const room of Object.values(Game.rooms)) {
 
     // Init Room Memory
-    if (room.memory.countPreventingDowngrade == null || room.memory.countPreventingDowngrade == undefined || room.memory.countPreventingDowngrade < 0)
+    if (room.memory.countPreventingDowngrade == null || room.memory.countPreventingDowngrade == undefined)
       room.memory.countPreventingDowngrade = 0;
-    if (room.memory.countPerformingUpgrade == null || room.memory.countPerformingUpgrade == undefined || room.memory.countPerformingUpgrade < 0)
+    if (room.memory.countPerformingUpgrade == null || room.memory.countPerformingUpgrade == undefined)
       room.memory.countPerformingUpgrade = 0;
-    if (room.memory.countPerformingTransfer == null || room.memory.countPerformingTransfer == undefined || room.memory.countPerformingTransfer < 0)
+    if (room.memory.countPerformingTransfer == null || room.memory.countPerformingTransfer == undefined)
       room.memory.countPerformingTransfer = 0;
     if (room.memory.lastSpawnTick == null || room.memory.lastSpawnTick == undefined)
       room.memory.lastSpawnTick = {};
