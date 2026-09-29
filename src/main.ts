@@ -62,6 +62,9 @@ const MainLoop = () => {
       const t = tower as StructureTower;
       if (t == null || t == undefined) continue;
 
+      if (!t.isActive)
+        continue; // RCL too low to work anyway
+
       if (t.store.getUsedCapacity(RESOURCE_ENERGY) === 0)
         continue; // No energy to work
 
