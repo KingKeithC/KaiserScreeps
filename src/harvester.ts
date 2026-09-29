@@ -318,7 +318,7 @@ export class HarvesterT2 extends Harvester {
 
   StartSpawnAtRCL = 2;
   StopSpawnAtRCL = 100;
-  UpgradeToRCL = 3;
+  UpgradeToRCL = 8;
   CountPerRoom = 5;
   BodyParts = [MOVE, MOVE, WORK, WORK, WORK, CARRY, CARRY, CARRY];
 }
