@@ -369,23 +369,23 @@ class Harvester extends Role {
     if (mem.action === HarvesterAction.Idle) return true;
 
     if (!mem.target) {
-      console.log(`${this.room}${creep}: IsDeliveryComplete: null/undefined target in memory`)
+      // console.log(`${this.room}${creep}: IsDeliveryComplete: null/undefined target in memory`)
       return true;
     }
 
     const targetObject = Game.getObjectById(mem.target);
     if (!targetObject) {
 
-      if (mem.action === HarvesterAction.Build)
-        console.log(`${this.room}${creep}: IsDeliveryComplete: Construction Finished!`)
-      else
+      if (mem.action !== HarvesterAction.Build)
         console.log(`${this.room}${creep}: IsDeliveryComplete: Game.getObjectById of ${mem.target} is null`)
+      // else
+      // console.log(`${this.room}${creep}: IsDeliveryComplete: Construction Finished!`)
 
       return true;
     }
 
     if (mem.action !== HarvesterAction.Harvest && creep.store.getUsedCapacity(RESOURCE_ENERGY) === 0) {
-      console.log(`${this.room}${creep}: IsDeliveryComplete: out of Energy`)
+      // console.log(`${this.room}${creep}: IsDeliveryComplete: out of Energy`)
       return true;
     }
 
