@@ -6,7 +6,12 @@ class MinerMemory extends Object {
 
 export class Miner extends Role {
   RoleName = "Miner";
-  CountPerRoom = 4;
+
+  get CountPerRoom() {
+    // 2 x the number of active sources
+    return this.room.find(FIND_SOURCES_ACTIVE).length * 2;
+  }
+
   BodyParts = [MOVE, CARRY, CARRY, WORK, WORK, WORK];
 
   Tick(): void {
