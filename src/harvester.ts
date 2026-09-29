@@ -276,32 +276,32 @@ export class Harvester extends Role {
       return true;
     }
 
-    if (mem.action !== HarvesterAction.Harvest && creep.store.getUsedCapacity(RESOURCE_ENERGY) === 0) {
-      // console.log(`${this.room}${creep}: IsDeliveryComplete: out of Energy`)
-      return true;
-    }
-
     switch (mem.action) {
       case (HarvesterAction.Harvest):
       case (HarvesterAction.CollectEnergy):
         return creep.store.getFreeCapacity(RESOURCE_ENERGY) === 0;
       case (HarvesterAction.Upgrade): {
+        if (creep.store.getUsedCapacity(RESOURCE_ENERGY) === 0) return true;
         const t = targetObject as StructureController;
         return t.level >= this.UpgradeToRCL;
       }
       case (HarvesterAction.StopDowngrade): {
+        if (creep.store.getUsedCapacity(RESOURCE_ENERGY) === 0) return true;
         const t = targetObject as StructureController;
         return t.ticksToDowngrade >= this.DowngradeStopThreshold
       }
       case (HarvesterAction.Build): {
+        if (creep.store.getUsedCapacity(RESOURCE_ENERGY) === 0) return true;
         const t = targetObject as ConstructionSite;
         return t.progress === t.progressTotal;
       }
       case (HarvesterAction.Repair): {
+        if (creep.store.getUsedCapacity(RESOURCE_ENERGY) === 0) return true;
         const t = targetObject as AnyOwnedStructure;
         return t.hits === t.hitsMax;
       }
       case (HarvesterAction.Transfer): {
+        if (creep.store.getUsedCapacity(RESOURCE_ENERGY) === 0) return true;
         const t = targetObject as AnyStoreStructure;
         return t.store.getFreeCapacity(RESOURCE_ENERGY) === 0;
       }
