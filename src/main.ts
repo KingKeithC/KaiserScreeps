@@ -164,7 +164,7 @@ class Harvester extends Role {
     super.Tick();
 
     if (this.IsDeliveryComplete()) {
-      // console.log(`${this.room}${this.creep}: ${this.creep.memory.jobMemory.action}: Task Complete.`)
+      console.log(`${this.room}${this.creep}: ${this.creep.memory.jobMemory}: Task Complete.`)
       this.Reassign();
     } else {
       this.Act();
