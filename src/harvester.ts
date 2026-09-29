@@ -222,7 +222,7 @@ export class Harvester extends Role {
         var moveOutcome: number = OK;
         if (range > this.ShortPathThreshold)
           // Move Long if we are farther than ShortPathThreshold away.
-          moveOutcome = creep.moveTo(targetObject, { visualizePathStyle: { stroke: COLOURS.PATH_LONG, lineStyle: "solid" }, reusePath: this.ReusePath, ignoreCreeps: true, range: 3 });
+          moveOutcome = creep.moveTo(targetObject, { visualizePathStyle: { stroke: COLOURS.PATH_LONG, lineStyle: "solid" }, reusePath: this.ReusePath, ignoreCreeps: true, range: 3, maxOps: 300 });
         else
           // Move Short otherwise
           moveOutcome = creep.moveTo(targetObject, { visualizePathStyle: { stroke: COLOURS.PATH_SHORT, lineStyle: "dotted" }, range: 1 });
