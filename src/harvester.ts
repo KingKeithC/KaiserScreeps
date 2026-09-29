@@ -68,8 +68,9 @@ export class Harvester extends Role {
     // If we are out of energy
     if (creep.store.getUsedCapacity(RESOURCE_ENERGY) === 0) {
 
-      // Collect from a miner if there are any
-      const miner = creep.pos.findClosestByPath(FIND_MY_CREEPS, { filter: (c) => c.memory.role === "Miner" })
+      // Collect from the fullest miner miner if there are any
+      const miner = this.room.find(FIND_MY_CREEPS, { filter: (c) => c.memory.role === "Miner" })
+        .sort((a, b) => a.store.energy - b.store.energy)[0]
       if (miner != null)
         return new HarvesterMemory(HarvesterAction.CollectEnergy, miner.id);
 
