@@ -99,17 +99,6 @@ export class Harvester extends Role {
       }
     }
 
-    // Pending Upgrades
-    if (this.room.memory.countPerformingUpgrade < this.WorkersPerformingUpgrade) {
-      targetObject = creep.pos.findClosestByPath(FIND_MY_STRUCTURES, {
-        filter: (structure) => structure.structureType === STRUCTURE_CONTROLLER && structure.level < this.DesiredRCL
-      });
-      if (targetObject) {
-        this.room.memory.countPerformingUpgrade += 1;
-        return new HarvesterMemory(HarvesterAction.Upgrade, targetObject.id);
-      }
-    }
-
     // Structures in need of repair
     targetObject = creep.pos.findClosestByPath(FIND_MY_STRUCTURES, {
       filter: (structure) => structure.hits < structure.hitsMax
@@ -126,12 +115,15 @@ export class Harvester extends Role {
       return new HarvesterMemory(HarvesterAction.Build, targetObject.id);
     }
 
-    // All Upgrades
-    targetObject = creep.pos.findClosestByPath(FIND_MY_STRUCTURES, {
-      filter: (structure) => structure.structureType === STRUCTURE_CONTROLLER
-    });
-    if (targetObject) {
-      return new HarvesterMemory(HarvesterAction.Upgrade, targetObject.id);
+    // Pending Upgrades
+    if (this.room.memory.countPerformingUpgrade < this.WorkersPerformingUpgrade) {
+      targetObject = creep.pos.findClosestByPath(FIND_MY_STRUCTURES, {
+        filter: (structure) => structure.structureType === STRUCTURE_CONTROLLER && structure.level < this.DesiredRCL
+      });
+      if (targetObject) {
+        this.room.memory.countPerformingUpgrade += 1;
+        return new HarvesterMemory(HarvesterAction.Upgrade, targetObject.id);
+      }
     }
 
     return new HarvesterMemory(HarvesterAction.Idle);
@@ -252,7 +244,8 @@ export class Harvester extends Role {
     }
 
     // Idle tasks are always done.
-    if (mem.action === HarvesterAction.Idle) return true;
+    if (mem.action === HarvesterAction.Idle)
+      return true;
 
     if (!mem.target) {
       // console.log(`${this.room}${creep}: IsDeliveryComplete: null/undefined target in memory`)
