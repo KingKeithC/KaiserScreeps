@@ -1,5 +1,6 @@
 import { ErrorMapper } from "utils/ErrorMapper";
 import { Harvester, HarvesterT2 } from "harvester";
+import { Miner } from "miner";
 
 declare global {
   /*
@@ -59,7 +60,8 @@ const MainLoop = () => {
     // Run each role in the room
     for (const role of [
       new Harvester(room),
-      new HarvesterT2(room)
+      new HarvesterT2(room),
+      new Miner(room)
     ]) {
       role.DoSpawns();
       role.Tick();

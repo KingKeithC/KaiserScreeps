@@ -1,5 +1,4 @@
 import { Role } from "role";
-import { COLOURS } from "utils/Colours";
 
 enum HarvesterAction {
   Idle = '💤',
