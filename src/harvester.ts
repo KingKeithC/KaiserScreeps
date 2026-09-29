@@ -38,7 +38,7 @@ export class Harvester extends Role {
   DowngradeStopThreshold = 1000;
   WorkersPreventingDowngrade = 2;
   WorkersPerformingUpgrade = 2;
-  WorkersPerformingTransfer = 3;
+  WorkersPerformingTransfer = 2;
   InitialJobMemory = new HarvesterMemory(HarvesterAction.Idle);
 
   Tick(): void {
