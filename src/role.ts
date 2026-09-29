@@ -106,7 +106,7 @@ export abstract class Role {
     // Close enough we shouldn't need to move
     if (range <= minRange) return null;
 
-    var moveOutcome: number = OK;
+    var moveOutcome: number | null = null;
     if (range > this.ShortPathThreshold)
       // Move Long if we are farther than ShortPathThreshold away.
       moveOutcome = creep.moveTo(target, { visualizePathStyle: { stroke: COLOURS.PATH_LONG, lineStyle: "solid" }, range: minRange, reusePath: this.ReusePath, ignoreCreeps: true });

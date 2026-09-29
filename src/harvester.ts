@@ -180,8 +180,11 @@ export class Harvester extends Role {
     if (mem.action === HarvesterAction.Harvest || mem.action === HarvesterAction.Transfer || mem.action === HarvesterAction.CollectEnergy)
       minDistance = 1;
 
-    if (this.MoveCreep(creep, targetObject.pos, minDistance) != null)
+    const moveResult = this.MoveCreep(creep, targetObject.pos, minDistance);
+    if (moveResult != null) {
+      console.log(`${this.room}${creep}: Act: Resting after move result ${moveResult}`)
       return; // We had to move so don't bother to act
+    }
 
     var result: number = OK;
     switch (mem.action) {
