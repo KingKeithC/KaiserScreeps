@@ -109,10 +109,10 @@ export abstract class Role {
     var moveOutcome: number = OK;
     if (range > this.ShortPathThreshold)
       // Move Long if we are farther than ShortPathThreshold away.
-      moveOutcome = creep.moveTo(target, { visualizePathStyle: { stroke: COLOURS.PATH_LONG, lineStyle: "solid" }, reusePath: this.ReusePath, ignoreCreeps: true, range: 3, maxOps: 300 });
+      moveOutcome = creep.moveTo(target, { visualizePathStyle: { stroke: COLOURS.PATH_LONG, lineStyle: "solid" }, range: minRange, reusePath: this.ReusePath, ignoreCreeps: true });
     else
       // Move Short otherwise
-      moveOutcome = creep.moveTo(target, { visualizePathStyle: { stroke: COLOURS.PATH_SHORT, lineStyle: "dotted" }, range: 1 });
+      moveOutcome = creep.moveTo(target, { visualizePathStyle: { stroke: COLOURS.PATH_SHORT, lineStyle: "dotted" }, range: minRange, maxOps: 300 });
 
     return moveOutcome;
   }
