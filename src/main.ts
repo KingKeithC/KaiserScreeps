@@ -422,7 +422,7 @@ class HarvesterT2 extends Harvester {
 
   SpawnAtRCL = 2;
   CountPerRoom = 5;
-  BodyParts = [MOVE, WORK, WORK, CARRY, CARRY, CARRY];
+  BodyParts = [MOVE, MOVE, WORK, WORK, WORK, CARRY, CARRY, CARRY];
 
   DesiredRCL = 3;
   DowngradeStopThreshold = 2000;
