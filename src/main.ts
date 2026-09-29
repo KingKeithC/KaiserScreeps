@@ -326,6 +326,10 @@ class Harvester extends Role {
     switch (result) {
       case OK:
         return;
+      case ERR_NOT_ENOUGH_RESOURCES: {
+        this.Reassign(creep);
+        return;
+      }
       case ERR_NOT_IN_RANGE: {
         const range = creep.pos.getRangeTo(targetObject);
 
@@ -347,6 +351,7 @@ class Harvester extends Role {
       }
       default: {
         console.log(`${this.room}${creep}: Act: ${mem.action} for ${creep} was not successful: ${result}`);
+        this.Reassign(creep);
         return;
       }
     }
