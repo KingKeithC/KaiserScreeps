@@ -187,10 +187,10 @@ export class Harvester extends Role {
       return; // There was an issue moving, so skip the act
     } else if (moveResult === OK) {
       // console.log(`${this.room}${creep}: Act: Moved`)
-      if (creep.fatigue) return; // We moved and are fatigued, so skip acting
+      return; // We moved, so skip acting
     }
 
-    // Either didn't move, or move didn't fatigure us, so act.
+    // Didn't move, so act.
 
     var result: number = OK;
     switch (mem.action) {
@@ -243,8 +243,8 @@ export class Harvester extends Role {
       case ERR_NOT_IN_RANGE: {
         // Move should already be done by this point. If this happens,
         // it's probably because the move didn't leave us fatigued so we tried acting while still too far away.
-        // console.log(`${this.room}${creep}: Not in range to act.`);
-        this.MoveCreep(creep, targetObject.pos, minDistance - 1); // Pity move one step closer
+        console.log(`${this.room}${creep}: Not in range to act.`);
+        // this.MoveCreep(creep, targetObject.pos, minDistance - 1); // Pity move one step closer
         return;
       }
       default: {
