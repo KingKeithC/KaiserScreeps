@@ -99,9 +99,6 @@ export abstract class Role {
 
   // Returns; 0 if moved and was ok, 1 if no need to move, and <0 for errors
   MoveCreep(creep: Creep, target: RoomPosition, minRange: number = 3): number {
-    // Can't move anyways so don't bother
-    if (creep.fatigue) return ERR_TIRED;
-
     const range = creep.pos.getRangeTo(target);
     var moveOutcome: number = -69;
     if (range <= minRange)
