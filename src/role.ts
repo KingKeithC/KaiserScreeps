@@ -131,7 +131,9 @@ export abstract class Role {
 
     if (moveResult === OK && creep.memory.lastPath === creep.memory._move?.path) {
       creep.memory.stuckTicks = (creep.memory.stuckTicks ?? 0) + 1;
-      console.log(`${this.room}[${creep}]: I'm stuck for ${creep.memory.stuckTicks}...`);
+
+      if (creep.memory.stuckTicks > 1)
+        console.log(`${this.room}[${creep}]: I'm stuck for ${creep.memory.stuckTicks}...`);
     } else {
       creep.memory.stuckTicks = 0;
     }
