@@ -45,12 +45,9 @@ export class Miner extends Role {
       }
 
       // If there are nearby Harvesters low on energy
-      for (const harvester of creep.pos.findInRange(FIND_MY_CREEPS, 2, {
-        filter: (c) => (
-          (c.memory.role === "harvester" || c.memory.role === "harvesterT2")
-          && c.store.getFreeCapacity(RESOURCE_ENERGY) > 0
-        )
-      }))
+      const nearby = creep.pos.findInRange(FIND_MY_CREEPS, 1, { filter: (c) => ((c.memory.role === "harvester" || c.memory.role === "harvesterT2") && c.store.getFreeCapacity(RESOURCE_ENERGY) > 0) });
+      const harvester = nearby.sort((a, b) => a.store.energy - b.store.energy).pop();
+      if (harvester != null && harvester != undefined)
         creep.transfer(harvester, RESOURCE_ENERGY); // Transer ours to them
     }
   }
