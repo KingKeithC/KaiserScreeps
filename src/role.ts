@@ -37,7 +37,7 @@ export abstract class Role {
     return total;
   }
 
-  protected CreepsInRole = () => this.room.find(FIND_MY_CREEPS, { filter: (creep) => creep.memory.role === this.RoleName });
+  protected CreepsInRole = () => Object.values(Game.creeps).filter(c => c.memory.room == this.room.name && c.memory.role == this.RoleName);
 
   DoSpawns(): void {
     const timeSinceSpawn = Game.time - (this.room.memory.lastSpawnTick[this.RoleName] ?? 0);
