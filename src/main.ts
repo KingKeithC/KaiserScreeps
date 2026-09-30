@@ -88,6 +88,13 @@ const MainLoop = () => {
       }
 
       // All other structures
+      const road = t.pos.findClosestByRange(FIND_STRUCTURES, { filter: s => s.structureType === STRUCTURE_ROAD && s.hits < s.hitsMax })
+      if (road != null && road != undefined) {
+        t.repair(road);
+        continue;
+      }
+
+      // All other structures
       const allStruct = t.pos.findClosestByRange(FIND_STRUCTURES, { filter: s => s.hits < s.hitsMax })
       if (allStruct != null && allStruct != undefined) {
         t.repair(allStruct);
