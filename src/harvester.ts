@@ -308,6 +308,9 @@ export class Harvester extends Role {
         const t = targetObject as Resource;
         return t.amount === 0;
       }
+      case (HarvesterAction.IdleUpgrade): {
+        return creep.store.getUsedCapacity(RESOURCE_ENERGY) === 0;
+      }
       case (HarvesterAction.Upgrade): {
         if (creep.store.getUsedCapacity(RESOURCE_ENERGY) === 0) return true;
         const t = targetObject as StructureController;
