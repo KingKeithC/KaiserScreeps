@@ -126,9 +126,9 @@ const MainLoop = () => {
 
     // Run each role in the room
     for (const role of [
-      new Harvester(room),
+      new Miner(room),
       new HarvesterT2(room),
-      new Miner(room)
+      new Harvester(room),
     ]) {
       role.DoSpawns();
       role.Tick();
