@@ -97,20 +97,25 @@ export abstract class Role {
       console.log(`${this.room}[${this.RoleName}]: ${spawnPoint} Spawn failed with result: ${result}...`);
   }
 
+  MoveShort(creep: Creep, dest: RoomPosition, minRange?: number): number {
+    return creep.moveTo(dest, { visualizePathStyle: { stroke: COLOURS.PATH_SHORT, lineStyle: "dotted" }, range: minRange, maxOps: 300 });
+  }
+
+  MoveLong(creep: Creep, dest: RoomPosition, minRange?: number): number {
+    return creep.moveTo(dest, { visualizePathStyle: { stroke: COLOURS.PATH_LONG, lineStyle: "solid" }, range: minRange, reusePath: this.ReusePath, ignoreCreeps: true });
+  }
+
   // Returns; 0 if moved and was ok, 1 if no need to move, and <0 for errors
-  MoveCreep(creep: Creep, target: RoomPosition, minRange: number = 3): number {
+  MoveCreep(creep: Creep, target: RoomPosition, withinRange: number): number {
     const range = creep.pos.getRangeTo(target);
-    var moveOutcome: number = -69;
-    if (range <= minRange)
+    if (range <= withinRange)
       // Close enough we shouldn't need to move
-      moveOutcome = 1
+      return 1
     else if (range > this.ShortPathThreshold)
       // Move Long if we are farther than ShortPathThreshold away.
-      moveOutcome = creep.moveTo(target, { visualizePathStyle: { stroke: COLOURS.PATH_LONG, lineStyle: "solid" }, range: minRange, reusePath: this.ReusePath, ignoreCreeps: true });
+      return this.MoveLong(creep, target, withinRange);
     else
       // Move Short otherwise
-      moveOutcome = creep.moveTo(target, { visualizePathStyle: { stroke: COLOURS.PATH_SHORT, lineStyle: "dotted" }, range: minRange, maxOps: 300 });
-
-    return moveOutcome;
+      return this.MoveShort(creep, target, withinRange);
   }
 }
