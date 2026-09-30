@@ -41,7 +41,7 @@ export class Miner extends Role {
       // Mine it if we have room
       if (creep.store.getFreeCapacity(RESOURCE_ENERGY)) {
         const mineResult = creep.harvest(mineObj);
-        if (mineResult !== OK) console.log(`${this.room}${creep}: Miner failed to mine ${mineResult}`);
+        if (mineResult !== OK && mineResult !== ERR_NOT_ENOUGH_ENERGY) console.log(`${this.room}${creep}: Miner failed to mine ${mineResult}`);
       }
 
       // If there are nearby Harvesters low on energy
