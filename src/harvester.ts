@@ -93,24 +93,6 @@ export class Harvester extends Role {
     // Select target in order of priority
     var targetObject;
 
-    // Spawns/Extensions with room for energy
-    targetObject = creep.pos.findClosestByPath(FIND_MY_STRUCTURES, {
-      filter: (structure) =>
-        (structure.structureType === STRUCTURE_EXTENSION || structure.structureType === STRUCTURE_SPAWN)
-        && structure.store.getFreeCapacity(RESOURCE_ENERGY) > 0
-    });
-    if (targetObject) {
-      return new HarvesterMemory(HarvesterAction.Transfer, targetObject.id);
-    }
-
-    // Towers with room for energy
-    targetObject = creep.pos.findClosestByPath(FIND_MY_STRUCTURES, {
-      filter: (structure) => structure.structureType === STRUCTURE_TOWER && structure.store.getFreeCapacity(RESOURCE_ENERGY) > 0
-    });
-    if (targetObject) {
-      return new HarvesterMemory(HarvesterAction.Transfer, targetObject.id);
-    }
-
     // Controllers at risk of downgrade
     if (this.room.memory.countPreventingDowngrade < this.WorkersPreventingDowngrade) {
       targetObject = creep.pos.findClosestByPath(FIND_MY_STRUCTURES, {
@@ -124,12 +106,22 @@ export class Harvester extends Role {
       }
     }
 
-    // Pending Upgrades
-    if (this.room.memory.countPerformingUpgrade < this.WorkersPerformingUpgrade) {
-      if (this.room.controller && this.room.controller.level < this.UpgradeToRCL) {
-        this.room.memory.countPerformingUpgrade += 1;
-        return new HarvesterMemory(HarvesterAction.Upgrade, this.room.controller.id);
-      }
+    // Towers with room for energy
+    targetObject = creep.pos.findClosestByPath(FIND_MY_STRUCTURES, {
+      filter: (structure) => structure.structureType === STRUCTURE_TOWER && structure.store.getFreeCapacity(RESOURCE_ENERGY) > 0
+    });
+    if (targetObject) {
+      return new HarvesterMemory(HarvesterAction.Transfer, targetObject.id);
+    }
+
+    // Spawns/Extensions with room for energy
+    targetObject = creep.pos.findClosestByPath(FIND_MY_STRUCTURES, {
+      filter: (structure) =>
+        (structure.structureType === STRUCTURE_EXTENSION || structure.structureType === STRUCTURE_SPAWN)
+        && structure.store.getFreeCapacity(RESOURCE_ENERGY) > 0
+    });
+    if (targetObject) {
+      return new HarvesterMemory(HarvesterAction.Transfer, targetObject.id);
     }
 
     // Ongoing Construction
@@ -138,6 +130,14 @@ export class Harvester extends Role {
     });
     if (targetObject) {
       return new HarvesterMemory(HarvesterAction.Build, targetObject.id);
+    }
+
+    // Pending Upgrades
+    if (this.room.memory.countPerformingUpgrade < this.WorkersPerformingUpgrade) {
+      if (this.room.controller && this.room.controller.level < this.UpgradeToRCL) {
+        this.room.memory.countPerformingUpgrade += 1;
+        return new HarvesterMemory(HarvesterAction.Upgrade, this.room.controller.id);
+      }
     }
 
     // Structures in need of repair
