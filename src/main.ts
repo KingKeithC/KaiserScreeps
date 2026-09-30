@@ -55,6 +55,25 @@ const MainLoop = () => {
     if (room.memory.lastSpawnTick == null || room.memory.lastSpawnTick == undefined)
       room.memory.lastSpawnTick = {};
 
+    // Check if we need to build a road.
+    const start = Game.flags["RoadStart"];
+    const end = Game.flags["RoadEnd"];
+    if (start && end) {
+      // Find a path in the same room
+      const path = start.pos.findPathTo(end, { maxRooms: 1, swampCost: 2, plainCost: 4, ignoreCreeps: true });
+      var built = false;
+
+      for (const pos of path) {
+        const construction = room.createConstructionSite(pos.x, pos.y, STRUCTURE_ROAD);
+        if (construction === OK) built = true;
+      }
+
+      if (built) {
+        start.remove();
+        end.remove();
+      }
+    }
+
     // Run each tower in the room
     for (const tower of room.find(FIND_MY_STRUCTURES, { filter: s => s.structureType === STRUCTURE_TOWER })) {
       const t = tower as StructureTower;
