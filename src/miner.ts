@@ -35,21 +35,34 @@ export class Miner extends Role {
         continue; // Source was invalid
       }
 
-      // Move right next to the source
-      const moveResult = this.MoveCreep(creep, mineObj.pos, 1);
-      if (moveResult != 1) continue; // Not close enough to continue acting
-
-      // Mine it if we have room
-      if (creep.store.getFreeCapacity(RESOURCE_ENERGY)) {
-        const mineResult = creep.harvest(mineObj);
-        if (mineResult !== OK && mineResult !== ERR_NOT_ENOUGH_ENERGY) console.log(`${this.room}${creep}: Miner failed to mine ${mineResult}`);
-      }
-
       // If there are nearby Harvesters low on energy
-      const nearby = creep.pos.findInRange(FIND_MY_CREEPS, 1, { filter: (c) => ((c.memory.role === "harvester" || c.memory.role === "harvesterT2") && c.store.getFreeCapacity(RESOURCE_ENERGY) > 0) });
-      const harvester = nearby.sort((a, b) => a.store.energy - b.store.energy).pop();
+      const nextdoor = creep.pos.findInRange(FIND_MY_CREEPS, 1, { filter: (c) => ((c.memory.role === "harvester" || c.memory.role === "harvesterT2") && c.store.getFreeCapacity(RESOURCE_ENERGY) > 0) });
+      const harvester = nextdoor.sort((a, b) => a.store.energy - b.store.energy).pop();
       if (harvester != null && harvester != undefined)
         creep.transfer(harvester, RESOURCE_ENERGY); // Transer ours to them
+
+      const isFull = creep.store.getFreeCapacity(RESOURCE_ENERGY) === 0;
+      const nearby = creep.pos.findInRange(FIND_MY_CREEPS, 5, { filter: (c) => ((c.memory.role === "harvester" || c.memory.role === "harvesterT2") && c.store.getFreeCapacity(RESOURCE_ENERGY) > 0) });
+      if (!isFull) {
+        // Move right next to the source
+        const moveResult = this.MoveCreep(creep, mineObj.pos, 1);
+        if (moveResult != 1) continue; // Not close enough to continue acting
+
+        // Mine it
+        const mineResult = creep.harvest(mineObj);
+        if (mineResult !== OK && mineResult !== ERR_NOT_ENOUGH_ENERGY) console.log(`${this.room}${creep}: Miner failed to mine ${mineResult}`);
+      } else if (nearby.length > 0) {
+        // Find the one with the lowest energy
+        const harvester = nearby.sort((a, b) => a.store.energy - b.store.energy).pop();
+        if (harvester == null || harvester == undefined)
+          continue;
+
+        // Move right next to it
+        const moveResult = this.MoveCreep(creep, harvester.pos, 1);
+        if (moveResult != 1) continue; // Not close enough to transfer
+
+        creep.transfer(harvester, RESOURCE_ENERGY); // Transer ours to them
+      }
     }
   }
 
