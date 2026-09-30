@@ -69,17 +69,17 @@ export class Harvester extends Role {
     // If we are out of energy
     if (creep.store.getUsedCapacity(RESOURCE_ENERGY) === 0) {
 
+      // Collect from the fullest miner nearby if there are any
+      const miner = creep.pos.findInRange(FIND_MY_CREEPS, this.MinerSearchRange, { filter: (c) => c.memory.role === "Miner" && c.store.energy > 0 })
+        .sort((a, b) => a.store.energy - b.store.energy).pop()
+      if (miner != null && miner != undefined)
+        return new HarvesterMemory(HarvesterAction.CollectEnergy, miner.id);
+
       // Do harverting on our own
       const source = creep.pos.findClosestByPath(FIND_SOURCES_ACTIVE);
       if (source) {
         return new HarvesterMemory(HarvesterAction.Harvest, source.id);
       }
-
-      // Collect from the fullest miner nearby if there are any
-      const miner = creep.pos.findInRange(FIND_MY_CREEPS, this.MinerSearchRange, { filter: (c) => c.memory.role === "Miner" })
-        .sort((a, b) => a.store.energy - b.store.energy).pop()
-      if (miner != null && miner != undefined)
-        return new HarvesterMemory(HarvesterAction.CollectEnergy, miner.id);
 
       // Nothing to do without energy
       return new HarvesterMemory(HarvesterAction.Idle);
@@ -182,9 +182,12 @@ export class Harvester extends Role {
       minDistance = 1;
 
     const moveResult = this.MoveCreep(creep, targetObject.pos, minDistance);
-    if (moveResult !== ERR_TIRED && moveResult !== OK) {
+    if (moveResult < 0) {
       console.log(`${this.room}${creep}: Act: Issue with Moving ${moveResult}`)
       return; // There was an issue moving, so skip the act
+    } else if (moveResult === OK) {
+      // console.log(`${this.room}${creep}: Act: Moved`)
+      if (creep.fatigue) return; // We moved and are fatigued, so skip acting
     }
 
     var result: number = OK;

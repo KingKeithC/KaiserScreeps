@@ -97,17 +97,17 @@ export abstract class Role {
       console.log(`${this.room}[${this.RoleName}]: ${spawnPoint} Spawn failed with result: ${result}...`);
   }
 
+  // Returns; 0 if moved and was ok, 1 if no need to move, and <0 for errors
   MoveCreep(creep: Creep, target: RoomPosition, minRange: number = 3): number {
     // Can't move anyways so don't bother
     if (creep.fatigue) return ERR_TIRED;
 
     const range = creep.pos.getRangeTo(target);
-
-    // Close enough we shouldn't need to move
-    if (range <= minRange) return OK;
-
     var moveOutcome: number = -69;
-    if (range > this.ShortPathThreshold)
+    if (range <= minRange)
+      // Close enough we shouldn't need to move
+      moveOutcome = 1
+    else if (range > this.ShortPathThreshold)
       // Move Long if we are farther than ShortPathThreshold away.
       moveOutcome = creep.moveTo(target, { visualizePathStyle: { stroke: COLOURS.PATH_LONG, lineStyle: "solid" }, range: minRange, reusePath: this.ReusePath, ignoreCreeps: true });
     else
