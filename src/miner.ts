@@ -37,7 +37,7 @@ export class Miner extends Role {
 
       // Move right next to the source
       const moveResult = this.MoveCreep(creep, mineObj.pos, 1);
-      if (moveResult != 1) return; // Not close enough to continue acting
+      if (moveResult != 1) continue; // Not close enough to continue acting
 
       // Mine it if we have room
       if (creep.store.getFreeCapacity(RESOURCE_ENERGY)) {
