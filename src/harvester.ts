@@ -10,13 +10,14 @@ enum HarvesterAction {
   Repair = '🛠️',
   Transfer = '🫴',
   IdleUpgrade = '🔼',
+  Pickup = "🧹"
 }
 
 class HarvesterMemory extends Object {
   readonly action: HarvesterAction;
-  readonly target: Id<ConstructionSite<BuildableStructureConstant> | AnyOwnedStructure | Source | Creep> | null;
+  readonly target: Id<ConstructionSite<BuildableStructureConstant> | AnyOwnedStructure | Source | Creep | Resource> | null;
 
-  constructor(action: HarvesterAction, id: Id<ConstructionSite<BuildableStructureConstant> | AnyOwnedStructure | Source | Creep> | null = null) {
+  constructor(action: HarvesterAction, id: Id<ConstructionSite<BuildableStructureConstant> | AnyOwnedStructure | Source | Creep | Resource> | null = null) {
     super();
 
     if (id == null && action !== HarvesterAction.Idle) {
@@ -68,6 +69,10 @@ export class Harvester extends Role {
 
     // If we are out of energy
     if (creep.store.getUsedCapacity(RESOURCE_ENERGY) === 0) {
+
+      const dropped = this.room.find(FIND_DROPPED_RESOURCES, { filter: res => res.resourceType === RESOURCE_ENERGY }).pop();
+      if (dropped != null && dropped != undefined)
+        return new HarvesterMemory(HarvesterAction.Pickup, dropped.id)
 
       // Collect from the fullest miner nearby if there are any
       const miner = creep.pos.findInRange(FIND_MY_CREEPS, this.MinerSearchRange, { filter: (c) => c.memory.role === "Miner" && c.store.energy > 0 })
@@ -194,6 +199,12 @@ export class Harvester extends Role {
 
     var result: number = OK;
     switch (mem.action) {
+      case (HarvesterAction.Pickup): {
+        const t = targetObject as Resource;
+        result = creep.pickup(t)
+        if (result === OK) console.log(`${this.room}${creep}: Act: Picked up ${t}.`);
+        break;
+      }
       case (HarvesterAction.CollectEnergy): {
         // No action as we should already have moved nearby
         console.log(`${this.room}${creep}: Awaiting energy transfer (${creep.store.energy}/${creep.store.getCapacity(RESOURCE_ENERGY)}).`);
@@ -292,6 +303,11 @@ export class Harvester extends Role {
       case (HarvesterAction.Harvest):
       case (HarvesterAction.CollectEnergy):
         return creep.store.getFreeCapacity(RESOURCE_ENERGY) === 0;
+      case (HarvesterAction.Pickup): {
+        if (creep.store.getUsedCapacity(RESOURCE_ENERGY) === 0) return true;
+        const t = targetObject as Resource;
+        return t.amount === 0;
+      }
       case (HarvesterAction.Upgrade): {
         if (creep.store.getUsedCapacity(RESOURCE_ENERGY) === 0) return true;
         const t = targetObject as StructureController;
