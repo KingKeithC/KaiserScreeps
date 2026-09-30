@@ -27,6 +27,7 @@ export abstract class Role {
 
   ReusePath: number = 20;
   ShortPathThreshold: number = 4;
+  StuckTicksToMoveUnstuck: number = 5;
 
   abstract Tick(): void;
 
@@ -85,6 +86,7 @@ export abstract class Role {
         memory: {
           room: this.room.name,
           role: this.RoleName,
+          stuckTicks: 0,
           jobMemory: this.InitialJobMemory,
         },
       }
@@ -105,6 +107,11 @@ export abstract class Role {
     return creep.moveTo(dest, { visualizePathStyle: { stroke: COLOURS.PATH_LONG, lineStyle: "solid" }, range: minRange, reusePath: this.ReusePath, ignoreCreeps: true });
   }
 
+  MoveUnstuck(creep: Creep, dest: RoomPosition, minRange?: number): number {
+    creep.memory.stuckTicks = 0; // Reset so we don't move unstuck next round
+    return creep.moveTo(dest, { visualizePathStyle: { stroke: COLOURS.PATH_STUCK, lineStyle: "dotted" }, range: minRange, reusePath: 0 });
+  }
+
   // Returns; 0 if moved and was ok, 1 if no need to move, and <0 for errors
   MoveCreep(creep: Creep, target: RoomPosition, withinRange: number): number {
     const range = creep.pos.getRangeTo(target);
@@ -112,6 +119,9 @@ export abstract class Role {
     if (range <= withinRange)
       // Close enough we shouldn't need to move
       return 1
+    else if ((creep.memory.stuckTicks ?? 0) > this.StuckTicksToMoveUnstuck)
+      // If we are stuck, try to unstick ourselves
+      moveResult = this.MoveUnstuck(creep, target, withinRange);
     else if (range > this.ShortPathThreshold)
       // Move Long if we are farther than ShortPathThreshold away.
       moveResult = this.MoveLong(creep, target, withinRange);
@@ -119,6 +129,14 @@ export abstract class Role {
       // Move Short otherwise
       moveResult = this.MoveShort(creep, target, withinRange);
 
+    if (moveResult === OK && creep.memory.lastPath === creep.memory._move?.path) {
+      creep.memory.stuckTicks = (creep.memory.stuckTicks ?? 0) + 1;
+      console.log(`${this.room}[${creep}]: I'm stuck for ${creep.memory.stuckTicks}...`);
+    } else {
+      creep.memory.stuckTicks = 0;
+    }
+
+    creep.memory.lastPath = creep.memory._move?.path;
     return moveResult;
   }
 }

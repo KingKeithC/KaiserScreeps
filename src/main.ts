@@ -21,7 +21,9 @@ declare global {
     role: string;
     room: string;
     jobMemory: object;
-    _move?: object;
+    stuckTicks: number;
+    lastPath?: string,
+    _move?: { path: string };
   }
 
   interface RoomMemory {
