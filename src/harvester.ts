@@ -303,7 +303,7 @@ export class Harvester extends Role {
       case (HarvesterAction.CollectEnergy):
         return creep.store.getFreeCapacity(RESOURCE_ENERGY) === 0;
       case (HarvesterAction.Pickup): {
-        if (creep.store.getUsedCapacity(RESOURCE_ENERGY) === 0) return true;
+        if (creep.store.getFreeCapacity(RESOURCE_ENERGY) === 0) return true;
         const t = targetObject as Resource;
         return t.amount === 0;
       }
