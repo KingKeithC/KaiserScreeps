@@ -127,20 +127,20 @@ export class Harvester extends Role {
       }
     }
 
-    // Structures in need of repair
-    targetObject = creep.pos.findClosestByPath(FIND_MY_STRUCTURES, {
-      filter: (structure) => structure.hits < structure.hitsMax
-    });
-    if (targetObject) {
-      return new HarvesterMemory(HarvesterAction.Repair, targetObject.id);
-    }
-
     // Ongoing Construction
     targetObject = creep.pos.findClosestByPath(FIND_MY_CONSTRUCTION_SITES, {
       filter: (site) => site.progress < site.progressTotal,
     });
     if (targetObject) {
       return new HarvesterMemory(HarvesterAction.Build, targetObject.id);
+    }
+
+    // Structures in need of repair
+    targetObject = creep.pos.findClosestByPath(FIND_MY_STRUCTURES, {
+      filter: (structure) => structure.hits < structure.hitsMax
+    });
+    if (targetObject) {
+      return new HarvesterMemory(HarvesterAction.Repair, targetObject.id);
     }
 
     // Nothing else to do so just upgrade forever
