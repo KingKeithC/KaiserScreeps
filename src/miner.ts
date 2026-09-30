@@ -36,12 +36,13 @@ export class Miner extends Role {
       }
 
       // Move right next to the source
-      if (this.MoveCreep(creep, mineObj.pos, 1) != null)
-        continue; // We had to move so don't bother to act
+      this.MoveCreep(creep, mineObj.pos, 1);
 
       // Mine it if we have room
-      if (creep.store.getFreeCapacity(RESOURCE_ENERGY) > 0)
-        creep.harvest(mineObj);
+      if (creep.store.getFreeCapacity(RESOURCE_ENERGY)) {
+        const mineResult = creep.harvest(mineObj);
+        if (mineResult !== OK) console.log(`${this.room}${creep}: Miner failed to mine ${mineResult}`);
+      }
 
       // If there are nearby Harvesters low on energy
       for (const harvester of creep.pos.findInRange(FIND_MY_CREEPS, 2, {

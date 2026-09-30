@@ -182,7 +182,7 @@ export class Harvester extends Role {
       minDistance = 1;
 
     const moveResult = this.MoveCreep(creep, targetObject.pos, minDistance);
-    if (moveResult == null || moveResult < 0) {
+    if (moveResult == null) {
       console.log(`${this.room}${creep}: Act: Resting after move result ${moveResult}`)
       return; // There was an issue moving, so skip the act
     }

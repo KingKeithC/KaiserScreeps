@@ -104,7 +104,7 @@ export abstract class Role {
     const range = creep.pos.getRangeTo(target);
 
     // Close enough we shouldn't need to move
-    if (range <= minRange) return null;
+    if (range <= minRange) return ERR_INVALID_TARGET;
 
     var moveOutcome: number | null = null;
     if (range > this.ShortPathThreshold)
