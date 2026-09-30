@@ -210,10 +210,12 @@ export class Harvester extends Role {
         console.log(`${this.room}${creep}: Awaiting energy transfer (${creep.store.energy}/${creep.store.getCapacity(RESOURCE_ENERGY)}).`);
         break;
       }
-      case (HarvesterAction.Upgrade || HarvesterAction.IdleUpgrade || HarvesterAction.StopDowngrade): {
+      case (HarvesterAction.IdleUpgrade):
+      case (HarvesterAction.StopDowngrade):
+      case (HarvesterAction.Upgrade): {
         const t = targetObject as StructureController;
         result = creep.upgradeController(t);
-        // if (result === OK) console.log(`${this.room}${creep}: Act: Upgraded ${t} to RCL ${t.level} (${t.progress}/${t.progressTotal}) %${(t.progress / t.progressTotal * 100).toFixed(2)}.`);
+        if (result === OK) console.log(`${this.room}${creep}: Act: Upgraded ${t} to RCL ${t.level} (${t.progress}/${t.progressTotal}) %${(t.progress / t.progressTotal * 100).toFixed(2)}.`);
         break;
       }
       case (HarvesterAction.Build): {
@@ -240,8 +242,10 @@ export class Harvester extends Role {
         // if (result === OK) console.log(`${this.room}${creep}: Act: Harvested ${t}.`);
         break;
       }
-      default:
+      default: {
+        console.log(`${this.room}${creep}: Act: Unknown Action ${mem.action}.`);
         return;
+      }
     }
 
     switch (result) {
