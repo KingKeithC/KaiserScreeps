@@ -158,27 +158,23 @@ export class Harvester extends Role {
   Act(creep: Creep): void {
     const mem = creep.memory.jobMemory as HarvesterMemory;
 
-    // Target may be null in this one case
-    if (mem.target == null && mem.action === HarvesterAction.Idle)
-      return;
-
+    // Validate Target
     if (mem.target == null || mem.target == undefined) {
+      // Target may be null in this one case
+      if (mem.action === HarvesterAction.Idle) return;
 
-      // If we just spawned this can happen
-      if (creep.ticksToLive && creep.ticksToLive === CREEP_LIFE_TIME)
-        console.log(`${this.room}${creep}: Happy Birthday!!!`)
-      else
-        console.log(`${this.room}${creep}: Act: ${creep} has null/undefined target in memory`)
-
+      console.log(`${this.room}${creep}: Act: ${creep} has null/undefined target in memory: ${mem.target}`)
       return;
     }
+
+    // Load object the target references
     const targetObject = Game.getObjectById(mem.target);
     if (targetObject == null || targetObject == undefined) {
 
-      if (mem.action === HarvesterAction.Build)
-        console.log(`${this.room}${creep}: Act: ${creep} Finished a construction!`)
-      else
-        console.log(`${this.room}${creep}: Act: ${creep} Game.getObjectById returned null`)
+      // Finished a construction
+      if (mem.action === HarvesterAction.Build) return;
+
+      console.log(`${this.room}${creep}: Act: ${creep} Game.getObjectById returned null`)
       return;
     }
 
