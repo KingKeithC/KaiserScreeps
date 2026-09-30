@@ -108,14 +108,17 @@ export abstract class Role {
   // Returns; 0 if moved and was ok, 1 if no need to move, and <0 for errors
   MoveCreep(creep: Creep, target: RoomPosition, withinRange: number): number {
     const range = creep.pos.getRangeTo(target);
+    var moveResult: number = OK;
     if (range <= withinRange)
       // Close enough we shouldn't need to move
       return 1
     else if (range > this.ShortPathThreshold)
       // Move Long if we are farther than ShortPathThreshold away.
-      return this.MoveLong(creep, target, withinRange);
+      moveResult = this.MoveLong(creep, target, withinRange);
     else
       // Move Short otherwise
-      return this.MoveShort(creep, target, withinRange);
+      moveResult = this.MoveShort(creep, target, withinRange);
+
+    return moveResult;
   }
 }

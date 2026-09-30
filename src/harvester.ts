@@ -189,15 +189,10 @@ export class Harvester extends Role {
       minDistance = 1;
 
     const moveResult = this.MoveCreep(creep, targetObject.pos, minDistance);
-    if (moveResult < 0 && moveResult != ERR_TIRED) {
-      console.log(`${this.room}${creep}: Act: Issue with Moving ${moveResult}`)
+    if (moveResult != 1) {
+      // console.log(`${this.room}${creep}: Act: Move Resulted in ${moveResult}`)
       return; // There was an issue moving, so skip the act
-    } else if (moveResult === OK) {
-      // console.log(`${this.room}${creep}: Act: Moved`)
-      return; // We moved, so skip acting
     }
-
-    // Didn't move, so act.
 
     var result: number = OK;
     switch (mem.action) {
@@ -209,7 +204,7 @@ export class Harvester extends Role {
       }
       case (HarvesterAction.CollectEnergy): {
         // No action as we should already have moved nearby
-        console.log(`${this.room}${creep}: Awaiting energy transfer (${creep.store.energy}/${creep.store.getCapacity(RESOURCE_ENERGY)}).`);
+        // console.log(`${this.room}${creep}: Awaiting energy transfer (${creep.store.energy}/${creep.store.getCapacity(RESOURCE_ENERGY)}).`);
         break;
       }
       case (HarvesterAction.IdleUpgrade):
@@ -261,6 +256,7 @@ export class Harvester extends Role {
         // Move should already be done by this point. If this happens,
         // it's probably because the move didn't leave us fatigued so we tried acting while still too far away.
         // console.log(`${this.room}${creep}: Not in range to act.`);
+        this.MoveShort(creep, targetObject.pos, 1); // Unstuck Move
         return;
       }
       default: {
