@@ -35,7 +35,7 @@ declare const global: {
   log: any;
 }
 
-const TowerAttackRange = 12;
+const TowerAttackRange = 15;
 const MainLoop = () => {
   // Automatically delete memory of missing creeps
   for (const name in Memory.creeps) {
