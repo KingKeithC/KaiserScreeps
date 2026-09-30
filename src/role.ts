@@ -130,7 +130,8 @@ export abstract class Role {
       moveResult = this.MoveShort(creep, target, withinRange);
 
     if (moveResult === OK && creep.memory.lastPath === creep.memory._move?.path) {
-      creep.memory.stuckTicks = (creep.memory.stuckTicks ?? 0) + 1;
+      if (!creep.fatigue) // We are only stuck if not fatigued
+        creep.memory.stuckTicks = (creep.memory.stuckTicks ?? 0) + 1;
 
       if (creep.memory.stuckTicks > 1)
         console.log(`${this.room}[${creep}]: I'm stuck for ${creep.memory.stuckTicks}...`);
