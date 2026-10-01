@@ -14,6 +14,7 @@ export class Miner extends Role<MinerMemory> {
   }
 
   BodyParts = [MOVE, CARRY, CARRY, WORK, WORK, WORK];
+  DropoffRange = 6;
 
   TickCreep(creep: Creep, mem: MinerMemory): void {
     // Do we need to find a new source?
@@ -40,8 +41,8 @@ export class Miner extends Role<MinerMemory> {
       creep.transfer(harvester, RESOURCE_ENERGY); // Transer ours to them
 
     const isFull = creep.store.getFreeCapacity(RESOURCE_ENERGY) === 0;
-    const nearbyCreeps = creep.pos.findInRange(FIND_MY_CREEPS, 5, { filter: (c) => ((c.memory.role === "harvester" || c.memory.role === "harvesterT2") && c.store.getFreeCapacity(RESOURCE_ENERGY) > 0) });
-    const nearbyContainers = creep.pos.findInRange(FIND_STRUCTURES, 5, { filter: s => s.structureType === STRUCTURE_CONTAINER && s.store.getFreeCapacity(RESOURCE_ENERGY) > 0 });
+    const nearbyCreeps = creep.pos.findInRange(FIND_MY_CREEPS, this.DropoffRange, { filter: (c) => ((c.memory.role === "harvester" || c.memory.role === "harvesterT2") && c.store.getFreeCapacity(RESOURCE_ENERGY) > 0) });
+    const nearbyContainers = creep.pos.findInRange(FIND_STRUCTURES, this.DropoffRange, { filter: s => s.structureType === STRUCTURE_CONTAINER && s.store.getFreeCapacity(RESOURCE_ENERGY) > 0 });
     if (!isFull) {
       // Move right next to the source
       const moveResult = this.MoveCreep(creep, mineObj.pos, 1);
