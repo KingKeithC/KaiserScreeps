@@ -44,7 +44,13 @@ export abstract class Role<MemoryShape extends Object> {
 
   TickRole(): void {
     this.TickStart();
-    this.DoSpawns();
+
+    // Check to do spawns every `this.SpawnRate` ticks.
+    if (Game.time - (this.room.memory.lastSpawnTick[this.RoleName] ?? 0) > this.SpawnRate) {
+      this.DoSpawns();
+      this.room.memory.lastSpawnTick[this.RoleName] = Game.time; // Reset
+    }
+
     for (const creep of this.CreepsInRole()) {
       var task = creep.memory.jobMemory as MemoryShape;
       if (task == null || task == undefined) {
@@ -69,10 +75,6 @@ export abstract class Role<MemoryShape extends Object> {
   }
 
   DoSpawns(): void {
-    const timeSinceSpawn = Game.time - (this.room.memory.lastSpawnTick[this.RoleName] ?? 0);
-    if (timeSinceSpawn < this.SpawnRate) return; // Not ready
-    this.room.memory.lastSpawnTick[this.RoleName] = Game.time; // Reset
-
     // Delete memory of missing creeps before doing spawns
     for (const name in Memory.creeps) {
       if (!(name in Game.creeps)) {
