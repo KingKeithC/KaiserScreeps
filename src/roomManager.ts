@@ -3,6 +3,13 @@ import { Miner } from "miner";
 
 const Roles = [Miner, HarvesterT2, Harvester];
 
+enum RoomStatus {
+  Owned,
+  Claimed,
+  Neutral,
+  Hostile
+}
+
 export class RoomManager {
   TowerAttackRange = 15;
 
@@ -19,7 +26,26 @@ export class RoomManager {
     this.room = room;
   }
 
+  static StatusOf(room: Room): RoomStatus {
+    if (room.controller == undefined)
+      return RoomStatus.Neutral;
+
+    if (room.controller?.my)
+      return RoomStatus.Owned;
+
+    if ("Claimed" in room.find(FIND_FLAGS).keys())
+      return RoomStatus.Claimed;
+
+    // Assume hostile by default
+    return RoomStatus.Hostile;
+  }
+
   TickRoom() {
+    if (RoomManager.StatusOf(this.room) === RoomStatus.Hostile) {
+      console.log(`${this.room} !!! Skipping operations in Hostile room`)
+      return;
+    }
+
     // Build any designated roads
     this.BuildRoads();
 
