@@ -255,7 +255,7 @@ export class Harvester extends Role<HarvesterMemory> {
       case ERR_NOT_IN_RANGE: {
         // Move should already be done by this point. If this happens,
         // it's probably because the move didn't leave us fatigued so we tried acting while still too far away.
-        console.log(`${this.room}${creep}: Not in range to act.`);
+        console.log(`${this.room}${creep}: Not in range to act ${JSON.stringify(task)}.`);
         return;
       }
       default: {
