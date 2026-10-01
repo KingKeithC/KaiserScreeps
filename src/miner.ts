@@ -77,14 +77,21 @@ export class Miner extends Role<MinerMemory> {
   LocateSource(creep: Creep): Id<Source> | undefined {
     // Sort by a constant value (the number of a's I guess)
     const sources = creep.room.find(FIND_SOURCES_ACTIVE).sort((a, b) => a.id.split('a').length - b.id.split('a').length);
+    var source = null;
+    var count = Number.MAX_SAFE_INTEGER;
 
-    // Take either the first or last source
-    var source;
-    if (Game.time % 2 == 0)
-      source = sources.pop();
-    else
-      source = sources[0];
+    for (const potential of sources) {
+      // Count the number of nearby miners
+      const nearby = potential.pos.findInRange(FIND_MY_CREEPS, 3, { filter: c => c.memory.role === this.RoleName }).length;
 
+      // If it is less than the current source, replace it
+      if (nearby < count) {
+        source = potential;
+        count = nearby;
+      }
+    }
+
+    console.log(`${this.room}${creep}: Assigning Miner to ${source}...`);
     return source?.id;
   }
 }
