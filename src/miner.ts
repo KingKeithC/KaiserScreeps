@@ -40,7 +40,8 @@ export class Miner extends Role<MinerMemory> {
       creep.transfer(harvester, RESOURCE_ENERGY); // Transer ours to them
 
     const isFull = creep.store.getFreeCapacity(RESOURCE_ENERGY) === 0;
-    const nearby = creep.pos.findInRange(FIND_MY_CREEPS, 5, { filter: (c) => ((c.memory.role === "harvester" || c.memory.role === "harvesterT2") && c.store.getFreeCapacity(RESOURCE_ENERGY) > 0) });
+    const nearbyCreeps = creep.pos.findInRange(FIND_MY_CREEPS, 5, { filter: (c) => ((c.memory.role === "harvester" || c.memory.role === "harvesterT2") && c.store.getFreeCapacity(RESOURCE_ENERGY) > 0) });
+    const nearbyContainers = creep.pos.findInRange(FIND_STRUCTURES, 5, { filter: s => s.structureType === STRUCTURE_CONTAINER && s.store.getFreeCapacity(RESOURCE_ENERGY) > 0 });
     if (!isFull) {
       // Move right next to the source
       const moveResult = this.MoveCreep(creep, mineObj.pos, 1);
@@ -49,9 +50,11 @@ export class Miner extends Role<MinerMemory> {
       // Mine it
       const mineResult = creep.harvest(mineObj);
       if (mineResult !== OK && mineResult !== ERR_NOT_ENOUGH_ENERGY) console.log(`${this.room}${creep}: Miner failed to mine ${mineResult}`);
-    } else if (nearby.length > 0) {
+    } else if (nearbyCreeps.length > 0) {
+      // Transfer to creep
+
       // Find the one with the lowest energy
-      const harvester = nearby.sort((a, b) => a.store.energy - b.store.energy).pop();
+      const harvester = nearbyCreeps.sort((a, b) => a.store.energy - b.store.energy).pop();
       if (harvester == null || harvester == undefined)
         return;
 
@@ -60,6 +63,13 @@ export class Miner extends Role<MinerMemory> {
       if (moveResult != 1) return; // Not close enough to transfer
 
       creep.transfer(harvester, RESOURCE_ENERGY); // Transer ours to them
+    } else if (nearbyContainers.length > 0) {
+      // Transfer to container
+
+      // Move right next to it
+      const moveResult = this.MoveCreep(creep, nearbyContainers[0].pos, 1);
+      if (moveResult != 1) return; // Not close enough to transfer
+      creep.transfer(nearbyContainers[0], RESOURCE_ENERGY); // Transer
     }
   }
 
