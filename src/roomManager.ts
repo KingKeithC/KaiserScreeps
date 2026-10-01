@@ -1,6 +1,8 @@
 import { Harvester, HarvesterT2 } from "harvester";
 import { Miner } from "miner";
 
+const Roles = [Miner, HarvesterT2, Harvester];
+
 export class RoomManager {
   TowerAttackRange = 15;
 
@@ -26,12 +28,10 @@ export class RoomManager {
       this.TickTower(tower as StructureTower);
 
     // Run each role in the room
-    for (const role of [
-      new Miner(this.room),
-      new HarvesterT2(this.room),
-      new Harvester(this.room),
-    ])
-      role.TickRole();
+    for (const roleType of Roles) {
+      const role = new roleType(this.room); // Construct a role instance for the room
+      role.TickRole(); // Run it
+    }
   }
 
   TickTower(t: StructureTower) {
