@@ -26,8 +26,8 @@ export abstract class Role {
   InitialJobMemory: object = {}
 
   ReusePath: number = 20;
-  ShortPathThreshold: number = 4;
-  StuckTicksToMoveUnstuck: number = 5;
+  ShortPathThreshold: number = 6;
+  StuckTicksToMoveUnstuck: number = 2;
 
   abstract Tick(): void;
 
@@ -108,8 +108,9 @@ export abstract class Role {
   }
 
   MoveUnstuck(creep: Creep, dest: RoomPosition, minRange?: number): number {
-    creep.memory.stuckTicks = 0; // Reset so we don't move unstuck next round
-    return creep.moveTo(dest, { visualizePathStyle: { stroke: COLOURS.PATH_STUCK, lineStyle: "dotted" }, range: minRange, reusePath: 0 });
+    if (creep.memory.stuckTicks > 20) creep.memory.stuckTicks = 20; // Clamp to reasonable max
+    creep.memory.stuckTicks -= 1; // Decrement per move
+    return creep.moveTo(dest, { visualizePathStyle: { stroke: COLOURS.PATH_STUCK, lineStyle: "dotted" }, range: minRange, reusePath: 3 });
   }
 
   // Returns; 0 if moved and was ok, 1 if no need to move, and <0 for errors
@@ -133,8 +134,8 @@ export abstract class Role {
       if (!creep.fatigue) // We are only stuck if not fatigued
         creep.memory.stuckTicks = (creep.memory.stuckTicks ?? 0) + 1;
 
-      if (creep.memory.stuckTicks > 1)
-        console.log(`${this.room}[${creep}]: I'm stuck for ${creep.memory.stuckTicks}...`);
+      // if (creep.memory.stuckTicks > 1)
+      //   console.log(`${this.room}[${creep}]: I'm stuck for ${creep.memory.stuckTicks}...`);
     } else {
       creep.memory.stuckTicks = 0;
     }
