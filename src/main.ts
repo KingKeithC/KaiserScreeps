@@ -38,7 +38,6 @@ declare const global: {
   log: any;
 }
 
-const TowerAttackRange = 15;
 const MainLoop = () => {
   // Automatically delete memory of missing creeps
   for (const name in Memory.creeps) {
@@ -49,90 +48,8 @@ const MainLoop = () => {
   }
 
   for (const room of Object.values(Game.rooms)) {
-
-    // Init Room Memory
-    if (room.memory.countPreventingDowngrade == null || room.memory.countPreventingDowngrade == undefined)
-      room.memory.countPreventingDowngrade = 0;
-    if (room.memory.countPerformingUpgrade == null || room.memory.countPerformingUpgrade == undefined)
-      room.memory.countPerformingUpgrade = 0;
-    if (room.memory.lastSpawnTick == null || room.memory.lastSpawnTick == undefined)
-      room.memory.lastSpawnTick = {};
-
-    // Check if we need to build a road.
-    const start = Game.flags["RoadStart"];
-    const end = Game.flags["RoadEnd"];
-    if (start && end) {
-      // Find a path in the same room
-      const path = start.pos.findPathTo(end, { maxRooms: 1, swampCost: 2, plainCost: 4, ignoreCreeps: true });
-      var built = false;
-
-      for (const pos of path) {
-        const construction = room.createConstructionSite(pos.x, pos.y, STRUCTURE_ROAD);
-        if (construction === OK) built = true;
-      }
-
-      if (built) {
-        start.remove();
-        end.remove();
-      }
-    }
-
-    // Run each tower in the room
-    for (const tower of room.find(FIND_MY_STRUCTURES, { filter: s => s.structureType === STRUCTURE_TOWER })) {
-      const t = tower as StructureTower;
-      if (t == null || t == undefined) continue;
-
-      if (!t.isActive)
-        continue; // RCL too low to work anyway
-
-      if (t.store.getUsedCapacity(RESOURCE_ENERGY) === 0)
-        continue; // No energy to work
-
-      // Find lowest health hostile in range
-      const hostile = t.pos.findInRange(FIND_HOSTILE_CREEPS, TowerAttackRange).sort((a, b) => a.hits - b.hits).pop()
-      if (hostile != null && hostile != undefined) {
-        t.attack(hostile);
-        continue;
-      }
-
-      // Find my structures in need of repair
-      const myStruct = t.pos.findClosestByRange(FIND_MY_STRUCTURES, { filter: s => s.hits < s.hitsMax })
-      if (myStruct != null && myStruct != undefined) {
-        t.repair(myStruct);
-        continue;
-      }
-
-      // My creeps in need of healing, weakest first
-      const weakling = room.find(FIND_MY_CREEPS, { filter: c => c.hits < c.hitsMax }).sort((a, b) => a.hits - b.hits).pop()
-      if (weakling != null && weakling != undefined) {
-        t.heal(weakling);
-        continue;
-      }
-
-      // All other structures
-      const road = t.pos.findClosestByRange(FIND_STRUCTURES, { filter: s => s.structureType === STRUCTURE_ROAD && s.hits < s.hitsMax })
-      if (road != null && road != undefined) {
-        t.repair(road);
-        continue;
-      }
-
-      // All other structures
-      const allStruct = t.pos.findClosestByRange(FIND_STRUCTURES, { filter: s => s.hits < s.hitsMax })
-      if (allStruct != null && allStruct != undefined) {
-        t.repair(allStruct);
-        continue;
-      }
-    }
-
-    // Run each role in the room
-    for (const role of [
-      new Miner(room),
-      new HarvesterT2(room),
-      new Harvester(room),
-    ]) {
-      role.DoSpawns();
-      role.Tick();
-    }
+    const manager = new RoomManager(room);
+    manager.TickRoom();
   }
 }
 

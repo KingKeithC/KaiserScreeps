@@ -29,7 +29,7 @@ export abstract class Role {
   ShortPathThreshold: number = 6;
   StuckTicksToMoveUnstuck: number = 2;
 
-  abstract Tick(): void;
+  abstract TickCreep(creep: Creep): void;
 
   protected RoleBodyCost(): number {
     var total: number = 0;
@@ -39,6 +39,11 @@ export abstract class Role {
 
   protected CreepsInRole() {
     return Object.values(Game.creeps).filter(c => c.memory.room == this.room.name && c.memory.role == this.RoleName);
+  }
+
+  TickRole(): void {
+    this.DoSpawns();
+    for (const creep of this.CreepsInRole()) this.TickCreep(creep);
   }
 
   DoSpawns(): void {
