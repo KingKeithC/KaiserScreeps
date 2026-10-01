@@ -34,7 +34,7 @@ export class Harvester extends Role<HarvesterMemory> {
   RoleName = "harvester";
 
   StartSpawnAtRCL = 0;
-  StopSpawnAtRCL = 3;
+  StopSpawnAtRCL = 4;
   UpgradeToRCL = 2;
   BodyParts = [WORK, CARRY, MOVE];
 
