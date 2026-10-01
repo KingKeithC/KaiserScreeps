@@ -143,9 +143,10 @@ export class Harvester extends Role<HarvesterMemory> {
   }
 
   FindGatheringTask(creep: Creep): HarvesterMemory {
-    const dropped = this.room.find(FIND_DROPPED_RESOURCES, { filter: res => res.resourceType === RESOURCE_ENERGY }).pop();
-    if (dropped != null && dropped != undefined)
-      return new HarvesterMemory(HarvesterAction.Pickup, dropped.id)
+    // Dropped seems to be broken most of the time, skip it
+    // const dropped = this.room.find(FIND_DROPPED_RESOURCES, { filter: res => res.resourceType === RESOURCE_ENERGY }).pop();
+    // if (dropped != null && dropped != undefined)
+    //   return new HarvesterMemory(HarvesterAction.Pickup, dropped.id)
 
     // Collect from the fullest miner nearby if there are any
     const miner = creep.pos.findInRange(FIND_MY_CREEPS, this.MinerSearchRange, { filter: (c) => c.memory.role === "Miner" && c.store.energy > 0 })
