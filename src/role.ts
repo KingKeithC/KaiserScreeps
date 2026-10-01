@@ -120,7 +120,7 @@ export abstract class Role<MemoryShape extends Object> {
 
     // Log the result
     if (result === OK)
-      console.log(`${this.room}[${this.RoleName}]: ${this.CreepsInRole().length}/${this.CountPerRoom} +1 Spawning @ ${spawnPoint}...`);
+      console.log(`${this.room}[${this.RoleName}]: ${this.CreepsInRole().length}/${this.CountPerRoom} +1 Spawning ${name} @ ${spawnPoint}...`);
     else
       console.log(`${this.room}[${this.RoleName}]: ${spawnPoint} Spawn failed with result: ${result}...`);
   }
