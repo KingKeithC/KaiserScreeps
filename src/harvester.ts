@@ -208,8 +208,13 @@ export class Harvester extends Role<HarvesterMemory> {
         break;
       }
       case (HarvesterAction.CollectEnergy): {
-        // No action as we should already have moved nearby
-        // console.log(`${this.room}${creep}: Awaiting energy transfer (${creep.store.energy}/${creep.store.getCapacity(RESOURCE_ENERGY)}).`);
+        const t = targetObject as StructureContainer;
+        if (t != null) {
+          result = creep.withdraw(t, RESOURCE_ENERGY);
+          console.log(`${this.room}${creep}: Withdrawing energy... (${t.store.energy}/${t.store.getCapacity(RESOURCE_ENERGY)} -> ${creep.store.energy}/${creep.store.getCapacity(RESOURCE_ENERGY)})`);
+        } else {
+          // console.log(`${this.room}${creep}: Awaiting energy transfer (${creep.store.energy}/${creep.store.getCapacity(RESOURCE_ENERGY)}).`);
+        }
         break;
       }
       case (HarvesterAction.IdleUpgrade):
