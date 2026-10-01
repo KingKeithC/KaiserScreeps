@@ -16,8 +16,8 @@ export abstract class Role {
   // Body for creeps spawned of this role
   abstract BodyParts: BodyPartConstant[];
 
-  // RCL Ranges to constrain role
-  StartSpawnAtRCL: number = 0;
+  // RCL Ranges to constrain role spawns
+  StartSpawnAtRCL: number = 1;
   StopSpawnAtRCL: number = 100;
 
   // How ofter to check for spawn
