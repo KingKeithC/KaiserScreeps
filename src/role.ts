@@ -28,7 +28,9 @@ export abstract class Role<MemoryShape extends Object> {
   ShortPathThreshold: number = 6;
   StuckTicksToMoveUnstuck: number = 2;
 
+  abstract TickStart(): void;
   abstract TickCreep(creep: Creep, task: MemoryShape): void;
+  abstract TickEnd(): void;
 
   protected RoleBodyCost(): number {
     var total: number = 0;
@@ -41,17 +43,19 @@ export abstract class Role<MemoryShape extends Object> {
   }
 
   TickRole(): void {
+    this.TickStart();
     this.DoSpawns();
     for (const creep of this.CreepsInRole()) {
       var task = creep.memory.jobMemory as MemoryShape;
       if (task == null || task == undefined) {
         console.log(`${this.room}${creep} TickRole: Creep has invalid memory. Wiping...`);
         task = this.InitialJobMemory;
-        creep.memory.jobMemory = this.InitialJobMemory;
+        creep.memory.jobMemory = task;
       }
 
       this.TickCreep(creep, task);
     }
+    this.TickEnd();
   }
 
   Adjectives = ["aglow", "ago", "ahead", "aided", "airy", "ajar", "akin", "alert", "alien", "batty", "bay", "beady", "beamy", "beat", "beefy", "beery", "cyan", "daft", "daily", "damn", "damp", "dandy", "dank", "dark", "dated", "dazed", "matte", "mauve", "mealy", "mean", "meaty", "meek", "pop", "port", "posed", "slav", "sleek", "slick", "slim", "waxed", "waxen"];
