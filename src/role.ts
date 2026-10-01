@@ -102,7 +102,7 @@ export abstract class Role {
   }
 
   MoveShort(creep: Creep, dest: RoomPosition, minRange?: number): number {
-    return creep.moveTo(dest, { visualizePathStyle: { stroke: COLOURS.PATH_SHORT, lineStyle: "dotted" }, range: minRange, maxOps: 300 });
+    return creep.moveTo(dest, { visualizePathStyle: { stroke: COLOURS.PATH_SHORT, lineStyle: "dotted" }, range: minRange, maxOps: 300, reusePath: 0 });
   }
 
   MoveLong(creep: Creep, dest: RoomPosition, minRange?: number): number {
@@ -110,9 +110,7 @@ export abstract class Role {
   }
 
   MoveUnstuck(creep: Creep, dest: RoomPosition, minRange?: number): number {
-    if (creep.memory.stuckTicks > 20) creep.memory.stuckTicks = 20; // Clamp to reasonable max
-    creep.memory.stuckTicks -= 1; // Decrement per move
-    return creep.moveTo(dest, { visualizePathStyle: { stroke: COLOURS.PATH_STUCK, lineStyle: "dotted" }, range: minRange, reusePath: 3 });
+    return creep.moveTo(dest, { visualizePathStyle: { stroke: COLOURS.PATH_STUCK, lineStyle: "dotted" }, range: minRange, reusePath: 5 });
   }
 
   // Returns; 0 if moved and was ok, 1 if no need to move, and <0 for errors
