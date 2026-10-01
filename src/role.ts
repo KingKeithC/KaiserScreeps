@@ -21,7 +21,7 @@ export abstract class Role {
   StopSpawnAtRCL: number = 100;
 
   // How ofter to check for spawn
-  SpawnRate: number = 80;
+  SpawnRate: number = 120;
 
   InitialJobMemory: object = {}
 
@@ -37,7 +37,9 @@ export abstract class Role {
     return total;
   }
 
-  protected CreepsInRole = () => Object.values(Game.creeps).filter(c => c.memory.room == this.room.name && c.memory.role == this.RoleName);
+  protected CreepsInRole() {
+    return Object.values(Game.creeps).filter(c => c.memory.room == this.room.name && c.memory.role == this.RoleName);
+  }
 
   DoSpawns(): void {
     const timeSinceSpawn = Game.time - (this.room.memory.lastSpawnTick[this.RoleName] ?? 0);
