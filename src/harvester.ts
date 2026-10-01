@@ -1,5 +1,5 @@
-import { ceil, object } from "lodash";
 import { Role } from "role";
+
 
 enum HarvesterAction {
   Idle = '💤',
@@ -38,10 +38,10 @@ export class Harvester extends Role {
   UpgradeToRCL = 2;
   BodyParts = [WORK, CARRY, MOVE];
 
-  //
   get CountPerRoom() {
+    const max = 4;
     const T2 = Object.values(Game.creeps).filter(c => c.memory.room === this.room.name && c.memory.role === 'harvesterT2').length;
-    return _.ceil(4 - T2, 0);
+    return max - T2 <= 0 ? 0 : max - T2;
   }
 
   DowngradeStopThreshold = 5000;
