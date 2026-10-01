@@ -1,3 +1,4 @@
+import { ceil, object } from "lodash";
 import { Role } from "role";
 
 enum HarvesterAction {
@@ -35,8 +36,13 @@ export class Harvester extends Role {
   StartSpawnAtRCL = 0;
   StopSpawnAtRCL = 3;
   UpgradeToRCL = 2;
-  CountPerRoom = 4;
   BodyParts = [WORK, CARRY, MOVE];
+
+  //
+  get CountPerRoom() {
+    const T2 = Object.values(Game.creeps).filter(c => c.memory.room === this.room.name && c.memory.role === 'harvesterT2').length;
+    return _.ceil(4 - T2, 0);
+  }
 
   DowngradeStopThreshold = 5000;
   WorkersPreventingDowngrade = 2;
@@ -349,6 +355,6 @@ export class HarvesterT2 extends Harvester {
   StartSpawnAtRCL = 2;
   StopSpawnAtRCL = 100;
   UpgradeToRCL = 8;
-  CountPerRoom = 5;
   BodyParts = [MOVE, MOVE, WORK, WORK, WORK, CARRY, CARRY, CARRY];
+  override get CountPerRoom() { return 5; }
 }
