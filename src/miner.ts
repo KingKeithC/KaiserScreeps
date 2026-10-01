@@ -67,7 +67,16 @@ export class Miner extends Role {
   }
 
   LocateSource(creep: Creep): Id<Source> | undefined {
-    const source = creep.pos.findClosestByPath(FIND_SOURCES_ACTIVE, { maxRooms: 1 });
+    // Sort by a constant value (the number of a's I guess)
+    const sources = creep.room.find(FIND_SOURCES_ACTIVE).sort((a, b) => a.id.split('a').length - b.id.split('a').length);
+
+    // Take either the first or last source
+    var source;
+    if (Game.time % 2 == 0)
+      source = sources.pop();
+    else
+      source = sources[0];
+
     return source?.id;
   }
 }
