@@ -28,9 +28,9 @@ export abstract class Role<MemoryShape extends Object> {
   ShortPathThreshold: number = 6;
   StuckTicksToMoveUnstuck: number = 2;
 
-  abstract TickStart(): void;
+  TickStart(): void { }
   abstract TickCreep(creep: Creep, task: MemoryShape): void;
-  abstract TickEnd(): void;
+  TickEnd(): void { }
 
   protected RoleBodyCost(): number {
     var total: number = 0;
