@@ -16,9 +16,9 @@ enum HarvesterAction {
 
 class HarvesterMemory extends Object {
   readonly action: HarvesterAction;
-  readonly target: Id<ConstructionSite<BuildableStructureConstant> | AnyOwnedStructure | Source | Creep | Resource> | null;
+  readonly target: Id<ConstructionSite<BuildableStructureConstant> | AnyOwnedStructure | Source | Creep | Resource | StructureContainer> | null;
 
-  constructor(action: HarvesterAction, id: Id<ConstructionSite<BuildableStructureConstant> | AnyOwnedStructure | Source | Creep | Resource> | null = null) {
+  constructor(action: HarvesterAction, id: Id<ConstructionSite<BuildableStructureConstant> | AnyOwnedStructure | Source | Creep | Resource | StructureContainer> | null = null) {
     super();
 
     if (id == null && action !== HarvesterAction.Idle) {
@@ -147,6 +147,10 @@ export class Harvester extends Role<HarvesterMemory> {
     // const dropped = this.room.find(FIND_DROPPED_RESOURCES, { filter: res => res.resourceType === RESOURCE_ENERGY }).pop();
     // if (dropped != null && dropped != undefined)
     //   return new HarvesterMemory(HarvesterAction.Pickup, dropped.id)
+
+    const container = this.room.find(FIND_STRUCTURES, { filter: (s) => s.structureType === STRUCTURE_CONTAINER && s.store.energy > 0 }).pop() as StructureContainer;
+    if (container != null && container != undefined)
+      return new HarvesterMemory(HarvesterAction.CollectEnergy, container.id);
 
     // Collect from the fullest miner nearby if there are any
     const miner = creep.pos.findInRange(FIND_MY_CREEPS, this.MinerSearchRange, { filter: (c) => c.memory.role === "Miner" && c.store.energy > 0 })
