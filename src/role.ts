@@ -69,6 +69,14 @@ export abstract class Role<MemoryShape extends Object> {
     if (timeSinceSpawn < this.SpawnRate) return; // Not ready
     this.room.memory.lastSpawnTick[this.RoleName] = Game.time; // Reset
 
+    // Delete memory of missing creeps before doing spawns
+    for (const name in Memory.creeps) {
+      if (!(name in Game.creeps)) {
+        console.log(`Cleanup memory for ${name}`);
+        delete Memory.creeps[name];
+      }
+    }
+
     // Cannot spawn if RCL is wrong
     const rcl = this.room.controller?.level ?? 0;
     if (rcl < this.StartSpawnAtRCL || rcl >= this.StopSpawnAtRCL) {
@@ -120,7 +128,7 @@ export abstract class Role<MemoryShape extends Object> {
 
     // Log the result
     if (result === OK)
-      console.log(`${this.room}[${this.RoleName}]: ${this.CreepsInRole().length}/${this.CountPerRoom} +1 Spawning ${name} @ ${spawnPoint}...`);
+      console.log(`${this.room}[${this.RoleName}]: ${current}/${this.CountPerRoom} +1 Spawning ${name} @ ${spawnPoint}...`);
     else
       console.log(`${this.room}[${this.RoleName}]: ${spawnPoint} Spawn failed with result: ${result}...`);
   }

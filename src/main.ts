@@ -40,14 +40,6 @@ declare const global: {
 }
 
 const MainLoop = () => {
-  // Automatically delete memory of missing creeps
-  for (const name in Memory.creeps) {
-    if (!(name in Game.creeps)) {
-      console.log(`Cleanup memory for ${name}`);
-      delete Memory.creeps[name];
-    }
-  }
-
   for (const room of Object.values(Game.rooms)) {
     const manager = new RoomManager(room);
     manager.TickRoom();
