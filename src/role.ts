@@ -1,8 +1,9 @@
 import { min } from "lodash";
 import { COLOURS } from "utils/Colours";
 
-export abstract class Role {
+export abstract class Role<MemoryShape extends Object> {
   abstract RoleName: string;
+  abstract InitialJobMemory: MemoryShape;
 
   protected room: Room;
 
@@ -23,13 +24,12 @@ export abstract class Role {
   // How ofter to check for spawn
   SpawnRate: number = 120;
 
-  InitialJobMemory: object = {}
 
   ReusePath: number = 20;
   ShortPathThreshold: number = 6;
   StuckTicksToMoveUnstuck: number = 2;
 
-  abstract TickCreep(creep: Creep): void;
+  abstract TickCreep(creep: Creep, task: MemoryShape): void;
 
   protected RoleBodyCost(): number {
     var total: number = 0;
@@ -43,7 +43,16 @@ export abstract class Role {
 
   TickRole(): void {
     this.DoSpawns();
-    for (const creep of this.CreepsInRole()) this.TickCreep(creep);
+    for (const creep of this.CreepsInRole()) {
+      var task = creep.memory.jobMemory as MemoryShape;
+      if (task == null || task == undefined) {
+        console.log(`${this.room}${creep} TickRole: Creep has invalid memory. Wiping...`);
+        task = this.InitialJobMemory;
+        creep.memory.jobMemory = this.InitialJobMemory;
+      }
+
+      this.TickCreep(creep, task);
+    }
   }
 
   DoSpawns(): void {

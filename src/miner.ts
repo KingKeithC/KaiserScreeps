@@ -4,8 +4,9 @@ class MinerMemory extends Object {
   sourceId?: Id<Source>
 }
 
-export class Miner extends Role {
+export class Miner extends Role<MinerMemory> {
   RoleName = "Miner";
+  InitialJobMemory: MinerMemory = new MinerMemory();
 
   get CountPerRoom() {
     // 2 x the number of active sources
@@ -14,9 +15,7 @@ export class Miner extends Role {
 
   BodyParts = [MOVE, CARRY, CARRY, WORK, WORK, WORK];
 
-  TickCreep(creep: Creep): void {
-    const mem = creep.memory.jobMemory as MinerMemory;
-
+  TickCreep(creep: Creep, mem: MinerMemory): void {
     // Do we need to find a new source?
     if (mem.sourceId == undefined || mem.sourceId == null)
       mem.sourceId = this.LocateSource(creep);

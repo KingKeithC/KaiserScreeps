@@ -30,7 +30,7 @@ class HarvesterMemory extends Object {
   }
 }
 
-export class Harvester extends Role {
+export class Harvester extends Role<HarvesterMemory> {
   RoleName = "harvester";
 
   StartSpawnAtRCL = 0;
@@ -51,26 +51,22 @@ export class Harvester extends Role {
   InitialJobMemory = new HarvesterMemory(HarvesterAction.Idle);
   MinerSearchRange = 20;
 
-  TickCreep(): void {
-    for (const creep of this.CreepsInRole()) {
-      this.Act(creep);
-      if (this.IsActComplete(creep)) {
-        const oldMem = JSON.stringify(creep.memory.jobMemory);
-        creep.memory.jobMemory = this.Reassign(creep);
-        console.log(`${this.room}${creep} Reassigned: ${oldMem} -> ${JSON.stringify(creep.memory.jobMemory)}`);
-        creep.say((creep.memory.jobMemory as HarvesterMemory).action);
-      }
+  TickCreep(creep: Creep, currentTask: HarvesterMemory): void {
+    this.Act(creep, currentTask);
+    if (this.IsActComplete(creep, currentTask)) {
+      const newTask = this.Reassign(creep, currentTask);
+      console.log(`${this.room}${creep} Reassigned: ${JSON.stringify(currentTask)} -> ${JSON.stringify(newTask)}`);
+      creep.say(newTask.action);
+      creep.memory.jobMemory = newTask;
     }
   }
 
-  Reassign(creep: Creep): HarvesterMemory {
-    const mem = creep.memory.jobMemory as HarvesterMemory;
-
+  Reassign(creep: Creep, oldMem: HarvesterMemory): HarvesterMemory {
     // Run Cleanup Tasks
-    if (mem.action === HarvesterAction.StopDowngrade)
+    if (oldMem.action === HarvesterAction.StopDowngrade)
       this.room.memory.countPreventingDowngrade -= 1;
 
-    if (mem.action === HarvesterAction.Upgrade)
+    if (oldMem.action === HarvesterAction.Upgrade)
       this.room.memory.countPerformingUpgrade -= 1;
 
     if (creep.store.getUsedCapacity(RESOURCE_ENERGY) === 0)
@@ -167,31 +163,29 @@ export class Harvester extends Role {
     return new HarvesterMemory(HarvesterAction.Idle);
   }
 
-  Act(creep: Creep): void {
-    const mem = creep.memory.jobMemory as HarvesterMemory;
-
+  Act(creep: Creep, task: HarvesterMemory): void {
     // Validate Target
-    if (mem.target == null || mem.target == undefined) {
+    if (task.target == null || task.target == undefined) {
       // Target may be null in this one case
-      if (mem.action === HarvesterAction.Idle) return;
+      if (task.action === HarvesterAction.Idle) return;
 
-      console.log(`${this.room}${creep}: Act: ${creep} has null/undefined target in memory: ${mem.target}`)
+      console.log(`${this.room}${creep}: Act: ${creep} has null/undefined target in memory: ${task.target}`)
       return;
     }
 
     // Load object the target references
-    const targetObject = Game.getObjectById(mem.target);
+    const targetObject = Game.getObjectById(task.target);
     if (targetObject == null || targetObject == undefined) {
 
       // Finished a construction
-      if (mem.action === HarvesterAction.Build) return;
+      if (task.action === HarvesterAction.Build) return;
 
       console.log(`${this.room}${creep}: Act: ${creep} Game.getObjectById returned null`)
       return;
     }
 
     var minDistance = 3;
-    if (mem.action === HarvesterAction.Harvest || mem.action === HarvesterAction.Transfer || mem.action === HarvesterAction.CollectEnergy)
+    if (task.action === HarvesterAction.Harvest || task.action === HarvesterAction.Transfer || task.action === HarvesterAction.CollectEnergy)
       minDistance = 1;
 
     const moveResult = this.MoveCreep(creep, targetObject.pos, minDistance);
@@ -201,7 +195,7 @@ export class Harvester extends Role {
     }
 
     var result: number = OK;
-    switch (mem.action) {
+    switch (task.action) {
       case (HarvesterAction.Pickup): {
         const t = targetObject as Resource;
         result = creep.pickup(t)
@@ -246,7 +240,7 @@ export class Harvester extends Role {
         break;
       }
       default: {
-        console.log(`${this.room}${creep}: Act: Unknown Action ${mem.action}.`);
+        console.log(`${this.room}${creep}: Act: Unknown Action ${task.action}.`);
         return;
       }
     }
@@ -266,15 +260,13 @@ export class Harvester extends Role {
         return;
       }
       default: {
-        console.log(`${this.room}${creep}: Act: ${mem.action} for ${creep} was not successful: ${result}`);
+        console.log(`${this.room}${creep}: Act: ${task.action} for ${creep} was not successful: ${result}`);
         return;
       }
     }
   }
 
-  IsActComplete(creep: Creep): boolean {
-    const mem = creep.memory.jobMemory as HarvesterMemory;
-
+  IsActComplete(creep: Creep, mem: HarvesterMemory): boolean {
     if (!mem) {
       console.log(`${this.room}${creep}: IsDeliveryComplete: amnesia`);
       return true;
