@@ -93,11 +93,11 @@ export class WorkerI extends Role<WorkerTask> {
     if (tower instanceof StructureTower) return new WorkerTask(WorkerAction.Transfer, tower.id);
 
     // Ongoing Construction
-    const construction = creep.pos.findClosestByPath(FIND_MY_CONSTRUCTION_SITES);
+    const construction = creep.pos.findClosestByPath(FIND_MY_CONSTRUCTION_SITES, { ignoreCreeps: true });
     if (construction instanceof ConstructionSite) return new WorkerTask(WorkerAction.Build, construction.id);
 
     // Structures in need of repair
-    const delapitated = creep.pos.findClosestByPath(FIND_MY_STRUCTURES, { filter: (s) => s.hits < s.hitsMax });
+    const delapitated = creep.pos.findClosestByPath(FIND_MY_STRUCTURES, { filter: (s) => s.hits < s.hitsMax, ignoreCreeps: true });
     if (delapitated instanceof Structure) return new WorkerTask(WorkerAction.Repair, delapitated.id);
 
     // Nothing else to do so just upgrade forever
