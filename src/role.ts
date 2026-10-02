@@ -210,7 +210,7 @@ export abstract class Role<MemoryShape extends Object> {
       : this.MoveAvoidCreeps(creep, target, withinRange);
 
     if (moveResult === ERR_NO_PATH) {
-      creep.memory.moveMode = creep.memory.moveMode === "long" ? "avoidCreeps" : "long";
+      creep.memory.moveMode = "long";
       creep.memory.stuckTicks = 0;
       creep.memory.avoidCreepsMoveTicks = 0;
     }
