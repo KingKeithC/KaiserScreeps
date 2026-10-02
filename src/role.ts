@@ -159,11 +159,23 @@ export abstract class Role<MemoryShape extends Object> {
   }
 
   MoveLong(creep: Creep, dest: RoomPosition, minRange?: number): number {
-    return creep.moveTo(dest, { visualizePathStyle: { stroke: COLOURS.PATH_LONG, lineStyle: "solid" }, range: minRange, reusePath: this.ReusePath, ignoreCreeps: true });
+    return creep.moveTo(dest, {
+      visualizePathStyle: { stroke: COLOURS.PATH_LONG, lineStyle: "solid" },
+      range: minRange,
+      reusePath: this.ReusePath,
+      ignoreCreeps: true
+    });
   }
 
   MoveAvoidCreeps(creep: Creep, dest: RoomPosition, minRange?: number): number {
-    return creep.moveTo(dest, { visualizePathStyle: { stroke: COLOURS.PATH_STUCK, lineStyle: "dotted" }, range: minRange, reusePath: 0, ignoreCreeps: false });
+    return creep.moveTo(dest, {
+      visualizePathStyle: { stroke: COLOURS.PATH_STUCK, lineStyle: "dotted" },
+      range: minRange,
+      reusePath: this.MaxAvoidTicks,
+      ignoreCreeps: false,
+      ignoreRoads: true,
+      maxOps: 200,
+    });
   }
 
   // Returns 1 when in range; otherwise returns the moveTo result.
