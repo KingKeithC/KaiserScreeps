@@ -180,13 +180,13 @@ export abstract class Role<MemoryShape extends Object> {
 
   // Returns 1 when in range; otherwise returns the moveTo result.
   MoveCreep(creep: Creep, target: RoomPosition, withinRange: number): number {
-    // Start in long mode
-    if (!creep.memory.moveMode) creep.memory.moveMode = "long";
+    // Init movement trackers
+    creep.memory.moveMode ??= "long";
     creep.memory.stuckTicks ??= 0;
     creep.memory.successfulAvoidMoves ??= 0;
 
     // Figure out if we moved, and then update position
-    const justMoved = !creep.memory.lastPos
+    const movedBetweenTicks = !creep.memory.lastPos
       || creep.pos.x !== creep.memory.lastPos.x
       || creep.pos.y !== creep.memory.lastPos.y;
     creep.memory.lastPos = { x: creep.pos.x, y: creep.pos.y };
@@ -200,26 +200,14 @@ export abstract class Role<MemoryShape extends Object> {
       return 1;
     }
 
-    // If tired, just move according to current mode
-    // Do this before updating accounting since any move will result in ERR_TIRED anyway.
-    if (creep.fatigue > 0) {
-      return creep.memory.moveMode === "long"
-        ? this.MoveLong(creep, target, withinRange)
-        : this.MoveAvoidCreeps(creep, target, withinRange);
+    // Increment counters
+    if (creep.memory.moveMode === "avoidCreeps" && movedBetweenTicks) {
+      creep.memory.successfulAvoidMoves++;
+    } else if (creep.memory.moveMode === "long" && !movedBetweenTicks) {
+      creep.memory.stuckTicks++;
     }
 
-    // Update stuck accounting
-    if (creep.memory.moveMode === "long") {
-      creep.memory.stuckTicks = justMoved ? 0 : creep.memory.stuckTicks + 1;
-      creep.memory.successfulAvoidMoves = 0;
-    } else {
-      creep.memory.stuckTicks = justMoved ? 0 : creep.memory.stuckTicks + 1;
-      creep.memory.successfulAvoidMoves = justMoved
-        ? creep.memory.successfulAvoidMoves + 1
-        : 0;
-    }
-
-    // Change move mode if needed
+    // Switch move mode
     if (creep.memory.moveMode === "long" && creep.memory.stuckTicks > this.MaxStuckTicks) {
       creep.memory.moveMode = "avoidCreeps";
       creep.memory.stuckTicks = 0;
