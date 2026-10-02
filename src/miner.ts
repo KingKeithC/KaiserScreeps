@@ -13,7 +13,7 @@ export class Miner extends Role<MinerMemory> {
     return this.room.find(FIND_SOURCES).length * 2;
   }
 
-  BodyParts = [MOVE, CARRY, WORK, WORK, WORK, WORK];
+  BodyParts = [MOVE, CARRY, WORK, WORK, WORK, WORK, WORK];
   DropoffRange = 6;
 
   TickCreep(creep: Creep, mem: MinerMemory): void {
