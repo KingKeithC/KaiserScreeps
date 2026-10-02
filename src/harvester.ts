@@ -47,7 +47,7 @@ export class WorkerI extends Role<WorkerTask> {
   ControllerMaintenanceBuffer = 5000;    // Stop upgrading when ticksToDowngrade is greater than `ControllerMaintenanceThreshold+ControllerMaintenanceBuffer`.
 
   MaxMaintenanceWorkers = 2;
-  MaxTowerSuppliers = 3;
+  MaxSuppliersPerTower = 2;
 
   MediumSearchRange = 20;
   ShortSearchRange = 5;
@@ -99,7 +99,9 @@ export class WorkerI extends Role<WorkerTask> {
       });
     if (
       tower instanceof StructureTower
-      && this.CreepsInRole().filter(c => (c.memory.jobMemory as WorkerTask).action === WorkerAction.Transfer).length < this.MaxTowerSuppliers
+      && this.CreepsInRole().filter(c =>
+        c.memory.jobMemory == new WorkerTask(WorkerAction.Transfer, tower.id)
+      ).length < this.MaxSuppliersPerTower
     ) return new WorkerTask(WorkerAction.Transfer, tower.id);
 
     // Ongoing Construction
