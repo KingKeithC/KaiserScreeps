@@ -24,9 +24,9 @@ export abstract class Role<MemoryShape extends Object> {
   SpawnRate: number = 120;
 
 
-  ReusePath: number = 20;
-  ShortPathThreshold: number = 5;
-  StuckTicksToMoveUnstuck: number = 2;
+  ReusePath: number = 10;
+  StuckTicksBeforeModeSwitch: number = 2;
+  AvoidCreepsTicksBeforeLong: number = 3;
 
   TickStart(): void { }
   abstract TickCreep(creep: Creep, task: MemoryShape): void;
@@ -158,50 +158,63 @@ export abstract class Role<MemoryShape extends Object> {
       console.log(`${this.room}[${this.RoleName}]: ${spawnPoint} Spawn failed with result: ${result}...`);
   }
 
-  MoveShort(creep: Creep, dest: RoomPosition, minRange?: number): number {
-    return creep.moveTo(dest, { visualizePathStyle: { stroke: COLOURS.PATH_SHORT, lineStyle: "dotted" }, range: minRange, maxOps: 300, reusePath: 0 });
-  }
-
   MoveLong(creep: Creep, dest: RoomPosition, minRange?: number): number {
     return creep.moveTo(dest, { visualizePathStyle: { stroke: COLOURS.PATH_LONG, lineStyle: "solid" }, range: minRange, reusePath: this.ReusePath, ignoreCreeps: true });
   }
 
-  MoveUnstuck(creep: Creep, dest: RoomPosition, minRange?: number): number {
-    return creep.moveTo(dest, { visualizePathStyle: { stroke: COLOURS.PATH_STUCK, lineStyle: "dotted" }, range: minRange, reusePath: 5 });
+  MoveAvoidCreeps(creep: Creep, dest: RoomPosition, minRange?: number): number {
+    return creep.moveTo(dest, { visualizePathStyle: { stroke: COLOURS.PATH_STUCK, lineStyle: "dotted" }, range: minRange, reusePath: 0, ignoreCreeps: false });
   }
 
-  // Returns; 0 if moved and was ok, 1 if no need to move, and <0 for errors
+  // Returns 1 when in range; otherwise returns the moveTo result.
   MoveCreep(creep: Creep, target: RoomPosition, withinRange: number): number {
-    if (!creep.memory.lastPos)
-      creep.memory.lastPos = { x: creep.pos.x, y: creep.pos.y };
+    if (!creep.memory.moveMode)
+      creep.memory.moveMode = "long";
 
-    const range = creep.pos.getRangeTo(target);
-    var moveResult: number = OK;
-    if (range <= withinRange)
-      // Close enough we shouldn't need to move
-      return 1
-    else if ((creep.memory.stuckTicks ?? 0) > this.StuckTicksToMoveUnstuck)
-      // If we are stuck, try to unstick ourselves
-      moveResult = this.MoveUnstuck(creep, target, withinRange);
-    else if (range > this.ShortPathThreshold)
-      // Move Long if we are farther than ShortPathThreshold away.
-      moveResult = this.MoveLong(creep, target, withinRange);
-    else
-      // Move Short otherwise
-      moveResult = this.MoveShort(creep, target, withinRange);
+    const positionChanged = !creep.memory.lastPos
+      || creep.pos.x !== creep.memory.lastPos.x
+      || creep.pos.y !== creep.memory.lastPos.y;
 
-    // We had to move, so check if we're stuck
+    if (positionChanged) {
+      creep.memory.stuckTicks = 0;
+      if (creep.memory.moveMode === "avoidCreeps")
+        creep.memory.avoidCreepsMoveTicks = (creep.memory.avoidCreepsMoveTicks ?? 0) + 1;
+      else
+        creep.memory.avoidCreepsMoveTicks = 0;
+    } else if (creep.fatigue === 0) {
+      creep.memory.stuckTicks = (creep.memory.stuckTicks ?? 0) + 1;
+      creep.memory.avoidCreepsMoveTicks = 0;
+    }
+    creep.memory.lastPos = { x: creep.pos.x, y: creep.pos.y };
 
-    if (creep.pos.x === creep.memory.lastPos.x && creep.pos.y === creep.memory.lastPos.y) {
-      // Our position didn't change, so if we're not fatigued then we're stuck
-      if (!creep.fatigue && moveResult !== ERR_TIRED)
-        creep.memory.stuckTicks++;
-    } else {
-      creep.memory.stuckTicks = 0; // We're not stuck anymore
+    if (creep.pos.getRangeTo(target) <= withinRange) {
+      creep.memory.stuckTicks = 0;
+      creep.memory.avoidCreepsMoveTicks = 0;
+      return 1;
     }
 
-    // Refresh position
-    creep.memory.lastPos = { x: creep.pos.x, y: creep.pos.y };
+    if (creep.memory.moveMode === "avoidCreeps"
+      && (creep.memory.avoidCreepsMoveTicks ?? 0) >= this.AvoidCreepsTicksBeforeLong) {
+      creep.memory.moveMode = "long";
+      creep.memory.avoidCreepsMoveTicks = 0;
+    }
+
+    if (creep.fatigue === 0 && creep.memory.stuckTicks >= this.StuckTicksBeforeModeSwitch) {
+      creep.memory.moveMode = creep.memory.moveMode === "long" ? "avoidCreeps" : "long";
+      creep.memory.stuckTicks = 0;
+      creep.memory.avoidCreepsMoveTicks = 0;
+    }
+
+    const moveResult = creep.memory.moveMode === "long"
+      ? this.MoveLong(creep, target, withinRange)
+      : this.MoveAvoidCreeps(creep, target, withinRange);
+
+    if (moveResult === ERR_NO_PATH) {
+      creep.memory.moveMode = creep.memory.moveMode === "long" ? "avoidCreeps" : "long";
+      creep.memory.stuckTicks = 0;
+      creep.memory.avoidCreepsMoveTicks = 0;
+    }
+
     return moveResult;
   }
 }

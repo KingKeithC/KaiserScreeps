@@ -24,6 +24,8 @@ declare global {
     jobMemory: object;
     stuckTicks: number;
     lastPos: { x: number, y: number };
+    moveMode?: "long" | "avoidCreeps";
+    avoidCreepsMoveTicks?: number;
   }
 
   interface RoomMemory {
