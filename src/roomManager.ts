@@ -2,7 +2,13 @@ import { WorkerI, WorkerII } from "worker";
 import { Miner } from "miner";
 import { Settler } from "settler";
 
-const Roles = [Miner, WorkerII, WorkerI, Settler];
+// Spawn priority order, lowest to highest
+const Roles = [
+  Settler,
+  WorkerI,
+  WorkerII,
+  Miner,
+];
 
 export enum RoomStatus {
   Owned,
