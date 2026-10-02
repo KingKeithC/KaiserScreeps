@@ -113,10 +113,9 @@ export class WorkerI extends Role<WorkerTask> {
   }
 
   FindGatheringTask(creep: Creep): WorkerTask {
-    // Collect from fullest container
-    const containers: StructureContainer[] = this.room.find(FIND_STRUCTURES, { filter: (s) => s.structureType === STRUCTURE_CONTAINER && s.store.energy > 0 });
-    const container = containers.sort((a, b) => a.store.energy - b.store.energy).pop(); // Select fullest
-    if (container != null && container != undefined)
+    // Collect from the nearest container that has energy
+    const container = creep.pos.findClosestByPath(FIND_STRUCTURES, { filter: (s) => s.structureType === STRUCTURE_CONTAINER && s.store.energy > 0 });
+    if (container instanceof StructureContainer)
       return new WorkerTask(WorkerAction.CollectEnergy, container.id);
 
     // Collect from the fullest miner nearby if there are any
