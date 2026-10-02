@@ -28,7 +28,8 @@ declare global {
 
   interface RoomMemory {
     lastSpawnTick: { [roleName: string]: number }
-    attackHostiles: boolean
+    attackHostiles: boolean,
+    towerAttackRange: number,
   }
 
 }

@@ -11,7 +11,7 @@ enum RoomStatus {
 }
 
 export class RoomManager {
-  TowerAttackRange = 15;
+  DefaultTowerAttackRange = 15;
 
   protected readonly room: Room;
   constructor(room: Room) {
@@ -58,6 +58,7 @@ export class RoomManager {
   InitRoomMemory() {
     if (this.room.memory.lastSpawnTick == null || this.room.memory.lastSpawnTick == undefined) this.room.memory.lastSpawnTick = {};
     if (this.room.memory.attackHostiles == undefined) this.room.memory.attackHostiles = false;
+    if (this.room.memory.towerAttackRange == undefined) this.room.memory.towerAttackRange = this.DefaultTowerAttackRange;
   }
 
   TickTower(t: StructureTower) {
@@ -69,7 +70,7 @@ export class RoomManager {
 
     if (this.room.memory.attackHostiles ?? false) {
       // Find lowest health hostile in range
-      const hostile = t.pos.findInRange(FIND_HOSTILE_CREEPS, this.TowerAttackRange).sort((a, b) => a.hits - b.hits).pop()
+      const hostile = t.pos.findInRange(FIND_HOSTILE_CREEPS, this.room.memory.towerAttackRange ?? this.DefaultTowerAttackRange).sort((a, b) => a.hits - b.hits).pop()
       if (hostile != null && hostile != undefined) {
         t.attack(hostile);
         return;
