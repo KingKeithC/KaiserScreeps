@@ -112,10 +112,9 @@ export class RoomManager {
       const path = start.pos.findPathTo(end, { maxRooms: 1, swampCost: 2, plainCost: 4, ignoreCreeps: true });
       var built = false;
 
-      for (const pos of path) {
-        const construction = this.room.createConstructionSite(pos.x, pos.y, STRUCTURE_ROAD);
-        if (construction === OK) built = true;
-      }
+      if (this.room.createConstructionSite(start.pos.x, start.pos.y, STRUCTURE_ROAD) === OK) built = true;
+      for (const pos of path) if (this.room.createConstructionSite(pos.x, pos.y, STRUCTURE_ROAD) === OK) built = true;
+      if (this.room.createConstructionSite(end.pos.x, end.pos.y, STRUCTURE_ROAD) === OK) built = true;
 
       if (built) {
         start.remove();
