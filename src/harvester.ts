@@ -79,7 +79,7 @@ export class WorkerI extends Role<WorkerTask> {
         (structure.structureType === STRUCTURE_EXTENSION || structure.structureType === STRUCTURE_SPAWN)
         && structure.store.getFreeCapacity(RESOURCE_ENERGY) > 0
     });
-    if (spawnOrExtension != undefined) return new WorkerTask(WorkerAction.Transfer, spawnOrExtension.id);
+    if (spawnOrExtension instanceof StructureSpawn || spawnOrExtension instanceof StructureExtension) return new WorkerTask(WorkerAction.Transfer, spawnOrExtension.id);
 
     // Controller at risk of downgrade
     if (
@@ -91,15 +91,15 @@ export class WorkerI extends Role<WorkerTask> {
 
     // Towers with room for energy
     const tower = creep.pos.findClosestByPath(FIND_MY_STRUCTURES, { filter: (s) => s.structureType === STRUCTURE_TOWER && s.store.getFreeCapacity(RESOURCE_ENERGY) > 0 });
-    if (tower) return new WorkerTask(WorkerAction.Transfer, tower.id);
+    if (tower instanceof StructureTower) return new WorkerTask(WorkerAction.Transfer, tower.id);
 
     // Ongoing Construction
     const construction = creep.pos.findClosestByPath(FIND_MY_CONSTRUCTION_SITES, { filter: (s) => s.progress < s.progressTotal });
-    if (construction) return new WorkerTask(WorkerAction.Build, construction.id);
+    if (construction instanceof ConstructionSite) return new WorkerTask(WorkerAction.Build, construction.id);
 
     // Structures in need of repair
     const delapitated = creep.pos.findClosestByPath(FIND_MY_STRUCTURES, { filter: (s) => s.hits < s.hitsMax });
-    if (delapitated) return new WorkerTask(WorkerAction.Repair, delapitated.id);
+    if (delapitated instanceof Structure) return new WorkerTask(WorkerAction.Repair, delapitated.id);
 
     // Nothing else to do so just upgrade forever
     if (this.room.controller?.my) return new WorkerTask(WorkerAction.UpgradeController, this.room.controller.id);
