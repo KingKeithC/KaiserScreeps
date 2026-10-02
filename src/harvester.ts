@@ -31,10 +31,10 @@ class WorkerTask extends Object {
 
 export class WorkerI extends Role<WorkerTask> {
   RoleName = "harvester";
+  InitialJobMemory = new WorkerTask(WorkerAction.Idle);
 
   StartSpawnAtRCL = 0;
   StopSpawnAtRCL = 4;
-  UpgradeToRCL = 2;
   BodyParts = [WORK, CARRY, MOVE];
 
   get CountPerRoom() {
@@ -46,10 +46,8 @@ export class WorkerI extends Role<WorkerTask> {
   ControllerMaintenanceThreshold = 5000; // Start upgrading when ticksToDowngrade is less than this.
   ControllerMaintenanceBuffer = 5000;    // Stop upgrading when ticksToDowngrade is greater than `ControllerMaintenanceThreshold+ControllerMaintenanceBuffer`.
 
-  MaxMaintenanceWorkers = 2; // Deprecated
+  MaxMaintenanceWorkers = 2;
 
-  WorkersPerformingUpgrade = 2;
-  InitialJobMemory = new WorkerTask(WorkerAction.Idle);
 
   MediumSearchRange = 20;
   ShortSearchRange = 5;
@@ -306,7 +304,6 @@ export class WorkerII extends WorkerI {
 
   StartSpawnAtRCL = 2;
   StopSpawnAtRCL = 100;
-  UpgradeToRCL = 8;
   BodyParts = [MOVE, MOVE, WORK, WORK, WORK, CARRY, CARRY, CARRY];
   override get CountPerRoom() { return 5; }
 }
