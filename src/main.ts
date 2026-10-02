@@ -25,7 +25,7 @@ declare global {
     stuckTicks: number;
     lastPos: { x: number, y: number };
     moveMode?: "long" | "avoidCreeps";
-    avoidCreepsMoveTicks?: number;
+    successfulAvoidMoves?: number;
   }
 
   interface RoomMemory {
