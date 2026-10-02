@@ -1,4 +1,4 @@
-import { WorkerI, WorkerII } from "harvester";
+import { WorkerI, WorkerII } from "worker";
 import { Miner } from "miner";
 import { Settler } from "settler";
 

@@ -43,7 +43,7 @@ export class WorkerI extends Role<WorkerTask> {
 
   get CountPerRoom() {
     const max = 6;
-    const T2 = Object.values(Game.creeps).filter(c => c.memory.room === this.room.name && c.memory.role === 'harvesterT2').length;
+    const T2 = Object.values(Game.creeps).filter(c => c.memory.room === this.room.name && c.memory.role === 'WorkerII').length;
     return max - T2 <= 0 ? 0 : max - T2;
   }
 

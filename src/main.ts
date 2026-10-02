@@ -1,6 +1,4 @@
 import { ErrorMapper } from "utils/ErrorMapper";
-import { WorkerI, WorkerII } from "harvester";
-import { Miner } from "miner";
 import { RoomManager } from "roomManager";
 
 declare global {

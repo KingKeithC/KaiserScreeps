@@ -35,13 +35,13 @@ export class Miner extends Role<MinerMemory> {
     }
 
     // If there are nearby Harvesters low on energy
-    const nextdoor = creep.pos.findInRange(FIND_MY_CREEPS, 1, { filter: (c) => ((c.memory.role === "harvester" || c.memory.role === "harvesterT2") && c.store.getFreeCapacity(RESOURCE_ENERGY) > 0) });
+    const nextdoor = creep.pos.findInRange(FIND_MY_CREEPS, 1, { filter: (c) => ((c.memory.role.startsWith("Worker")) && c.store.getFreeCapacity(RESOURCE_ENERGY) > 0) });
     const harvester = nextdoor.sort((a, b) => a.store.energy - b.store.energy).pop();
     if (harvester != null && harvester != undefined)
       creep.transfer(harvester, RESOURCE_ENERGY); // Transer ours to them
 
     const isFull = creep.store.getFreeCapacity(RESOURCE_ENERGY) === 0;
-    const nearbyCreeps = creep.pos.findInRange(FIND_MY_CREEPS, this.DropoffRange, { filter: (c) => ((c.memory.role === "harvester" || c.memory.role === "harvesterT2") && c.store.getFreeCapacity(RESOURCE_ENERGY) > 0) });
+    const nearbyCreeps = creep.pos.findInRange(FIND_MY_CREEPS, this.DropoffRange, { filter: (c) => ((c.memory.role.startsWith("Worker")) && c.store.getFreeCapacity(RESOURCE_ENERGY) > 0) });
     const nearestCreep = creep.pos.findClosestByPath(nearbyCreeps);
     const nearbyContainers = creep.pos.findInRange(FIND_STRUCTURES, this.DropoffRange, { filter: s => s.structureType === STRUCTURE_CONTAINER && s.store.getFreeCapacity(RESOURCE_ENERGY) > 0 });
     const nearestContainer = creep.pos.findClosestByPath(nearbyContainers);
