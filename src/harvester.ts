@@ -27,6 +27,10 @@ class WorkerTask extends Object {
     this.action = action;
     this.target = id;
   }
+
+  equals(other: WorkerTask) {
+    return this.action === other.action && this.target == other.target;
+  }
 }
 
 export class WorkerI extends Role<WorkerTask> {
@@ -88,20 +92,21 @@ export class WorkerI extends Role<WorkerTask> {
     if (
       this.room.controller?.my
       && this.room.controller.ticksToDowngrade < this.ControllerMaintenanceThreshold
-      && this.CreepsInRole().filter(c => (c.memory.jobMemory as WorkerTask).action === WorkerAction.MaintainController).length < this.MaxMaintenanceWorkers
+      && this.CreepsInRole().filter(c =>
+        new WorkerTask(WorkerAction.MaintainController, this.room.controller?.id)
+          .equals(c.memory.jobMemory as WorkerTask)).length < this.MaxMaintenanceWorkers
     ) return new WorkerTask(WorkerAction.MaintainController, this.room.controller.id);
 
     // Towers with room for energy
-    const tower = creep.pos.findClosestByPath(FIND_MY_STRUCTURES,
-      {
-        filter: (s) => s.structureType === STRUCTURE_TOWER && s.store.getFreeCapacity(RESOURCE_ENERGY) > 0,
-        ignoreCreeps: true
-      });
+    const tower = creep.pos.findClosestByPath(FIND_MY_STRUCTURES, {
+      filter: (s) => s.structureType === STRUCTURE_TOWER && s.store.getFreeCapacity(RESOURCE_ENERGY) > 0,
+      ignoreCreeps: true
+    });
     if (
       tower instanceof StructureTower
       && this.CreepsInRole().filter(c =>
-        c.memory.jobMemory == new WorkerTask(WorkerAction.Transfer, tower.id)
-      ).length < this.MaxSuppliersPerTower
+        new WorkerTask(WorkerAction.Transfer, tower?.id)
+          .equals(c.memory.jobMemory as WorkerTask)).length < this.MaxSuppliersPerTower
     ) return new WorkerTask(WorkerAction.Transfer, tower.id);
 
     // Ongoing Construction
