@@ -1,5 +1,4 @@
 import { Role } from "role";
-import { RoomManager, RoomStatus } from "roomManager";
 
 class SettlerMemory extends Object {
   readonly targetRoom: string;
@@ -34,10 +33,14 @@ export class Settler extends Role<SettlerMemory> {
   }
 
   get CountPerRoom() {
-    // 1 settler per claimed room
-    return Object.values(Game.rooms)
-      .filter(r => RoomManager.StatusOf(r) === RoomStatus.Claimed)
-      .length;
+    // 1 settler per unique claimed room
+    var claims: string[] = [];
+
+    for (const name of Object.values(Game.flags).filter(f => f.name.startsWith("Claim")).map(f => f.room?.name)) {
+      if (name && !claims.includes(name)) claims.push(name);
+    }
+
+    return claims.length;
   }
 
   GetClaimedRoom(_: Creep, mem: SettlerMemory) { return Game.rooms[mem.targetRoom]; }

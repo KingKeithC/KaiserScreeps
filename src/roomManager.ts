@@ -1,7 +1,8 @@
 import { WorkerI, WorkerII } from "harvester";
 import { Miner } from "miner";
+import { Settler } from "settler";
 
-const Roles = [Miner, WorkerII, WorkerI];
+const Roles = [Miner, WorkerII, WorkerI, Settler];
 
 export enum RoomStatus {
   Owned,
