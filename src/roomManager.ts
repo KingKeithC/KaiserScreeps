@@ -67,11 +67,13 @@ export class RoomManager {
     if (t.store.getUsedCapacity(RESOURCE_ENERGY) === 0)
       return; // No energy to work
 
-    // Find lowest health hostile in range
-    const hostile = t.pos.findInRange(FIND_HOSTILE_CREEPS, this.TowerAttackRange).sort((a, b) => a.hits - b.hits).pop()
-    if (hostile != null && hostile != undefined) {
-      t.attack(hostile);
-      return;
+    if (this.room.memory.attackHostiles ?? false) {
+      // Find lowest health hostile in range
+      const hostile = t.pos.findInRange(FIND_HOSTILE_CREEPS, this.TowerAttackRange).sort((a, b) => a.hits - b.hits).pop()
+      if (hostile != null && hostile != undefined) {
+        t.attack(hostile);
+        return;
+      }
     }
 
     // Find my structures in need of repair
@@ -88,7 +90,7 @@ export class RoomManager {
       return;
     }
 
-    // All other structures
+    // All other roads
     const road = t.pos.findClosestByRange(FIND_STRUCTURES, { filter: s => s.structureType === STRUCTURE_ROAD && s.hits < s.hitsMax })
     if (road != null && road != undefined) {
       t.repair(road);
