@@ -151,15 +151,6 @@ export class WorkerI extends Role<WorkerTask> {
       return;
     }
 
-    // Determine how close we need to move to the target
-    var minDistance = 3;
-    if (task.action === WorkerAction.Mine || task.action === WorkerAction.Transfer || task.action === WorkerAction.CollectEnergy)
-      minDistance = 1;
-
-    // Move until in `minDistance` of target
-    const moveResult = this.MoveCreep(creep, targetObject.pos, minDistance);
-    if (moveResult != 1) return; // We are not in range, skip further action.
-
     // Actually act on the target
     var result: number = OK;
     switch (task.action) {
@@ -227,8 +218,13 @@ export class WorkerI extends Role<WorkerTask> {
         return;
       }
       case ERR_NOT_IN_RANGE: {
-        // Move should already be done by this point, log the issue so the move logic can be corrected.
-        console.log(`${this.room}${creep}: Not in range to act.`);
+        // Determine how close we need to move to the target
+        var minDistance = 3;
+        if (task.action === WorkerAction.Mine || task.action === WorkerAction.Transfer || task.action === WorkerAction.CollectEnergy)
+          minDistance = 1;
+
+        // Move until in `minDistance` of target
+        this.MoveCreep(creep, targetObject.pos, minDistance);
         return;
       }
       default: {
