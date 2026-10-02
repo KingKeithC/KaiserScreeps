@@ -52,12 +52,13 @@ export class Harvester extends Role<HarvesterMemory> {
   MinerSearchRange = 20;
 
   TickCreep(creep: Creep, currentTask: HarvesterMemory): void {
-    this.Act(creep, currentTask);
     if (this.IsActComplete(creep, currentTask)) {
       const newTask = this.Reassign(creep, currentTask);
       console.log(`${this.room}${creep} Reassigned: ${JSON.stringify(currentTask)} -> ${JSON.stringify(newTask)}`);
       creep.say(newTask.action);
       creep.memory.jobMemory = newTask;
+    } else {
+      this.Act(creep, currentTask);
     }
   }
 
@@ -310,7 +311,12 @@ export class Harvester extends Role<HarvesterMemory> {
     switch (mem.action) {
       case (HarvesterAction.Harvest):
       case (HarvesterAction.CollectEnergy):
-        return creep.store.getFreeCapacity(RESOURCE_ENERGY) === 0;
+        if (creep.store.getFreeCapacity(RESOURCE_ENERGY) === 0) return true;
+
+        if (targetObject instanceof StructureContainer)
+          return targetObject.store.getUsedCapacity(RESOURCE_ENERGY) === 0;
+        else
+          return creep.store.getFreeCapacity(RESOURCE_ENERGY) === 0;
       case (HarvesterAction.Pickup): {
         if (creep.store.getFreeCapacity(RESOURCE_ENERGY) === 0) return true;
         const t = targetObject as Resource;
