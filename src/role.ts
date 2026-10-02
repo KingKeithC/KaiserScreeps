@@ -203,8 +203,10 @@ export abstract class Role<MemoryShape extends Object> {
     // Increment counters
     if (creep.memory.moveMode === "avoidCreeps" && movedBetweenTicks) {
       creep.memory.successfulAvoidMoves++;
-    } else if (creep.memory.moveMode === "long" && !movedBetweenTicks) {
+    } else if (creep.memory.moveMode === "long" && !movedBetweenTicks && creep.fatigue === 0) {
       creep.memory.stuckTicks++;
+    } else if (creep.memory.moveMode === "long" && movedBetweenTicks) {
+      creep.memory.stuckTicks = 0;
     }
 
     // Switch move mode
