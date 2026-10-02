@@ -98,7 +98,8 @@ export class WorkerI extends Role<WorkerTask> {
     ) return new WorkerTask(WorkerAction.MaintainController, this.room.controller.id);
 
     // Ongoing Construction
-    const construction = creep.pos.findClosestByPath(FIND_MY_CONSTRUCTION_SITES, { ignoreCreeps: true });
+    const construction = this.room.find(FIND_MY_CONSTRUCTION_SITES)
+      .sort((a, b) => (a.progressTotal - a.progress) - (b.progressTotal - b.progress))[0];
     if (construction instanceof ConstructionSite && this.CreepsInRole().filter(c =>
       (c.memory.jobMemory as WorkerTask).action === WorkerAction.Build).length < this.MaxConstructionWorkers
     ) return new WorkerTask(WorkerAction.Build, construction.id);

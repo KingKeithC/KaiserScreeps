@@ -66,19 +66,17 @@ export abstract class Role<MemoryShape extends Object> {
       this.TickCreep(creep, task);
 
       const ttl = creep.ticksToLive ?? 100;
-      if (ttl < 1)
+      if (ttl === 1)
         creep.say("☠️");
-      else if (ttl < 2)
+      else if (ttl === 2)
         creep.say("🤡");
-      else if (ttl < 3)
+      else if (ttl === 3)
         creep.say("🫲☹️🫱💔🫂");
-      else if (ttl < 4)
+      else if (ttl === 4)
         creep.say("😭🙏");
-      else if (ttl < 5)
-        creep.say("😭");
-      else if (ttl < 10)
+      else if (ttl === 5)
         creep.say("😰");
-      else if (ttl < 20)
+      else if (ttl === 10)
         creep.say("😨");
     }
     this.TickEnd();
