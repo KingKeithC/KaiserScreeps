@@ -80,6 +80,16 @@ export class Harvester extends Role<HarvesterMemory> {
     // Select target in order of priority
     var targetObject;
 
+    // Spawns/Extensions with room for energy
+    targetObject = creep.pos.findClosestByPath(FIND_MY_STRUCTURES, {
+      filter: (structure) =>
+        (structure.structureType === STRUCTURE_EXTENSION || structure.structureType === STRUCTURE_SPAWN)
+        && structure.store.getFreeCapacity(RESOURCE_ENERGY) > 0
+    });
+    if (targetObject) {
+      return new HarvesterMemory(HarvesterAction.Transfer, targetObject.id);
+    }
+
     // Controllers at risk of downgrade
     if (this.room.memory.countPreventingDowngrade < this.WorkersPreventingDowngrade) {
       targetObject = creep.pos.findClosestByPath(FIND_MY_STRUCTURES, {
@@ -96,16 +106,6 @@ export class Harvester extends Role<HarvesterMemory> {
     // Towers with room for energy
     targetObject = creep.pos.findClosestByPath(FIND_MY_STRUCTURES, {
       filter: (structure) => structure.structureType === STRUCTURE_TOWER && structure.store.getFreeCapacity(RESOURCE_ENERGY) > 0
-    });
-    if (targetObject) {
-      return new HarvesterMemory(HarvesterAction.Transfer, targetObject.id);
-    }
-
-    // Spawns/Extensions with room for energy
-    targetObject = creep.pos.findClosestByPath(FIND_MY_STRUCTURES, {
-      filter: (structure) =>
-        (structure.structureType === STRUCTURE_EXTENSION || structure.structureType === STRUCTURE_SPAWN)
-        && structure.store.getFreeCapacity(RESOURCE_ENERGY) > 0
     });
     if (targetObject) {
       return new HarvesterMemory(HarvesterAction.Transfer, targetObject.id);
