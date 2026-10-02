@@ -270,7 +270,10 @@ export class WorkerI extends RoomRole<WorkerTask> {
     }
 
     switch (task.action) {
-      case (WorkerAction.Mine):
+      case (WorkerAction.Mine): {
+        if (creep.store.getFreeCapacity(RESOURCE_ENERGY) === 0) return true;
+        return (targetObject as Source).energy === 0;
+      }
       case (WorkerAction.CollectEnergy): {
         if (creep.store.getFreeCapacity(RESOURCE_ENERGY) === 0) return true;
         if (targetObject instanceof StructureContainer) return targetObject.store.energy === 0;
