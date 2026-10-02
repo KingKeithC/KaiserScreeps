@@ -33,14 +33,13 @@ export class Settler extends Role<SettlerMemory> {
   }
 
   get CountPerRoom() {
-    // 1 settler per unique claimed room
-    var claimedRooms: string[] = [];
+    // If the room has a 'Claim' flag, then one.
+    return this.room.find(FIND_FLAGS, { filter: f => f.name.startsWith("Claim") }).length > 0 ? 1 : 0
+  }
 
-    for (const flagClaims of Object.values(Game.flags).filter(f => f.name.startsWith("Claim"))) {
-      if (!claimedRooms.includes(flagClaims.name)) claimedRooms.push(flagClaims.name);
-    }
-
-    return claimedRooms.length;
+  FindSpawns(): StructureSpawn[] {
+    // Any spawn in any of our rooms
+    return Object.values(Game.rooms).map(r => r.find(FIND_MY_SPAWNS)).reduce((acc, elem) => acc.concat(elem), [])
   }
 
   GetClaimedRoom(_: Creep, mem: SettlerMemory) { return Game.rooms[mem.targetRoom]; }

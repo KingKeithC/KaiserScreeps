@@ -92,6 +92,10 @@ export abstract class Role<MemoryShape extends Object> {
     return [adj1, adj2, noun].join("-");
   }
 
+  FindSpawns(): StructureSpawn[] {
+    return this.room.find(FIND_MY_SPAWNS, { filter: (spawn) => !spawn.spawning });
+  }
+
   DoSpawns(): void {
     // Delete memory of missing creeps before doing spawns
     for (const name in Memory.creeps) {
@@ -128,34 +132,38 @@ export abstract class Role<MemoryShape extends Object> {
     }
 
     // Find a suitable spawn point
-    const spawns = this.room.find(FIND_MY_SPAWNS, { filter: (spawn) => !spawn.spawning });
-    if (spawns.length === 0) {
-      console.log(`${this.room}[${this.RoleName}]: Need to spawn (${current}/${this.CountPerRoom}), but no points are available or all are in use.`);
+    const possibleSpawns = this.FindSpawns();
+    if (possibleSpawns.length === 0) {
+      console.log(`${this.room}[${this.RoleName}]: Need to spawn (${this.CreepsInRole().length}/${this.CountPerRoom}), but no points could be found.`);
       return;
     }
-    const spawnPoint = spawns[0];
 
-    // Do the spawn
-    const name = `${this.RoleName}-${this.GetRandomSuffix()}`;
-    const result = spawnPoint.spawnCreep(
-      this.BodyParts,
-      name,
-      {
-        memory: {
-          room: this.room.name,
-          role: this.RoleName,
-          stuckTicks: 0,
-          lastPos: { x: spawnPoint.pos.x, y: spawnPoint.pos.y },
-          jobMemory: this.InitialJobMemory,
-        },
+    const newName = `${this.RoleName}-${this.GetRandomSuffix()}`;
+    for (const spawnPoint of possibleSpawns) {
+      // Try to do the spawn
+      const result = spawnPoint.spawnCreep(
+        this.BodyParts,
+        newName,
+        {
+          memory: {
+            room: this.room.name,
+            role: this.RoleName,
+            stuckTicks: 0,
+            lastPos: { x: spawnPoint.pos.x, y: spawnPoint.pos.y },
+            jobMemory: this.InitialJobMemory,
+          },
+        }
+      );
+
+      // Log the result
+
+      if (result === OK) {
+        console.log(`${this.room}${this}[${newName}]: ${current}/${this.CountPerRoom} +1 Spawning @ ${spawnPoint}...`);
+        return; // Successful, no need to proceed.
       }
-    );
-
-    // Log the result
-    if (result === OK)
-      console.log(`${this.room}[${this.RoleName}]: ${current}/${this.CountPerRoom} +1 Spawning ${name} @ ${spawnPoint}...`);
-    else
-      console.log(`${this.room}[${this.RoleName}]: ${spawnPoint} Spawn failed with result: ${result}...`);
+      console.log(`${this.room}${this}[${newName}]: ${current}/${this.CountPerRoom} Failed to spawn at ${spawnPoint} due to: ${result}...`);
+    }
+    console.log(`${this.room}${this}[${newName}]: ${current}/${this.CountPerRoom} All spawn attempts failed.`);
   }
 
   MoveLong(creep: Creep, dest: RoomPosition, minRange?: number): number {
