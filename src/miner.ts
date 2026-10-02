@@ -42,7 +42,9 @@ export class Miner extends Role<MinerMemory> {
 
     const isFull = creep.store.getFreeCapacity(RESOURCE_ENERGY) === 0;
     const nearbyCreeps = creep.pos.findInRange(FIND_MY_CREEPS, this.DropoffRange, { filter: (c) => ((c.memory.role === "harvester" || c.memory.role === "harvesterT2") && c.store.getFreeCapacity(RESOURCE_ENERGY) > 0) });
+    const nearestCreep = creep.pos.findClosestByPath(nearbyCreeps);
     const nearbyContainers = creep.pos.findInRange(FIND_STRUCTURES, this.DropoffRange, { filter: s => s.structureType === STRUCTURE_CONTAINER && s.store.getFreeCapacity(RESOURCE_ENERGY) > 0 });
+    const nearestContainer = creep.pos.findClosestByPath(nearbyContainers);
     if (!isFull) {
       // Move right next to the source
       const moveResult = this.MoveCreep(creep, mineObj.pos, 1);
@@ -51,26 +53,18 @@ export class Miner extends Role<MinerMemory> {
       // Mine it
       const mineResult = creep.harvest(mineObj);
       if (mineResult !== OK && mineResult !== ERR_NOT_ENOUGH_ENERGY) console.log(`${this.room}${creep}: Miner failed to mine ${mineResult}`);
-    } else if (nearbyCreeps.length > 0) {
+    } else if (nearestCreep instanceof Creep) {
       // Transfer to creep
 
-      // Find the one with the lowest energy
-      const harvester = nearbyCreeps.sort((a, b) => a.store.energy - b.store.energy).pop();
-      if (harvester == null || harvester == undefined)
-        return;
-
       // Move right next to it
-      const moveResult = this.MoveCreep(creep, harvester.pos, 1);
-      if (moveResult != 1) return; // Not close enough to transfer
-
-      creep.transfer(harvester, RESOURCE_ENERGY); // Transer ours to them
-    } else if (nearbyContainers.length > 0) {
+      if (this.MoveCreep(creep, nearestCreep.pos, 1) != 1) return; // Not close enough to transfer
+      creep.transfer(nearestCreep, RESOURCE_ENERGY); // Transer ours to them
+    } else if (nearestContainer instanceof StructureContainer) {
       // Transfer to container
 
       // Move right next to it
-      const moveResult = this.MoveCreep(creep, nearbyContainers[0].pos, 1);
-      if (moveResult != 1) return; // Not close enough to transfer
-      creep.transfer(nearbyContainers[0], RESOURCE_ENERGY); // Transer
+      if (this.MoveCreep(creep, nearestContainer.pos, 1) != 1) return; // Not close enough to transfer
+      creep.transfer(nearestContainer, RESOURCE_ENERGY); // Transer
     }
   }
 
