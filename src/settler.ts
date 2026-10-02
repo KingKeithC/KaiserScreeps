@@ -34,13 +34,13 @@ export class Settler extends Role<SettlerMemory> {
 
   get CountPerRoom() {
     // 1 settler per unique claimed room
-    var claims: string[] = [];
+    var claimedRooms: string[] = [];
 
-    for (const name of Object.values(Game.flags).filter(f => f.name.startsWith("Claim")).map(f => f.room?.name)) {
-      if (name && !claims.includes(name)) claims.push(name);
+    for (const flagClaims of Object.values(Game.flags).filter(f => f.name.startsWith("Claim"))) {
+      if (!claimedRooms.includes(flagClaims.name)) claimedRooms.push(flagClaims.name);
     }
 
-    return claims.length;
+    return claimedRooms.length;
   }
 
   GetClaimedRoom(_: Creep, mem: SettlerMemory) { return Game.rooms[mem.targetRoom]; }
