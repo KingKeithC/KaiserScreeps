@@ -15,8 +15,6 @@ export class RoomManager {
 
   protected readonly room: Room;
   constructor(room: Room) {
-    // Init Room Memory
-    if (room.memory.lastSpawnTick == null || room.memory.lastSpawnTick == undefined) room.memory.lastSpawnTick = {};
     this.room = room;
   }
 
@@ -34,11 +32,14 @@ export class RoomManager {
     return RoomStatus.Hostile;
   }
 
+
   TickRoom() {
     if (RoomManager.StatusOf(this.room) === RoomStatus.Hostile) {
       console.log(`${this.room} !!! Skipping operations in Hostile room`)
       return;
     }
+
+    this.InitRoomMemory();
 
     // Build any designated roads
     this.BuildRoads();
@@ -52,6 +53,11 @@ export class RoomManager {
       const role = new roleType(this.room); // Construct a role instance for the room
       role.TickRole(); // Run it
     }
+  }
+
+  InitRoomMemory() {
+    if (this.room.memory.lastSpawnTick == null || this.room.memory.lastSpawnTick == undefined) this.room.memory.lastSpawnTick = {};
+    if (this.room.memory.attackHostiles == undefined) this.room.memory.attackHostiles = false;
   }
 
   TickTower(t: StructureTower) {

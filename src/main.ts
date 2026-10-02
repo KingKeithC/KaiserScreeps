@@ -28,9 +28,8 @@ declare global {
   }
 
   interface RoomMemory {
-    workersMaintainingController: number
-    countPerformingUpgrade: number
     lastSpawnTick: { [roleName: string]: number }
+    attackHostiles: boolean
   }
 
 }
