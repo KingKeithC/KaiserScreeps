@@ -273,8 +273,11 @@ export class WorkerI extends Role<WorkerTask> {
       case (WorkerAction.Mine):
       case (WorkerAction.CollectEnergy): {
         if (creep.store.getFreeCapacity(RESOURCE_ENERGY) === 0) return true;
-        if (targetObject instanceof StructureContainer && targetObject.store.energy === 0) return true;
-        return false;
+        if (targetObject instanceof StructureContainer) return targetObject.store.energy === 0;
+        if (targetObject instanceof Resource) return targetObject.amount > 0;
+
+        console.log(`${this.room}${creep}: Assuming collection is complete: ${targetObject}`);
+        return true;
       }
       case (WorkerAction.Pickup): {
         if (creep.store.getFreeCapacity(RESOURCE_ENERGY) === 0) return true;
