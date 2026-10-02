@@ -150,7 +150,7 @@ export class Harvester extends Role<HarvesterMemory> {
     //   return new HarvesterMemory(HarvesterAction.Pickup, dropped.id)
 
     const containers: StructureContainer[] = this.room.find(FIND_STRUCTURES, { filter: (s) => s.structureType === STRUCTURE_CONTAINER && s.store.energy > 0 });
-    const container = containers.sort((a, b) => a.store.energy - b.store.energy)[0] as StructureContainer
+    const container = containers.sort((a, b) => a.store.energy - b.store.energy).pop();
     if (container != null && container != undefined)
       return new HarvesterMemory(HarvesterAction.CollectEnergy, container.id);
 
