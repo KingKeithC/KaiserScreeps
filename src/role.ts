@@ -25,7 +25,7 @@ export abstract class Role<MemoryShape extends Object> {
 
 
   ReusePath: number = 20;
-  ShortPathThreshold: number = 6;
+  ShortPathThreshold: number = 5;
   StuckTicksToMoveUnstuck: number = 2;
 
   TickStart(): void { }
