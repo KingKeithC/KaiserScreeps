@@ -14,7 +14,7 @@ export class Miner extends Role<MinerMemory> {
   }
 
   BodyParts = [MOVE, CARRY, WORK, WORK, WORK, WORK];
-  DropoffRange = 6;
+  DropoffRange = 4;
 
   TickCreep(creep: Creep, mem: MinerMemory): void {
     // Do we need to find a new source?
