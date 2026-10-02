@@ -64,7 +64,7 @@ export class WorkerI extends Role<WorkerTask> {
   }
 
   Reassign(creep: Creep): WorkerTask {
-    if (creep.store.energy === 0)
+    if (creep.store.getUsedCapacity(RESOURCE_ENERGY) === 0)
       return this.FindGatheringTask(creep);
     else
       return this.FindSpendingTask(creep);
@@ -256,15 +256,15 @@ export class WorkerI extends Role<WorkerTask> {
 
     switch (task.action) {
       case (WorkerAction.Mine):
-      case (WorkerAction.CollectEnergy):
+      case (WorkerAction.CollectEnergy): {
         if (creep.store.getFreeCapacity(RESOURCE_ENERGY) === 0) return true;
-
         if (targetObject instanceof StructureContainer)
-          return targetObject.store.getUsedCapacity(RESOURCE_ENERGY) === 0;
+          return targetObject.store.energy === 0;
         else
           return creep.store.getFreeCapacity(RESOURCE_ENERGY) === 0;
+      }
       case (WorkerAction.Pickup): {
-        if (creep.store.energy === 0) return true;
+        if (creep.store.getFreeCapacity(RESOURCE_ENERGY) === 0) return true;
         const t = targetObject as Resource<RESOURCE_ENERGY>;
         return t.amount === 0;
       }
@@ -281,12 +281,12 @@ export class WorkerI extends Role<WorkerTask> {
         return t.progress === t.progressTotal;
       }
       case (WorkerAction.Repair): {
-        if (creep.store.getUsedCapacity(RESOURCE_ENERGY) === 0) return true;
+        if (creep.store.energy === 0) return true;
         const t = targetObject as AnyOwnedStructure;
         return t.hits === t.hitsMax;
       }
       case (WorkerAction.Transfer): {
-        if (creep.store.getUsedCapacity(RESOURCE_ENERGY) === 0) return true;
+        if (creep.store.energy === 0) return true;
         const t = targetObject as AnyStoreStructure;
         return t.store.getFreeCapacity(RESOURCE_ENERGY) === 0;
       }
