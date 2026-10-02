@@ -34,7 +34,7 @@ class WorkerTask extends Object {
 }
 
 export class WorkerI extends Role<WorkerTask> {
-  RoleName = "harvester";
+  RoleName = "WorkerI";
   InitialJobMemory = new WorkerTask(WorkerAction.Idle);
 
   StartSpawnAtRCL = 0;
@@ -316,7 +316,7 @@ export class WorkerI extends Role<WorkerTask> {
 }
 
 export class WorkerII extends WorkerI {
-  RoleName = "harvesterT2";
+  RoleName = "WorkerII";
 
   StartSpawnAtRCL = 2;
   StopSpawnAtRCL = 100;
