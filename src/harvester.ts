@@ -72,40 +72,38 @@ export class WorkerI extends Role<WorkerTask> {
 
   FindSpendingTask(creep: Creep): WorkerTask {
     // Select target in order of priority
-    var targetObject = undefined;
 
     // Dropped Energy with reasonable amount remaining
-    targetObject = creep.pos.findClosestByPath(FIND_DROPPED_RESOURCES, { filter: r => r.resourceType === RESOURCE_ENERGY && r.amount > 30 });
-    if (targetObject instanceof Resource) return new WorkerTask(WorkerAction.CollectEnergy, targetObject.id as Id<Resource<RESOURCE_ENERGY>>);
+    const dropped = creep.pos.findClosestByPath(FIND_DROPPED_RESOURCES, { filter: r => r.resourceType === RESOURCE_ENERGY && r.amount > 30 });
+    if (dropped instanceof Resource) return new WorkerTask(WorkerAction.CollectEnergy, dropped.id as Id<Resource<RESOURCE_ENERGY>>);
 
     // Spawns/Extensions with room for energy
-    targetObject = creep.pos.findClosestByPath(FIND_MY_STRUCTURES, {
+    const spawnOrExtension = creep.pos.findClosestByPath(FIND_MY_STRUCTURES, {
       filter: (structure) =>
         (structure.structureType === STRUCTURE_EXTENSION || structure.structureType === STRUCTURE_SPAWN)
         && structure.store.getFreeCapacity(RESOURCE_ENERGY) > 0
     });
-    if (targetObject != undefined) return new WorkerTask(WorkerAction.Transfer, targetObject.id);
+    if (spawnOrExtension != undefined) return new WorkerTask(WorkerAction.Transfer, spawnOrExtension.id);
 
     // Controller at risk of downgrade
     if (
       this.room.controller?.my
       && this.room.controller.ticksToDowngrade < this.ControllerMaintenanceThreshold
       && this.CreepsInRole().filter(c => (c.memory.jobMemory as WorkerTask).action === WorkerAction.MaintainController).length < this.MaxMaintenanceWorkers
-    ) {
+    )
       return new WorkerTask(WorkerAction.MaintainController, this.room.controller.id);
-    }
 
     // Towers with room for energy
-    targetObject = creep.pos.findClosestByPath(FIND_MY_STRUCTURES, { filter: (structure) => structure.structureType === STRUCTURE_TOWER && structure.store.getFreeCapacity(RESOURCE_ENERGY) > 0 });
-    if (targetObject != undefined) return new WorkerTask(WorkerAction.Transfer, targetObject.id);
+    const tower = creep.pos.findClosestByPath(FIND_MY_STRUCTURES, { filter: (s) => s.structureType === STRUCTURE_TOWER && s.store.getFreeCapacity(RESOURCE_ENERGY) > 0 });
+    if (tower) return new WorkerTask(WorkerAction.Transfer, tower.id);
 
     // Ongoing Construction
-    targetObject = creep.pos.findClosestByPath(FIND_MY_CONSTRUCTION_SITES, { filter: (site) => site.progress < site.progressTotal });
-    if (targetObject != undefined) return new WorkerTask(WorkerAction.Build, targetObject.id);
+    const construction = creep.pos.findClosestByPath(FIND_MY_CONSTRUCTION_SITES, { filter: (s) => s.progress < s.progressTotal });
+    if (construction) return new WorkerTask(WorkerAction.Build, construction.id);
 
     // Structures in need of repair
-    targetObject = creep.pos.findClosestByPath(FIND_MY_STRUCTURES, { filter: (structure) => structure.hits < structure.hitsMax });
-    if (targetObject != undefined) return new WorkerTask(WorkerAction.Repair, targetObject.id);
+    const delapitated = creep.pos.findClosestByPath(FIND_MY_STRUCTURES, { filter: (s) => s.hits < s.hitsMax });
+    if (delapitated) return new WorkerTask(WorkerAction.Repair, delapitated.id);
 
     // Nothing else to do so just upgrade forever
     if (this.room.controller?.my) return new WorkerTask(WorkerAction.UpgradeController, this.room.controller.id);
@@ -115,6 +113,7 @@ export class WorkerI extends Role<WorkerTask> {
   }
 
   FindGatheringTask(creep: Creep): WorkerTask {
+    // Collect from fullest container
     const containers: StructureContainer[] = this.room.find(FIND_STRUCTURES, { filter: (s) => s.structureType === STRUCTURE_CONTAINER && s.store.energy > 0 });
     const container = containers.sort((a, b) => a.store.energy - b.store.energy).pop(); // Select fullest
     if (container != null && container != undefined)
@@ -215,7 +214,7 @@ export class WorkerI extends Role<WorkerTask> {
       }
       default: {
         console.log(`${this.room}${creep}: Act: Unknown Action ${JSON.stringify(task)}.`);
-        return;
+        break;
       }
     }
 

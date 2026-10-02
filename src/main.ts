@@ -23,8 +23,7 @@ declare global {
     room: string;
     jobMemory: object;
     stuckTicks: number;
-    lastPath?: string,
-    _move?: { path: string };
+    lastPos: { x: number, y: number };
   }
 
   interface RoomMemory {

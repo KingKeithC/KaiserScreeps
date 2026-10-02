@@ -127,6 +127,7 @@ export abstract class Role<MemoryShape extends Object> {
           room: this.room.name,
           role: this.RoleName,
           stuckTicks: 0,
+          lastPos: { x: spawnPoint.pos.x, y: spawnPoint.pos.y },
           jobMemory: this.InitialJobMemory,
         },
       }
@@ -153,6 +154,9 @@ export abstract class Role<MemoryShape extends Object> {
 
   // Returns; 0 if moved and was ok, 1 if no need to move, and <0 for errors
   MoveCreep(creep: Creep, target: RoomPosition, withinRange: number): number {
+    if (!creep.memory.lastPos)
+      creep.memory.lastPos = { x: creep.pos.x, y: creep.pos.y };
+
     const range = creep.pos.getRangeTo(target);
     var moveResult: number = OK;
     if (range <= withinRange)
@@ -168,17 +172,18 @@ export abstract class Role<MemoryShape extends Object> {
       // Move Short otherwise
       moveResult = this.MoveShort(creep, target, withinRange);
 
-    if (moveResult === OK && creep.memory.lastPath === creep.memory._move?.path) {
-      if (!creep.fatigue) // We are only stuck if not fatigued
-        creep.memory.stuckTicks = (creep.memory.stuckTicks ?? 0) + 1;
+    // We had to move, so check if we're stuck
 
-      // if (creep.memory.stuckTicks > 1)
-      //   console.log(`${this.room}[${creep}]: I'm stuck for ${creep.memory.stuckTicks}...`);
+    if (creep.pos.x === creep.memory.lastPos.x && creep.pos.y === creep.memory.lastPos.y) {
+      // Our position didn't change, so if we're not fatigued then we're stuck
+      if (!creep.fatigue && moveResult !== ERR_TIRED)
+        creep.memory.stuckTicks++;
     } else {
-      creep.memory.stuckTicks = 0;
+      creep.memory.stuckTicks = 0; // We're not stuck anymore
     }
 
-    creep.memory.lastPath = creep.memory._move?.path;
+    // Refresh position
+    creep.memory.lastPos = { x: creep.pos.x, y: creep.pos.y };
     return moveResult;
   }
 }
