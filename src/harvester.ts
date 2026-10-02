@@ -51,7 +51,7 @@ export class WorkerI extends Role<WorkerTask> {
   ControllerMaintenanceBuffer = 5000;    // Stop upgrading when ticksToDowngrade is greater than `ControllerMaintenanceThreshold+ControllerMaintenanceBuffer`.
 
   MaxMaintenanceWorkers = 2;
-  MaxSuppliersPerTower = 2;
+  MaxConstructionWorkers = 3;
 
   MediumSearchRange = 20;
   ShortSearchRange = 5;
@@ -97,21 +97,18 @@ export class WorkerI extends Role<WorkerTask> {
           .equals(c.memory.jobMemory as WorkerTask)).length < this.MaxMaintenanceWorkers
     ) return new WorkerTask(WorkerAction.MaintainController, this.room.controller.id);
 
+    // Ongoing Construction
+    const construction = creep.pos.findClosestByPath(FIND_MY_CONSTRUCTION_SITES, { ignoreCreeps: true });
+    if (construction instanceof ConstructionSite && this.CreepsInRole().filter(c =>
+      (c.memory.jobMemory as WorkerTask).action === WorkerAction.Build).length < this.MaxConstructionWorkers
+    ) return new WorkerTask(WorkerAction.Build, construction.id);
+
     // Towers with room for energy
     const tower = creep.pos.findClosestByPath(FIND_MY_STRUCTURES, {
       filter: (s) => s.structureType === STRUCTURE_TOWER && s.store.getFreeCapacity(RESOURCE_ENERGY) > 0,
       ignoreCreeps: true
     });
-    if (
-      tower instanceof StructureTower
-      && this.CreepsInRole().filter(c =>
-        new WorkerTask(WorkerAction.Transfer, tower?.id)
-          .equals(c.memory.jobMemory as WorkerTask)).length < this.MaxSuppliersPerTower
-    ) return new WorkerTask(WorkerAction.Transfer, tower.id);
-
-    // Ongoing Construction
-    const construction = creep.pos.findClosestByPath(FIND_MY_CONSTRUCTION_SITES, { ignoreCreeps: true });
-    if (construction instanceof ConstructionSite) return new WorkerTask(WorkerAction.Build, construction.id);
+    if (tower instanceof StructureTower) return new WorkerTask(WorkerAction.Transfer, tower.id);
 
     // Structures in need of repair
     const delapitated = creep.pos.findClosestByPath(FIND_MY_STRUCTURES, { filter: (s) => s.hits < s.hitsMax, ignoreCreeps: true });
