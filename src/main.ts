@@ -1,5 +1,5 @@
 import { ErrorMapper } from "utils/ErrorMapper";
-import { Harvester, HarvesterT2 } from "harvester";
+import { WorkerI, WorkerII } from "harvester";
 import { Miner } from "miner";
 import { RoomManager } from "roomManager";
 
@@ -28,7 +28,7 @@ declare global {
   }
 
   interface RoomMemory {
-    countPreventingDowngrade: number
+    workersMaintainingController: number
     countPerformingUpgrade: number
     lastSpawnTick: { [roleName: string]: number }
   }

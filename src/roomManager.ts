@@ -1,7 +1,7 @@
-import { Harvester, HarvesterT2 } from "harvester";
+import { WorkerI, WorkerII } from "harvester";
 import { Miner } from "miner";
 
-const Roles = [Miner, HarvesterT2, Harvester];
+const Roles = [Miner, WorkerII, WorkerI];
 
 enum RoomStatus {
   Owned,
@@ -16,13 +16,7 @@ export class RoomManager {
   protected readonly room: Room;
   constructor(room: Room) {
     // Init Room Memory
-    if (room.memory.countPreventingDowngrade == null || room.memory.countPreventingDowngrade == undefined)
-      room.memory.countPreventingDowngrade = 0;
-    if (room.memory.countPerformingUpgrade == null || room.memory.countPerformingUpgrade == undefined)
-      room.memory.countPerformingUpgrade = 0;
-    if (room.memory.lastSpawnTick == null || room.memory.lastSpawnTick == undefined)
-      room.memory.lastSpawnTick = {};
-
+    if (room.memory.lastSpawnTick == null || room.memory.lastSpawnTick == undefined) room.memory.lastSpawnTick = {};
     this.room = room;
   }
 
