@@ -1,4 +1,4 @@
-import { Role } from "role";
+import { RoomRole } from "role";
 
 class SettlerMemory extends Object {
   readonly targetRoom: string;
@@ -13,7 +13,7 @@ class SettlerMemory extends Object {
   }
 }
 
-export class Settler extends Role<SettlerMemory> {
+export class Settler extends RoomRole<SettlerMemory> {
   RoleName = "Settler";
 
   get InitialJobMemory() {

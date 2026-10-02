@@ -1,4 +1,4 @@
-import { Role } from "role";
+import { RoomRole } from "role";
 
 
 enum WorkerAction {
@@ -33,7 +33,7 @@ class WorkerTask extends Object {
   }
 }
 
-export class WorkerI extends Role<WorkerTask> {
+export class WorkerI extends RoomRole<WorkerTask> {
   RoleName = "WorkerI";
   InitialJobMemory = new WorkerTask(WorkerAction.Idle);
 

@@ -1,10 +1,10 @@
-import { Role } from "role";
+import { RoomRole } from "role";
 
 class MinerMemory extends Object {
   sourceId?: Id<Source>
 }
 
-export class Miner extends Role<MinerMemory> {
+export class Miner extends RoomRole<MinerMemory> {
   RoleName = "Miner";
   InitialJobMemory: MinerMemory = new MinerMemory();
 

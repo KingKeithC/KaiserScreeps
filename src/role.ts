@@ -1,6 +1,6 @@
 import { COLOURS } from "utils/Colours";
 
-export abstract class Role<MemoryShape extends Object> {
+export abstract class RoomRole<MemoryShape extends Object> {
   abstract RoleName: string;
   abstract InitialJobMemory: MemoryShape;
 
