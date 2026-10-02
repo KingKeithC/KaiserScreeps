@@ -39,7 +39,11 @@ export abstract class Role<MemoryShape extends Object> {
   }
 
   protected CreepsInRole() {
-    return Object.values(Game.creeps).filter(c => c.memory.room == this.room.name && c.memory.role == this.RoleName);
+    return Object.values(Game.creeps).filter(c =>
+      !c.spawning
+      && c.memory.room == this.room.name
+      && c.memory.role == this.RoleName
+    );
   }
 
   TickRole(): void {
