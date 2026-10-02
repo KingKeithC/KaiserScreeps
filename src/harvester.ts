@@ -48,13 +48,13 @@ export class WorkerI extends Role<WorkerTask> {
 
   MaxMaintenanceWorkers = 2;
 
-
   MediumSearchRange = 20;
   ShortSearchRange = 5;
 
+  // Main creep control loop
   TickCreep(creep: Creep, currentTask: WorkerTask): void {
     if (this.IsTaskComplete(creep, currentTask)) {
-      const newTask = this.Reassign(creep, currentTask);
+      const newTask = this.Reassign(creep);
       console.log(`${this.room}${creep} Reassigned: ${JSON.stringify(currentTask)} -> ${JSON.stringify(newTask)}`);
       creep.say(newTask.action);
       creep.memory.jobMemory = newTask;
@@ -63,8 +63,7 @@ export class WorkerI extends Role<WorkerTask> {
     }
   }
 
-  Reassign(creep: Creep, oldMem: WorkerTask): WorkerTask {
-    // Run Cleanup Tasks
+  Reassign(creep: Creep): WorkerTask {
     if (creep.store.energy === 0)
       return this.FindGatheringTask(creep);
     else
