@@ -258,10 +258,8 @@ export class WorkerI extends Role<WorkerTask> {
       case (WorkerAction.Mine):
       case (WorkerAction.CollectEnergy): {
         if (creep.store.getFreeCapacity(RESOURCE_ENERGY) === 0) return true;
-        if (targetObject instanceof StructureContainer)
-          return targetObject.store.energy === 0;
-        else
-          return creep.store.getFreeCapacity(RESOURCE_ENERGY) === 0;
+        if (targetObject instanceof StructureContainer && targetObject.store.energy === 0) return true;
+        return false;
       }
       case (WorkerAction.Pickup): {
         if (creep.store.getFreeCapacity(RESOURCE_ENERGY) === 0) return true;
