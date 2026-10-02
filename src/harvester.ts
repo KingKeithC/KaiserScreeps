@@ -58,9 +58,8 @@ export class WorkerI extends Role<WorkerTask> {
       console.log(`${this.room}${creep} Reassigned: ${JSON.stringify(currentTask)} -> ${JSON.stringify(newTask)}`);
       creep.say(newTask.action);
       creep.memory.jobMemory = newTask;
-    } else {
-      this.Act(creep, currentTask);
     }
+    this.Act(creep, currentTask);
   }
 
   Reassign(creep: Creep): WorkerTask {
@@ -94,7 +93,7 @@ export class WorkerI extends Role<WorkerTask> {
     if (tower instanceof StructureTower) return new WorkerTask(WorkerAction.Transfer, tower.id);
 
     // Ongoing Construction
-    const construction = creep.pos.findClosestByPath(FIND_MY_CONSTRUCTION_SITES, { filter: (s) => s.progress < s.progressTotal });
+    const construction = creep.pos.findClosestByPath(FIND_MY_CONSTRUCTION_SITES);
     if (construction instanceof ConstructionSite) return new WorkerTask(WorkerAction.Build, construction.id);
 
     // Structures in need of repair
