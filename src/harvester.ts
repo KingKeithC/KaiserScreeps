@@ -73,10 +73,6 @@ export class WorkerI extends Role<WorkerTask> {
   FindSpendingTask(creep: Creep): WorkerTask {
     // Select target in order of priority
 
-    // Dropped Energy with reasonable amount remaining
-    const dropped = creep.pos.findClosestByPath(FIND_DROPPED_RESOURCES, { filter: r => r.resourceType === RESOURCE_ENERGY && r.amount > 30 });
-    if (dropped instanceof Resource) return new WorkerTask(WorkerAction.CollectEnergy, dropped.id as Id<Resource<RESOURCE_ENERGY>>);
-
     // Spawns/Extensions with room for energy
     const spawnOrExtension = creep.pos.findClosestByPath(FIND_MY_STRUCTURES, {
       filter: (structure) =>
@@ -113,6 +109,10 @@ export class WorkerI extends Role<WorkerTask> {
   }
 
   FindGatheringTask(creep: Creep): WorkerTask {
+    // Dropped Energy with reasonable amount remaining
+    const dropped = creep.pos.findClosestByPath(FIND_DROPPED_RESOURCES, { filter: r => r.resourceType === RESOURCE_ENERGY && r.amount > 30 });
+    if (dropped instanceof Resource) return new WorkerTask(WorkerAction.Pickup, dropped.id as Id<Resource<RESOURCE_ENERGY>>);
+
     // Collect from the nearest container that has energy
     const container = creep.pos.findClosestByPath(FIND_STRUCTURES, { filter: (s) => s.structureType === STRUCTURE_CONTAINER && s.store.energy > 0 });
     if (container instanceof StructureContainer)
@@ -171,12 +171,13 @@ export class WorkerI extends Role<WorkerTask> {
         break;
       }
       case (WorkerAction.CollectEnergy): {
-        const t = targetObject as StructureContainer;
-        if (t != null) {
-          result = creep.withdraw(t, RESOURCE_ENERGY);
+        if (targetObject instanceof StructureContainer || targetObject instanceof Tombstone || targetObject instanceof Ruin) {
+          result = creep.withdraw(targetObject, RESOURCE_ENERGY);
           // console.log(`${this.room}${creep}: Withdrawing energy... (${t.store.energy}/${t.store.getCapacity(RESOURCE_ENERGY)} -> ${creep.store.energy}/${creep.store.getCapacity(RESOURCE_ENERGY)})`);
-        } else {
+        } else if (targetObject instanceof Creep) {
           // console.log(`${this.room}${creep}: Awaiting energy transfer (${creep.store.energy}/${creep.store.getCapacity(RESOURCE_ENERGY)}).`);
+        } else {
+          console.log(`${this.room}${creep}: Unknown target for CollectEnergy: ${targetObject}`);
         }
         break;
       }
