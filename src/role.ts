@@ -170,6 +170,8 @@ export abstract class Role<MemoryShape extends Object> {
   MoveCreep(creep: Creep, target: RoomPosition, withinRange: number): number {
     // Start in long mode
     if (!creep.memory.moveMode) creep.memory.moveMode = "long";
+    creep.memory.stuckTicks ??= 0;
+    creep.memory.successfulAvoidMoves ??= 0;
 
     // Figure out if we moved, and then update position
     const justMoved = !creep.memory.lastPos
@@ -177,16 +179,7 @@ export abstract class Role<MemoryShape extends Object> {
       || creep.pos.y !== creep.memory.lastPos.y;
     creep.memory.lastPos = { x: creep.pos.x, y: creep.pos.y };
 
-    // Update stuck tracking
-    if (justMoved) {
-      creep.memory.stuckTicks = 0; // We must not be stuck
-      creep.memory.successfulAvoidMoves = (creep.memory.successfulAvoidMoves ?? 0) + 1; // Increment avoidance move counter
-    } else if (creep.fatigue === 0) {
-      creep.memory.stuckTicks = (creep.memory.stuckTicks ?? 0) + 1; // Increment stuck counter
-      creep.memory.successfulAvoidMoves = 0; // Reset
-    }
-
-    // Arrived
+    // Arrived / Base case
     if (creep.pos.getRangeTo(target) <= withinRange) {
       // Reset to clean, long move mode
       creep.memory.stuckTicks = 0;
@@ -195,16 +188,39 @@ export abstract class Role<MemoryShape extends Object> {
       return 1;
     }
 
-    // Switch mode if needed
-    if (creep.memory.moveMode == "avoidCreeps" && (creep.memory.successfulAvoidMoves ?? 0) > this.MaxAvoidTicks)
-      creep.memory.moveMode = "long";
-    else if (creep.memory.moveMode == "long" && (creep.memory.stuckTicks ?? 0) > this.MaxStuckTicks)
+    // If tired, just move according to current mode
+    // Do this before updating accounting since any move will result in ERR_TIRED anyway.
+    if (creep.fatigue > 0) {
+      return creep.memory.moveMode === "long"
+        ? this.MoveLong(creep, target, withinRange)
+        : this.MoveAvoidCreeps(creep, target, withinRange);
+    }
+
+    // Update stuck accounting
+    if (creep.memory.moveMode === "long") {
+      creep.memory.stuckTicks = justMoved ? 0 : creep.memory.stuckTicks + 1;
+      creep.memory.successfulAvoidMoves = 0;
+    } else {
+      creep.memory.stuckTicks = justMoved ? 0 : creep.memory.stuckTicks + 1;
+      creep.memory.successfulAvoidMoves = justMoved
+        ? creep.memory.successfulAvoidMoves + 1
+        : 0;
+    }
+
+    // Change move mode if needed
+    if (creep.memory.moveMode === "long" && creep.memory.stuckTicks > this.MaxStuckTicks) {
       creep.memory.moveMode = "avoidCreeps";
+      creep.memory.stuckTicks = 0;
+      creep.memory.successfulAvoidMoves = 0;
+    } else if (creep.memory.moveMode === "avoidCreeps" && creep.memory.successfulAvoidMoves > this.MaxAvoidTicks) {
+      creep.memory.moveMode = "long";
+      creep.memory.stuckTicks = 0;
+      creep.memory.successfulAvoidMoves = 0;
+    }
 
     // Invoke the actual move
-    const moveResult = creep.memory.moveMode === "long"
+    return creep.memory.moveMode === "long"
       ? this.MoveLong(creep, target, withinRange)
       : this.MoveAvoidCreeps(creep, target, withinRange);
-    return moveResult;
   }
 }
