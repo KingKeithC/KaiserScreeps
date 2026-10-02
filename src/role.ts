@@ -158,12 +158,12 @@ export abstract class Role<MemoryShape extends Object> {
       // Log the result
 
       if (result === OK) {
-        console.log(`${this.room}${this}[${newName}]: ${current}/${this.CountPerRoom} +1 Spawning @ ${spawnPoint}...`);
+        console.log(`${this.room}[creep ${newName}]: (${current}+1/${this.CountPerRoom}) Spawning @ ${spawnPoint.name}...`);
         return; // Successful, no need to proceed.
       }
-      console.log(`${this.room}${this}[${newName}]: ${current}/${this.CountPerRoom} Failed to spawn at ${spawnPoint} due to: ${result}...`);
+      console.log(`${this.room}[creep ${newName}]: (${current}/${this.CountPerRoom}) Unable to spawn at ${spawnPoint} due to: ${result}...`);
     }
-    console.log(`${this.room}${this}[${newName}]: ${current}/${this.CountPerRoom} All spawn attempts failed.`);
+    console.log(`${this.room}[creep ${newName}]: All spawn attempts failed... woe is me for I did not experience life :(`);
   }
 
   MoveLong(creep: Creep, dest: RoomPosition, minRange?: number): number {
