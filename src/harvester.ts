@@ -220,8 +220,14 @@ export class WorkerI extends Role<WorkerTask> {
       case ERR_NOT_IN_RANGE: {
         // Determine how close we need to move to the target
         var minDistance = 3;
-        if (task.action === WorkerAction.Mine || task.action === WorkerAction.Transfer || task.action === WorkerAction.CollectEnergy)
+        if (
+          task.action === WorkerAction.Mine
+          || task.action === WorkerAction.Transfer
+          || task.action === WorkerAction.CollectEnergy
+        )
           minDistance = 1;
+        else if (task.action === WorkerAction.Pickup)
+          minDistance = 0;
 
         // Move until in `minDistance` of target
         this.MoveCreep(creep, targetObject.pos, minDistance);
