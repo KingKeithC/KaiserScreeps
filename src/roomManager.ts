@@ -3,7 +3,7 @@ import { Miner } from "miner";
 
 const Roles = [Miner, WorkerII, WorkerI];
 
-enum RoomStatus {
+export enum RoomStatus {
   Owned,
   Claimed,
   Neutral,
