@@ -3,20 +3,28 @@ import { Nouns, Adjectives, Colours } from "data";
 
 export abstract class RoomRole<MemoryShape extends Object> {
   abstract RoleName: string;
+  abstract BodyParts: BodyPartConstant[];
   abstract InitialJobMemory: MemoryShape;
+  abstract CountPerRoom: number;
 
-  protected room: Room;
+  readonly room: Room;
+  constructor(room: Room) { this.room = room; }
 
-  constructor(room: Room) {
-    this.room = room;
+  private _CreepsInRole: CreepExtra[] | null = null;
+  get CreepsInRole(): CreepExtra[] {
+    if (this._CreepsInRole == null)
+      this._CreepsInRole = Object.values(Game.creeps).filter(c => !c.spawning && c.memory.role == this.RoleName).map(c => new CreepExtra(c.id));
+    return this._CreepsInRole;
   }
 
-  // How many creeps to have per room in this role
-  abstract CountPerRoom: number;
-  GlobalCount: number = -1; // -1 for unlimited
+  private _CreepsInRoomAndRole: CreepExtra[] | null = null;
+  get CreepsInRoomAndRole(): CreepExtra[] {
+    if (this._CreepsInRoomAndRole == null)
+      this._CreepsInRoomAndRole = this.CreepsInRole.filter(c => c.memory.room == this.room.name);
+    return this._CreepsInRoomAndRole;
+  }
 
-  // Body for creeps spawned of this role
-  abstract BodyParts: BodyPartConstant[];
+  GlobalCount: number = -1; // -1 for unlimited
 
   // RCL Ranges to constrain role spawns
   StartSpawnAtRCL: number = 1;
@@ -40,17 +48,6 @@ export abstract class RoomRole<MemoryShape extends Object> {
     return total;
   }
 
-  protected CreepsInRole(): CreepExtra[] {
-    return Object.values(Game.creeps).filter(c =>
-      !c.spawning
-      && c.memory.role == this.RoleName
-    ).map(c => c as CreepExtra);
-  }
-
-  protected CreepsInRoomAndRole(): CreepExtra[] {
-    return Object.values(this.CreepsInRole()).filter(c => c.memory.room == this.room.name);
-  }
-
   TickRoom(): void {
     this.TickStart();
 
@@ -60,7 +57,7 @@ export abstract class RoomRole<MemoryShape extends Object> {
       this.room.memory.lastSpawnTick[this.RoleName] = Game.time; // Reset
     }
 
-    for (const creep of this.CreepsInRoomAndRole()) {
+    for (const creep of this.CreepsInRoomAndRole) {
       var task = creep.memory.jobMemory as MemoryShape;
       if (task == null || task == undefined) {
         console.log(`${this.room}${creep} TickRole: CreepExtra has invalid memory. Wiping...`);
@@ -116,7 +113,7 @@ export abstract class RoomRole<MemoryShape extends Object> {
 
     // or global quota met if there is one
     if (this.GlobalCount >= 0) {
-      const globalCount = this.CreepsInRole().length;
+      const globalCount = this.CreepsInRole.length;
       if (globalCount >= this.GlobalCount) {
         console.log(`[${this.RoleName}]: Global Quota Met ${globalCount}/${this.GlobalCount}`);
         return;
@@ -124,7 +121,7 @@ export abstract class RoomRole<MemoryShape extends Object> {
     }
 
     // or room quota met
-    const roomCount = this.CreepsInRoomAndRole().length;
+    const roomCount = this.CreepsInRoomAndRole.length;
     if (roomCount >= this.CountPerRoom) {
       console.log(`${this.room}[${this.RoleName}]: Room Quota Met ${roomCount}/${this.CountPerRoom}`);
       return;
@@ -145,7 +142,7 @@ export abstract class RoomRole<MemoryShape extends Object> {
     // Find a suitable spawn point
     const possibleSpawns = this.FindSpawns();
     if (possibleSpawns.length === 0) {
-      console.log(`${this.room}[${this.RoleName}]: Need to spawn (${this.CreepsInRoomAndRole().length}/${this.CountPerRoom}), but no points could be found.`);
+      console.log(`${this.room}[${this.RoleName}]: Need to spawn (${this.CreepsInRoomAndRole.length}/${this.CountPerRoom}), but no points could be found.`);
       return;
     }
 
