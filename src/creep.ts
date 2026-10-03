@@ -6,12 +6,7 @@ const MaxAvoidTicks = 4;
 
 export class CreepExtra extends Creep {
 
-  static FindHostilesInRoom(name: string): CreepExtra[] {
-    const room = Game.rooms[name];
-    if (!room) {
-      console.log(`FindHostilesInRoom: No Access to ${name}`);
-      return [];
-    }
+  static FindHostilesInRoom(room: Room): CreepExtra[] {
     return room.find(FIND_HOSTILE_CREEPS).map(c => new CreepExtra(c.id));
   }
 

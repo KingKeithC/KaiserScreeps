@@ -21,13 +21,17 @@ export enum RoomControlStatus {
 export class RoomManager {
 
   TowerAttackRangeTiles: number = 15;
-  TowerCriticalSupplyRatio: number = this.HostileCreepsInRoom.length > 0 ? 0.75 : 0.30;
+  TowerCriticalSupplyRatio: number;
 
   RoomEventLogMaxLength = 20;
   HostileReportFrequency = 10;
 
   readonly room: Room;
-  constructor(room: Room) { this.room = room; this.InitRoomMemory(); }
+  constructor(room: Room) {
+    this.room = room;
+    this.TowerCriticalSupplyRatio = this.HostileCreepsInRoom.length > 0 ? 0.75 : 0.30;
+    this.InitRoomMemory();
+  }
 
   private _MyCreepsInRoom?: CreepExtra[];
   get MyCreepsInRoom(): CreepExtra[] {
@@ -37,7 +41,7 @@ export class RoomManager {
 
   private _HostileCreepsInRoom?: CreepExtra[];
   get HostileCreepsInRoom(): CreepExtra[] {
-    if (!this._HostileCreepsInRoom) this._HostileCreepsInRoom = CreepExtra.FindHostilesInRoom(this.room.name);
+    if (!this._HostileCreepsInRoom) this._HostileCreepsInRoom = CreepExtra.FindHostilesInRoom(this.room);
     return this._HostileCreepsInRoom;
   }
 
