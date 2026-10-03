@@ -59,7 +59,7 @@ export class Miner extends RoomRole<MinerMemory> {
       selectedTarget = nearestClient;
 
     // Move until in range to act
-    if (this.MoveAvoidCreeps(creep, selectedTarget.pos, 1) != 1) return;
+    if (this.MoveCreep(creep, selectedTarget.pos, 1) != 1) return;
 
     // Act
     if (selectedTarget instanceof Source)
