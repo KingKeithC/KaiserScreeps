@@ -10,7 +10,7 @@ export class Miner extends RoomRole<MinerMemory> {
 
   get CountPerRoom() {
     // 1 miner per source
-    return this.room.find(FIND_SOURCES).length * 2;
+    return this.room.find(FIND_SOURCES).length * 3;
   }
 
   BodyParts = [MOVE, CARRY, WORK, WORK, WORK, WORK];
