@@ -50,6 +50,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
   ControllerMaintenanceThreshold = 5000; // Start upgrading when ticksToDowngrade is less than this.
   ControllerMaintenanceBuffer = 5000;    // Stop upgrading when ticksToDowngrade is greater than `ControllerMaintenanceThreshold+ControllerMaintenanceBuffer`.
 
+  MaxTransferrersPerSpawnOrExtension = 1;
   MaxMaintenanceWorkers = 2;
   MaxConstructionWorkers = 3;
 
@@ -84,8 +85,11 @@ export class WorkerI extends RoomRole<WorkerTask> {
         && structure.store.getFreeCapacity(RESOURCE_ENERGY) > 0
     });
     if (
-      spawnOrExtension instanceof StructureSpawn
-      || spawnOrExtension instanceof StructureExtension
+      (spawnOrExtension instanceof StructureSpawn
+        || spawnOrExtension instanceof StructureExtension)
+      && this.CreepsInRoomAndRole().filter(c =>
+        new WorkerTask(WorkerAction.Transfer, spawnOrExtension.id)
+          .equals(c.memory.jobMemory as WorkerTask)).length < this.MaxTransferrersPerSpawnOrExtension
     ) return new WorkerTask(WorkerAction.Transfer, spawnOrExtension.id);
 
     // Controller at risk of downgrade
