@@ -21,7 +21,7 @@ export enum RoomControlStatus {
 export class RoomManager {
 
   TowerAttackRangeTiles: number = 15;
-  TowerCriticalSupplyRatio: number = 0.30;
+  TowerCriticalSupplyRatio: number = this.HostileCreepsInRoom.length > 0 ? 0.75 : 0.30;
 
   RoomEventLogMaxLength = 20;
   HostileReportFrequency = 10;
