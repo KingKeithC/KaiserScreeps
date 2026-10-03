@@ -73,16 +73,7 @@ export class RoomManager {
     }
 
     // Owned/Claimed/Neutral room
-    if (this.HostileCreepsInRoom.length > 0 && Game.time % this.HostileReportFrequency === 0) {
-      const hostileDetails = this.HostileCreepsInRoom.map(c => {
-        owner: c.owner
-        name: c.name
-        bodyCost: CreepExtra.BodyCost(c.body.map(p => p.type))
-      });
-
-      console.log(`${this.room} !!! ${this.HostileCreepsInRoom.length} hostiles spotted: ${JSON.stringify(hostileDetails)}`);
-    }
-
+    this.CallOutHostiles();
     this.ProcessEventLog();
 
     // Build any designated roads
@@ -91,6 +82,18 @@ export class RoomManager {
     // Run each tower in the room
     for (const tower of this.room.find(FIND_MY_STRUCTURES, { filter: s => s.structureType === STRUCTURE_TOWER }))
       this.TickTower(tower as StructureTower);
+  }
+
+  CallOutHostiles() {
+    if (Game.time % this.HostileReportFrequency === 0 && this.HostileCreepsInRoom.length > 0) {
+      const hostileDetails = this.HostileCreepsInRoom.map(c => {
+        owner: c.owner
+        name: c.name
+        bodyCost: CreepExtra.BodyCost(c.body.map(p => p.type))
+      });
+
+      console.log(`${this.room} !!! ${this.HostileCreepsInRoom.length} hostiles spotted: ${JSON.stringify(hostileDetails)}`);
+    }
   }
 
   ProcessEventLog() {
