@@ -1,5 +1,6 @@
 import { ErrorMapper } from "utils/ErrorMapper";
 import { RoomManager } from "roomManager";
+import { CreepExtra } from "creep";
 
 declare global {
   interface CreepMemory {
@@ -16,6 +17,7 @@ declare global {
     lastSpawnTick: { [roleName: string]: number }
     attackHostiles: boolean,
     towerAttackRange: number,
+    recentAttacksOnMyCreeps: [time: number, victim: Id<CreepExtra>][],
   }
 }
 

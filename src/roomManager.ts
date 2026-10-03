@@ -1,6 +1,7 @@
 import { WorkerI, WorkerII } from "worker";
 import { Miner } from "miner";
 import { Settler } from "settler";
+import { CreepExtra } from "creep";
 
 // Spawn priority order, lowest to highest
 const Roles = [
@@ -20,9 +21,13 @@ export enum RoomStatus {
 export class RoomManager {
   DefaultTowerAttackRange = 15;
 
-  protected readonly room: Room;
-  constructor(room: Room) {
-    this.room = room;
+  readonly room: Room;
+  constructor(room: Room) { this.room = room; }
+
+  private _CreepsInRoom?: CreepExtra[];
+  get CreepsInRoom(): CreepExtra[] {
+    if (!this._CreepsInRoom) this._CreepsInRoom = CreepExtra.FindWithRoom(this.room.name);
+    return this._CreepsInRoom;
   }
 
   static StatusOf(room: Room): RoomStatus {
@@ -57,7 +62,7 @@ export class RoomManager {
 
     // Run each role in the room
     for (const roleType of Roles) {
-      const role = new roleType(this.room); // Construct a role instance for the room
+      const role = new roleType(this); // Construct a role instance for the room
       role.TickRoom(); // Run it
     }
   }
@@ -66,6 +71,20 @@ export class RoomManager {
     if (this.room.memory.lastSpawnTick == null || this.room.memory.lastSpawnTick == undefined) this.room.memory.lastSpawnTick = {};
     if (this.room.memory.attackHostiles == undefined) this.room.memory.attackHostiles = false;
     if (this.room.memory.towerAttackRange == undefined) this.room.memory.towerAttackRange = this.DefaultTowerAttackRange;
+    this.room.memory.recentAttacksOnMyCreeps ??= [];
+
+    const myCreepsIdsInRoom = this.CreepsInRoom.map(c => c.id);
+    const newAttacksOnMyCreeps = this.room.getEventLog()
+      .filter(e => e.event === EVENT_ATTACK && myCreepsIdsInRoom.includes(e.data.targetId as Id<CreepExtra>))
+      .map(a => {
+        time: Game.time - 1;
+        victim: (a as { data: { targetId: string } }).data.targetId;
+      });
+    if (newAttacksOnMyCreeps.length > 0) {
+      console.log(`ATTACKS PERFORMED IN ${this.room.name} AGAINST MY CREEPS:`)
+      for (const att of newAttacksOnMyCreeps)
+        console.log(JSON.stringify(att));
+    }
   }
 
   TickTower(t: StructureTower) {

@@ -8,10 +8,18 @@ export class CreepExtra extends Creep {
 
   static BodyCost(body: BodyPartConstant[]): number { return sum(body.map(p => BODYPART_COST[p])); }
 
-  static FindWithRole(roleName: string): CreepExtra[] {
+  static AllMyCreeps(): CreepExtra[] {
     return Object.values(Game.creeps)
-      .filter(c => c.my && !c.spawning && c.memory.role == roleName)
+      .filter(c => c.my && !c.spawning)
       .map(c => new CreepExtra(c.id));
+  }
+
+  static FindWithRole(roleName: string): CreepExtra[] {
+    return CreepExtra.AllMyCreeps().filter(c => c.memory.role == roleName);
+  }
+
+  static FindWithRoom(roomName: string): CreepExtra[] {
+    return CreepExtra.AllMyCreeps().filter(c => c.memory.room == roomName);
   }
 
   MoveLong(dest: RoomPosition | { pos: RoomPosition; }, opts?: MoveToOpts): number {

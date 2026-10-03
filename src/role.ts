@@ -1,5 +1,6 @@
 import { CreepExtra } from "creep";
 import { Nouns, Adjectives, Colours } from "data";
+import { RoomManager } from "roomManager";
 
 export abstract class RoomRole<MemoryShape extends Object> {
   abstract RoleName: string;
@@ -7,8 +8,9 @@ export abstract class RoomRole<MemoryShape extends Object> {
   abstract InitialJobMemory: MemoryShape;
   abstract CountPerRoom: number;
 
-  readonly room: Room;
-  constructor(room: Room) { this.room = room; }
+  readonly manager: RoomManager;
+  get room() { return this.manager.room; }
+  constructor(manager: RoomManager) { this.manager = manager; }
 
   // Cached fields generated on first access.
   private _CreepsInRole?: CreepExtra[];
