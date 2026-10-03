@@ -39,6 +39,8 @@ export abstract class RoomRole<MemoryShape extends Object> {
     return total;
   }
 
+  protected HomeRoom(creep: Creep): Room { return Game.rooms[creep.memory.room]; }
+
   protected CreepsInRole() {
     return Object.values(Game.creeps).filter(c =>
       !c.spawning
@@ -176,7 +178,7 @@ export abstract class RoomRole<MemoryShape extends Object> {
     console.log(`${this.room}[creep ${newName}]: All spawn attempts failed... woe is me for I did not experience life :(`);
   }
 
-  MoveLong(creep: Creep, dest: RoomPosition, minRange?: number): number {
+  MoveLong(creep: Creep, dest: RoomPosition | { pos: RoomPosition; }, minRange?: number): number {
     return creep.moveTo(dest, {
       visualizePathStyle: { stroke: Colours.PATH_LONG, lineStyle: "solid" },
       range: minRange,
@@ -185,7 +187,7 @@ export abstract class RoomRole<MemoryShape extends Object> {
     });
   }
 
-  MoveAvoidCreeps(creep: Creep, dest: RoomPosition, minRange?: number): number {
+  MoveAvoidCreeps(creep: Creep, dest: RoomPosition | { pos: RoomPosition; }, minRange?: number): number {
     return creep.moveTo(dest, {
       visualizePathStyle: { stroke: Colours.PATH_STUCK, lineStyle: "dotted" },
       range: minRange,
@@ -197,7 +199,7 @@ export abstract class RoomRole<MemoryShape extends Object> {
   }
 
   // Returns 1 when in range; otherwise returns the moveTo result.
-  MoveCreep(creep: Creep, target: RoomPosition, withinRange: number): number {
+  MoveCreep(creep: Creep, target: RoomPosition | { pos: RoomPosition; }, withinRange: number): number {
     // Init movement trackers
     creep.memory.moveMode ??= "long";
     creep.memory.stuckTicks ??= 0;
