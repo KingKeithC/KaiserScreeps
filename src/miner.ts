@@ -22,49 +22,50 @@ export class Miner extends RoomRole<MinerMemory> {
       mem.sourceId = this.LocateSource(creep);
 
     // Did we find nothing?
-    if (mem.sourceId == null)
+    if (mem.sourceId == null) {
+      console.log(`${this.room}${creep}: Unable to locate a source.`)
       return; // No source located
+    }
 
     // Lookup object for the source
     const mineObj = Game.getObjectById(mem.sourceId);
 
-    // If source was stale, reset it and do nothing.
+    // If source was stale, unset it it and do nothing.
     if (mineObj == null || mineObj == undefined) {
       mem.sourceId = undefined;
       return; // Source was invalid
     }
 
-    // If there are nearby Harvesters low on energy
-    const nextdoor = creep.pos.findInRange(FIND_MY_CREEPS, 1, { filter: (c) => ((c.memory.role.startsWith("Worker")) && c.store.getFreeCapacity(RESOURCE_ENERGY) > 0) });
-    const harvester = nextdoor.sort((a, b) => a.store.energy - b.store.energy).pop();
-    if (harvester != null && harvester != undefined)
-      creep.transfer(harvester, RESOURCE_ENERGY); // Transer ours to them
+    // Transfer energy to any workers we can
+    const closeWorker = creep.pos
+      .findInRange(FIND_MY_CREEPS, 1, {
+        filter: (c) =>
+        ((c.memory.role.startsWith("Worker"))
+          && c.store.getFreeCapacity(RESOURCE_ENERGY) > 0)
+      })
+      .sort((a, b) => a.store.energy - b.store.energy)
+      .pop();
+    if (closeWorker)
+      creep.transfer(closeWorker, RESOURCE_ENERGY); // Transer ours to them
 
-    const isFull = creep.store.getFreeCapacity(RESOURCE_ENERGY) === 0;
-    const nearbyCreeps = creep.pos.findInRange(FIND_MY_CREEPS, this.DropoffRange, { filter: (c) => ((c.memory.role.startsWith("Worker")) && c.store.getFreeCapacity(RESOURCE_ENERGY) > 0) });
-    const nearbyContainers = creep.pos.findInRange(FIND_STRUCTURES, this.DropoffRange, { filter: s => s.structureType === STRUCTURE_CONTAINER && s.store.getFreeCapacity(RESOURCE_ENERGY) > 0 });
+    const nearbyCreeps: Creep[] = creep.pos.findInRange(FIND_MY_CREEPS, this.DropoffRange, { filter: (c) => ((c.memory.role.startsWith("Worker")) && c.store.getFreeCapacity(RESOURCE_ENERGY) > 0) });
+    const nearbyContainers: StructureContainer[] = creep.pos.findInRange(FIND_STRUCTURES, this.DropoffRange, { filter: s => s.structureType === STRUCTURE_CONTAINER && s.store.getFreeCapacity(RESOURCE_ENERGY) > 0 });
     const nearestClient = creep.pos.findClosestByPath([...nearbyContainers, ...nearbyCreeps]);
-    if (!isFull) {
-      // Move right next to the source
-      const moveResult = this.MoveCreep(creep, mineObj.pos, 1);
-      if (moveResult != 1) return; // Not close enough to continue acting
 
-      // Mine it
-      const mineResult = creep.harvest(mineObj);
-      if (mineResult !== OK && mineResult !== ERR_NOT_ENOUGH_ENERGY) console.log(`${this.room}${creep}: Miner failed to mine ${mineResult}`);
-    } else if (nearestClient instanceof Creep) {
-      // Transfer to creep
+    // Select the mine as the target by default, but switch to the
+    // nearestClient if we are full and there is a target.
+    let selectedTarget: Source | Creep | StructureContainer = mineObj;
+    if (creep.store.getFreeCapacity(RESOURCE_ENERGY) === 0 && nearestClient)
+      selectedTarget = nearestClient;
 
-      // Move right next to it
-      if (this.MoveCreep(creep, nearestClient.pos, 1) != 1) return; // Not close enough to transfer
-      creep.transfer(nearestClient, RESOURCE_ENERGY); // Transer ours to them
-    } else if (nearestClient instanceof StructureContainer) {
-      // Transfer to container
+    // Move until in range to act
+    if (this.MoveCreep(creep, selectedTarget.pos, 1) != 1) return;
 
-      // Move right next to it
-      if (this.MoveCreep(creep, nearestClient.pos, 1) != 1) return; // Not close enough to transfer
-      creep.transfer(nearestClient, RESOURCE_ENERGY); // Transer
-    }
+    // Act
+    if (selectedTarget instanceof Source)
+      creep.harvest(mineObj);
+    else
+      creep.transfer(selectedTarget, RESOURCE_ENERGY);
   }
 
   LocateSource(creep: Creep): Id<Source> | undefined {
