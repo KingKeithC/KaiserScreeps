@@ -58,7 +58,7 @@ export class RoomManager {
     // Run each role in the room
     for (const roleType of Roles) {
       const role = new roleType(this.room); // Construct a role instance for the room
-      role.TickRole(); // Run it
+      role.TickRoom(); // Run it
     }
   }
 

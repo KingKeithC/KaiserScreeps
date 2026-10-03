@@ -50,7 +50,7 @@ export abstract class RoomRole<MemoryShape extends Object> {
     return Object.values(this.CreepsInRole()).filter(c => c.memory.room == this.room.name);
   }
 
-  TickRole(): void {
+  TickRoom(): void {
     this.TickStart();
 
     // Check to do spawns every `this.SpawnRate` ticks.
