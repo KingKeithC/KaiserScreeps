@@ -11,7 +11,7 @@ const Roles = [
   Miner,
 ];
 
-export enum RoomStatus {
+export enum RoomControlStatus {
   Owned,
   Claimed,
   Neutral,
@@ -19,10 +19,14 @@ export enum RoomStatus {
 }
 
 export class RoomManager {
-  DefaultTowerAttackRange = 15;
+
+  TowerAttackRangeTiles: number = 15;
+  TowerCriticalSupplyRatio: number = 0.30;
+
+  RoomEventLogMaxLength = 20;
 
   readonly room: Room;
-  constructor(room: Room) { this.room = room; }
+  constructor(room: Room) { this.room = room; this.InitRoomMemory(); }
 
   private _CreepsInRoom?: CreepExtra[];
   get CreepsInRoom(): CreepExtra[] {
@@ -30,28 +34,36 @@ export class RoomManager {
     return this._CreepsInRoom;
   }
 
-  static StatusOf(room: Room): RoomStatus {
+  static StatusOf(room: Room): RoomControlStatus {
     if (room.controller == undefined)
-      return RoomStatus.Neutral;
+      return RoomControlStatus.Neutral;
 
     if (room.controller?.my)
-      return RoomStatus.Owned;
+      return RoomControlStatus.Owned;
 
     if ("Claimed" in room.find(FIND_FLAGS).keys())
-      return RoomStatus.Claimed;
+      return RoomControlStatus.Claimed;
 
     // Assume hostile by default
-    return RoomStatus.Hostile;
+    return RoomControlStatus.Hostile;
   }
 
-
   TickRoom() {
-    if (RoomManager.StatusOf(this.room) === RoomStatus.Hostile) {
-      console.log(`${this.room} !!! Skipping operations in Hostile room`)
+    // All Rooms
+
+    for (const roleType of Roles) {
+      const role = new roleType(this); // Construct a role instance for the room
+      role.TickRoom(); // Run it
+    }
+
+    if (this.room.memory.status === RoomControlStatus.Hostile) {
+      console.log(`${this.room} !!! Skipping further operations in Hostile room`)
       return;
     }
 
-    this.InitRoomMemory();
+    // Owned/Claimed/Neutral room
+
+    this.ProcessEventLog();
 
     // Build any designated roads
     this.BuildRoads();
@@ -59,20 +71,9 @@ export class RoomManager {
     // Run each tower in the room
     for (const tower of this.room.find(FIND_MY_STRUCTURES, { filter: s => s.structureType === STRUCTURE_TOWER }))
       this.TickTower(tower as StructureTower);
-
-    // Run each role in the room
-    for (const roleType of Roles) {
-      const role = new roleType(this); // Construct a role instance for the room
-      role.TickRoom(); // Run it
-    }
   }
 
-  InitRoomMemory() {
-    if (this.room.memory.lastSpawnTick == null || this.room.memory.lastSpawnTick == undefined) this.room.memory.lastSpawnTick = {};
-    if (this.room.memory.attackHostiles == undefined) this.room.memory.attackHostiles = false;
-    if (this.room.memory.towerAttackRange == undefined) this.room.memory.towerAttackRange = this.DefaultTowerAttackRange;
-    this.room.memory.recentAttacksOnMyCreeps ??= [];
-
+  ProcessEventLog() {
     const myCreepsIdsInRoom = this.CreepsInRoom.map(c => c.id);
     const newAttacksOnMyCreeps = this.room.getEventLog()
       .filter(e => e.event === EVENT_ATTACK && myCreepsIdsInRoom.includes(e.data.targetId as Id<CreepExtra>))
@@ -87,29 +88,28 @@ export class RoomManager {
     }
   }
 
-  TickTower(t: StructureTower) {
-    if (!t.isActive)
-      return; // RCL too low to work anyway
+  InitRoomMemory() {
+    this.room.memory.status ??= RoomManager.StatusOf(this.room);
+    this.room.memory.lastSpawnTick ??= {};
+    this.room.memory.attackHostiles ??= false;
+    this.room.memory.towerAttackRange ??= this.TowerAttackRangeTiles;
+    this.room.memory.recentAttacksOnMyCreeps ??= [];
+  }
 
-    if (t.store.getUsedCapacity(RESOURCE_ENERGY) === 0)
-      return; // No energy to work
+  TickTower(t: StructureTower) {
+    if (!t.isActive || t.store.getUsedCapacity(RESOURCE_ENERGY) === 0)
+      return; // RCL or Energy too low to work
+
+    // Critical Tasks - Always performed regardless of ener
 
     if (this.room.memory.attackHostiles ?? false) {
       // Find lowest health hostile in range
-      const hostile = t.pos.findInRange(FIND_HOSTILE_CREEPS, this.room.memory.towerAttackRange ?? this.DefaultTowerAttackRange)
+      const hostile = t.pos.findInRange(FIND_HOSTILE_CREEPS, this.room.memory.towerAttackRange)
         .sort((a, b) => (a.hits / a.hitsMax) - (b.hits / b.hitsMax)).pop()
       if (hostile != null && hostile != undefined) {
         t.attack(hostile);
         return;
       }
-    }
-
-    // Find my structures in most need of repair
-    const myStruct = this.room.find(FIND_MY_STRUCTURES, { filter: s => s.hits < s.hitsMax })
-      .sort((b, a) => (a.hits / a.hitsMax) - (b.hits / b.hitsMax)).pop()
-    if (myStruct != null && myStruct != undefined) {
-      t.repair(myStruct);
-      return;
     }
 
     // My creeps in need of healing, weakest first
@@ -120,20 +120,32 @@ export class RoomManager {
       return;
     }
 
-    // All other roads in most need of repair
-    const road = this.room.find(FIND_STRUCTURES, { filter: s => s.structureType === STRUCTURE_ROAD && s.hits < s.hitsMax })
-      .sort((b, a) => (a.hits / a.hitsMax) - (b.hits / b.hitsMax)).pop()
-    if (road != null && road != undefined) {
-      t.repair(road);
-      return;
-    }
+    const supplyRatio = t.store.getUsedCapacity(RESOURCE_ENERGY) / t.store.getCapacity(RESOURCE_ENERGY);
+    if (supplyRatio >= this.TowerCriticalSupplyRatio) {
 
-    // All other structures, weakest first
-    const allStruct = this.room.find(FIND_STRUCTURES, { filter: s => s.hits < s.hitsMax })
-      .sort((b, a) => (a.hits / a.hitsMax) - (b.hits / b.hitsMax)).pop()
-    if (allStruct != null && allStruct != undefined) {
-      t.repair(allStruct);
-      return;
+      // Find my structures in most need of repair
+      const myStruct = this.room.find(FIND_MY_STRUCTURES, { filter: s => s.hits < s.hitsMax })
+        .sort((b, a) => (a.hits / a.hitsMax) - (b.hits / b.hitsMax)).pop()
+      if (myStruct != null && myStruct != undefined) {
+        t.repair(myStruct);
+        return;
+      }
+
+      // All other roads in most need of repair
+      const road = this.room.find(FIND_STRUCTURES, { filter: s => s.structureType === STRUCTURE_ROAD && s.hits < s.hitsMax })
+        .sort((b, a) => (a.hits / a.hitsMax) - (b.hits / b.hitsMax)).pop()
+      if (road != null && road != undefined) {
+        t.repair(road);
+        return;
+      }
+
+      // All other structures, weakest first
+      const allStruct = this.room.find(FIND_STRUCTURES, { filter: s => s.hits < s.hitsMax })
+        .sort((b, a) => (a.hits / a.hitsMax) - (b.hits / b.hitsMax)).pop()
+      if (allStruct != null && allStruct != undefined) {
+        t.repair(allStruct);
+        return;
+      }
     }
   }
 
