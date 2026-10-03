@@ -129,8 +129,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
 
     // Collect from the nearest container that has energy
     const container = creep.pos.findClosestByPath(FIND_STRUCTURES, { filter: (s) => s.structureType === STRUCTURE_CONTAINER && s.store.energy > 0 });
-    if (container instanceof StructureContainer)
-      return new WorkerTask(WorkerAction.CollectEnergy, container.id);
+    if (container instanceof StructureContainer) return new WorkerTask(WorkerAction.CollectEnergy, container.id);
 
     // Collect from the fullest miner nearby if there are any
     const miner = creep.pos.findInRange(FIND_MY_CREEPS, this.MediumSearchRange, { filter: (c) => c.memory.role === "Miner" && c.store.energy > 0 })
@@ -278,7 +277,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
         if (creep.store.getFreeCapacity(RESOURCE_ENERGY) === 0) return true;
         if (targetObject instanceof StructureContainer) return targetObject.store.energy === 0;
         if (targetObject instanceof Creep) return targetObject.store.energy === 0;
-        if (targetObject instanceof Resource) return targetObject.amount > 0;
+        if (targetObject instanceof Resource && targetObject.resourceType === RESOURCE_ENERGY) return targetObject.amount > 0;
 
         console.log(`${this.room}${creep}: Assuming collection is complete: ${targetObject}`);
         return true;
