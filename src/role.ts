@@ -1,4 +1,4 @@
-import { COLOURS } from "utils/Colours";
+import { Nouns, Adjectives, Colours } from "data";
 
 export abstract class RoomRole<MemoryShape extends Object> {
   abstract RoleName: string;
@@ -86,13 +86,10 @@ export abstract class RoomRole<MemoryShape extends Object> {
     this.TickEnd();
   }
 
-  Adjectives = ["aglow", "ago", "ahead", "aided", "airy", "ajar", "akin", "alert", "alien", "batty", "bay", "beady", "beamy", "beat", "beefy", "beery", "cyan", "daft", "daily", "damn", "damp", "dandy", "dank", "dark", "dated", "dazed", "matte", "mauve", "mealy", "mean", "meaty", "meek", "pop", "port", "posed", "slav", "sleek", "slick", "slim", "waxed", "waxen"];
-  Nouns = ["add", "adder", "adept", "advil", "beret", "berry", "bet", "beta", "bevel", "bevy", "bias", "cage", "cager", "cake", "dirt", "disc", "disco", "futon", "fuze", "fuzz", "gag", "gage", "gain", "game", "hydra", "hyena", "hymn", "hype", "ibis", "ice", "icing", "icon", "lunch", "lung", "lure", "lush", "lying", "mace", "macro", "madam", "mafia", "push", "put", "putt", "putty", "quack", "quad", "quake", "qualm", "quirk", "quirt", "quiz", "quota", "quote", "race", "racer", "rad", "runt", "ruse", "rush", "rust", "rut", "saber", "safe", "sag", "saga"]
-
   GetRandomSuffix() {
-    const adj1 = this.Adjectives[Math.floor(Math.random() * this.Adjectives.length)];
-    const adj2 = this.Adjectives[Math.floor(Math.random() * this.Adjectives.length)];
-    const noun = this.Nouns[Math.floor(Math.random() * this.Nouns.length)];
+    const adj1 = Adjectives[Math.floor(Math.random() * Adjectives.length)];
+    const adj2 = Adjectives[Math.floor(Math.random() * Adjectives.length)];
+    const noun = Nouns[Math.floor(Math.random() * Nouns.length)];
     return [adj1, adj2, noun].join("-");
   }
 
@@ -181,7 +178,7 @@ export abstract class RoomRole<MemoryShape extends Object> {
 
   MoveLong(creep: Creep, dest: RoomPosition, minRange?: number): number {
     return creep.moveTo(dest, {
-      visualizePathStyle: { stroke: COLOURS.PATH_LONG, lineStyle: "solid" },
+      visualizePathStyle: { stroke: Colours.PATH_LONG, lineStyle: "solid" },
       range: minRange,
       reusePath: this.ReusePath,
       ignoreCreeps: true
@@ -190,7 +187,7 @@ export abstract class RoomRole<MemoryShape extends Object> {
 
   MoveAvoidCreeps(creep: Creep, dest: RoomPosition, minRange?: number): number {
     return creep.moveTo(dest, {
-      visualizePathStyle: { stroke: COLOURS.PATH_STUCK, lineStyle: "dotted" },
+      visualizePathStyle: { stroke: Colours.PATH_STUCK, lineStyle: "dotted" },
       range: minRange,
       reusePath: this.MaxAvoidTicks,
       ignoreCreeps: false,
