@@ -77,36 +77,41 @@ export class RoomManager {
 
     if (this.room.memory.attackHostiles ?? false) {
       // Find lowest health hostile in range
-      const hostile = t.pos.findInRange(FIND_HOSTILE_CREEPS, this.room.memory.towerAttackRange ?? this.DefaultTowerAttackRange).sort((a, b) => a.hits - b.hits).pop()
+      const hostile = t.pos.findInRange(FIND_HOSTILE_CREEPS, this.room.memory.towerAttackRange ?? this.DefaultTowerAttackRange)
+        .sort((a, b) => (a.hits / a.hitsMax) - (b.hits / b.hitsMax)).pop()
       if (hostile != null && hostile != undefined) {
         t.attack(hostile);
         return;
       }
     }
 
-    // Find my structures in need of repair
-    const myStruct = t.pos.findClosestByRange(FIND_MY_STRUCTURES, { filter: s => s.hits < s.hitsMax })
+    // Find my structures in most need of repair
+    const myStruct = this.room.find(FIND_MY_STRUCTURES, { filter: s => s.hits < s.hitsMax })
+      .sort((a, b) => (a.hits / a.hitsMax) - (b.hits / b.hitsMax)).pop()
     if (myStruct != null && myStruct != undefined) {
       t.repair(myStruct);
       return;
     }
 
     // My creeps in need of healing, weakest first
-    const weakling = this.room.find(FIND_MY_CREEPS, { filter: c => c.hits < c.hitsMax }).sort((a, b) => a.hits - b.hits).pop()
+    const weakling = this.room.find(FIND_MY_CREEPS, { filter: c => c.hits < c.hitsMax })
+      .sort((a, b) => (a.hits / a.hitsMax) - (b.hits / b.hitsMax)).pop()
     if (weakling != null && weakling != undefined) {
       t.heal(weakling);
       return;
     }
 
-    // All other roads
-    const road = t.pos.findClosestByRange(FIND_STRUCTURES, { filter: s => s.structureType === STRUCTURE_ROAD && s.hits < s.hitsMax })
+    // All other roads in most need of repair
+    const road = this.room.find(FIND_STRUCTURES, { filter: s => s.structureType === STRUCTURE_ROAD && s.hits < s.hitsMax })
+      .sort((a, b) => (a.hits / a.hitsMax) - (b.hits / b.hitsMax)).pop()
     if (road != null && road != undefined) {
       t.repair(road);
       return;
     }
 
-    // All other structures
-    const allStruct = t.pos.findClosestByRange(FIND_STRUCTURES, { filter: s => s.hits < s.hitsMax })
+    // All other structures, weakest first
+    const allStruct = this.room.find(FIND_STRUCTURES, { filter: s => s.hits < s.hitsMax })
+      .sort((a, b) => (a.hits / a.hitsMax) - (b.hits / b.hitsMax)).pop()
     if (allStruct != null && allStruct != undefined) {
       t.repair(allStruct);
       return;
