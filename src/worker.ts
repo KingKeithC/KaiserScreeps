@@ -92,7 +92,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
     if (
       this.room.controller?.my
       && this.room.controller.ticksToDowngrade < this.ControllerMaintenanceThreshold
-      && this.CreepsInRole().filter(c =>
+      && this.CreepsInRoomAndRole().filter(c =>
         new WorkerTask(WorkerAction.MaintainController, this.room.controller?.id)
           .equals(c.memory.jobMemory as WorkerTask)).length < this.MaxMaintenanceWorkers
     ) return new WorkerTask(WorkerAction.MaintainController, this.room.controller.id);
@@ -100,7 +100,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
     // Ongoing Construction
     const construction = this.room.find(FIND_MY_CONSTRUCTION_SITES)
       .sort((a, b) => (a.progressTotal - a.progress) - (b.progressTotal - b.progress))[0];
-    if (construction instanceof ConstructionSite && this.CreepsInRole().filter(c =>
+    if (construction instanceof ConstructionSite && this.CreepsInRoomAndRole().filter(c =>
       (c.memory.jobMemory as WorkerTask).action === WorkerAction.Build).length < this.MaxConstructionWorkers
     ) return new WorkerTask(WorkerAction.Build, construction.id);
 

@@ -12,6 +12,7 @@ export abstract class RoomRole<MemoryShape extends Object> {
 
   // How many creeps to have per room in this role
   abstract CountPerRoom: number;
+  GlobalCount: number = -1; // -1 for unlimited
 
   // Body for creeps spawned of this role
   abstract BodyParts: BodyPartConstant[];
@@ -41,9 +42,12 @@ export abstract class RoomRole<MemoryShape extends Object> {
   protected CreepsInRole() {
     return Object.values(Game.creeps).filter(c =>
       !c.spawning
-      && c.memory.room == this.room.name
       && c.memory.role == this.RoleName
     );
+  }
+
+  protected CreepsInRoomAndRole() {
+    return Object.values(this.CreepsInRole()).filter(c => c.memory.room == this.room.name);
   }
 
   TickRole(): void {
@@ -55,7 +59,7 @@ export abstract class RoomRole<MemoryShape extends Object> {
       this.room.memory.lastSpawnTick[this.RoleName] = Game.time; // Reset
     }
 
-    for (const creep of this.CreepsInRole()) {
+    for (const creep of this.CreepsInRoomAndRole()) {
       var task = creep.memory.jobMemory as MemoryShape;
       if (task == null || task == undefined) {
         console.log(`${this.room}${creep} TickRole: Creep has invalid memory. Wiping...`);
@@ -112,29 +116,38 @@ export abstract class RoomRole<MemoryShape extends Object> {
       return;
     };
 
-    // or quota met
-    const current = this.CreepsInRole().length;
-    if (current >= this.CountPerRoom) {
-      console.log(`${this.room}[${this.RoleName}]: Quota Met ${current}/${this.CountPerRoom}`);
+    // or global quota met if there is one
+    if (this.GlobalCount >= 0) {
+      const globalCount = this.CreepsInRole().length;
+      if (globalCount >= this.GlobalCount) {
+        console.log(`[${this.RoleName}]: Global Quota Met ${globalCount}/${this.GlobalCount}`);
+        return;
+      }
+    }
+
+    // or room quota met
+    const roomCount = this.CreepsInRoomAndRole().length;
+    if (roomCount >= this.CountPerRoom) {
+      console.log(`${this.room}[${this.RoleName}]: Room Quota Met ${roomCount}/${this.CountPerRoom}`);
       return;
     }
 
     // or a spawn is already in progress
     if (this.room.find(FIND_MY_SPAWNS, { filter: (s) => s.spawning }).length) {
-      console.log(`${this.room}[${this.RoleName}]: Need to spawn (${current}/${this.CountPerRoom}), but another spawn is in progress.`);
+      console.log(`${this.room}[${this.RoleName}]: Need to spawn (${roomCount}/${this.CountPerRoom}), but another spawn is in progress.`);
       return;
     }
 
     // or there isn't enough energy
     if (this.room.energyAvailable < this.RoleBodyCost()) {
-      console.log(`${this.room}[${this.RoleName}]: Need to spawn (${current}/${this.CountPerRoom}), but lack the energy (costs ${this.RoleBodyCost()}, have ${this.room.energyAvailable}/${this.room.energyCapacityAvailable})...`);
+      console.log(`${this.room}[${this.RoleName}]: Need to spawn (${roomCount}/${this.CountPerRoom}), but lack the energy (costs ${this.RoleBodyCost()}, have ${this.room.energyAvailable}/${this.room.energyCapacityAvailable})...`);
       return;
     }
 
     // Find a suitable spawn point
     const possibleSpawns = this.FindSpawns();
     if (possibleSpawns.length === 0) {
-      console.log(`${this.room}[${this.RoleName}]: Need to spawn (${this.CreepsInRole().length}/${this.CountPerRoom}), but no points could be found.`);
+      console.log(`${this.room}[${this.RoleName}]: Need to spawn (${this.CreepsInRoomAndRole().length}/${this.CountPerRoom}), but no points could be found.`);
       return;
     }
 
@@ -158,10 +171,10 @@ export abstract class RoomRole<MemoryShape extends Object> {
       // Log the result
 
       if (result === OK) {
-        console.log(`${this.room}[creep ${newName}]: (${current}+1/${this.CountPerRoom}) Spawning @ ${spawnPoint.name}...`);
+        console.log(`${this.room}[creep ${newName}]: (${roomCount}+1/${this.CountPerRoom}) Spawning @ ${spawnPoint.name}...`);
         return; // Successful, no need to proceed.
       }
-      console.log(`${this.room}[creep ${newName}]: (${current}/${this.CountPerRoom}) Unable to spawn at ${spawnPoint} due to: ${result}...`);
+      console.log(`${this.room}[creep ${newName}]: (${roomCount}/${this.CountPerRoom}) Unable to spawn at ${spawnPoint} due to: ${result}...`);
     }
     console.log(`${this.room}[creep ${newName}]: All spawn attempts failed... woe is me for I did not experience life :(`);
   }

@@ -69,7 +69,7 @@ export class Miner extends RoomRole<MinerMemory> {
   }
 
   LocateSource(creep: Creep): Id<Source> | undefined {
-    const minersBySource = this.CreepsInRole().reduce((counts, miner) => {
+    const minersBySource = this.CreepsInRoomAndRole().reduce((counts, miner) => {
       const sourceId = (miner.memory.jobMemory as MinerMemory)?.sourceId;
       if (sourceId != null)
         counts.set(sourceId, (counts.get(sourceId) ?? 0) + 1);

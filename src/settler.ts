@@ -15,10 +15,14 @@ class SettlerMemory extends Object {
 
 export class Settler extends RoomRole<SettlerMemory> {
   RoleName = "Settler";
+  BodyParts = [MOVE, MOVE, MOVE, MOVE, CLAIM, CLAIM];
+
+  CountPerRoom = 1;
+  GlobalCount = 2;
 
   get InitialJobMemory() {
 
-    const settlersByRoom = this.CreepsInRole().reduce((counts, settler) => {
+    const settlersByRoom = this.CreepsInRoomAndRole().reduce((counts, settler) => {
       const roomName = (settler.memory.jobMemory as SettlerMemory)?.targetRoom;
       if (roomName != null)
         counts.set(roomName, (counts.get(roomName) ?? 0) + 1);
@@ -32,22 +36,20 @@ export class Settler extends RoomRole<SettlerMemory> {
     return new SettlerMemory(leastAssignedRoom.name);
   }
 
-  get CountPerRoom() {
-    // If the room has a 'Claim' flag, then one.
-    return this.room.find(FIND_FLAGS, { filter: f => f.name.startsWith("Claim") }).length > 0 ? 1 : 0
-  }
-
   FindSpawns(): StructureSpawn[] {
     // Any spawn in any of our rooms
     return Object.values(Game.rooms).map(r => r.find(FIND_MY_SPAWNS)).reduce((acc, elem) => acc.concat(elem), [])
   }
 
-  GetClaimedRoom(_: Creep, mem: SettlerMemory) { return Game.rooms[mem.targetRoom]; }
+  FindClaimedRoom(_: Creep, mem: SettlerMemory): Room { return Game.rooms[mem.targetRoom]; }
 
-  BodyParts = [MOVE, MOVE, MOVE, MOVE, CLAIM, CLAIM];
+  ReturnHome(settler: Creep): void {
+    const homeController = Game.rooms[settler.memory.room].controller;
+    if (homeController?.pos) this.MoveCreep(settler, homeController?.pos, 20);
+  }
 
   TickCreep(creep: Creep, memory: SettlerMemory): void {
-    const claimed = this.GetClaimedRoom(creep, memory);
+    const claimed = this.FindClaimedRoom(creep, memory);
 
     if (claimed.controller == undefined || claimed.controller == null) {
       console.log(`${this.room}${creep} Claimed room has no controller!`);
@@ -75,10 +77,5 @@ export class Settler extends RoomRole<SettlerMemory> {
       creep.reserveController(claimed.controller);
     else
       creep.claimController(claimed.controller);
-  }
-
-  ReturnHome(settler: Creep): void {
-    const homeController = Game.rooms[settler.memory.room].controller;
-    if (homeController?.pos) this.MoveCreep(settler, homeController?.pos, 20);
   }
 }
