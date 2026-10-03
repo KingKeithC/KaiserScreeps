@@ -70,18 +70,18 @@ export abstract class RoomRole<MemoryShape extends Object> {
       this.TickCreep(creep, task);
 
       const ttl = creep.ticksToLive ?? 100;
-      if (ttl === 1)
-        creep.say("☠️");
-      else if (ttl === 2)
-        creep.say("🤡");
+      if (ttl === 2)
+        creep.say("☠️", true);
       else if (ttl === 3)
-        creep.say("🫲☹️🫱💔🫂");
+        creep.say("🤡", true);
       else if (ttl === 4)
-        creep.say("😭🙏");
+        creep.say("🫲☹️🫱💔🫂", true);
       else if (ttl === 5)
-        creep.say("😰");
+        creep.say("😭🙏", true);
       else if (ttl === 10)
-        creep.say("😨");
+        creep.say("😰", true);
+      else if (ttl === 15)
+        creep.say("😨", true);
     }
     this.TickEnd();
   }
