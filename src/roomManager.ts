@@ -2,6 +2,7 @@ import { WorkerI, WorkerII } from "worker";
 import { Miner } from "miner";
 import { Settler } from "settler";
 import { CreepExtra } from "creep";
+import { RoomRole } from "role";
 
 // Spawn priority order, lowest to highest
 const Roles = [
@@ -20,36 +21,89 @@ export enum RoomControlStatus {
 
 export class RoomManager {
 
+  readonly room: Room;
+
+  readonly CreepsByRole: Map<string, CreepExtra[]> = new Map();
+
+  // Mutually Exclusive Creep Groups
+  readonly HostileCreeps: CreepExtra[] = [];
+  readonly AssignedCreeps: CreepExtra[] = [];
+  readonly UnassignedCreeps: CreepExtra[] = [];
+  readonly MyCreepsAssignedElsewhere: CreepExtra[] = [];
+
+  // Constructions
+  readonly ConstructionSites: ConstructionSite<BuildableStructureConstant>[] = [];
+
+  // Structure Groups
+  readonly Towers: StructureTower[] = [];
+  readonly Spawns: StructureSpawn[] = [];
+  readonly OtherMyStructures: AnyOwnedStructure[] = [];
+  readonly HostileStructures: AnyOwnedStructure[] = [];
+  readonly Containers: StructureContainer[] = [];
+  readonly Walls: StructureWall[] = [];
+  readonly Roads: StructureRoad[] = [];
+  readonly OtherNeutralStructures: AnyStructure[] = [];
+
+
+  constructor(room: Room, myCreepsInRoom: CreepExtra[]) {
+    this.room = room;
+    this.InitRoomMemory();
+
+    // Sort all my creeps into exclusive groups
+    for (const c of myCreepsInRoom) {
+      if (c.memory.room === room.name) {
+        this.AssignedCreeps.push(c);
+
+        // Group creeps assigned to this room into lists by role
+        if (RoomRole.Registry.has(c.memory.role)) {
+          const creeps = this.CreepsByRole.get(c.memory.role) ?? [];
+          creeps.push(c);
+          this.CreepsByRole.set(c.memory.role, creeps);
+        }
+      }
+      else if (c.pos.roomName === room.name)
+        this.UnassignedCreeps.push(c);
+      else
+        this.MyCreepsAssignedElsewhere.push(c);
+    }
+
+    // We should be able to access all my creeps in the colony
+    // as well as hostiles in this room from this instance.
+    this.HostileCreeps = room.find(FIND_HOSTILE_CREEPS);
+    this.ConstructionSites = room.find(FIND_CONSTRUCTION_SITES);
+
+    // Sort all the structures in the room into groups
+    for (const s of room.find(FIND_STRUCTURES)) {
+      if (s instanceof OwnedStructure) {
+        if (s.structureType === STRUCTURE_SPAWN)
+          this.Spawns.push(s);
+        else if (s.structureType === STRUCTURE_TOWER)
+          this.Towers.push(s);
+        else if (s.my)
+          this.OtherMyStructures.push(s)
+        else
+          this.HostileStructures.push(s)
+      } else {
+        if (s.structureType === STRUCTURE_CONTAINER)
+          this.Containers.push(s);
+        else if (s.structureType === STRUCTURE_WALL)
+          this.Walls.push(s);
+        else if (s.structureType === STRUCTURE_ROAD)
+          this.Roads.push(s);
+        else
+          this.OtherNeutralStructures.push(s);
+      }
+    }
+
+    // Other Properties dependent on those above
+    this.TowerCriticalSupplyRatio = this.HostileCreeps.length > 0 ? 0.75 : 0.30;
+  }
+
   TowerAttackRangeTiles: number = 15;
   TowerCriticalSupplyRatio: number;
 
   RoomEventLogMaxLength = 20;
   HostileReportFrequency = 10;
-
-  readonly room: Room;
-  constructor(room: Room) {
-    this.room = room;
-    this.TowerCriticalSupplyRatio = this.HostileCreepsInRoom.length > 0 ? 0.75 : 0.30;
-    this.InitRoomMemory();
-  }
-
-  private _MyCreepsInRoom?: CreepExtra[];
-  get MyCreepsInRoom(): CreepExtra[] {
-    if (!this._MyCreepsInRoom) this._MyCreepsInRoom = CreepExtra.FindMineAssignedToRoom(this.room.name);
-    return this._MyCreepsInRoom;
-  }
-
-  private _HostileCreepsInRoom?: CreepExtra[];
-  get HostileCreepsInRoom(): CreepExtra[] {
-    if (!this._HostileCreepsInRoom) this._HostileCreepsInRoom = CreepExtra.FindHostilesInRoom(this.room);
-    return this._HostileCreepsInRoom;
-  }
-
-  private _Towers?: StructureTower[];
-  get Towers(): StructureTower[] {
-    if (!this._Towers) this._Towers = this.room.find(FIND_MY_STRUCTURES, { filter: s => s.structureType === STRUCTURE_TOWER });
-    return this._Towers;
-  }
 
   static StatusOf(room: Room): RoomControlStatus {
     if (room.controller == undefined)
@@ -65,7 +119,7 @@ export class RoomManager {
     return RoomControlStatus.Hostile;
   }
 
-  TickRoom() {
+  TickRoom(allRoomManagers: RoomManager[]) {
     // All Rooms
 
     for (const roleType of Roles) {
@@ -91,19 +145,19 @@ export class RoomManager {
   }
 
   CallOutHostiles() {
-    if (Game.time % this.HostileReportFrequency === 0 && this.HostileCreepsInRoom.length > 0) {
-      const hostileDetails = this.HostileCreepsInRoom.map(c => {
+    if (Game.time % this.HostileReportFrequency === 0 && this.HostileCreeps.length > 0) {
+      const hostileDetails = this.HostileCreeps.map(c => {
         owner: c.owner
         name: c.name
         bodyCost: CreepExtra.BodyCost(c.body.map(p => p.type))
       });
 
-      console.log(`${this.room} !!! ${this.HostileCreepsInRoom.length} hostiles spotted: ${JSON.stringify(hostileDetails)}`);
+      console.log(`${this.room} !!! ${this.HostileCreeps.length} hostiles spotted: ${JSON.stringify(hostileDetails)}`);
     }
   }
 
   ProcessEventLog() {
-    const myCreepsIdsInRoom = this.MyCreepsInRoom.map(c => c.id);
+    const myCreepsIdsInRoom = this.AssignedCreeps.map(c => c.id);
     const newAttacksOnMyCreeps = this.room.getEventLog()
       .filter(e => e.event === EVENT_ATTACK && myCreepsIdsInRoom.includes(e.data.targetId as Id<CreepExtra>))
       .map(a => {

@@ -7,24 +7,12 @@ export class CreepExtra extends Creep {
   MaxAvoidTicks: number = 3;
   MaxPathfindingOps: number = 200;
 
-  static FindHostilesInRoom(room: Room): CreepExtra[] {
-    return room.find(FIND_HOSTILE_CREEPS).map(c => new CreepExtra(c.id));
-  }
-
   static BodyCost(body: BodyPartConstant[]): number { return sum(body.map(p => BODYPART_COST[p])); }
 
-  static AllMyCreeps(): CreepExtra[] {
-    return Object.values(Game.creeps)
-      .filter(c => c.my && !c.spawning)
-      .map(c => new CreepExtra(c.id));
-  }
-
   static FindWithRole(roleName: string): CreepExtra[] {
-    return CreepExtra.AllMyCreeps().filter(c => c.memory.role == roleName);
-  }
-
-  static FindMineAssignedToRoom(roomName: string): CreepExtra[] {
-    return CreepExtra.AllMyCreeps().filter(c => c.memory.room == roomName);
+    return Object.values(Game.creeps)
+      .filter(c => c.my && !c.spawning && c.memory.role == roleName)
+      .map(c => new CreepExtra(c.id));
   }
 
   MoveLong(dest: RoomPosition | { pos: RoomPosition; }, opts?: MoveToOpts): number {
@@ -33,7 +21,7 @@ export class CreepExtra extends Creep {
       visualizePathStyle: { stroke: Colours.PATH_LONG, lineStyle: "solid" },
       ignoreCreeps: true,
       maxOps: this.MaxPathfindingOps,
-      
+
     });
   }
 

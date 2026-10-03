@@ -15,7 +15,7 @@ class SettlerMemory extends Object {
 }
 
 export class Settler extends RoomRole<SettlerMemory> {
-  RoleName = "Settler";
+  static readonly RoleName: string = "Settler";
   BodyParts = [MOVE, MOVE, WORK, CLAIM];
 
   InitialJobMemory = new SettlerMemory();
@@ -73,3 +73,5 @@ export class Settler extends RoomRole<SettlerMemory> {
       creep.claimController(claim.controller);
   }
 }
+
+RoomRole.Register(Settler);

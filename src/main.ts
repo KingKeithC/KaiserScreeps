@@ -23,10 +23,18 @@ declare global {
 }
 
 const MainLoop = () => {
-  for (const room of Object.values(Game.rooms)) {
-    const manager = new RoomManager(room);
-    manager.TickRoom();
-  }
+  // Get all my creeps, and convert them to `CreepExtra`
+  const MyCreeps = Object.values(Game.creeps).map(c => new CreepExtra(c.id));
+
+  // Group my creeps by room they are in
+  const MyCreepsByRoom: Map<Room, CreepExtra[]> = new Map();
+  for (const c of MyCreeps) MyCreepsByRoom.set(c.room, [...MyCreepsByRoom.get(c.room) ?? [], c]);
+
+  // Instantiate a RoomManager for, and tick the room.
+  const Managers = [];
+  for (const [room, myCreepsInRoom] of MyCreepsByRoom.entries()) Managers.push(new RoomManager(room, myCreepsInRoom));
+
+  for (const m of Managers) m.TickRoom(Managers);
 }
 
 // When compiling TS to JS and bundling with rollup, the line numbers and file names in error messages change

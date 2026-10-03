@@ -6,7 +6,7 @@ class MinerMemory extends Object {
 }
 
 export class Miner extends RoomRole<MinerMemory> {
-  RoleName = "Miner";
+  static readonly RoleName: string = "Miner";
   InitialJobMemory: MinerMemory = new MinerMemory();
 
   get CountPerRoom() {
@@ -85,3 +85,5 @@ export class Miner extends RoomRole<MinerMemory> {
     return source?.id;
   }
 }
+
+RoomRole.Register(Miner);

@@ -2,8 +2,23 @@ import { CreepExtra } from "creep";
 import { Nouns, Adjectives, Colours } from "data";
 import { RoomManager } from "roomManager";
 
+export type RoomRoleType = {
+  readonly RoleName: string;
+  new(manager: RoomManager): RoomRole<any>;
+};
+
 export abstract class RoomRole<MemoryShape extends Object> {
-  abstract RoleName: string;
+  static readonly Registry = new Map<string, RoomRoleType>();
+
+  static Register<T extends RoomRoleType>(roleType: T): T {
+    RoomRole.Registry.set(roleType.RoleName, roleType);
+    return roleType;
+  }
+
+  get RoleName(): string {
+    return (this.constructor as RoomRoleType).RoleName;
+  }
+
   abstract BodyParts: BodyPartConstant[];
   abstract InitialJobMemory: MemoryShape;
   abstract CountPerRoom: number;
@@ -19,10 +34,8 @@ export abstract class RoomRole<MemoryShape extends Object> {
     return this._CreepsInRole;
   }
 
-  private _CreepsInRoomAndRole?: CreepExtra[];
   get CreepsInRoomAndRole(): CreepExtra[] {
-    if (!this._CreepsInRoomAndRole) this._CreepsInRoomAndRole = this.CreepsInRole.filter(c => c.memory.room == this.room.name);
-    return this._CreepsInRoomAndRole;
+    return this.manager.CreepsByRole.get(this.RoleName) ?? [];
   }
 
   GlobalCount: number = -1; // -1 for unlimited

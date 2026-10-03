@@ -35,7 +35,7 @@ class WorkerTask extends Object {
 }
 
 export class WorkerI extends RoomRole<WorkerTask> {
-  RoleName = "WorkerI";
+  static readonly RoleName: string = "WorkerI";
   InitialJobMemory = new WorkerTask(WorkerAction.Idle);
 
   StartSpawnAtRCL = 0;
@@ -323,10 +323,13 @@ export class WorkerI extends RoomRole<WorkerTask> {
 }
 
 export class WorkerII extends WorkerI {
-  RoleName = "WorkerII";
+  static override readonly RoleName: string = "WorkerII";
 
   StartSpawnAtRCL = 2;
   StopSpawnAtRCL = 100;
   BodyParts = [MOVE, MOVE, WORK, WORK, CARRY, CARRY, CARRY, CARRY, CARRY];
   override get CountPerRoom() { return 8; }
 }
+
+RoomRole.Register(WorkerI);
+RoomRole.Register(WorkerII);
