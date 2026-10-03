@@ -1,10 +1,11 @@
 import { Colours } from "data";
 import { sum } from "lodash";
 
-const MaxStuckTicks = 3;
-const MaxAvoidTicks = 4;
-
 export class CreepExtra extends Creep {
+
+  MaxStuckTicks: number = 2;
+  MaxAvoidTicks: number = 3;
+  MaxPathfindingOps: number = 200;
 
   static FindHostilesInRoom(room: Room): CreepExtra[] {
     return room.find(FIND_HOSTILE_CREEPS).map(c => new CreepExtra(c.id));
@@ -30,7 +31,9 @@ export class CreepExtra extends Creep {
     return this.moveTo(dest, {
       ...opts,
       visualizePathStyle: { stroke: Colours.PATH_LONG, lineStyle: "solid" },
-      ignoreCreeps: true
+      ignoreCreeps: true,
+      maxOps: this.MaxPathfindingOps,
+      
     });
   }
 
@@ -39,7 +42,7 @@ export class CreepExtra extends Creep {
       ...opts,
       visualizePathStyle: { stroke: Colours.PATH_STUCK, lineStyle: "dotted" },
       ignoreCreeps: false,
-      ignoreRoads: true,
+      maxOps: this.MaxPathfindingOps,
     });
   }
 
@@ -76,11 +79,11 @@ export class CreepExtra extends Creep {
     }
 
     // Switch move mode
-    if (this.memory.moveMode === "long" && this.memory.stuckTicks > MaxStuckTicks) {
+    if (this.memory.moveMode === "long" && this.memory.stuckTicks > this.MaxStuckTicks) {
       this.memory.moveMode = "avoidCreeps";
       this.memory.stuckTicks = 0;
       this.memory.successfulAvoidMoves = 0;
-    } else if (this.memory.moveMode === "avoidCreeps" && this.memory.successfulAvoidMoves > MaxAvoidTicks) {
+    } else if (this.memory.moveMode === "avoidCreeps" && this.memory.successfulAvoidMoves > this.MaxAvoidTicks) {
       this.memory.moveMode = "long";
       this.memory.stuckTicks = 0;
       this.memory.successfulAvoidMoves = 0;

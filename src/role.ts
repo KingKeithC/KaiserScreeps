@@ -33,11 +33,7 @@ export abstract class RoomRole<MemoryShape extends Object> {
 
   // How ofter to check for spawn
   SpawnRate: number = 120;
-
-
-  ReusePath: number = 10;
-  MaxStuckTicks: number = 2;
-  MaxAvoidTicks: number = 3;
+  SpawnTickOffet: number = 0;
 
   TickStart(): void { }
   abstract TickCreep(creep: CreepExtra, task: MemoryShape): void;
