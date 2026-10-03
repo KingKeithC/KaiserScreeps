@@ -323,5 +323,5 @@ export class WorkerII extends WorkerI {
   StartSpawnAtRCL = 2;
   StopSpawnAtRCL = 100;
   BodyParts = [MOVE, MOVE, WORK, WORK, WORK, CARRY, CARRY, CARRY];
-  override get CountPerRoom() { return 5; }
+  override get CountPerRoom() { return 8; }
 }
