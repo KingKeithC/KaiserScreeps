@@ -28,10 +28,10 @@ export class RoomManager {
   readonly room: Room;
   constructor(room: Room) { this.room = room; this.InitRoomMemory(); }
 
-  private _CreepsInRoom?: CreepExtra[];
-  get CreepsInRoom(): CreepExtra[] {
-    if (!this._CreepsInRoom) this._CreepsInRoom = CreepExtra.FindWithRoom(this.room.name);
-    return this._CreepsInRoom;
+  private _MyCreepsInRoom?: CreepExtra[];
+  get MyCreepsInRoom(): CreepExtra[] {
+    if (!this._MyCreepsInRoom) this._MyCreepsInRoom = CreepExtra.FindWithRoom(this.room.name);
+    return this._MyCreepsInRoom;
   }
 
   static StatusOf(room: Room): RoomControlStatus {
@@ -74,7 +74,7 @@ export class RoomManager {
   }
 
   ProcessEventLog() {
-    const myCreepsIdsInRoom = this.CreepsInRoom.map(c => c.id);
+    const myCreepsIdsInRoom = this.MyCreepsInRoom.map(c => c.id);
     const newAttacksOnMyCreeps = this.room.getEventLog()
       .filter(e => e.event === EVENT_ATTACK && myCreepsIdsInRoom.includes(e.data.targetId as Id<CreepExtra>))
       .map(a => {
