@@ -42,9 +42,8 @@ export class Miner extends RoomRole<MinerMemory> {
 
     const isFull = creep.store.getFreeCapacity(RESOURCE_ENERGY) === 0;
     const nearbyCreeps = creep.pos.findInRange(FIND_MY_CREEPS, this.DropoffRange, { filter: (c) => ((c.memory.role.startsWith("Worker")) && c.store.getFreeCapacity(RESOURCE_ENERGY) > 0) });
-    const nearestCreep = creep.pos.findClosestByPath(nearbyCreeps);
     const nearbyContainers = creep.pos.findInRange(FIND_STRUCTURES, this.DropoffRange, { filter: s => s.structureType === STRUCTURE_CONTAINER && s.store.getFreeCapacity(RESOURCE_ENERGY) > 0 });
-    const nearestContainer = creep.pos.findClosestByPath(nearbyContainers);
+    const nearestClient = creep.pos.findClosestByPath([...nearbyContainers, ...nearbyCreeps]);
     if (!isFull) {
       // Move right next to the source
       const moveResult = this.MoveCreep(creep, mineObj.pos, 1);
@@ -53,18 +52,18 @@ export class Miner extends RoomRole<MinerMemory> {
       // Mine it
       const mineResult = creep.harvest(mineObj);
       if (mineResult !== OK && mineResult !== ERR_NOT_ENOUGH_ENERGY) console.log(`${this.room}${creep}: Miner failed to mine ${mineResult}`);
-    } else if (nearestCreep instanceof Creep) {
+    } else if (nearestClient instanceof Creep) {
       // Transfer to creep
 
       // Move right next to it
-      if (this.MoveCreep(creep, nearestCreep.pos, 1) != 1) return; // Not close enough to transfer
-      creep.transfer(nearestCreep, RESOURCE_ENERGY); // Transer ours to them
-    } else if (nearestContainer instanceof StructureContainer) {
+      if (this.MoveCreep(creep, nearestClient.pos, 1) != 1) return; // Not close enough to transfer
+      creep.transfer(nearestClient, RESOURCE_ENERGY); // Transer ours to them
+    } else if (nearestClient instanceof StructureContainer) {
       // Transfer to container
 
       // Move right next to it
-      if (this.MoveCreep(creep, nearestContainer.pos, 1) != 1) return; // Not close enough to transfer
-      creep.transfer(nearestContainer, RESOURCE_ENERGY); // Transer
+      if (this.MoveCreep(creep, nearestClient.pos, 1) != 1) return; // Not close enough to transfer
+      creep.transfer(nearestClient, RESOURCE_ENERGY); // Transer
     }
   }
 
