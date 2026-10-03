@@ -24,14 +24,21 @@ export class RoomManager {
   TowerCriticalSupplyRatio: number = 0.30;
 
   RoomEventLogMaxLength = 20;
+  HostileReportFrequency = 10;
 
   readonly room: Room;
   constructor(room: Room) { this.room = room; this.InitRoomMemory(); }
 
   private _MyCreepsInRoom?: CreepExtra[];
   get MyCreepsInRoom(): CreepExtra[] {
-    if (!this._MyCreepsInRoom) this._MyCreepsInRoom = CreepExtra.FindWithRoom(this.room.name);
+    if (!this._MyCreepsInRoom) this._MyCreepsInRoom = CreepExtra.FindMineAssignedToRoom(this.room.name);
     return this._MyCreepsInRoom;
+  }
+
+  private _HostileCreepsInRoom?: CreepExtra[];
+  get HostileCreepsInRoom(): CreepExtra[] {
+    if (!this._HostileCreepsInRoom) this._HostileCreepsInRoom = CreepExtra.FindHostilesInRoom(this.room.name);
+    return this._HostileCreepsInRoom;
   }
 
   static StatusOf(room: Room): RoomControlStatus {
@@ -62,6 +69,15 @@ export class RoomManager {
     }
 
     // Owned/Claimed/Neutral room
+    if (this.HostileCreepsInRoom.length > 0 && Game.time % this.HostileReportFrequency === 0) {
+      const hostileDetails = this.HostileCreepsInRoom.map(c => {
+        owner: c.owner
+        name: c.name
+        bodyCost: CreepExtra.BodyCost(c.body.map(p => p.type))
+      });
+
+      console.log(`${this.room} !!! ${this.HostileCreepsInRoom.length} hostiles spotted: ${JSON.stringify(hostileDetails)}`);
+    }
 
     this.ProcessEventLog();
 

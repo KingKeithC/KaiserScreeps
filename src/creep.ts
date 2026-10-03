@@ -6,6 +6,15 @@ const MaxAvoidTicks = 4;
 
 export class CreepExtra extends Creep {
 
+  static FindHostilesInRoom(name: string): CreepExtra[] {
+    const room = Game.rooms[name];
+    if (!room) {
+      console.log(`FindHostilesInRoom: No Access to ${name}`);
+      return [];
+    }
+    return room.find(FIND_HOSTILE_CREEPS).map(c => new CreepExtra(c.id));
+  }
+
   static BodyCost(body: BodyPartConstant[]): number { return sum(body.map(p => BODYPART_COST[p])); }
 
   static AllMyCreeps(): CreepExtra[] {
@@ -18,7 +27,7 @@ export class CreepExtra extends Creep {
     return CreepExtra.AllMyCreeps().filter(c => c.memory.role == roleName);
   }
 
-  static FindWithRoom(roomName: string): CreepExtra[] {
+  static FindMineAssignedToRoom(roomName: string): CreepExtra[] {
     return CreepExtra.AllMyCreeps().filter(c => c.memory.room == roomName);
   }
 
