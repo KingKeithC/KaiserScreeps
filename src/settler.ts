@@ -15,10 +15,12 @@ class SettlerMemory extends Object {
 
 export class Settler extends RoomRole<SettlerMemory> {
   RoleName = "Settler";
-  BodyParts = [MOVE, MOVE, MOVE, MOVE, CLAIM, CLAIM];
+  BodyParts = [MOVE, MOVE, WORK, CLAIM];
 
   CountPerRoom = 1;
   GlobalCount = 2;
+
+  HomeIdleRange = 30;
 
   get InitialJobMemory() {
 
@@ -45,28 +47,29 @@ export class Settler extends RoomRole<SettlerMemory> {
 
   ReturnHome(settler: Creep): void {
     const homeController = Game.rooms[settler.memory.room].controller;
-    if (homeController?.pos) this.MoveCreep(settler, homeController?.pos, 20);
+    if (homeController?.pos) this.MoveCreep(settler, homeController?.pos, this.HomeIdleRange);
   }
 
   TickCreep(creep: Creep, memory: SettlerMemory): void {
     const claimed = this.FindClaimedRoom(creep, memory);
 
     if (claimed.controller == undefined || claimed.controller == null) {
-      console.log(`${this.room}${creep} Claimed room has no controller!`);
-      return; // Nothing more to do.
+      console.log(`${this.room}${creep} Claimed room has no controller! Sudoku!`);
+      // creep.suicide();
+      return;
     }
 
     const hostiles = claimed.find(FIND_HOSTILE_CREEPS);
     if (hostiles.length > 0) {
-      const msg = `${this.room}${creep} !!! Claimed room has ${hostiles.length} hostiles! `;
+      const msg = `${this.room}${creep} !!! Claimed room has ${hostiles.length} hostiles!`;
 
       if (!memory.push) {
-        console.log(msg + "Not set to push, disengaging.");
+        console.log(msg + " Not set to push, disengaging.");
         this.ReturnHome(creep);
         return;
       }
 
-      console.log(msg + "Pushing...");
+      console.log(msg + " For the Homeland!...");
     }
 
     // Move in range of the room's controller
