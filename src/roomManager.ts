@@ -87,7 +87,7 @@ export class RoomManager {
 
     // Find my structures in most need of repair
     const myStruct = this.room.find(FIND_MY_STRUCTURES, { filter: s => s.hits < s.hitsMax })
-      .sort((a, b) => (a.hits / a.hitsMax) - (b.hits / b.hitsMax)).pop()
+      .sort((b, a) => (a.hits / a.hitsMax) - (b.hits / b.hitsMax)).pop()
     if (myStruct != null && myStruct != undefined) {
       t.repair(myStruct);
       return;
@@ -95,7 +95,7 @@ export class RoomManager {
 
     // My creeps in need of healing, weakest first
     const weakling = this.room.find(FIND_MY_CREEPS, { filter: c => c.hits < c.hitsMax })
-      .sort((a, b) => (a.hits / a.hitsMax) - (b.hits / b.hitsMax)).pop()
+      .sort((b, a) => (a.hits / a.hitsMax) - (b.hits / b.hitsMax)).pop()
     if (weakling != null && weakling != undefined) {
       t.heal(weakling);
       return;
@@ -103,7 +103,7 @@ export class RoomManager {
 
     // All other roads in most need of repair
     const road = this.room.find(FIND_STRUCTURES, { filter: s => s.structureType === STRUCTURE_ROAD && s.hits < s.hitsMax })
-      .sort((a, b) => (a.hits / a.hitsMax) - (b.hits / b.hitsMax)).pop()
+      .sort((b, a) => (a.hits / a.hitsMax) - (b.hits / b.hitsMax)).pop()
     if (road != null && road != undefined) {
       t.repair(road);
       return;
@@ -111,7 +111,7 @@ export class RoomManager {
 
     // All other structures, weakest first
     const allStruct = this.room.find(FIND_STRUCTURES, { filter: s => s.hits < s.hitsMax })
-      .sort((a, b) => (a.hits / a.hitsMax) - (b.hits / b.hitsMax)).pop()
+      .sort((b, a) => (a.hits / a.hitsMax) - (b.hits / b.hitsMax)).pop()
     if (allStruct != null && allStruct != undefined) {
       t.repair(allStruct);
       return;
