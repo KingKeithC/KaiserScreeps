@@ -10,7 +10,7 @@ export class CreepExtra extends Creep {
 
   static FindWithRole(roleName: string): CreepExtra[] {
     return Object.values(Game.creeps)
-      .filter(c => !c.spawning && c.memory.role == roleName)
+      .filter(c => c.my && !c.spawning && c.memory.role == roleName)
       .map(c => new CreepExtra(c.id));
   }
 

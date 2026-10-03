@@ -10,17 +10,16 @@ export abstract class RoomRole<MemoryShape extends Object> {
   readonly room: Room;
   constructor(room: Room) { this.room = room; }
 
-  private _CreepsInRole: CreepExtra[] | null = null;
+  // Cached fields generated on first access.
+  private _CreepsInRole?: CreepExtra[];
   get CreepsInRole(): CreepExtra[] {
-    if (this._CreepsInRole == null)
-      this._CreepsInRole = Object.values(Game.creeps).filter(c => !c.spawning && c.memory.role == this.RoleName).map(c => new CreepExtra(c.id));
+    if (!this._CreepsInRole) this._CreepsInRole = CreepExtra.FindWithRole(this.RoleName);
     return this._CreepsInRole;
   }
 
-  private _CreepsInRoomAndRole: CreepExtra[] | null = null;
+  private _CreepsInRoomAndRole?: CreepExtra[];
   get CreepsInRoomAndRole(): CreepExtra[] {
-    if (this._CreepsInRoomAndRole == null)
-      this._CreepsInRoomAndRole = this.CreepsInRole.filter(c => c.memory.room == this.room.name);
+    if (!this._CreepsInRoomAndRole) this._CreepsInRoomAndRole = this.CreepsInRole.filter(c => c.memory.room == this.room.name);
     return this._CreepsInRoomAndRole;
   }
 
