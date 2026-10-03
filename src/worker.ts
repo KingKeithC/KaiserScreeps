@@ -110,8 +110,8 @@ export class WorkerI extends RoomRole<WorkerTask> {
     ) return new WorkerTask(WorkerAction.Build, construction.id);
 
     // Towers with room for energy
-    const tower = creep.pos.findClosestByPath(FIND_MY_STRUCTURES, {
-      filter: (s) => s.structureType === STRUCTURE_TOWER && s.store.getFreeCapacity(RESOURCE_ENERGY) > 0,
+    const tower = creep.pos.findClosestByPath(this.manager.Towers, {
+      filter: (s) => s.store.getFreeCapacity(RESOURCE_ENERGY),
       ignoreCreeps: true
     });
     if (tower instanceof StructureTower) return new WorkerTask(WorkerAction.Transfer, tower.id);

@@ -45,6 +45,12 @@ export class RoomManager {
     return this._HostileCreepsInRoom;
   }
 
+  private _Towers?: StructureTower[];
+  get Towers(): StructureTower[] {
+    if (!this._Towers) this._Towers = this.room.find(FIND_MY_STRUCTURES, { filter: s => s.structureType === STRUCTURE_TOWER });
+    return this._Towers;
+  }
+
   static StatusOf(room: Room): RoomControlStatus {
     if (room.controller == undefined)
       return RoomControlStatus.Neutral;
@@ -67,12 +73,13 @@ export class RoomManager {
       role.TickRoom(); // Run it
     }
 
-    if (this.room.memory.status === RoomControlStatus.Hostile) {
-      console.log(`${this.room} !!! Skipping further operations in Hostile room`)
+    if (this.room.memory.status !== RoomControlStatus.Owned) {
+      console.log(`${this.room} Not owned: ${this.room.memory.status}.`)
       return;
     }
 
-    // Owned/Claimed/Neutral room
+    // Owned room
+
     this.CallOutHostiles();
     this.ProcessEventLog();
 
@@ -80,8 +87,7 @@ export class RoomManager {
     this.BuildRoads();
 
     // Run each tower in the room
-    for (const tower of this.room.find(FIND_MY_STRUCTURES, { filter: s => s.structureType === STRUCTURE_TOWER }))
-      this.TickTower(tower as StructureTower);
+    for (const tower of this.Towers) this.TickTower(tower as StructureTower);
   }
 
   CallOutHostiles() {
