@@ -39,8 +39,6 @@ export abstract class RoomRole<MemoryShape extends Object> {
     return total;
   }
 
-  protected HomeRoom(creep: Creep): Room { return Game.rooms[creep.memory.room]; }
-
   protected CreepsInRole() {
     return Object.values(Game.creeps).filter(c =>
       !c.spawning
