@@ -58,7 +58,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
   ShortSearchRange = 5;
 
   // Main creep control loop
-  TickCreep(creep: Creep, currentTask: WorkerTask): void {
+  TickCreep(creep: CreepExtra, currentTask: WorkerTask): void {
     if (this.IsTaskComplete(creep, currentTask)) {
       const newTask = this.Reassign(creep);
       console.log(`${this.room}${creep} Reassigned: ${JSON.stringify(currentTask)} -> ${JSON.stringify(newTask)}`);
@@ -68,14 +68,14 @@ export class WorkerI extends RoomRole<WorkerTask> {
     this.Act(creep, currentTask);
   }
 
-  Reassign(creep: Creep): WorkerTask {
+  Reassign(creep: CreepExtra): WorkerTask {
     if (creep.store.getUsedCapacity(RESOURCE_ENERGY) === 0)
       return this.FindGatheringTask(creep);
     else
       return this.FindSpendingTask(creep);
   }
 
-  FindSpendingTask(creep: Creep): WorkerTask {
+  FindSpendingTask(creep: CreepExtra): WorkerTask {
     // Select target in order of priority
 
     // Spawns/Extensions with room for energy
@@ -126,7 +126,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
     return new WorkerTask(WorkerAction.Idle);
   }
 
-  FindGatheringTask(creep: Creep): WorkerTask {
+  FindGatheringTask(creep: CreepExtra): WorkerTask {
     // Dropped Energy with reasonable amount remaining
     const dropped = creep.pos.findClosestByPath(FIND_DROPPED_RESOURCES, { filter: r => r.resourceType === RESOURCE_ENERGY && r.amount > 30 });
     if (dropped instanceof Resource) return new WorkerTask(WorkerAction.Pickup, dropped.id as Id<Resource<RESOURCE_ENERGY>>);
@@ -148,7 +148,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
     return new WorkerTask(WorkerAction.Idle);
   }
 
-  Act(creep: Creep, task: WorkerTask): void {
+  Act(creep: CreepExtra, task: WorkerTask): void {
     // Validate Target
     if (task.target == null || task.target == undefined) {
       // Target may be null in this one case
@@ -259,7 +259,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
     }
   }
 
-  IsTaskComplete(creep: Creep, task: WorkerTask): boolean {
+  IsTaskComplete(creep: CreepExtra, task: WorkerTask): boolean {
     // Invalid/Idle tasks are always done.
     if (!task.target || !task.action || task.action === WorkerAction.Idle) return true;
 

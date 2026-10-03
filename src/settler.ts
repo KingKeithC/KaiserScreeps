@@ -35,11 +35,11 @@ export class Settler extends RoomRole<SettlerMemory> {
     return Game.rooms[mem.claimedRoomDirection];
   }
 
-  ReturnHome(settler: Creep): void {
+  ReturnHome(settler: CreepExtra): void {
     this.MoveCreep(settler, this.room.controller!, this.HomeIdleRange);
   }
 
-  TickCreep(creep: Creep, memory: SettlerMemory): void {
+  TickCreep(creep: CreepExtra, memory: SettlerMemory): void {
     const claim = this.ClaimedRoom(memory);
     if (!memory.claimedRoomDirection || !claim || !claim.controller) {
       this.ReturnHome(creep);

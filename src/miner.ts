@@ -1,3 +1,4 @@
+import { CreepExtra } from "creep";
 import { RoomRole } from "role";
 
 class MinerMemory extends Object {
@@ -16,7 +17,7 @@ export class Miner extends RoomRole<MinerMemory> {
   BodyParts = [MOVE, CARRY, WORK, WORK, WORK, WORK];
   DropoffRange = 4;
 
-  TickCreep(creep: Creep, mem: MinerMemory): void {
+  TickCreep(creep: CreepExtra, mem: MinerMemory): void {
     // Do we need to find a new source?
     if (mem.sourceId == undefined || mem.sourceId == null)
       mem.sourceId = this.LocateSource(creep);
@@ -48,7 +49,7 @@ export class Miner extends RoomRole<MinerMemory> {
     if (closeWorker)
       creep.transfer(closeWorker, RESOURCE_ENERGY); // Transer ours to them
 
-    const nearbyCreeps: Creep[] = creep.pos.findInRange(FIND_MY_CREEPS, this.DropoffRange, { filter: (c) => ((c.memory.role.startsWith("Worker")) && c.store.getFreeCapacity(RESOURCE_ENERGY) > 0) });
+    const nearbyCreeps: CreepExtra[] = creep.pos.findInRange(FIND_MY_CREEPS, this.DropoffRange, { filter: (c) => ((c.memory.role.startsWith("Worker")) && c.store.getFreeCapacity(RESOURCE_ENERGY) > 0) });
     const nearbyContainers: StructureContainer[] = creep.pos.findInRange(FIND_STRUCTURES, this.DropoffRange, { filter: s => s.structureType === STRUCTURE_CONTAINER && s.store.getFreeCapacity(RESOURCE_ENERGY) > 0 });
     const nearestClient = creep.pos.findClosestByPath([...nearbyContainers, ...nearbyCreeps]);
 
@@ -68,7 +69,7 @@ export class Miner extends RoomRole<MinerMemory> {
       creep.transfer(selectedTarget, RESOURCE_ENERGY);
   }
 
-  LocateSource(creep: Creep): Id<Source> | undefined {
+  LocateSource(creep: CreepExtra): Id<Source> | undefined {
     const minersBySource = this.CreepsInRoomAndRole().reduce((counts, miner) => {
       const sourceId = (miner.memory.jobMemory as MinerMemory)?.sourceId;
       if (sourceId != null)
