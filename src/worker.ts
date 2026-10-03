@@ -1,3 +1,4 @@
+import { CreepExtra } from "creep";
 import { RoomRole } from "role";
 
 
@@ -247,8 +248,8 @@ export class WorkerI extends RoomRole<WorkerTask> {
         else if (task.action === WorkerAction.Pickup)
           minDistance = 0;
 
-        // Move until in `minDistance` of target
-        this.MoveCreep(creep, targetObject.pos, minDistance);
+        // Move. Since this is our last action, ignore the RC.
+        creep.MoveCreep(targetObject.pos, { range: minDistance });
         return;
       }
       default: {

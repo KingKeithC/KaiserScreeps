@@ -1,3 +1,4 @@
+import { CreepExtra } from "creep";
 import { RoomRole } from "role";
 
 class SettlerMemory extends Object {
@@ -36,7 +37,7 @@ export class Settler extends RoomRole<SettlerMemory> {
   }
 
   ReturnHome(settler: CreepExtra): void {
-    this.MoveCreep(settler, this.room.controller!, this.HomeIdleRange);
+    settler.MoveCreep(this.room.controller!, { range: this.HomeIdleRange });
   }
 
   TickCreep(creep: CreepExtra, memory: SettlerMemory): void {
@@ -62,7 +63,7 @@ export class Settler extends RoomRole<SettlerMemory> {
       console.log(msg + " For the Homeland!...");
     }
 
-    if (this.MoveCreep(creep, claim.controller.pos, 1) != 1)
+    if (creep.MoveCreep(claim.controller.pos, { range: 1 }) != 1)
       return;
 
     // Claim it
