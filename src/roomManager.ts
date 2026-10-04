@@ -34,7 +34,9 @@ export class RoomManager {
   // Constructions
   readonly ConstructionSites: ConstructionSite<BuildableStructureConstant>[] = [];
 
-  // Structure Groups
+  readonly MyStructures: AnyOwnedStructure[] = [];
+
+  // Mutually exclusive Structure Groups
   readonly Towers: StructureTower[] = [];
   readonly Spawns: StructureSpawn[] = [];
   readonly SpawnExtensions: StructureExtension[] = [];
@@ -78,6 +80,8 @@ export class RoomManager {
     // Sort all the structures in the room into groups
     for (const s of room.find(FIND_STRUCTURES)) {
       if (s instanceof OwnedStructure) {
+        if (s.my) this.MyStructures.push(s);
+
         if (s.structureType === STRUCTURE_SPAWN)
           this.Spawns.push(s);
         if (s.structureType === STRUCTURE_EXTENSION)
