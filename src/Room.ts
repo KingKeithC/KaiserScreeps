@@ -19,14 +19,24 @@ declare global {
   }
 }
 
-export class RoomExtra extends Room {
+export class RoomExtra {
+
+  readonly room: Room;
+
+  get name(): string { return this.room.name; }
+  get controller(): StructureController | undefined { return this.room.controller; }
+  get memory(): RoomMemory { return this.room.memory; }
+  get energyAvailable(): number { return this.room.energyAvailable; }
+  get energyCapacityAvailable(): number { return this.room.energyCapacityAvailable; }
+
+  toString(): string { return this.room.toString(); }
 
   static StatusOf(room: Room): RoomControlStatus {
-    if (room.controller == undefined)
-      return RoomControlStatus.Neutral;
-
     if (room.controller?.my)
       return RoomControlStatus.Owned;
+
+    if (room.controller == undefined)
+      return RoomControlStatus.Neutral;
 
     if ("Claimed" in room.find(FIND_FLAGS).keys())
       return RoomControlStatus.Claimed;
@@ -77,8 +87,8 @@ export class RoomExtra extends Room {
   RoomEventLogMaxLength = 20;
   HostileReportFrequency = 10;
 
-  constructor(roomName: string, myCreepsInRoom: CreepExtra[] = []) {
-    super(roomName);
+  constructor(room: Room, myCreepsInRoom: CreepExtra[] = []) {
+    this.room = room;
 
     this.MyCreepsInRoom = myCreepsInRoom;
 
@@ -104,12 +114,12 @@ export class RoomExtra extends Room {
 
     // We should be able to access all my creeps in the colony
     // as well as hostiles in this room from this instance.
-    this.HostileCreeps = this.find(FIND_HOSTILE_CREEPS);
-    this.ConstructionSites = this.find(FIND_CONSTRUCTION_SITES);
-    this.Sources = this.find(FIND_SOURCES);
+    this.HostileCreeps = room.find(FIND_HOSTILE_CREEPS);
+    this.ConstructionSites = room.find(FIND_CONSTRUCTION_SITES);
+    this.Sources = room.find(FIND_SOURCES);
 
     // Sort all the structures in the room into groups
-    for (const s of this.find(FIND_STRUCTURES)) {
+    for (const s of room.find(FIND_STRUCTURES)) {
       if (s instanceof OwnedStructure) {
         if (s.my) this.MyStructures.push(s);
 
@@ -143,18 +153,16 @@ export class RoomExtra extends Room {
 
   TickRoom(allRoomManagers: RoomExtra[]) {
     // Init room if missing from memory
-    if (!(this.name in Memory.rooms)) RoomExtra.InitRoomMemory(this);
+    if (!(this.name in Memory.rooms)) RoomExtra.InitRoomMemory(this.room);
 
     // Any Room
-
-    // console.log(`Room Roles (${RoomRole.Registry.values.length}): ${JSON.stringify(Object.keys(RoomRole.Registry))}`);
 
     var offset = 0;
     for (const roleType of RoomRole.Registry.values()) {
       const role = new roleType(this); // Construct a role instance for the room
       role.SpawnTickOffet = offset;
       offset += 10; // Spawn each role about 10 ticks apart
-      role.TickRoom(); // Run it
+      role.TickRole(); // Run it
     }
 
     if (this.memory.status !== RoomControlStatus.Owned) {
@@ -188,7 +196,7 @@ export class RoomExtra extends Room {
 
   ProcessEventLog() {
     const myCreepsIdsInRoom = this.AssignedCreeps.map(c => c.id);
-    const newAttacksOnMyCreeps = this.getEventLog()
+    const newAttacksOnMyCreeps = this.room.getEventLog()
       .filter(e => e.event === EVENT_ATTACK && myCreepsIdsInRoom.includes(e.data.targetId as Id<CreepExtra>))
       .map(a => {
         time: Game.time - 1;
@@ -268,9 +276,9 @@ export class RoomExtra extends Room {
       const path = start.pos.findPathTo(end, { maxRooms: 1, swampCost: 2, plainCost: 4, ignoreCreeps: true });
       var built = false;
 
-      if (this.createConstructionSite(start.pos.x, start.pos.y, STRUCTURE_ROAD) === OK) built = true;
-      for (const pos of path) if (this.createConstructionSite(pos.x, pos.y, STRUCTURE_ROAD) === OK) built = true;
-      if (this.createConstructionSite(end.pos.x, end.pos.y, STRUCTURE_ROAD) === OK) built = true;
+      if (this.room.createConstructionSite(start.pos.x, start.pos.y, STRUCTURE_ROAD) === OK) built = true;
+      for (const pos of path) if (this.room.createConstructionSite(pos.x, pos.y, STRUCTURE_ROAD) === OK) built = true;
+      if (this.room.createConstructionSite(end.pos.x, end.pos.y, STRUCTURE_ROAD) === OK) built = true;
 
       if (built) {
         start.remove();

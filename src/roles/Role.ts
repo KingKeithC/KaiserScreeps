@@ -57,11 +57,12 @@ export abstract class RoomRole<MemoryShape extends Object> {
     return total;
   }
 
-  TickRoom(): void {
+  TickRole(): void {
     this.TickStart();
 
     // Check to do spawns every `this.SpawnRate` ticks.
-    if (Game.time - (this.manager.memory.lastSpawnTick[this.RoleName] ?? 0) - this.SpawnTickOffet > this.SpawnRate) {
+    const timeSinceLastSpawn = Game.time - (this.manager.memory.lastSpawnTick[this.RoleName] ?? 0) - this.SpawnTickOffet;
+    if (timeSinceLastSpawn > this.SpawnRate || this.CreepsInRoomAndRole.length === 0) {
       this.DoSpawns();
       this.manager.memory.lastSpawnTick[this.RoleName] = Game.time; // Reset
     }
@@ -101,7 +102,7 @@ export abstract class RoomRole<MemoryShape extends Object> {
   }
 
   FindSpawns(): StructureSpawn[] {
-    return this.manager.find(FIND_MY_SPAWNS, { filter: (spawn) => !spawn.spawning });
+    return this.manager.room.find(FIND_MY_SPAWNS, { filter: (spawn) => !spawn.spawning });
   }
 
   DoSpawns(): void {
@@ -116,7 +117,7 @@ export abstract class RoomRole<MemoryShape extends Object> {
     // Cannot spawn if RCL is wrong
     const rcl = this.manager.controller?.level;
     if (!rcl || rcl < this.StartSpawnAtRCL || rcl >= this.StopSpawnAtRCL) {
-      console.log(`${this.manager}[${this.RoleName}]: RCL (${rcl}) is outside spawn requirements (${this.StartSpawnAtRCL} <= RCL < ${this.StopSpawnAtRCL}`);
+      console.log(`${this.manager}[${this.RoleName}]: RCL (${rcl}) is outside spawn requirements (${this.StartSpawnAtRCL} <= RCL < ${this.StopSpawnAtRCL})`);
       return;
     };
 
