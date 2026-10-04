@@ -233,6 +233,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
           // console.log(`[${this.manager.name}]${creep}: Withdrawing energy... (${t.store.energy}/${t.store.getCapacity(RESOURCE_ENERGY)} -> ${creep.store.energy}/${creep.store.getCapacity(RESOURCE_ENERGY)})`);
         } else if (targetObject instanceof Creep) {
           // console.log(`[${this.manager.name}]${creep}: Awaiting energy transfer (${creep.store.energy}/${creep.store.getCapacity(RESOURCE_ENERGY)}).`);
+          result = ERR_NOT_IN_RANGE; // Forces them to move toward the Miner.
         } else {
           console.log(`[${this.manager.name}]${creep}: Unknown target for CollectEnergy: ${targetObject}`);
         }
