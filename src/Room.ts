@@ -19,6 +19,14 @@ declare global {
   }
 }
 
+
+interface HostileInfo {
+  owner: string;
+  name: string;
+  bodyCost: number;
+  partCounts: { [part: string]: number };
+}
+
 export class RoomExtra {
 
   readonly room: Room;
@@ -172,8 +180,8 @@ export class RoomExtra {
 
     // Owned room
 
-    // this.CallOutHostiles();
-    // this.ProcessEventLog();
+    this.CallOutHostiles();
+    this.ProcessEventLog();
 
     // Build any designated roads
     this.BuildRoads();
@@ -184,12 +192,15 @@ export class RoomExtra {
 
   CallOutHostiles() {
     if (Game.time % this.HostileReportFrequency === 0 && this.HostileCreeps.length > 0) {
-      const hostileDetails = this.HostileCreeps.map(c => {
-        owner: c.owner.username
-        name: c.name
-        bodyCost: CreepExtra.BodyCost(c.body.map(p => p.type))
-      });
-
+      const hostileDetails: HostileInfo[] = this.HostileCreeps.map(c => ({
+        owner: c.owner.username,
+        name: c.name,
+        bodyCost: CreepExtra.BodyCost(c.body.map(p => p.type)),
+        partCounts: c.body.reduce((counts, part) => {
+          counts[part.type] = (counts[part.type] ?? 0) + 1;
+          return counts;
+        }, {} as Record<string, number>),
+      }));
       console.log(`[${this.name}] !!! ${this.HostileCreeps.length} hostiles spotted: ${JSON.stringify(hostileDetails)}`);
     }
   }
@@ -198,10 +209,10 @@ export class RoomExtra {
     const myCreepsIdsInRoom = this.AssignedCreeps.map(c => c.id);
     const newAttacksOnMyCreeps = this.room.getEventLog()
       .filter(e => e.event === EVENT_ATTACK && myCreepsIdsInRoom.includes(e.data.targetId as Id<CreepExtra>))
-      .map(a => {
-        time: Game.time - 1;
-        victim: (a as { data: { targetId: string } }).data.targetId;
-      });
+      .map(a => ({
+        time: Game.time - 1,
+        victim: (a as { data: { targetId: string } }).data.targetId,
+      }));
     if (newAttacksOnMyCreeps.length > 0) {
       console.log(`ATTACKS PERFORMED IN [${this.name}] AGAINST MY CREEPS: `)
       for (const att of newAttacksOnMyCreeps)
