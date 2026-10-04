@@ -152,7 +152,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
 
     // Ongoing Construction
     if (currentConstructionTasks.length < this.MaxConstructionWorkers) {
-      const site = this.manager.ConstructionSites.sort((b, a) => (a.progressTotal - a.progress) - (b.progressTotal - b.progress)).pop();
+      const site = creep.pos.findClosestByPath(this.manager.ConstructionSites, { ignoreCreeps: true });
       if (site) return new WorkerTask(WorkerAction.Build, site.id);
     }
 
