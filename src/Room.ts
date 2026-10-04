@@ -21,6 +21,31 @@ declare global {
 
 export class RoomExtra extends Room {
 
+  static StatusOf(room: Room): RoomControlStatus {
+    if (room.controller == undefined)
+      return RoomControlStatus.Neutral;
+
+    if (room.controller?.my)
+      return RoomControlStatus.Owned;
+
+    if ("Claimed" in room.find(FIND_FLAGS).keys())
+      return RoomControlStatus.Claimed;
+
+    // Assume hostile by default
+    return RoomControlStatus.Hostile;
+  }
+
+  static InitRoomMemory(room: Room) {
+    console.log(`[${this.name}]: Initializing Memory for new Room...`);
+    Memory.rooms ??= {};
+    room.memory.status ??= RoomExtra.StatusOf(room);
+    room.memory.lastSpawnTick ??= {};
+    room.memory.attackHostiles ??= false;
+    room.memory.disableWarriors ??= false;
+    room.memory.towerAttackRange ??= 20;
+    room.memory.recentAttacksOnMyCreeps ??= [];
+  }
+
   readonly MyCreepsInRoom: CreepExtra[];
   readonly CreepsByRole: Map<string, CreepExtra[]> = new Map();
 
@@ -52,15 +77,12 @@ export class RoomExtra extends Room {
   RoomEventLogMaxLength = 20;
   HostileReportFrequency = 10;
 
-  constructor(room: Room, myCreepsInRoom: CreepExtra[] = []) {
-    super(room.name);
+  constructor(roomName: string, myCreepsInRoom: CreepExtra[] = []) {
+    super(roomName);
 
     this.MyCreepsInRoom = myCreepsInRoom;
 
-    // Init room if missing from memory
-    if (!(this.name in Memory.rooms)) RoomExtra.InitRoomMemory(room);
-
-    // Sort all my creeps into exclusive groups
+    // Sort all creeps in the room into exclusive groups
     for (const c of myCreepsInRoom) {
       if (c.memory.room === this.name) {
         this.AssignedCreeps.push(c);
@@ -82,12 +104,12 @@ export class RoomExtra extends Room {
 
     // We should be able to access all my creeps in the colony
     // as well as hostiles in this room from this instance.
-    this.HostileCreeps = room.find(FIND_HOSTILE_CREEPS);
-    this.ConstructionSites = room.find(FIND_CONSTRUCTION_SITES);
-    this.Sources = room.find(FIND_SOURCES);
+    this.HostileCreeps = this.find(FIND_HOSTILE_CREEPS);
+    this.ConstructionSites = this.find(FIND_CONSTRUCTION_SITES);
+    this.Sources = this.find(FIND_SOURCES);
 
     // Sort all the structures in the room into groups
-    for (const s of room.find(FIND_STRUCTURES)) {
+    for (const s of this.find(FIND_STRUCTURES)) {
       if (s instanceof OwnedStructure) {
         if (s.my) this.MyStructures.push(s);
 
@@ -119,32 +141,10 @@ export class RoomExtra extends Room {
     this.TowerCriticalSupplyRatio = this.HostileCreeps.length > 0 ? 0.90 : 0.60;
   }
 
-  static StatusOf(room: Room): RoomControlStatus {
-    if (room.controller == undefined)
-      return RoomControlStatus.Neutral;
-
-    if (room.controller?.my)
-      return RoomControlStatus.Owned;
-
-    if ("Claimed" in room.find(FIND_FLAGS).keys())
-      return RoomControlStatus.Claimed;
-
-    // Assume hostile by default
-    return RoomControlStatus.Hostile;
-  }
-
-  static InitRoomMemory(room: Room) {
-    console.log(`[${this.name}]: Initializing Memory for new Room...`);
-    Memory.rooms ??= {};
-    room.memory.status ??= RoomExtra.StatusOf(room);
-    room.memory.lastSpawnTick ??= {};
-    room.memory.attackHostiles ??= false;
-    room.memory.disableWarriors ??= false;
-    room.memory.towerAttackRange ??= 20;
-    room.memory.recentAttacksOnMyCreeps ??= [];
-  }
-
   TickRoom(allRoomManagers: RoomExtra[]) {
+    // Init room if missing from memory
+    if (!(this.name in Memory.rooms)) RoomExtra.InitRoomMemory(this);
+
     // Any Room
 
     // console.log(`Room Roles (${RoomRole.Registry.values.length}): ${JSON.stringify(Object.keys(RoomRole.Registry))}`);

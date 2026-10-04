@@ -114,8 +114,8 @@ export abstract class RoomRole<MemoryShape extends Object> {
     }
 
     // Cannot spawn if RCL is wrong
-    const rcl = this.manager.controller?.level ?? 0;
-    if (rcl < this.StartSpawnAtRCL || rcl >= this.StopSpawnAtRCL) {
+    const rcl = this.manager.controller?.level;
+    if (!rcl || rcl < this.StartSpawnAtRCL || rcl >= this.StopSpawnAtRCL) {
       console.log(`${this.manager}[${this.RoleName}]: RCL (${rcl}) is outside spawn requirements (${this.StartSpawnAtRCL} <= RCL < ${this.StopSpawnAtRCL}`);
       return;
     };
@@ -133,12 +133,6 @@ export abstract class RoomRole<MemoryShape extends Object> {
     const roomCount = this.CreepsInRoomAndRole.length;
     if (roomCount >= this.CountPerRoom) {
       console.log(`${this.manager}[${this.RoleName}]: Room Quota Met ${roomCount}/${this.CountPerRoom}`);
-      return;
-    }
-
-    // or a spawn is already in progress
-    if (this.manager.find(FIND_MY_SPAWNS, { filter: (s) => s.spawning }).length) {
-      console.log(`${this.manager}[${this.RoleName}]: Need to spawn (${roomCount}/${this.CountPerRoom}), but another spawn is in progress.`);
       return;
     }
 
