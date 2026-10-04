@@ -209,7 +209,7 @@ export class RoomManager {
         .sort((b, a) => (a.hits / a.hitsMax) - (b.hits / b.hitsMax))
         .pop();
       if (weakestHostile != null && weakestHostile != undefined) {
-        console.log(`Attack Result: ${t.attack(weakestHostile)}`);
+        t.attack(weakestHostile);
         return;
       }
     }

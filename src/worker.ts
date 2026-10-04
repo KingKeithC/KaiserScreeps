@@ -72,6 +72,8 @@ export class WorkerI extends RoomRole<WorkerTask> {
   Reassign(creep: CreepExtra): WorkerTask {
     if (creep.store.getUsedCapacity(RESOURCE_ENERGY) === 0)
       return this.FindGatheringTask(creep);
+    else if (this.manager.HostileCreeps.length > 0)
+      return this.FindWartimeSpendingTask(creep);
     else
       return this.FindSpendingTask(creep);
   }
@@ -84,6 +86,39 @@ export class WorkerI extends RoomRole<WorkerTask> {
   get CurrentlyAssignedTasks(): WorkerTask[] {
     if (!this._CurrentlyAssignedTasks) this._CurrentlyAssignedTasks = this.CreepsInRoomAndRole.map(c => c.memory.jobMemory as WorkerTask);
     return this._CurrentlyAssignedTasks;
+  }
+
+  FindWartimeSpendingTask(creep: CreepExtra): WorkerTask {
+    const currentTransferTasks = this.CurrentlyAssignedTasks.filter(t => t.action === WorkerAction.Transfer);
+    const spawnOrExtensionNeedingEnergy = creep.pos.findClosestByPath(
+      [...this.manager.Spawns, ...this.manager.SpawnExtensions], {
+      ignoreCreeps: true,
+      filter: s =>
+        s.store.getFreeCapacity(RESOURCE_ENERGY) > 0
+        && !currentTransferTasks.includes(new WorkerTask(WorkerAction.Transfer, s.id)),
+    });
+    if (spawnOrExtensionNeedingEnergy) {
+      const transferTask = new WorkerTask(WorkerAction.Transfer, spawnOrExtensionNeedingEnergy.id);
+      currentTransferTasks.push(transferTask);
+      return transferTask;
+    }
+
+    // Towers with room for energy
+    const tower = creep.pos.findClosestByPath(this.manager.Towers, {
+      ignoreCreeps: true,
+      filter: (s) => s.store.getFreeCapacity(RESOURCE_ENERGY),
+    });
+    if (tower) return new WorkerTask(WorkerAction.Transfer, tower.id);
+
+    // Structures in need of repair
+    const delapitated = this.manager.Spawns[0].pos.findClosestByPath(this.manager.MyStructures, { filter: (s) => s.hits < s.hitsMax, ignoreCreeps: true });
+    if (delapitated) return new WorkerTask(WorkerAction.Repair, delapitated.id);
+
+    // Nothing else to do so just upgrade forever
+    if (this.ControllerMaintenanceTask) return new WorkerTask(WorkerAction.UpgradeController, this.ControllerMaintenanceTask.target);
+
+    // Default
+    return new WorkerTask(WorkerAction.Idle);
   }
 
   FindSpendingTask(creep: CreepExtra): WorkerTask {
