@@ -192,11 +192,29 @@ export class WorkerI extends RoomRole<WorkerTask> {
     if (miners) return new WorkerTask(WorkerAction.CollectEnergy, miners.id);
 
     // Do harvesting on our own
-    const source = creep.pos.findClosestByPath(this.manager.Sources, { ignoreCreeps: true });
-    if (source) return new WorkerTask(WorkerAction.Mine, source.id);
+    const source = this.LocateSource(creep);
+    if (source) return new WorkerTask(WorkerAction.Mine, source);
 
     // Nothing to do without energy
     return new WorkerTask(WorkerAction.Idle);
+  }
+
+
+  LocateSource(creep: CreepExtra): Id<Source> | undefined {
+    const harvestersBySource = new Map<Id<Source>, number>();
+    for (const c of [
+      ...this.manager.CreepsByRole.get("WorkerI") ?? [],
+      ...this.manager.CreepsByRole.get("WorkerII") ?? [],
+    ]) {
+      const mem = c.memory.jobMemory as WorkerTask;
+      if (!mem.target) continue;
+      const obj = Game.getObjectById(mem.target);
+      if (obj instanceof Source) harvestersBySource.set(obj.id, (harvestersBySource.get(obj.id) ?? 0) + 1)
+    }
+    return this.manager.Sources
+      .map(source => ({ source, count: harvestersBySource.get(source.id) ?? 0 }))
+      .sort((b, a) => a.count - b.count)
+      .pop()?.source.id;
   }
 
   Act(creep: CreepExtra, task: WorkerTask): void {
