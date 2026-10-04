@@ -134,10 +134,13 @@ export class RoomManager {
   }
 
   TickRoom(allRoomManagers: RoomManager[]) {
-    // All Rooms
+    // Any Room
 
+    var offset = 0;
     for (const roleType of Roles) {
       const role = new roleType(this); // Construct a role instance for the room
+      role.SpawnTickOffet = offset;
+      offset += 10; // Spawn each role about 10 ticks apart
       role.TickRoom(); // Run it
     }
 

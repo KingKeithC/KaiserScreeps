@@ -62,7 +62,7 @@ export abstract class RoomRole<MemoryShape extends Object> {
     this.TickStart();
 
     // Check to do spawns every `this.SpawnRate` ticks.
-    if (Game.time - (this.room.memory.lastSpawnTick[this.RoleName] ?? 0) > this.SpawnRate) {
+    if (Game.time - (this.room.memory.lastSpawnTick[this.RoleName] ?? 0) - this.SpawnTickOffet > this.SpawnRate) {
       this.DoSpawns();
       this.room.memory.lastSpawnTick[this.RoleName] = Game.time; // Reset
     }
