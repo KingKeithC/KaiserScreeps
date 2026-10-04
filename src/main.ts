@@ -24,6 +24,9 @@ declare global {
 }
 
 const MainLoop = () => {
+  Memory.rooms ??= {};
+  Memory.creeps ??= {};
+
   // Get all my creeps, and convert them to `CreepExtra`
   const MyCreeps = Object.values(Game.creeps).map(c => new CreepExtra(c.id));
 
