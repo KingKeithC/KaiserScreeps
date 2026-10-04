@@ -181,16 +181,18 @@ export class WorkerI extends RoomRole<WorkerTask> {
     if (dropped instanceof Resource) return new WorkerTask(WorkerAction.Pickup, dropped.id as Id<Resource<RESOURCE_ENERGY>>);
 
     // Collect from the nearest container that has energy
-    const container = creep.pos.findClosestByPath(FIND_STRUCTURES, { filter: (s) => s.structureType === STRUCTURE_CONTAINER && s.store.energy > 0 });
+    const container = creep.pos.findClosestByPath(this.manager.Containers.filter(s => s.store.getUsedCapacity(RESOURCE_ENERGY)), { ignoreCreeps: true });
     if (container instanceof StructureContainer) return new WorkerTask(WorkerAction.CollectEnergy, container.id);
 
-    // Collect from the fullest miner nearby if there are any
-    const miner = creep.pos.findInRange(FIND_MY_CREEPS, this.MediumSearchRange, { filter: (c) => c.memory.role === "Miner" && c.store.energy > 0 })
-      .sort((a, b) => a.store.energy - b.store.energy).pop()
-    if (miner != null && miner != undefined) return new WorkerTask(WorkerAction.CollectEnergy, miner.id);
+    // Collect from the fullest miner in medium range
+    const miners = creep.pos.findInRange(
+      (this.manager.CreepsByRole.get("Miner") ?? []).filter(m => m.store.getUsedCapacity(RESOURCE_ENERGY)),
+      this.MediumSearchRange
+    ).sort((a, b) => a.store.energy - b.store.energy).pop();
+    if (miners) return new WorkerTask(WorkerAction.CollectEnergy, miners.id);
 
     // Do harvesting on our own
-    const source = creep.pos.findClosestByPath(FIND_SOURCES_ACTIVE);
+    const source = creep.pos.findClosestByPath(this.manager.Sources, { ignoreCreeps: true });
     if (source) return new WorkerTask(WorkerAction.Mine, source.id);
 
     // Nothing to do without energy
