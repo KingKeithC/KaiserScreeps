@@ -163,7 +163,7 @@ export class RoomManager {
   CallOutHostiles() {
     if (Game.time % this.HostileReportFrequency === 0 && this.HostileCreeps.length > 0) {
       const hostileDetails = this.HostileCreeps.map(c => {
-        owner: c.owner
+        owner: c.owner.username
         name: c.name
         bodyCost: CreepExtra.BodyCost(c.body.map(p => p.type))
       });
