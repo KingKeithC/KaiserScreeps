@@ -1,5 +1,6 @@
-import { CreepExtra } from "creep";
-import { RoomRole } from "role";
+import { CreepExtra } from "Creep";
+import { RoomRole } from "./Role";
+
 
 class WarriorMemory extends Object {
   targetCreep?: Id<CreepExtra>

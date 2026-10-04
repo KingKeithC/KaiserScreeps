@@ -1,5 +1,5 @@
 import { CreepExtra } from "Creep";
-import { RoomRole } from "Role";
+import { RoomRole } from "roles/Role";
 
 export enum RoomControlStatus {
   Owned,

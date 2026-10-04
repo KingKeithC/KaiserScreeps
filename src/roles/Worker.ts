@@ -1,6 +1,5 @@
-import { CreepExtra } from "creep";
-import { RoomRole } from "role";
-
+import { CreepExtra } from "Creep";
+import { RoomRole } from "./Role";
 
 enum WorkerAction {
   Idle = '💤',

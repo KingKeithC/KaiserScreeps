@@ -1,5 +1,5 @@
 import { CreepExtra } from "Creep";
-import { Nouns, Adjectives, Colours } from "Data";
+import { Nouns, Adjectives } from "Data";
 import { RoomManager } from "RoomManager";
 
 export type RoomRoleType = {
