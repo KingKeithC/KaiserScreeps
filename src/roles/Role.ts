@@ -62,7 +62,7 @@ export abstract class RoomRole<MemoryShape extends Object> {
 
     // Check to do spawns every `this.SpawnRate` ticks.
     const timeSinceLastSpawn = Game.time - (this.manager.memory.lastSpawnTick[this.RoleName] ?? 0) - this.SpawnTickOffet;
-    if (timeSinceLastSpawn > this.SpawnRate || this.CreepsInRoomAndRole.length === 0) {
+    if (timeSinceLastSpawn > this.SpawnRate || this.manager.MyCreepsInRoom.length === 0) {
       this.DoSpawns();
       this.manager.memory.lastSpawnTick[this.RoleName] = Game.time; // Reset
     }
