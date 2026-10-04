@@ -23,6 +23,7 @@ export class RoomManager {
 
   readonly room: Room;
 
+  readonly MyCreepsInRoom: CreepExtra[];
   readonly CreepsByRole: Map<string, CreepExtra[]> = new Map();
 
   // Mutually Exclusive Creep Groups
@@ -51,6 +52,7 @@ export class RoomManager {
   constructor(room: Room, myCreepsInRoom: CreepExtra[]) {
     this.room = room;
     this.InitRoomMemory();
+    this.MyCreepsInRoom = myCreepsInRoom;
 
     // Sort all my creeps into exclusive groups
     for (const c of myCreepsInRoom) {
@@ -189,52 +191,65 @@ export class RoomManager {
   }
 
   TickTower(t: StructureTower) {
-    if (!t.isActive || t.store.getUsedCapacity(RESOURCE_ENERGY) === 0)
-      return; // RCL or Energy too low to work
+    const supplyRatio = t.store.getUsedCapacity(RESOURCE_ENERGY) / t.store.getCapacity(RESOURCE_ENERGY);
+    if (!t.isActive || !supplyRatio) return; // RCL or Energy too low to work
 
     // Critical Tasks - Always performed regardless of ener
 
+    // Find lowest health hostile in range
     if (this.room.memory.attackHostiles ?? false) {
-      // Find lowest health hostile in range
-      const hostile = t.pos.findInRange(FIND_HOSTILE_CREEPS, this.room.memory.towerAttackRange)
-        .sort((a, b) => (a.hits / a.hitsMax) - (b.hits / b.hitsMax)).pop()
-      if (hostile != null && hostile != undefined) {
-        t.attack(hostile);
+      const weakestHostile = t.pos
+        .findInRange(this.HostileCreeps.filter(c => c.hits < c.hitsMax), this.room.memory.towerAttackRange)
+        .sort((a, b) => (a.hits / a.hitsMax) - (b.hits / b.hitsMax))
+        .pop();
+      if (weakestHostile) {
+        t.attack(weakestHostile);
         return;
       }
     }
 
     // My creeps in need of healing, weakest first
-    const weakling = this.room.find(FIND_MY_CREEPS, { filter: c => c.hits < c.hitsMax })
-      .sort((b, a) => (a.hits / a.hitsMax) - (b.hits / b.hitsMax)).pop()
-    if (weakling != null && weakling != undefined) {
-      t.heal(weakling);
+    const weakestFriendly = this.MyCreepsInRoom
+      .filter(c => c.hits < c.hitsMax)
+      .sort((a, b) => (a.hits / a.hitsMax) - (b.hits / b.hitsMax))
+      .pop();
+    if (weakestFriendly) {
+      t.heal(weakestFriendly);
       return;
     }
 
-    const supplyRatio = t.store.getUsedCapacity(RESOURCE_ENERGY) / t.store.getCapacity(RESOURCE_ENERGY);
     if (supplyRatio >= this.TowerCriticalSupplyRatio) {
-
       // Find my structures in most need of repair
-      const myStruct = this.room.find(FIND_MY_STRUCTURES, { filter: s => s.hits < s.hitsMax })
+      const mineMostNeedingRepair = this.MyStructures
+        .filter(c => c.hits < c.hitsMax)
         .sort((b, a) => (a.hits / a.hitsMax) - (b.hits / b.hitsMax)).pop()
-      if (myStruct != null && myStruct != undefined) {
-        t.repair(myStruct);
+      if (mineMostNeedingRepair) {
+        t.repair(mineMostNeedingRepair);
         return;
       }
 
       // All other roads in most need of repair
-      const road = this.room.find(FIND_STRUCTURES, { filter: s => s.structureType === STRUCTURE_ROAD && s.hits < s.hitsMax })
+      const road = this.Roads
+        .filter(r => r.hits < r.hitsMax)
         .sort((b, a) => (a.hits / a.hitsMax) - (b.hits / b.hitsMax)).pop()
-      if (road != null && road != undefined) {
+      if (road) {
         t.repair(road);
         return;
       }
 
-      // All other structures, weakest first
-      const allStruct = this.room.find(FIND_STRUCTURES, { filter: s => s.hits < s.hitsMax })
+      const wall = this.Walls
+        .filter(w => w.hits < w.hitsMax)
         .sort((b, a) => (a.hits / a.hitsMax) - (b.hits / b.hitsMax)).pop()
-      if (allStruct != null && allStruct != undefined) {
+      if (wall) {
+        t.repair(wall);
+        return;
+      }
+
+      // All other structures, weakest first
+      const allStruct = this.MyStructures
+        .filter(s => s.hits < s.hitsMax)
+        .sort((b, a) => (a.hits / a.hitsMax) - (b.hits / b.hitsMax)).pop()
+      if (allStruct) {
         t.repair(allStruct);
         return;
       }
