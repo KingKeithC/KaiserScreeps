@@ -50,8 +50,10 @@ export class RoomManager {
 
   constructor(room: Room, myCreepsInRoom: CreepExtra[]) {
     this.room = room;
-    this.InitRoomMemory();
     this.MyCreepsInRoom = myCreepsInRoom;
+
+    // Init room if missing from memory
+    if (!(this.room.name in Memory.rooms)) RoomManager.InitRoomMemory(room);
 
     // Sort all my creeps into exclusive groups
     for (const c of myCreepsInRoom) {
@@ -132,6 +134,16 @@ export class RoomManager {
     return RoomControlStatus.Hostile;
   }
 
+  static InitRoomMemory(room: Room) {
+    Memory.rooms ??= {};
+    room.memory.status ??= RoomManager.StatusOf(room);
+    room.memory.lastSpawnTick ??= {};
+    room.memory.attackHostiles ??= false;
+    room.memory.disableWarriors ??= false;
+    room.memory.towerAttackRange ??= 20;
+    room.memory.recentAttacksOnMyCreeps ??= [];
+  }
+
   TickRoom(allRoomManagers: RoomManager[]) {
     // Any Room
 
@@ -185,15 +197,6 @@ export class RoomManager {
       for (const att of newAttacksOnMyCreeps)
         console.log(JSON.stringify(att));
     }
-  }
-
-  InitRoomMemory() {
-    this.room.memory.status ??= RoomManager.StatusOf(this.room);
-    this.room.memory.lastSpawnTick ??= {};
-    this.room.memory.attackHostiles ??= false;
-    this.room.memory.disableWarriors ??= false;
-    this.room.memory.towerAttackRange ??= this.TowerAttackRangeTiles;
-    this.room.memory.recentAttacksOnMyCreeps ??= [];
   }
 
   TickTower(t: StructureTower) {

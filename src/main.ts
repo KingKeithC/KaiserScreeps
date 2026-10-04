@@ -35,6 +35,15 @@ const MainLoop = () => {
   const Managers = [];
   for (const [room, myCreepsInRoom] of MyCreepsByRoom.entries()) Managers.push(new RoomManager(room, myCreepsInRoom));
 
+  // Since the managers above are based on spawned creeps,
+  // it can miss rooms we have access to after respawning
+  if (Managers.length === 0) {
+    // Add a manager for all rooms we can access
+    for (const room of Object.values(Game.rooms)) {
+      Managers.push(new RoomManager(room, []))
+    }
+  }
+
   for (const m of Managers) m.TickRoom(Managers);
 }
 
