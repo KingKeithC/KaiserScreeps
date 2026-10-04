@@ -1,6 +1,6 @@
-import { CreepExtra } from "creep";
-import { Nouns, Adjectives, Colours } from "data";
-import { RoomManager } from "roomManager";
+import { CreepExtra } from "Creep";
+import { Nouns, Adjectives, Colours } from "Data";
+import { RoomManager } from "RoomManager";
 
 export type RoomRoleType = {
   readonly RoleName: string;

@@ -1,6 +1,6 @@
 import { ErrorMapper } from "utils/ErrorMapper";
-import { RoomControlStatus, RoomManager } from "roomManager";
-import { CreepExtra } from "creep";
+import { RoomControlStatus, RoomManager } from "RoomManager";
+import { CreepExtra } from "Creep";
 
 const MainLoop = () => {
   Memory.rooms ??= {};

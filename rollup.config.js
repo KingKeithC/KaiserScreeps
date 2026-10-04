@@ -15,7 +15,7 @@ if (!dest) {
 }
 
 export default {
-  input: "src/main.ts",
+  input: "src/Main.ts",
   output: {
     file: "dist/main.js",
     format: "cjs",

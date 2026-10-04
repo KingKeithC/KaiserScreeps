@@ -1,16 +1,5 @@
-import { WorkerI, WorkerII } from "worker";
-import { Miner } from "miner";
-import { Settler } from "settler";
-import { CreepExtra } from "creep";
-import { RoomRole } from "role";
-
-// Spawn priority order, lowest to highest
-const Roles = [
-  Settler,
-  WorkerI,
-  WorkerII,
-  Miner,
-];
+import { CreepExtra } from "Creep";
+import { RoomRole } from "Role";
 
 export enum RoomControlStatus {
   Owned,
@@ -159,7 +148,7 @@ export class RoomManager {
     // Any Room
 
     var offset = 0;
-    for (const roleType of Roles) {
+    for (const roleType of RoomRole.Registry.values()) {
       const role = new roleType(this); // Construct a role instance for the room
       role.SpawnTickOffet = offset;
       offset += 10; // Spawn each role about 10 ticks apart

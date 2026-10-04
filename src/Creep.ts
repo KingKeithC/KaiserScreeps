@@ -1,4 +1,4 @@
-import { Colours } from "data";
+import { Colours } from "Data";
 import { sum } from "lodash";
 
 declare global {
