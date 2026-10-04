@@ -73,5 +73,3 @@ export class Settler extends RoomRole<SettlerMemory> {
       creep.claimController(claim.controller);
   }
 }
-
-RoomRole.Register(Settler);

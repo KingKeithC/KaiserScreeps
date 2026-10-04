@@ -78,5 +78,3 @@ export class Miner extends RoomRole<MinerMemory> {
       creep.transfer(selectedTarget, RESOURCE_ENERGY);
   }
 }
-
-RoomRole.Register(Miner);

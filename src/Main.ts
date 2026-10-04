@@ -1,6 +1,7 @@
 import { ErrorMapper } from "utils/ErrorMapper";
 import { CreepExtra } from "Creep";
 import { RoomExtra } from "Room";
+import "roles";
 
 const MainLoop = () => {
   Memory.rooms ??= {};

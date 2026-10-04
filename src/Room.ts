@@ -147,6 +147,8 @@ export class RoomExtra extends Room {
   TickRoom(allRoomManagers: RoomExtra[]) {
     // Any Room
 
+    // console.log(`Room Roles (${RoomRole.Registry.values.length}): ${JSON.stringify(Object.keys(RoomRole.Registry))}`);
+
     var offset = 0;
     for (const roleType of RoomRole.Registry.values()) {
       const role = new roleType(this); // Construct a role instance for the room

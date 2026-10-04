@@ -83,7 +83,9 @@ export class WorkerI extends RoomRole<WorkerTask> {
 
   private _CurrentlyAssignedTasks?: WorkerTask[];
   get CurrentlyAssignedTasks(): WorkerTask[] {
-    if (!this._CurrentlyAssignedTasks) this._CurrentlyAssignedTasks = this.CreepsInRoomAndRole.map(c => c.memory.jobMemory as WorkerTask);
+    if (!this._CurrentlyAssignedTasks) this._CurrentlyAssignedTasks = this.CreepsInRoomAndRole
+      .filter(c => c.memory.jobMemory as WorkerTask)
+      .map(c => c.memory.jobMemory as WorkerTask);
     return this._CurrentlyAssignedTasks;
   }
 
@@ -376,6 +378,3 @@ export class WorkerII extends WorkerI {
   BodyParts = [MOVE, MOVE, WORK, CARRY, CARRY, CARRY, CARRY, CARRY, CARRY, CARRY];
   override get CountPerRoom() { return 10; }
 }
-
-RoomRole.Register(WorkerI);
-RoomRole.Register(WorkerII);

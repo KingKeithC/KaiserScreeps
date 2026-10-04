@@ -21,5 +21,3 @@ export class Warrior extends RoomRole<WarriorMemory> {
 
   TickCreep(creep: CreepExtra, mem: WarriorMemory): void { }
 }
-
-RoomRole.Register(Warrior);
