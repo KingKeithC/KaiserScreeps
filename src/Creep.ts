@@ -72,7 +72,7 @@ export class CreepExtra extends Creep {
       this.memory.stuckTicks = 0;
       this.memory.successfulAvoidMoves = 0;
       this.memory.moveMode = "long";
-      // delete this.memory._move;
+      delete this.memory._move; // Clear out saved path
       return 1;
     }
 
