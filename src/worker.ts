@@ -339,8 +339,8 @@ export class WorkerII extends WorkerI {
 
   StartSpawnAtRCL = 2;
   StopSpawnAtRCL = 100;
-  BodyParts = [MOVE, MOVE, WORK, WORK, CARRY, CARRY, CARRY, CARRY, CARRY];
-  override get CountPerRoom() { return 8; }
+  BodyParts = [MOVE, MOVE, WORK, CARRY, CARRY, CARRY, CARRY, CARRY, CARRY, CARRY];
+  override get CountPerRoom() { return 10; }
 }
 
 RoomRole.Register(WorkerI);
