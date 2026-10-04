@@ -150,8 +150,8 @@ export class RoomManager {
 
     // Owned room
 
-    this.CallOutHostiles();
-    this.ProcessEventLog();
+    // this.CallOutHostiles();
+    // this.ProcessEventLog();
 
     // Build any designated roads
     this.BuildRoads();
