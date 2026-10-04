@@ -205,11 +205,11 @@ export class RoomManager {
     // Find lowest health hostile in range
     if (this.room.memory.attackHostiles ?? false) {
       const weakestHostile = t.pos
-        .findInRange(this.HostileCreeps.filter(c => c.hits < c.hitsMax), this.room.memory.towerAttackRange)
-        .sort((a, b) => (a.hits / a.hitsMax) - (b.hits / b.hitsMax))
+        .findInRange(this.HostileCreeps, this.room.memory.towerAttackRange)
+        .sort((b, a) => (a.hits / a.hitsMax) - (b.hits / b.hitsMax))
         .pop();
-      if (weakestHostile) {
-        t.attack(weakestHostile);
+      if (weakestHostile != null && weakestHostile != undefined) {
+        console.log(`Attack Result: ${t.attack(weakestHostile)}`);
         return;
       }
     }
