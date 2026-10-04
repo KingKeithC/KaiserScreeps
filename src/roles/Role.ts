@@ -1,10 +1,10 @@
 import { CreepExtra } from "Creep";
 import { Nouns, Adjectives } from "Data";
-import { RoomManager } from "RoomManager";
+import { RoomExtra } from "Room";
 
 export type RoomRoleType = {
   readonly RoleName: string;
-  new(manager: RoomManager): RoomRole<any>;
+  new(manager: RoomExtra): RoomRole<any>;
 };
 
 export abstract class RoomRole<MemoryShape extends Object> {
@@ -23,9 +23,8 @@ export abstract class RoomRole<MemoryShape extends Object> {
   abstract InitialJobMemory: MemoryShape;
   abstract CountPerRoom: number;
 
-  readonly manager: RoomManager;
-  get room() { return this.manager.room; }
-  constructor(manager: RoomManager) { this.manager = manager; }
+  readonly manager: RoomExtra;
+  constructor(manager: RoomExtra) { this.manager = manager; }
 
   // Cached fields generated on first access.
   private _CreepsInRole?: CreepExtra[];
@@ -62,15 +61,15 @@ export abstract class RoomRole<MemoryShape extends Object> {
     this.TickStart();
 
     // Check to do spawns every `this.SpawnRate` ticks.
-    if (Game.time - (this.room.memory.lastSpawnTick[this.RoleName] ?? 0) - this.SpawnTickOffet > this.SpawnRate) {
+    if (Game.time - (this.manager.memory.lastSpawnTick[this.RoleName] ?? 0) - this.SpawnTickOffet > this.SpawnRate) {
       this.DoSpawns();
-      this.room.memory.lastSpawnTick[this.RoleName] = Game.time; // Reset
+      this.manager.memory.lastSpawnTick[this.RoleName] = Game.time; // Reset
     }
 
     for (const creep of this.CreepsInRoomAndRole) {
       var task = creep.memory.jobMemory as MemoryShape;
       if (task == null || task == undefined) {
-        console.log(`${this.room}${creep} TickRole: CreepExtra has invalid memory. Wiping...`);
+        console.log(`${this.manager}${creep} TickRole: CreepExtra has invalid memory. Wiping...`);
         task = this.InitialJobMemory;
         creep.memory.jobMemory = task;
       }
@@ -102,7 +101,7 @@ export abstract class RoomRole<MemoryShape extends Object> {
   }
 
   FindSpawns(): StructureSpawn[] {
-    return this.room.find(FIND_MY_SPAWNS, { filter: (spawn) => !spawn.spawning });
+    return this.manager.find(FIND_MY_SPAWNS, { filter: (spawn) => !spawn.spawning });
   }
 
   DoSpawns(): void {
@@ -115,9 +114,9 @@ export abstract class RoomRole<MemoryShape extends Object> {
     }
 
     // Cannot spawn if RCL is wrong
-    const rcl = this.room.controller?.level ?? 0;
+    const rcl = this.manager.controller?.level ?? 0;
     if (rcl < this.StartSpawnAtRCL || rcl >= this.StopSpawnAtRCL) {
-      console.log(`${this.room}[${this.RoleName}]: RCL (${rcl}) is outside spawn requirements (${this.StartSpawnAtRCL} <= RCL < ${this.StopSpawnAtRCL}`);
+      console.log(`${this.manager}[${this.RoleName}]: RCL (${rcl}) is outside spawn requirements (${this.StartSpawnAtRCL} <= RCL < ${this.StopSpawnAtRCL}`);
       return;
     };
 
@@ -133,26 +132,26 @@ export abstract class RoomRole<MemoryShape extends Object> {
     // or room quota met
     const roomCount = this.CreepsInRoomAndRole.length;
     if (roomCount >= this.CountPerRoom) {
-      console.log(`${this.room}[${this.RoleName}]: Room Quota Met ${roomCount}/${this.CountPerRoom}`);
+      console.log(`${this.manager}[${this.RoleName}]: Room Quota Met ${roomCount}/${this.CountPerRoom}`);
       return;
     }
 
     // or a spawn is already in progress
-    if (this.room.find(FIND_MY_SPAWNS, { filter: (s) => s.spawning }).length) {
-      console.log(`${this.room}[${this.RoleName}]: Need to spawn (${roomCount}/${this.CountPerRoom}), but another spawn is in progress.`);
+    if (this.manager.find(FIND_MY_SPAWNS, { filter: (s) => s.spawning }).length) {
+      console.log(`${this.manager}[${this.RoleName}]: Need to spawn (${roomCount}/${this.CountPerRoom}), but another spawn is in progress.`);
       return;
     }
 
     // or there isn't enough energy
-    if (this.room.energyAvailable < this.RoleBodyCost()) {
-      console.log(`${this.room}[${this.RoleName}]: Need to spawn (${roomCount}/${this.CountPerRoom}), but lack the energy (costs ${this.RoleBodyCost()}, have ${this.room.energyAvailable}/${this.room.energyCapacityAvailable})...`);
+    if (this.manager.energyAvailable < this.RoleBodyCost()) {
+      console.log(`${this.manager}[${this.RoleName}]: Need to spawn (${roomCount}/${this.CountPerRoom}), but lack the energy (costs ${this.RoleBodyCost()}, have ${this.manager.energyAvailable}/${this.manager.energyCapacityAvailable})...`);
       return;
     }
 
     // Find a suitable spawn point
     const possibleSpawns = this.FindSpawns();
     if (possibleSpawns.length === 0) {
-      console.log(`${this.room}[${this.RoleName}]: Need to spawn (${this.CreepsInRoomAndRole.length}/${this.CountPerRoom}), but no points could be found.`);
+      console.log(`${this.manager}[${this.RoleName}]: Need to spawn (${this.CreepsInRoomAndRole.length}/${this.CountPerRoom}), but no points could be found.`);
       return;
     }
 
@@ -164,7 +163,7 @@ export abstract class RoomRole<MemoryShape extends Object> {
         newName,
         {
           memory: {
-            room: this.room.name,
+            room: this.manager.name,
             role: this.RoleName,
             stuckTicks: 0,
             lastPos: { x: spawnPoint.pos.x, y: spawnPoint.pos.y },
@@ -176,11 +175,11 @@ export abstract class RoomRole<MemoryShape extends Object> {
       // Log the result
 
       if (result === OK) {
-        console.log(`${this.room}[creep ${newName}]: (${roomCount}+1/${this.CountPerRoom}) Spawning @ ${spawnPoint.name}...`);
+        console.log(`${this.manager}[creep ${newName}]: (${roomCount}+1/${this.CountPerRoom}) Spawning @ ${spawnPoint.name}...`);
         return; // Successful, no need to proceed.
       }
-      console.log(`${this.room}[creep ${newName}]: (${roomCount}/${this.CountPerRoom}) Unable to spawn at ${spawnPoint} due to: ${result}...`);
+      console.log(`${this.manager}[creep ${newName}]: (${roomCount}/${this.CountPerRoom}) Unable to spawn at ${spawnPoint} due to: ${result}...`);
     }
-    console.log(`${this.room}[creep ${newName}]: All spawn attempts failed... woe is me for I did not experience life :(`);
+    console.log(`${this.manager}[creep ${newName}]: All spawn attempts failed... woe is me for I did not experience life :(`);
   }
 }

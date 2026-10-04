@@ -19,9 +19,7 @@ declare global {
   }
 }
 
-export class RoomManager {
-
-  readonly room: Room;
+export class RoomExtra extends Room {
 
   readonly MyCreepsInRoom: CreepExtra[];
   readonly CreepsByRole: Map<string, CreepExtra[]> = new Map();
@@ -48,16 +46,23 @@ export class RoomManager {
   readonly Roads: StructureRoad[] = [];
   readonly OtherNeutralStructures: AnyStructure[] = [];
 
-  constructor(room: Room, myCreepsInRoom: CreepExtra[]) {
-    this.room = room;
+  TowerAttackRangeTiles: number = 15;
+  TowerCriticalSupplyRatio: number = 0.50;
+
+  RoomEventLogMaxLength = 20;
+  HostileReportFrequency = 10;
+
+  constructor(room: Room, myCreepsInRoom: CreepExtra[] = []) {
+    super(room.name);
+
     this.MyCreepsInRoom = myCreepsInRoom;
 
     // Init room if missing from memory
-    if (!(this.room.name in Memory.rooms)) RoomManager.InitRoomMemory(room);
+    if (!(this.name in Memory.rooms)) RoomExtra.InitRoomMemory(room);
 
     // Sort all my creeps into exclusive groups
     for (const c of myCreepsInRoom) {
-      if (c.memory.room === room.name) {
+      if (c.memory.room === this.name) {
         this.AssignedCreeps.push(c);
 
         // Group creeps assigned to this room into lists by role
@@ -66,10 +71,10 @@ export class RoomManager {
           creeps.push(c);
           this.CreepsByRole.set(c.memory.role, creeps);
         } else {
-          console.log(`${room}${c}: Is assigned to unknown role: ${c.memory.role}`);
+          console.log(`${this}${c}: Is assigned to unknown role: ${c.memory.role}`);
         }
       }
-      else if (c.pos.roomName === room.name)
+      else if (c.pos.roomName === this.name)
         this.UnassignedCreeps.push(c);
       else
         this.MyCreepsAssignedElsewhere.push(c);
@@ -114,12 +119,6 @@ export class RoomManager {
     this.TowerCriticalSupplyRatio = this.HostileCreeps.length > 0 ? 0.90 : 0.60;
   }
 
-  TowerAttackRangeTiles: number = 15;
-  TowerCriticalSupplyRatio: number;
-
-  RoomEventLogMaxLength = 20;
-  HostileReportFrequency = 10;
-
   static StatusOf(room: Room): RoomControlStatus {
     if (room.controller == undefined)
       return RoomControlStatus.Neutral;
@@ -135,8 +134,9 @@ export class RoomManager {
   }
 
   static InitRoomMemory(room: Room) {
+    console.log(`${this}: Initializing Memory for new Room...`);
     Memory.rooms ??= {};
-    room.memory.status ??= RoomManager.StatusOf(room);
+    room.memory.status ??= RoomExtra.StatusOf(room);
     room.memory.lastSpawnTick ??= {};
     room.memory.attackHostiles ??= false;
     room.memory.disableWarriors ??= false;
@@ -144,7 +144,7 @@ export class RoomManager {
     room.memory.recentAttacksOnMyCreeps ??= [];
   }
 
-  TickRoom(allRoomManagers: RoomManager[]) {
+  TickRoom(allRoomManagers: RoomExtra[]) {
     // Any Room
 
     var offset = 0;
@@ -155,8 +155,8 @@ export class RoomManager {
       role.TickRoom(); // Run it
     }
 
-    if (this.room.memory.status !== RoomControlStatus.Owned) {
-      console.log(`${this.room} Not owned: ${this.room.memory.status}.`)
+    if (this.memory.status !== RoomControlStatus.Owned) {
+      console.log(`${this}: Not owned: ${this.memory.status}.`)
       return;
     }
 
@@ -180,20 +180,20 @@ export class RoomManager {
         bodyCost: CreepExtra.BodyCost(c.body.map(p => p.type))
       });
 
-      console.log(`${this.room} !!! ${this.HostileCreeps.length} hostiles spotted: ${JSON.stringify(hostileDetails)}`);
+      console.log(`${this} !!! ${this.HostileCreeps.length} hostiles spotted: ${JSON.stringify(hostileDetails)}`);
     }
   }
 
   ProcessEventLog() {
     const myCreepsIdsInRoom = this.AssignedCreeps.map(c => c.id);
-    const newAttacksOnMyCreeps = this.room.getEventLog()
+    const newAttacksOnMyCreeps = this.getEventLog()
       .filter(e => e.event === EVENT_ATTACK && myCreepsIdsInRoom.includes(e.data.targetId as Id<CreepExtra>))
       .map(a => {
         time: Game.time - 1;
         victim: (a as { data: { targetId: string } }).data.targetId;
       });
     if (newAttacksOnMyCreeps.length > 0) {
-      console.log(`ATTACKS PERFORMED IN ${this.room.name} AGAINST MY CREEPS:`)
+      console.log(`ATTACKS PERFORMED IN ${this.name} AGAINST MY CREEPS: `)
       for (const att of newAttacksOnMyCreeps)
         console.log(JSON.stringify(att));
     }
@@ -206,9 +206,9 @@ export class RoomManager {
     // Critical Tasks - Always performed regardless of ener
 
     // Find lowest health hostile in range
-    if (this.room.memory.attackHostiles ?? false) {
+    if (this.memory.attackHostiles ?? false) {
       const weakestHostile = t.pos
-        .findInRange(this.HostileCreeps, this.room.memory.towerAttackRange)
+        .findInRange(this.HostileCreeps, this.memory.towerAttackRange)
         .sort((b, a) => (a.hits / a.hitsMax) - (b.hits / b.hitsMax))
         .pop();
       if (weakestHostile != null && weakestHostile != undefined) {
@@ -266,9 +266,9 @@ export class RoomManager {
       const path = start.pos.findPathTo(end, { maxRooms: 1, swampCost: 2, plainCost: 4, ignoreCreeps: true });
       var built = false;
 
-      if (this.room.createConstructionSite(start.pos.x, start.pos.y, STRUCTURE_ROAD) === OK) built = true;
-      for (const pos of path) if (this.room.createConstructionSite(pos.x, pos.y, STRUCTURE_ROAD) === OK) built = true;
-      if (this.room.createConstructionSite(end.pos.x, end.pos.y, STRUCTURE_ROAD) === OK) built = true;
+      if (this.createConstructionSite(start.pos.x, start.pos.y, STRUCTURE_ROAD) === OK) built = true;
+      for (const pos of path) if (this.createConstructionSite(pos.x, pos.y, STRUCTURE_ROAD) === OK) built = true;
+      if (this.createConstructionSite(end.pos.x, end.pos.y, STRUCTURE_ROAD) === OK) built = true;
 
       if (built) {
         start.remove();
