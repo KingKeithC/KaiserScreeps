@@ -10,8 +10,8 @@ export class Miner extends RoomRole<MinerMemory> {
   InitialJobMemory: MinerMemory = new MinerMemory();
 
   get CountPerRoom() {
-    // 1 miner per source
-    return this.room.find(FIND_SOURCES).length * 3;
+    // 2 miners per source
+    return this.room.find(FIND_SOURCES).length * 2;
   }
 
   BodyParts = [MOVE, CARRY, WORK, WORK, WORK, WORK];
