@@ -32,10 +32,9 @@ export class RoomManager {
   readonly UnassignedCreeps: CreepExtra[] = [];
   readonly MyCreepsAssignedElsewhere: CreepExtra[] = [];
 
-  // Constructions
-  readonly ConstructionSites: ConstructionSite<BuildableStructureConstant>[] = [];
-
   readonly MyStructures: AnyOwnedStructure[] = [];
+  readonly ConstructionSites: ConstructionSite<BuildableStructureConstant>[] = [];
+  readonly Sources: Source[] = [];
 
   // Mutually exclusive Structure Groups
   readonly Towers: StructureTower[] = [];
@@ -48,7 +47,6 @@ export class RoomManager {
   readonly Ramparts: StructureRampart[] = [];
   readonly Roads: StructureRoad[] = [];
   readonly OtherNeutralStructures: AnyStructure[] = [];
-
 
   constructor(room: Room, myCreepsInRoom: CreepExtra[]) {
     this.room = room;
@@ -79,6 +77,7 @@ export class RoomManager {
     // as well as hostiles in this room from this instance.
     this.HostileCreeps = room.find(FIND_HOSTILE_CREEPS);
     this.ConstructionSites = room.find(FIND_CONSTRUCTION_SITES);
+    this.Sources = room.find(FIND_SOURCES);
 
     // Sort all the structures in the room into groups
     for (const s of room.find(FIND_STRUCTURES)) {

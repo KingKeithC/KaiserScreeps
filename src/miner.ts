@@ -8,46 +8,55 @@ class MinerMemory extends Object {
 export class Miner extends RoomRole<MinerMemory> {
   static readonly RoleName: string = "Miner";
   InitialJobMemory: MinerMemory = new MinerMemory();
-
-  get CountPerRoom() {
-    // 2 miners per source
-    return this.room.find(FIND_SOURCES).length * 2;
-  }
-
   BodyParts = [MOVE, CARRY, WORK, WORK, WORK, WORK];
+
   DropoffRange = 4;
 
-  TickCreep(creep: CreepExtra, mem: MinerMemory): void {
-    // Do we need to find a new source?
-    if (mem.sourceId == undefined || mem.sourceId == null)
-      mem.sourceId = this.LocateSource(creep);
+  // 2 miners per source
+  get CountPerRoom() { return this.manager.Sources.length * 2; }
 
-    // Did we find nothing?
-    if (mem.sourceId == null) {
-      console.log(`${this.room}${creep}: Unable to locate a source.`)
-      return; // No source located
+  LocateSource(creep: CreepExtra): Id<Source> | undefined {
+    const minersBySource = new Map<Id<Source>, number>();
+    for (const c of this.CreepsInRole) {
+      const mem = c.memory.jobMemory as MinerMemory;
+      if (!mem.sourceId) continue;
+      minersBySource.set(mem.sourceId, (minersBySource.get(mem.sourceId) ?? 0) + 1)
+    }
+    return this.manager.Sources
+      .map(source => ({ source, count: minersBySource.get(source.id) ?? 0 }))
+      .sort((b, a) => a.count - b.count)
+      .pop()?.source.id;
+  }
+
+  TransferToNeighbours(creep: CreepExtra): void {
+    const closeNeedsEnergy = creep.pos.findInRange([
+      ...this.manager.CreepsByRole.get("WorkerI") ?? [],
+      ...this.manager.CreepsByRole.get("WorkerII") ?? [],
+      ...this.manager.CreepsByRole.get("Settler") ?? [],
+      ...this.manager.Containers,
+    ], 1, { filter: c => c.store.getFreeCapacity(RESOURCE_ENERGY) })
+      .sort((a, b) => (a.store.getUsedCapacity(RESOURCE_ENERGY) / a.store.getCapacity(RESOURCE_ENERGY)) - (b.store.getUsedCapacity(RESOURCE_ENERGY) / b.store.getCapacity(RESOURCE_ENERGY)))
+      .pop();
+    // Transer ours to them
+    if (closeNeedsEnergy) creep.transfer(closeNeedsEnergy, RESOURCE_ENERGY);
+  }
+
+  TickCreep(creep: CreepExtra, mem: MinerMemory): void {
+    if (!mem.sourceId) {
+      mem.sourceId = this.LocateSource(creep);
+      console.log(`${this.room}${creep}: Miner assigned to ${mem.sourceId}...`);
+      return;
     }
 
-    // Lookup object for the source
     const mineObj = Game.getObjectById(mem.sourceId);
-
-    // If source was stale, unset it it and do nothing.
-    if (mineObj == null || mineObj == undefined) {
-      mem.sourceId = undefined;
-      return; // Source was invalid
+    if (!mineObj) {
+      mem.sourceId = this.LocateSource(creep);
+      console.log(`${this.room}${creep}: Stored source is stale, refreshed to ${mem.sourceId}...`)
+      return;
     }
 
     // Transfer energy to any workers we can
-    const closeWorker = creep.pos
-      .findInRange(FIND_MY_CREEPS, 1, {
-        filter: (c) =>
-        ((c.memory.role.startsWith("Worker"))
-          && c.store.getFreeCapacity(RESOURCE_ENERGY) > 0)
-      })
-      .sort((a, b) => a.store.energy - b.store.energy)
-      .pop();
-    if (closeWorker)
-      creep.transfer(closeWorker, RESOURCE_ENERGY); // Transer ours to them
+    this.TransferToNeighbours(creep);
 
     const nearbyCreeps: CreepExtra[] = creep.pos.findInRange(FIND_MY_CREEPS, this.DropoffRange, { filter: (c) => ((c.memory.role.startsWith("Worker")) && c.store.getFreeCapacity(RESOURCE_ENERGY) > 0) });
     const nearbyContainers: StructureContainer[] = creep.pos.findInRange(FIND_STRUCTURES, this.DropoffRange, { filter: s => s.structureType === STRUCTURE_CONTAINER && s.store.getFreeCapacity(RESOURCE_ENERGY) > 0 });
@@ -67,22 +76,6 @@ export class Miner extends RoomRole<MinerMemory> {
       creep.harvest(mineObj);
     else
       creep.transfer(selectedTarget, RESOURCE_ENERGY);
-  }
-
-  LocateSource(creep: CreepExtra): Id<Source> | undefined {
-    const minersBySource = this.CreepsInRoomAndRole.reduce((counts, miner) => {
-      const sourceId = (miner.memory.jobMemory as MinerMemory)?.sourceId;
-      if (sourceId != null)
-        counts.set(sourceId, (counts.get(sourceId) ?? 0) + 1);
-      return counts;
-    }, new Map<Id<Source>, number>());
-
-    const source = this.room.find(FIND_SOURCES)
-      .map(source => ({ source, count: minersBySource.get(source.id) ?? 0 }))
-      .sort((a, b) => a.count - b.count)[0]?.source;
-
-    console.log(`${this.room}${creep}: Assigning Miner to ${source}...`);
-    return source?.id;
   }
 }
 
