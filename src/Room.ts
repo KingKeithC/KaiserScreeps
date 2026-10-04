@@ -71,7 +71,7 @@ export class RoomExtra extends Room {
           creeps.push(c);
           this.CreepsByRole.set(c.memory.role, creeps);
         } else {
-          console.log(`${this}${c}: Is assigned to unknown role: ${c.memory.role}`);
+          console.log(`[${this.name}]${c}: Is assigned to unknown role: ${c.memory.role}`);
         }
       }
       else if (c.pos.roomName === this.name)
@@ -134,7 +134,7 @@ export class RoomExtra extends Room {
   }
 
   static InitRoomMemory(room: Room) {
-    console.log(`${this}: Initializing Memory for new Room...`);
+    console.log(`[${this.name}]: Initializing Memory for new Room...`);
     Memory.rooms ??= {};
     room.memory.status ??= RoomExtra.StatusOf(room);
     room.memory.lastSpawnTick ??= {};
@@ -156,7 +156,7 @@ export class RoomExtra extends Room {
     }
 
     if (this.memory.status !== RoomControlStatus.Owned) {
-      console.log(`${this}: Not owned: ${this.memory.status}.`)
+      console.log(`[${this.name}]: Not owned: ${this.memory.status}.`)
       return;
     }
 
@@ -180,7 +180,7 @@ export class RoomExtra extends Room {
         bodyCost: CreepExtra.BodyCost(c.body.map(p => p.type))
       });
 
-      console.log(`${this} !!! ${this.HostileCreeps.length} hostiles spotted: ${JSON.stringify(hostileDetails)}`);
+      console.log(`[${this.name}] !!! ${this.HostileCreeps.length} hostiles spotted: ${JSON.stringify(hostileDetails)}`);
     }
   }
 
@@ -193,7 +193,7 @@ export class RoomExtra extends Room {
         victim: (a as { data: { targetId: string } }).data.targetId;
       });
     if (newAttacksOnMyCreeps.length > 0) {
-      console.log(`ATTACKS PERFORMED IN ${this.name} AGAINST MY CREEPS: `)
+      console.log(`ATTACKS PERFORMED IN [${this.name}] AGAINST MY CREEPS: `)
       for (const att of newAttacksOnMyCreeps)
         console.log(JSON.stringify(att));
     }

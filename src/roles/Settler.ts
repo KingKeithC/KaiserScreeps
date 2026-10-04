@@ -37,7 +37,7 @@ export class Settler extends RoomRole<SettlerMemory> {
   }
 
   ReturnHome(settler: CreepExtra): void {
-    settler.MoveCreep(this.room.controller!, { range: this.HomeIdleRange });
+    settler.MoveCreep(this.manager.controller!, { range: this.HomeIdleRange });
   }
 
   TickCreep(creep: CreepExtra, memory: SettlerMemory): void {
@@ -45,15 +45,15 @@ export class Settler extends RoomRole<SettlerMemory> {
     if (!memory.claimedRoomDirection || !claim || !claim.controller) {
       this.ReturnHome(creep);
       return;
-    } else if (claim.controller.owner != undefined && claim.controller.owner !== this.room.controller?.owner) {
-      console.log(`${this.room} -> ${claim}${creep} Claimed room is no longer neutral or ours ${claim.controller.owner}!`)
+    } else if (claim.controller.owner != undefined && claim.controller.owner !== this.manager.controller?.owner) {
+      console.log(`[${this.manager.name}] -> ${claim}${creep} Claimed room is no longer neutral or ours ${claim.controller.owner}!`)
       this.ReturnHome(creep);
       return;
     }
 
     const hostiles = claim.find(FIND_HOSTILE_CREEPS);
     if (hostiles.length > 0) {
-      const msg = `${this.room} -> ${claim}${creep} !!! Claimed room has ${hostiles.length} hostiles!`;
+      const msg = `[${this.manager.name}] -> ${claim}${creep} !!! Claimed room has ${hostiles.length} hostiles!`;
 
       if (!memory.push) {
         console.log(msg + " Not set to push, disengaging.");
