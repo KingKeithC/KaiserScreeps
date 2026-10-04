@@ -75,7 +75,8 @@ export abstract class RoomRole<MemoryShape extends Object> {
         creep.memory.jobMemory = task;
       }
 
-      this.TickCreep(creep, task);
+      if (!creep.spawning)
+        this.TickCreep(creep, task);
 
       const ttl = creep.ticksToLive ?? 100;
       if (ttl === 2)
