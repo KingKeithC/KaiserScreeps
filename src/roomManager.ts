@@ -191,6 +191,7 @@ export class RoomManager {
     this.room.memory.status ??= RoomManager.StatusOf(this.room);
     this.room.memory.lastSpawnTick ??= {};
     this.room.memory.attackHostiles ??= false;
+    this.room.memory.disableWarriors ??= false;
     this.room.memory.towerAttackRange ??= this.TowerAttackRangeTiles;
     this.room.memory.recentAttacksOnMyCreeps ??= [];
   }

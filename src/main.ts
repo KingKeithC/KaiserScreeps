@@ -17,6 +17,7 @@ declare global {
     status: RoomControlStatus,
     lastSpawnTick: { [roleName: string]: number }
     attackHostiles: boolean,
+    disableWarriors: boolean,
     towerAttackRange: number,
     recentAttacksOnMyCreeps: [time: number, victim: Id<CreepExtra>][],
   }
