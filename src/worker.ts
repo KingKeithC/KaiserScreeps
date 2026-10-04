@@ -76,22 +76,23 @@ export class WorkerI extends RoomRole<WorkerTask> {
       return this.FindSpendingTask(creep);
   }
 
+  ControllerMaintenanceTask?: WorkerTask = this.room.controller?.my
+    ? new WorkerTask(WorkerAction.MaintainController, this.room.controller.id)
+    : undefined;
+
   FindSpendingTask(creep: CreepExtra): WorkerTask {
     // Select target in order of priority
 
     // Spawns/Extensions with room for energy
-    const spawnOrExtension = creep.pos.findClosestByPath(FIND_MY_STRUCTURES, {
-      filter: (structure) =>
-        (structure.structureType === STRUCTURE_EXTENSION || structure.structureType === STRUCTURE_SPAWN)
-        && structure.store.getFreeCapacity(RESOURCE_ENERGY) > 0
-    });
-    if (
-      (spawnOrExtension instanceof StructureSpawn
-        || spawnOrExtension instanceof StructureExtension)
-      && this.CreepsInRoomAndRole.filter(c =>
-        new WorkerTask(WorkerAction.Transfer, spawnOrExtension.id)
-          .equals(c.memory.jobMemory as WorkerTask)).length < this.MaxTransferrersPerSpawnOrExtension
-    ) return new WorkerTask(WorkerAction.Transfer, spawnOrExtension.id);
+    const spawnOrExtensionNeedingEnergy = creep.pos.findClosestByPath(
+      [...this.manager.Spawns, ...this.manager.SpawnExtensions],
+      { filter: (structure) => structure.store.getFreeCapacity(RESOURCE_ENERGY) > 0, ignoreCreeps: true }
+    );
+
+    if (spawnOrExtensionNeedingEnergy && this.CreepsInRoomAndRole.filter(c =>
+      new WorkerTask(WorkerAction.Transfer, spawnOrExtensionNeedingEnergy.id)
+        .equals(c.memory.jobMemory as WorkerTask)).length < this.MaxTransferrersPerSpawnOrExtension
+    ) return new WorkerTask(WorkerAction.Transfer, spawnOrExtensionNeedingEnergy.id);
 
     // Controller at risk of downgrade
     if (

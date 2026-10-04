@@ -37,6 +37,7 @@ export class RoomManager {
   // Structure Groups
   readonly Towers: StructureTower[] = [];
   readonly Spawns: StructureSpawn[] = [];
+  readonly SpawnExtensions: StructureExtension[] = [];
   readonly OtherMyStructures: AnyOwnedStructure[] = [];
   readonly HostileStructures: AnyOwnedStructure[] = [];
   readonly Containers: StructureContainer[] = [];
@@ -79,6 +80,8 @@ export class RoomManager {
       if (s instanceof OwnedStructure) {
         if (s.structureType === STRUCTURE_SPAWN)
           this.Spawns.push(s);
+        if (s.structureType === STRUCTURE_EXTENSION)
+          this.SpawnExtensions.push(s);
         else if (s.structureType === STRUCTURE_TOWER)
           this.Towers.push(s);
         else if (s.my)
