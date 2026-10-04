@@ -45,6 +45,7 @@ export class RoomManager {
   readonly HostileStructures: AnyOwnedStructure[] = [];
   readonly Containers: StructureContainer[] = [];
   readonly Walls: StructureWall[] = [];
+  readonly Ramparts: StructureRampart[] = [];
   readonly Roads: StructureRoad[] = [];
   readonly OtherNeutralStructures: AnyStructure[] = [];
 
@@ -86,10 +87,12 @@ export class RoomManager {
 
         if (s.structureType === STRUCTURE_SPAWN)
           this.Spawns.push(s);
-        if (s.structureType === STRUCTURE_EXTENSION)
+        else if (s.structureType === STRUCTURE_EXTENSION)
           this.SpawnExtensions.push(s);
         else if (s.structureType === STRUCTURE_TOWER)
           this.Towers.push(s);
+        else if (s.structureType === STRUCTURE_RAMPART)
+          this.Ramparts.push(s);
         else if (s.my)
           this.OtherMyStructures.push(s)
         else
@@ -107,7 +110,7 @@ export class RoomManager {
     }
 
     // Other Properties dependent on those above
-    this.TowerCriticalSupplyRatio = this.HostileCreeps.length > 0 ? 0.75 : 0.30;
+    this.TowerCriticalSupplyRatio = this.HostileCreeps.length > 0 ? 0.80 : 0.40;
   }
 
   TowerAttackRangeTiles: number = 15;
@@ -219,29 +222,21 @@ export class RoomManager {
     }
 
     if (supplyRatio >= this.TowerCriticalSupplyRatio) {
-      // Find my structures in most need of repair
-      const mineMostNeedingRepair = this.MyStructures
-        .filter(c => c.hits < c.hitsMax)
+      // Walls/Ramparts
+      const wallLike = [...this.Ramparts, ...this.Walls]
+        .filter(w => w.hits < w.hitsMax)
         .sort((b, a) => (a.hits / a.hitsMax) - (b.hits / b.hitsMax)).pop()
-      if (mineMostNeedingRepair) {
-        t.repair(mineMostNeedingRepair);
+      if (wallLike) {
+        t.repair(wallLike);
         return;
       }
 
-      // All other roads in most need of repair
+      // All roads in most need of repair
       const road = this.Roads
         .filter(r => r.hits < r.hitsMax)
         .sort((b, a) => (a.hits / a.hitsMax) - (b.hits / b.hitsMax)).pop()
       if (road) {
         t.repair(road);
-        return;
-      }
-
-      const wall = this.Walls
-        .filter(w => w.hits < w.hitsMax)
-        .sort((b, a) => (a.hits / a.hitsMax) - (b.hits / b.hitsMax)).pop()
-      if (wall) {
-        t.repair(wall);
         return;
       }
 
