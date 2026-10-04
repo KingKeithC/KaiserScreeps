@@ -109,7 +109,7 @@ export class RoomManager {
     }
 
     // Other Properties dependent on those above
-    this.TowerCriticalSupplyRatio = this.HostileCreeps.length > 0 ? 0.80 : 0.40;
+    this.TowerCriticalSupplyRatio = this.HostileCreeps.length > 0 ? 0.90 : 0.60;
   }
 
   TowerAttackRangeTiles: number = 15;
