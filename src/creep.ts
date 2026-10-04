@@ -1,6 +1,24 @@
 import { Colours } from "data";
 import { sum } from "lodash";
 
+declare global {
+  interface CreepMemory {
+    role: string;
+    room: string;
+    jobMemory: object;
+    stuckTicks: number;
+    lastPos: { x: number, y: number };
+    moveMode?: "long" | "avoidCreeps";
+    successfulAvoidMoves?: number;
+    _move?: {
+      dest: { x: number, y: number, room: string },
+      time: number,
+      path: string,
+      room: string,
+    },
+  }
+}
+
 export class CreepExtra extends Creep {
 
   MaxStuckTicks: number = 2;
@@ -54,6 +72,7 @@ export class CreepExtra extends Creep {
       this.memory.stuckTicks = 0;
       this.memory.successfulAvoidMoves = 0;
       this.memory.moveMode = "long";
+      delete this.memory._move;
       return 1;
     }
 

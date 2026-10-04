@@ -2,27 +2,6 @@ import { ErrorMapper } from "utils/ErrorMapper";
 import { RoomControlStatus, RoomManager } from "roomManager";
 import { CreepExtra } from "creep";
 
-declare global {
-  interface CreepMemory {
-    role: string;
-    room: string;
-    jobMemory: object;
-    stuckTicks: number;
-    lastPos: { x: number, y: number };
-    moveMode?: "long" | "avoidCreeps";
-    successfulAvoidMoves?: number;
-  }
-
-  interface RoomMemory {
-    status: RoomControlStatus,
-    lastSpawnTick: { [roleName: string]: number }
-    attackHostiles: boolean,
-    disableWarriors: boolean,
-    towerAttackRange: number,
-    recentAttacksOnMyCreeps: [time: number, victim: Id<CreepExtra>][],
-  }
-}
-
 const MainLoop = () => {
   Memory.rooms ??= {};
   Memory.creeps ??= {};

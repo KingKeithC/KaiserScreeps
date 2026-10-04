@@ -19,6 +19,17 @@ export enum RoomControlStatus {
   Hostile
 }
 
+declare global {
+  interface RoomMemory {
+    status: RoomControlStatus,
+    lastSpawnTick: { [roleName: string]: number }
+    attackHostiles: boolean,
+    disableWarriors: boolean,
+    towerAttackRange: number,
+    recentAttacksOnMyCreeps: [time: number, victim: Id<CreepExtra>][],
+  }
+}
+
 export class RoomManager {
 
   readonly room: Room;
