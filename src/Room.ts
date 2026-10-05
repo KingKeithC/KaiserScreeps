@@ -1,4 +1,5 @@
 import { CreepExtra } from "Creep";
+import { Colours } from "Data";
 import { RoomRole } from "roles/Role";
 
 export enum RoomControlStatus {
@@ -399,11 +400,13 @@ export class RoomExtra {
 
     // Find lowest health hostile in range
     if (this.memory.attackHostiles ?? false) {
+      const range = (this.memory.towerAttackRange ?? this.TowerAttackRangeTiles);
       const weakestHostile = t.pos
-        .findInRange(this.HostileCreeps, this.memory.towerAttackRange)
+        .findInRange(this.HostileCreeps, range)
         .sort((b, a) => (a.hits / a.hitsMax) - (b.hits / b.hitsMax))
         .pop();
-      if (weakestHostile != null && weakestHostile != undefined) {
+      if (weakestHostile) {
+        this.room.visual.circle(t.pos, { radius: range, stroke: Colours.ATTACK_RANGE });
         t.attack(weakestHostile);
         return;
       }
