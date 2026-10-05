@@ -438,7 +438,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
         if (!t.target) continue;
         const obj = Game.getObjectById(t.target);
         if (!obj) continue;
-        this.manager.room.visual.circle(obj.pos.x, obj.pos.y, { fill: colour, radius: 0.5 });
+        this.manager.room.visual.circle(obj.pos.x, obj.pos.y, { fill: colour, radius: 0.25 });
       }
     }
   }
