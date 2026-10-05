@@ -212,6 +212,7 @@ export class RoomExtra {
     const start = end - this.EventReportingFrequencyTicks;
     const summaryByEvent = new Map<string, [number, number | null]>();
     var grandTotalEventCount = 0;
+    var headers = ["Event Name", "Count", "Sum of Amount"];
     var widths = [10, 6, 8];
     var summary = "";
 
@@ -234,11 +235,12 @@ export class RoomExtra {
     }
 
     // Construct the actual message
-    summary += `    ============= ${this.room.name} EVENT SUMMARY FROM ${start} to ${end} (~${this.EventReportingFrequencyTicks} Ticks) =============`;
-    summary += `\n${"Event Name".padEnd(widths[0])} ${"Count".padStart(widths[1])} ${"Sum of Amount".padStart(widths[2])}`;
+    summary += `============= ${this.room.name} EVENT SUMMARY FROM ${start} to ${end} (~${this.EventReportingFrequencyTicks} Ticks) =============`;
+    summary += `\n${headers[0].padEnd(widths[0])} ${headers[1].padStart(widths[1])} ${headers[2].padStart(widths[2])}`;
+    summary += `\n\t${"-".repeat(headers[0].length).padEnd(widths[0])} ${"-".repeat(headers[1].length).padStart(widths[1])} ${"-".repeat(headers[2].length).padStart(widths[2])}`;
     for (const [c, [count, amount]] of summaryByEvent.entries())
-      summary += `\n\t${c.padEnd(widths[0])}: ${count.toString().padStart(widths[1])}, ${amount ? amount?.toString().padStart(widths[2]) : "<>"}`;
-    summary += `\n    ================================= ${grandTotalEventCount} TOTAL EVENTS =========================================`;
+      summary += `\n\t - ${c.padEnd(widths[0])}: ${count.toString().padStart(widths[1])}, ${amount ? amount?.toString().padStart(widths[2]) : "<>"}`;
+    summary += `\n================================= ${grandTotalEventCount.toString().padStart(5)} TOTAL EVENTS ==================================`;
 
     // Print it
     console.log(summary);
