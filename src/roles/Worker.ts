@@ -167,7 +167,6 @@ export class WorkerI extends RoomRole<WorkerTask> {
     // Collect from the nearest container that has energy
     const container = creep.pos.findClosestByPath(this.manager.Containers.filter(s => s.store.getUsedCapacity(RESOURCE_ENERGY)), { ignoreCreeps: true });
     if (container) return new WorkerTask(WorkerAction.CollectEnergy, container.id);
-    else console.log(`No containers in range.`);
 
     // Collect from the fullest miner in medium range
     const miners = creep.pos.findInRange(

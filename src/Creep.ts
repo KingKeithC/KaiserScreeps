@@ -38,8 +38,8 @@ export class CreepExtra extends Creep {
       ...opts,
       visualizePathStyle: { stroke: Colours.PATH_LONG, lineStyle: "solid" },
       ignoreCreeps: true,
-      maxOps: this.MaxPathfindingOps,
-
+      maxOps: this.MaxPathfindingOps * 4,
+      plainCost: 3
     });
   }
 
@@ -49,6 +49,7 @@ export class CreepExtra extends Creep {
       visualizePathStyle: { stroke: Colours.PATH_STUCK, lineStyle: "dotted" },
       ignoreCreeps: false,
       maxOps: this.MaxPathfindingOps,
+      ignoreRoads: true,
     });
   }
 
