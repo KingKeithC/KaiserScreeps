@@ -1,7 +1,7 @@
 import { CreepExtra } from "Creep";
 import { Colours } from "Data";
-import { sortBy } from "lodash";
 import { RoomRole } from "roles/Role";
+import { countGraphemes } from 'unicode-segmenter/grapheme';
 
 export enum RoomControlStatus {
   Owned,
@@ -218,6 +218,7 @@ export class RoomExtra {
     const end = Game.time;
     const start = end - this.EventReportingFrequencyTicks;
     const summaryByEvent = new Map<string, [number, number | null]>();
+    const extraPadding = 2;
     var grandTotalEventCount = 0;
     var headers = ["Event Name", "Count", "Sum of Amount"];
     var widths = [10, 6, 8];
@@ -233,7 +234,7 @@ export class RoomExtra {
       const newTotal = e.value ? (totalAmount ?? 0) + e.value : null;
 
       // Update column padding if string of any entry is longer than the default
-      if (e.event.length > widths[0]) widths[0] = e.event.length;
+      if (countGraphemes(e.event) > widths[0]) widths[0] = countGraphemes(e.event);
       if (newCount.toString().length > widths[1]) widths[1] = newCount.toString().length;
       if (newTotal && newTotal.toString().length > widths[2]) widths[2] = newTotal.toString().length;
 
@@ -241,11 +242,10 @@ export class RoomExtra {
       summaryByEvent.set(e.event, [newCount, newTotal]);
     }
 
-    // Add 2 to each width for padding
-    widths = widths.map(w => w + 2);
-
     // Get the keys of the group in sorted order
     const printorder = Array.from(summaryByEvent.keys()).sort();
+
+    widths = widths.map(w => w + extraPadding);
 
     // Construct the actual message
     summary += `============= ${this.room.name} EVENT SUMMARY FROM ${start} to ${end} (~${this.EventReportingFrequencyTicks} Ticks) =============`;
