@@ -103,7 +103,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
 
   FindWartimeSpendingTask(creep: CreepExtra): WorkerTask {
     // Spawns/Extensions/Towers with room for energy
-    const structureNeedingEnergy = this.FindSuitableNeedsSupply(creep.pos);
+    const structureNeedingEnergy = this.FindClosestNeedsSupply(creep.pos);
     if (structureNeedingEnergy) return new WorkerTask(WorkerAction.Supply, structureNeedingEnergy.id);
 
     // Ongoing Construction
@@ -125,7 +125,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
     const currentTransferTasks = this.CurrentlyAssignedTasks
       .filter(t => t.action === WorkerAction.Supply);
     if (currentTransferTasks.length < this.MaxSupplyWorkers) {
-      const structureNeedingEnergy = this.FindSuitableNeedsSupply(creep.pos);
+      const structureNeedingEnergy = this.FindMostNeedsSupply(creep.pos);
       if (structureNeedingEnergy)
         return new WorkerTask(WorkerAction.Supply, structureNeedingEnergy.id);
     }
@@ -176,8 +176,8 @@ export class WorkerI extends RoomRole<WorkerTask> {
     if (miners) return new WorkerTask(WorkerAction.CollectEnergy, miners.id);
 
     // Do harvesting on our own
-    const source = this.FindSuitableSource();
-    if (source) return new WorkerTask(WorkerAction.Mine, source);
+    const source = this.FindLeastAssignedSource();
+    if (source) return new WorkerTask(WorkerAction.Mine, source.id);
 
     // Nothing to do without energy
     return new WorkerTask(WorkerAction.Idle);
@@ -187,7 +187,17 @@ export class WorkerI extends RoomRole<WorkerTask> {
     return pos.findClosestByPath(this.manager.ConstructionSites, { ignoreCreeps: true });
   }
 
-  FindSuitableNeedsSupply(pos: RoomPosition): AnyStoreStructure | undefined {
+  FindClosestNeedsSupply(pos: RoomPosition): AnyStoreStructure | null {
+    // Return the Spawn/Extension/Tower with room for energy
+    // and the least number of other assigned transfers
+    return pos.findClosestByPath(
+      [...this.manager.SpawnsOrExtensions, ...this.manager.Towers]
+        .filter(s => s.store.getFreeCapacity(RESOURCE_ENERGY)),
+      { ignoreCreeps: true }
+    );
+  }
+
+  FindMostNeedsSupply(pos: RoomPosition): AnyStoreStructure | undefined {
     // Get all transfers in progress
     const currentTransferTasks = this.CurrentlyAssignedTasks
       .filter(t => t.action === WorkerAction.Supply);
@@ -209,7 +219,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
       .pop()?.store;
   }
 
-  FindSuitableSource(): Id<Source> | undefined {
+  FindLeastAssignedSource(): Source | undefined {
     const harvestersBySource = new Map<Id<Source>, number>();
     for (const c of [
       ...this.manager.CreepsByRole.get("WorkerI") ?? [],
@@ -223,7 +233,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
     return this.manager.Sources
       .map(source => ({ source, count: harvestersBySource.get(source.id) ?? 0 }))
       .sort((b, a) => a.count - b.count)
-      .pop()?.source.id;
+      .pop()?.source;
   }
 
   Act(creep: CreepExtra, task: WorkerTask): void {
