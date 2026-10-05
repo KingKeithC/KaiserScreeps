@@ -49,6 +49,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
   }
 
   MaxMaintenanceWorkers = 2;
+  MaxRepairWorkers = 4;
   ControllerMaintenanceThreshold = 5000; // Start upgrading when ticksToDowngrade is less than this.
   ControllerMaintenanceBuffer = 5000;    // Stop upgrading when ticksToDowngrade is greater than `ControllerMaintenanceThreshold+ControllerMaintenanceBuffer`.
 
@@ -153,8 +154,12 @@ export class WorkerI extends RoomRole<WorkerTask> {
     }
 
     // Structures in need of repair
-    const delapitated = this.manager.FindNearestRepair(creep.pos);
-    if (delapitated) return new WorkerTask(WorkerAction.Repair, delapitated.id);
+    const currentRepairTasks = this.CurrentlyAssignedTasks.filter(t => t.action === WorkerAction.Repair);
+    if (currentRepairTasks.length < this.MaxRepairWorkers) {
+      const delapitated = this.manager.FindNearestRepair(creep.pos);
+      if (delapitated) return new WorkerTask(WorkerAction.Repair, delapitated.id);
+      else console.log(`[${this.manager.name}]${creep}: No repairs needed!`);
+    }
 
     // Nothing else to do so just upgrade forever
     if (this.ControllerUpgradeTask) return this.ControllerUpgradeTask;

@@ -344,29 +344,10 @@ export class RoomExtra {
   }
 
   FindNearestRepair(pos: RoomPosition): AnyStructure | null {
-    var candidates: AnyStructure[] = [];
-
-    // Weakest Owned Structure (except ramparts)
-    candidates.concat(this.MyStructures
-      .filter(s => s.structureType !== STRUCTURE_RAMPART)
-      .filter(s => s.hits < s.hitsMax)
-      .sort((b, a) => (a.hits / a.hitsMax) - (b.hits / b.hitsMax))
-    );
-
-    // Weakest roads
-    candidates.concat(this.Roads
-      .filter(r => r.hits < r.hitsMax)
-      .sort((b, a) => (a.hits / a.hitsMax) - (b.hits / b.hitsMax))
-    );
-
-    // Weakest Walls/Ramparts
-    const wallsRamparts = [...this.Ramparts, ...this.Walls];
-    candidates.concat(wallsRamparts
-      .filter(w => w.hits < w.hitsMax)
-      .sort((b, a) => (a.hits / a.hitsMax) - (b.hits / b.hitsMax))
-    );
-
-    return pos.findClosestByPath(candidates, { ignoreCreeps: true });
+    return pos.findClosestByPath(this.MyStructures, { ignoreCreeps: true, filter: s => s.hits < s.hitsMax && s.structureType !== STRUCTURE_RAMPART })
+      ?? pos.findClosestByPath(this.Ramparts, { ignoreCreeps: true, filter: s => s.hits < s.hitsMax })
+      ?? pos.findClosestByPath(this.Roads, { ignoreCreeps: true, filter: s => s.hits < s.hitsMax })
+      ?? pos.findClosestByPath(this.Walls, { ignoreCreeps: true, filter: s => s.hits < s.hitsMax });
   }
 
   FindMostNeededRepair(): AnyStructure | null {
