@@ -358,24 +358,25 @@ export class RoomExtra {
   }
 
   FindMostNeededRepair(): AnyStructure | null {
+    // Weakest Walls/Ramparts
+    const wallsRamparts = [...this.Ramparts, ...this.Walls];
+    const wallLike = wallsRamparts
+      .filter(w => w.hits < w.hitsMax)
+      .sort((b, a) => (a.hits / a.hitsMax) - (b.hits / b.hitsMax)).pop();
+    if (wallLike) return wallLike;
+
     // Weakest Owned Structure (except ramparts)
     const allStruct = this.MyStructures.filter(s => s.structureType !== STRUCTURE_RAMPART)
       .filter(s => s.hits < s.hitsMax)
-      .sort((b, a) => (a.hits / a.hitsMax) - (b.hits / b.hitsMax)).pop()
+      .sort((b, a) => (a.hits / a.hitsMax) - (b.hits / b.hitsMax)).pop();
     if (allStruct) return allStruct;
 
     // Weakest roads
     const road = this.Roads
       .filter(r => r.hits < r.hitsMax)
-      .sort((b, a) => (a.hits / a.hitsMax) - (b.hits / b.hitsMax)).pop()
+      .sort((b, a) => (a.hits / a.hitsMax) - (b.hits / b.hitsMax)).pop();
     if (road) return road;
 
-    // Weakest Walls/Ramparts
-    const wallsRamparts = [...this.Ramparts, ...this.Walls];
-    const wallLike = wallsRamparts
-      .filter(w => w.hits < w.hitsMax)
-      .sort((b, a) => (a.hits / a.hitsMax) - (b.hits / b.hitsMax)).pop()
-    if (wallLike) return wallLike;
 
     return null;
   }
