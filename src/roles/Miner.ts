@@ -13,7 +13,7 @@ export class Miner extends RoomRole<MinerMemory> {
   DropoffRange = 4;
 
   // 2 miners per source
-  get CountPerRoom() { return this.manager.Sources.length * 2; }
+  get CountPerRoom() { return this.manager.Sources.length; }
 
   LocateSource(creep: CreepExtra): Id<Source> | undefined {
     const minersBySource = new Map<Id<Source>, number>();
