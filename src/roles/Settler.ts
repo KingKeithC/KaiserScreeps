@@ -17,14 +17,14 @@ export class Settler extends RoomRole<SettlerMemory> {
 
   get InitialJobMemory(): SettlerMemory {
     return ({
-      claimedRoom: this.FindClaimedRooms().pop()?.name,
+      claimedRoom: this.FindClaimedRooms().pop(),
     });
   };
 
-  FindClaimedRooms(): RoomExtra[] {
+  FindClaimedRooms(): string[] {
     const claimedRooms = Object.values(Game.flags)
-      .filter(f => f.name.startsWith("Claim") && f.room != undefined)
-      .map(f => new RoomExtra(f.room!));
+      .filter(f => f.name.startsWith("Claim"))
+      .map(f => f.pos.roomName);
     return unique(claimedRooms);
   }
 
