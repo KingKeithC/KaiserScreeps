@@ -1,5 +1,6 @@
 import { CreepExtra } from "Creep";
 import { Colours } from "Data";
+import { sortBy } from "lodash";
 import { RoomRole } from "roles/Role";
 
 export enum RoomControlStatus {
@@ -244,7 +245,7 @@ export class RoomExtra {
     widths = widths.map(w => w + 2);
 
     // Get the keys of the group in sorted order
-    const printorder = Object.keys(summaryByEvent).sort();
+    const printorder = Array.from(summaryByEvent.keys()).sort();
 
     // Construct the actual message
     summary += `============= ${this.room.name} EVENT SUMMARY FROM ${start} to ${end} (~${this.EventReportingFrequencyTicks} Ticks) =============`;
