@@ -68,7 +68,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
   TickCreep(creep: CreepExtra, currentTask: WorkerTask): void {
     if (this.IsTaskComplete(creep, currentTask)) {
       const newTask = this.Reassign(creep);
-      console.log(`[${this.manager.name}]${creep} Reassigned: ${JSON.stringify(currentTask)} -> ${JSON.stringify(newTask)}`);
+      console.log(`${this.manager.room}${creep} Reassigned: ${JSON.stringify(currentTask)} -> ${JSON.stringify(newTask)}`);
       creep.say(newTask.action);
       creep.memory.jobMemory = newTask;
     }
