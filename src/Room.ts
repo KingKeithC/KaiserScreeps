@@ -244,6 +244,9 @@ export class RoomExtra {
 
     // Print it
     console.log(summary);
+
+    // Wipe the event log
+    this.room.memory.recentEvents = [];
   }
 
   CallOutHostiles() {
