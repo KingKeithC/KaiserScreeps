@@ -12,6 +12,7 @@ declare global {
   interface RoomMemory {
     status: RoomControlStatus,
     lastSpawnTick: { [roleName: string]: number }
+    quotas?: { [roleName: string]: number }
     attackHostiles: boolean,
     disableWarriors: boolean,
     towerAttackRange: number,

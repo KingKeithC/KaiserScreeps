@@ -131,29 +131,34 @@ export abstract class RoomRole<MemoryShape extends Object> {
       }
     }
 
+    // determine room quota, from class by default, or memory if set there
+    var roomQuota = this.CountPerRoom;
+    if (this.manager.memory.quotas && this.manager.memory.quotas[this.RoleName])
+      roomQuota = this.manager.memory.quotas[this.RoleName];
+
     // or room quota met
     const roomCount = this.CreepsInRoomAndRole.length;
-    if (roomCount >= this.CountPerRoom) {
-      console.log(`${this.manager}[${this.RoleName}]: Room Quota Met ${roomCount}/${this.CountPerRoom}`);
+    if (roomCount >= roomQuota) {
+      console.log(`${this.manager}[${this.RoleName}]: Room Quota Met ${roomCount}/${roomQuota}`);
       return;
     }
 
     // or there isn't enough energy
     if (this.manager.energyAvailable < this.RoleBodyCost()) {
-      console.log(`${this.manager}[${this.RoleName}]: Need to spawn (${roomCount}/${this.CountPerRoom}), but lack the energy (costs ${this.RoleBodyCost()}, have ${this.manager.energyAvailable}/${this.manager.energyCapacityAvailable})...`);
+      console.log(`${this.manager}[${this.RoleName}]: Need to spawn (${roomCount}/${roomQuota}), but lack the energy (costs ${this.RoleBodyCost()}, have ${this.manager.energyAvailable}/${this.manager.energyCapacityAvailable})...`);
       return;
     }
 
     // or the subclass decides not to
     if (!this.CanSpawn()) {
-      console.log(`${this.manager}[${this.RoleName}]: Need to spawn (${roomCount}/${this.CountPerRoom}), but CanSpawn() said no...`);
+      console.log(`${this.manager}[${this.RoleName}]: Need to spawn (${roomCount}/${roomQuota}), but CanSpawn() said no...`);
       return;
     }
 
     // Find a suitable spawn point
     const possibleSpawns = this.FindSpawns();
     if (possibleSpawns.length === 0) {
-      console.log(`${this.manager}[${this.RoleName}]: Need to spawn (${this.CreepsInRoomAndRole.length}/${this.CountPerRoom}), but no points could be found.`);
+      console.log(`${this.manager}[${this.RoleName}]: Need to spawn (${roomCount}/${roomQuota}), but no points could be found.`);
       return;
     }
 
