@@ -24,7 +24,7 @@ class WorkerTask extends Object {
 
     this.action = action;
     this.target = id ? id : null;
-    if ((!id) && action === WorkerAction.Idle) {
+    if ((!id) && action !== WorkerAction.Idle) {
       throw new Error(`Id was ${id} with a non idle action: ${action}`);
     }
   }
