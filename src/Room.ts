@@ -243,12 +243,17 @@ export class RoomExtra {
     // Add 2 to each width for padding
     widths = widths.map(w => w + 2);
 
+    // Get the keys of the group in sorted order
+    const printorder = Object.keys(summaryByEvent).sort();
+
     // Construct the actual message
     summary += `============= ${this.room.name} EVENT SUMMARY FROM ${start} to ${end} (~${this.EventReportingFrequencyTicks} Ticks) =============`;
     summary += `\n   ${headers[0].padEnd(widths[0])} ${headers[1].padStart(widths[1])} ${headers[2].padStart(widths[2])}`;
     summary += `\n   ${"-".repeat(headers[0].length).padEnd(widths[0])} ${"-".repeat(headers[1].length).padStart(widths[1])} ${"-".repeat(headers[2].length).padStart(widths[2])}`;
-    for (const [c, [count, amount]] of summaryByEvent.entries())
+    for (const c of printorder) {
+      const [count, amount] = summaryByEvent.get(c) ?? [-1, null];
       summary += `\n - ${c.padEnd(widths[0])}: ${count.toString().padStart(widths[1])} ${amount ? amount?.toString().padStart(widths[2]) : "<>".padStart(widths[2])}`;
+    }
     summary += `\n================================= ${grandTotalEventCount.toString().padStart(5)} TOTAL EVENTS ==================================`;
 
     // Print it
