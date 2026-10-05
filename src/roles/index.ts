@@ -7,4 +7,4 @@ import { Settler } from "./Settler";
 RoomRole.Register(Miner);
 RoomRole.Register(WorkerI);
 RoomRole.Register(WorkerII);
-// RoomRole.Register(Settler);
+RoomRole.Register(Settler);
