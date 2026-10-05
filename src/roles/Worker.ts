@@ -156,7 +156,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
     // Structures in need of repair
     const currentRepairTasks = this.CurrentlyAssignedTasks.filter(t => t.action === WorkerAction.Repair);
     if (currentRepairTasks.length < this.MaxRepairWorkers) {
-      const delapitated = this.manager.FindNearestRepair(creep.pos);
+      const delapitated = this.manager.FindMostNeededRepair();
       if (delapitated) return new WorkerTask(WorkerAction.Repair, delapitated.id);
       else console.log(`[${this.manager.name}]${creep}: No repairs needed!`);
     }
