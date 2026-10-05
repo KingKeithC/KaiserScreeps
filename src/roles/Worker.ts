@@ -419,6 +419,29 @@ export class WorkerI extends RoomRole<WorkerTask> {
       }
     }
   }
+
+  TickEnd(): void {
+    if (this.manager.memory.enableVisuals ?? true) {
+      for (const t of this.CurrentlyAssignedTasks) {
+        var colour = "#000000";
+        switch (t.action) {
+          case WorkerAction.Build: colour = "#fc0fc0"; break;
+          case WorkerAction.CollectEnergy: colour = "#fff600"; break;
+          case WorkerAction.Idle: colour = "#0000ff"; break;
+          case WorkerAction.MaintainController: colour = "#dc143c"; break;
+          case WorkerAction.Mine: colour = "#ffe4cd"; break;
+          case WorkerAction.Pickup: colour = "#b0c24a"; break;
+          case WorkerAction.Repair: colour = "#808080"; break;
+          case WorkerAction.Supply: colour = "#ff00ff"; break;
+          case WorkerAction.UpgradeController: colour = "#ffd700"; break;
+        }
+        if (!t.target) continue;
+        const obj = Game.getObjectById(t.target);
+        if (!obj) continue;
+        this.manager.room.visual.circle(obj.pos.x, obj.pos.y, { fill: colour, radius: 0.5 });
+      }
+    }
+  }
 }
 
 export class WorkerII extends WorkerI {

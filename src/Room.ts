@@ -15,6 +15,7 @@ declare global {
     status: RoomControlStatus,
     lastSpawnTick: { [roleName: string]: number }
     quotas?: { [roleName: string]: number }
+    enableVisuals?: boolean,
     attackHostiles: boolean,
     disableWarriors: boolean,
     towerAttackRange: number,
