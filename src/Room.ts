@@ -72,7 +72,8 @@ export class RoomExtra {
     room.memory.recentEvents ??= [];
   }
 
-  MaxRecentEvents = 100;
+  EventReportingFrequencyTicks = 100;
+  MaxEventLogPerRoom = 2000;
 
   readonly MyCreepsInRoom: CreepExtra[];
 
@@ -101,7 +102,6 @@ export class RoomExtra {
   TowerAttackRangeTiles: number = 15;
   TowerCriticalSupplyRatio: number = 0.50;
 
-  RoomEventLogMaxLength = 20;
   HostileReportFrequency = 10;
 
   constructor(room: Room, myCreepsInRoom: CreepExtra[] = []) {
@@ -198,7 +198,7 @@ export class RoomExtra {
 
     this.CallOutHostiles();
     this.ProcessEventsLastTick();
-    if (Game.time % this.MaxRecentEvents === 0) this.PrintEventSummary();
+    if (Game.time % this.EventReportingFrequencyTicks === 0) this.PrintEventSummary();
 
     // Build any designated roads
     this.BuildRoads();
@@ -209,13 +209,16 @@ export class RoomExtra {
 
   PrintEventSummary() {
     const end = Game.time;
-    const start = end - this.MaxRecentEvents;
+    const start = end - this.EventReportingFrequencyTicks;
     const summaryByEvent = new Map<string, [number, number | null]>();
+    var grandTotalEventCount = 0;
     var widths = [10, 14, 18];
     var summary = "";
 
     // Iterate the events to summarize them
     for (const e of this.room.memory.recentEvents) {
+      grandTotalEventCount++;
+
       // Get current & calculate new group entries
       const [count, totalAmount] = summaryByEvent.get(e.event) ?? [0, null];
       const newCount = count + 1;
@@ -231,11 +234,11 @@ export class RoomExtra {
     }
 
     // Construct the actual message
-    summary += `    ============= EVENT SUMMARY FROM ${start} to ${end} (${this.MaxRecentEvents} Ticks) =============`;
+    summary += `    ============= EVENT SUMMARY FROM ${start} to ${end} (~${this.EventReportingFrequencyTicks} Ticks) =============`;
     summary += `${"Event Name".padEnd(widths[0])} ${"Count".padStart(widths[1])} ${"Sum of Amount".padStart(widths[2])}`;
     for (const [c, [count, amount]] of summaryByEvent.entries())
       summary += `\n\t${c.padEnd(widths[0])}: ${count.toString().padStart(widths[1])}, ${amount ? amount?.toString().padStart(widths[2]) : "<>"}`;
-    summary += `\n    ================================================================================================`;
+    summary += `\n    ================================= ${grandTotalEventCount} TOTAL EVENTS =========================================`;
 
     // Print it
     console.log(summary);
@@ -276,7 +279,7 @@ export class RoomExtra {
       event: this.EventConstantToName(e.event),
       summary: this.EventItemToSummary(e),
       value: this.EventDataToValue(e),
-    }))).slice(-this.MaxRecentEvents);
+    }))).slice(-this.MaxEventLogPerRoom);
 
     const myCreepsIdsInRoom = this.AssignedCreeps.map(c => c.id);
     const newAttacksOnMyCreeps = events
