@@ -212,7 +212,7 @@ export class RoomExtra {
     const start = end - this.EventReportingFrequencyTicks;
     const summaryByEvent = new Map<string, [number, number | null]>();
     var grandTotalEventCount = 0;
-    var widths = [10, 14, 18];
+    var widths = [10, 6, 8];
     var summary = "";
 
     // Iterate the events to summarize them
@@ -235,7 +235,7 @@ export class RoomExtra {
 
     // Construct the actual message
     summary += `    ============= EVENT SUMMARY FROM ${start} to ${end} (~${this.EventReportingFrequencyTicks} Ticks) =============`;
-    summary += `${"Event Name".padEnd(widths[0])} ${"Count".padStart(widths[1])} ${"Sum of Amount".padStart(widths[2])}`;
+    summary += `\n${"Event Name".padEnd(widths[0])} ${"Count".padStart(widths[1])} ${"Sum of Amount".padStart(widths[2])}`;
     for (const [c, [count, amount]] of summaryByEvent.entries())
       summary += `\n\t${c.padEnd(widths[0])}: ${count.toString().padStart(widths[1])}, ${amount ? amount?.toString().padStart(widths[2]) : "<>"}`;
     summary += `\n    ================================= ${grandTotalEventCount} TOTAL EVENTS =========================================`;
