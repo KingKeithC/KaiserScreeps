@@ -75,7 +75,7 @@ export class RoomExtra {
     room.memory.recentEvents ??= [];
   }
 
-  EventReportingFrequencyTicks = 100;
+  EventReportingFrequencyTicks = 250;
   MaxEventLogPerRoom = 2000;
 
   readonly MyCreepsInRoom: CreepExtra[];
