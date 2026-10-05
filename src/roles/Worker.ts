@@ -92,12 +92,13 @@ export class WorkerI extends RoomRole<WorkerTask> {
     ? new WorkerTask(WorkerAction.UpgradeController, this.manager.controller.id)
     : undefined;
 
-  private _CurrentlyAssignedTasks?: WorkerTask[];
+  // private _CurrentlyAssignedTasks?: WorkerTask[];
   get CurrentlyAssignedTasks(): WorkerTask[] {
-    if (!this._CurrentlyAssignedTasks) this._CurrentlyAssignedTasks = this.CreepsInRoomAndRole
+    // if (!this._CurrentlyAssignedTasks) this._CurrentlyAssignedTasks = this.CreepsInRoomAndRole
+    return this.CreepsInRoomAndRole
       .filter(c => c.memory.jobMemory as WorkerTask)
       .map(c => c.memory.jobMemory as WorkerTask);
-    return this._CurrentlyAssignedTasks;
+    // return this._CurrentlyAssignedTasks;
   }
 
   FindWartimeSpendingTask(creep: CreepExtra): WorkerTask {
@@ -166,6 +167,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
     // Collect from the nearest container that has energy
     const container = creep.pos.findClosestByPath(this.manager.Containers.filter(s => s.store.getUsedCapacity(RESOURCE_ENERGY)), { ignoreCreeps: true });
     if (container) return new WorkerTask(WorkerAction.CollectEnergy, container.id);
+    else console.log(`No containers in range.`);
 
     // Collect from the fullest miner in medium range
     const miners = creep.pos.findInRange(

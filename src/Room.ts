@@ -65,7 +65,6 @@ export class RoomExtra {
   }
 
   readonly MyCreepsInRoom: CreepExtra[];
-  readonly CreepsByRole: Map<string, CreepExtra[]> = new Map();
 
   // Mutually Exclusive Creep Groups
   readonly HostileCreeps: CreepExtra[] = [];
@@ -104,15 +103,6 @@ export class RoomExtra {
     for (const c of myCreepsInRoom) {
       if (c.memory.room === this.name) {
         this.AssignedCreeps.push(c);
-
-        // Group creeps assigned to this room into lists by role
-        if (RoomRole.Registry.has(c.memory.role)) {
-          const creeps = this.CreepsByRole.get(c.memory.role) ?? [];
-          creeps.push(c);
-          this.CreepsByRole.set(c.memory.role, creeps);
-        } else {
-          console.log(`[${this.name}]${c}: Is assigned to unknown role: ${c.memory.role}`);
-        }
       }
       else if (c.pos.roomName === this.name)
         this.UnassignedCreeps.push(c);
@@ -160,6 +150,20 @@ export class RoomExtra {
   }
 
   get SpawnsOrExtensions() { return [...this.Spawns, ...this.SpawnExtensions]; }
+
+  // Group creeps assigned to this room into lists by role
+  get CreepsByRole(): Map<string, CreepExtra[]> {
+    const map = new Map();
+    for (const c of this.AssignedCreeps)
+      if (RoomRole.Registry.has(c.memory.role)) {
+        const creeps = map.get(c.memory.role) ?? [];
+        creeps.push(c);
+        map.set(c.memory.role, creeps);
+      } else {
+        console.log(`[${this.name}]${c}: Is assigned to unknown role: ${c.memory.role}`);
+      }
+    return map;
+  }
 
   TickRoom(allRoomManagers: RoomExtra[]) {
     // Init room if missing from memory
