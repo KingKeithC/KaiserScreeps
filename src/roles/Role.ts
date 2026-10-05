@@ -144,6 +144,12 @@ export abstract class RoomRole<MemoryShape extends Object> {
       return;
     }
 
+    // or the subclass decides not to
+    if (!this.CanSpawn()) {
+      console.log(`${this.manager}[${this.RoleName}]: Need to spawn (${roomCount}/${this.CountPerRoom}), but CanSpawn() said no...`);
+      return;
+    }
+
     // Find a suitable spawn point
     const possibleSpawns = this.FindSpawns();
     if (possibleSpawns.length === 0) {
@@ -177,5 +183,10 @@ export abstract class RoomRole<MemoryShape extends Object> {
       console.log(`${this.manager}[creep ${newName}]: (${roomCount}/${this.CountPerRoom}) Unable to spawn at ${spawnPoint} due to: ${result}...`);
     }
     console.log(`${this.manager}[creep ${newName}]: All spawn attempts failed... woe is me for I did not experience life :(`);
+  }
+
+  // Can be overridden to provide an opportunity to intercept spawns.
+  CanSpawn(): boolean {
+    return true;
   }
 }

@@ -407,4 +407,9 @@ export class WorkerII extends WorkerI {
   StopSpawnAtRCL = 100;
   BodyParts = [MOVE, MOVE, WORK, CARRY, CARRY, CARRY, CARRY, CARRY, CARRY, CARRY];
   override get CountPerRoom() { return 10; }
+
+  override CanSpawn(): boolean {
+    // There must be at least 1 miner before we spawn WorkerII
+    return (this.manager.CreepsByRole.get("Miner") ?? 0) > 1;
+  }
 }
