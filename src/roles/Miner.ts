@@ -44,14 +44,14 @@ export class Miner extends RoomRole<MinerMemory> {
   TickCreep(creep: CreepExtra, mem: MinerMemory): void {
     if (!mem.sourceId) {
       mem.sourceId = this.LocateSource(creep);
-      console.log(`${this.manager.name}${creep}: Miner assigned to ${mem.sourceId}...`);
+      creep.Log(`Miner assigned to ${mem.sourceId}...`);
       return;
     }
 
     const mineObj = Game.getObjectById(mem.sourceId);
     if (!mineObj) {
       mem.sourceId = this.LocateSource(creep);
-      console.log(`${this.manager.name}${creep}: Stored source is stale, refreshed to ${mem.sourceId}...`)
+      creep.Log(`Stored source is stale, refreshed to ${mem.sourceId}...`)
       return;
     }
 

@@ -54,7 +54,7 @@ export class RoomExtra {
   }
 
   static InitRoomMemory(room: Room) {
-    console.log(`[${this.name}]: Initializing Memory for new Room...`);
+    console.log(`RoomExtra: Initializing Memory for new Room...`);
     Memory.rooms ??= {};
     room.memory.status ??= RoomExtra.StatusOf(room);
     room.memory.lastSpawnTick ??= {};
@@ -149,6 +149,10 @@ export class RoomExtra {
     this.TowerCriticalSupplyRatio = this.HostileCreeps.length > 0 ? 0.90 : 0.60;
   }
 
+  Log(msg: string): void {
+    console.log(`[C:${this.name}]: ${msg}`);
+  }
+
   get SpawnsOrExtensions() { return [...this.Spawns, ...this.SpawnExtensions]; }
 
   // Group creeps assigned to this room into lists by role
@@ -160,7 +164,7 @@ export class RoomExtra {
         creeps.push(c);
         map.set(c.memory.role, creeps);
       } else {
-        console.log(`[${this.name}]${c}: Is assigned to unknown role: ${c.memory.role}`);
+        c.Log(`Is assigned to unknown role: ${c.memory.role}`);
       }
     return map;
   }
@@ -180,7 +184,7 @@ export class RoomExtra {
     }
 
     if (this.memory.status !== RoomControlStatus.Owned) {
-      console.log(`[${this.name}]: Not owned: ${this.memory.status}.`)
+      this.Log(`Not owned: ${this.memory.status}.`)
       return;
     }
 
@@ -207,7 +211,7 @@ export class RoomExtra {
           return counts;
         }, {} as Record<string, number>),
       }));
-      console.log(`[${this.name}] !!! ${this.HostileCreeps.length} hostiles spotted: ${JSON.stringify(hostileDetails)}`);
+      this.Log(`!!! ${this.HostileCreeps.length} hostiles spotted: ${JSON.stringify(hostileDetails)}`);
     }
   }
 
@@ -220,9 +224,9 @@ export class RoomExtra {
         victim: (a as { data: { targetId: string } }).data.targetId,
       }));
     if (newAttacksOnMyCreeps.length > 0) {
-      console.log(`ATTACKS PERFORMED IN [${this.name}] AGAINST MY CREEPS: `)
+      this.Log(`ATTACKS PERFORMED AGAINST MY CREEPS: `)
       for (const att of newAttacksOnMyCreeps)
-        console.log(JSON.stringify(att));
+        this.Log(JSON.stringify(att));
     }
   }
 

@@ -68,7 +68,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
   TickCreep(creep: CreepExtra, currentTask: WorkerTask): void {
     if (this.IsTaskComplete(creep, currentTask)) {
       const newTask = this.Reassign(creep);
-      console.log(`${this.manager.room}${creep} Reassigned: ${JSON.stringify(currentTask)} -> ${JSON.stringify(newTask)}`);
+      creep.Log(`Reassigned: ${JSON.stringify(currentTask)} -> ${JSON.stringify(newTask)}`);
       creep.say(newTask.action);
       creep.memory.jobMemory = newTask;
     }
@@ -239,7 +239,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
       // Target may be null in this one case
       if (task.action === WorkerAction.Idle) return;
 
-      console.log(`[${this.manager.name}]${creep}: Act: ${creep} has null/undefined target in memory: ${task.target}`)
+      creep.Log(`Act: ${creep} has null/undefined target in memory: ${task.target}`)
       return;
     }
 
@@ -250,7 +250,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
       // Finished a construction
       if (task.action === WorkerAction.Build) return;
 
-      console.log(`[${this.manager.name}]${creep}: Act: ${creep} Game.getObjectById returned null`)
+      creep.Log(`Act: ${creep} Game.getObjectById returned null`)
       return;
     }
 
@@ -260,7 +260,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
       case (WorkerAction.Pickup): {
         const t = targetObject as Resource;
         result = creep.pickup(t)
-        if (result === OK) console.log(`[${this.manager.name}]${creep}: Act: Picked up ${t}.`);
+        if (result === OK) creep.Log(`Act: Picked up ${t}.`);
         break;
       }
       case (WorkerAction.CollectEnergy): {
@@ -271,7 +271,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
           // console.log(`[${this.manager.name}]${creep}: Awaiting energy transfer (${creep.store.energy}/${creep.store.getCapacity(RESOURCE_ENERGY)}).`);
           result = ERR_NOT_IN_RANGE; // Forces them to move toward the Miner.
         } else {
-          console.log(`[${this.manager.name}]${creep}: Unknown target for CollectEnergy: ${targetObject}`);
+          creep.Log(`Unknown target for CollectEnergy: ${targetObject}`);
         }
         break;
       }
@@ -307,7 +307,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
         break;
       }
       default: {
-        console.log(`[${this.manager.name}]${creep}: Act: Unknown Action ${JSON.stringify(task)}.`);
+        creep.Log(`Act: Unknown Action ${JSON.stringify(task)}.`);
         break;
       }
     }
@@ -339,7 +339,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
       }
       default: {
         // Generic print all
-        console.log(`[${this.manager.name}]${creep}: Act: Task ${JSON.stringify(task)} was not successful: ${result}`);
+        creep.Log(`Act: Task ${JSON.stringify(task)} was not successful: ${result}`);
         return;
       }
     }
@@ -354,7 +354,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
     if (!targetObject && task.action === WorkerAction.Build)
       return true; // Builders can have stale objects so don't log an error
     else if (!targetObject) {
-      console.log(`[${this.manager.name}]${creep}: IsTaskComplete: Game.getObjectById of ${task.target} is null`);
+      creep.Log(`IsTaskComplete: Game.getObjectById of ${task.target} is null`);
       return true;
     }
 
@@ -369,7 +369,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
         if (targetObject instanceof Creep) return targetObject.store.energy === 0;
         if (targetObject instanceof Resource && targetObject.resourceType === RESOURCE_ENERGY) return targetObject.amount > 0;
 
-        console.log(`[${this.manager.name}]${creep}: Assuming collection is complete: ${targetObject}`);
+        creep.Log(`Assuming collection is complete: ${targetObject}`);
         return true;
       }
       case (WorkerAction.Pickup): {
@@ -400,7 +400,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
         return t.store.getFreeCapacity(RESOURCE_ENERGY) === 0;
       }
       default: {
-        console.log(`[${this.manager.name}]${creep}: IsTaskComplete: Unknown Task is complete: ${JSON.stringify(task)}`);
+        creep.Log(`IsTaskComplete: Unknown Task is complete: ${JSON.stringify(task)}`);
         return true;
       }
     }

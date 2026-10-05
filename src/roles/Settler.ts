@@ -46,7 +46,7 @@ export class Settler extends RoomRole<SettlerMemory> {
       this.ReturnHome(creep);
       return;
     } else if (claim.controller.owner != undefined && claim.controller.owner !== this.manager.controller?.owner) {
-      console.log(`[${this.manager.name}] -> ${claim}${creep} Claimed room is no longer neutral or ours ${claim.controller.owner}!`)
+      creep.Log(`Claimed room is no longer neutral or ours ${claim.controller.owner}!`)
       this.ReturnHome(creep);
       return;
     }
@@ -56,11 +56,11 @@ export class Settler extends RoomRole<SettlerMemory> {
       const msg = `[${this.manager.name}] -> ${claim}${creep} !!! Claimed room has ${hostiles.length} hostiles!`;
 
       if (!memory.push) {
-        console.log(msg + " Not set to push, disengaging.");
+        creep.Log(msg + " Not set to push, disengaging.");
         this.ReturnHome(creep);
         return;
       }
-      console.log(msg + " For the Homeland!...");
+      creep.Log(msg + " For the Homeland!...");
     }
 
     if (creep.MoveCreep(claim.controller.pos, { range: 1 }) != 1)

@@ -33,6 +33,10 @@ export class CreepExtra extends Creep {
       .map(c => new CreepExtra(c.id));
   }
 
+  Log(msg: string): void {
+    console.log(`[M:${this.memory.room}][M:${this.memory.role}][C:${this.name}]: ${msg}`);
+  }
+
   MoveLong(dest: RoomPosition | { pos: RoomPosition; }, opts?: MoveToOpts): number {
     return this.moveTo(dest, {
       ...opts,
