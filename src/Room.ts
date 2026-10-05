@@ -210,17 +210,34 @@ export class RoomExtra {
   PrintEventSummary() {
     const end = Game.time;
     const start = end - this.MaxRecentEvents;
-    const groups = new Map<string, [number, number | null]>();
+    const summaryByEvent = new Map<string, [number, number | null]>();
     var widths = [10, 14, 18];
+    var summary = "";
+
+    // Iterate the events to summarize them
     for (const e of this.room.memory.recentEvents) {
-      const [count, totalAmount] = groups.get(e.event) ?? [0, null];
-      groups.set(e.event, [count + 1, e.value ? (totalAmount ?? 0) + e.value : null]);
+      // Get current & calculate new group entries
+      const [count, totalAmount] = summaryByEvent.get(e.event) ?? [0, null];
+      const newCount = count + 1;
+      const newTotal = e.value ? (totalAmount ?? 0) + e.value : null;
+
+      // Update column padding if string of any entry is longer than the default
+      if (e.event.length > widths[0]) widths[0] = e.event.length;
+      if (newCount.toString().length > widths[1]) widths[1] = newCount.toString().length;
+      if (newTotal && newTotal.toString().length > widths[2]) widths[2] = newTotal.toString().length;
+
+      // Update the group
+      summaryByEvent.set(e.event, [newCount, newTotal]);
     }
-    var summary = `    ============= EVENT SUMMARY FROM ${start} to ${end} (${this.MaxRecentEvents} Ticks) =============`;
-    var summary = `${"Event Name".padEnd(widths[0])} ${"Count".padStart(widths[1])} ${"Sum of Amount".padStart(widths[2])}`;
-    for (const [c, [count, amount]] of groups.entries())
+
+    // Construct the actual message
+    summary += `    ============= EVENT SUMMARY FROM ${start} to ${end} (${this.MaxRecentEvents} Ticks) =============`;
+    summary += `${"Event Name".padEnd(widths[0])} ${"Count".padStart(widths[1])} ${"Sum of Amount".padStart(widths[2])}`;
+    for (const [c, [count, amount]] of summaryByEvent.entries())
       summary += `\n\t${c.padEnd(widths[0])}: ${count.toString().padStart(widths[1])}, ${amount ? amount?.toString().padStart(widths[2]) : "<>"}`;
-    var summary = `\n    ================================================================================================`;
+    summary += `\n    ================================================================================================`;
+
+    // Print it
     console.log(summary);
   }
 
