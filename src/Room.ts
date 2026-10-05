@@ -82,8 +82,6 @@ export class RoomExtra extends Room {
     })
   }
 
-  AssignedCreeps(): CreepExtra[] { return this.find(FIND_MY_CREEPS, { filter: c => c.memory.room === this.name }) }
-
   TickRoles() {
     var spawnOffset = 0;
     for (const roleType of RoomRole.Registry.values()) {

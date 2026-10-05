@@ -52,10 +52,7 @@ export abstract class RoomRole<MemoryShape extends Object> {
       this.room.memory.lastSpawnTick[this.RoleName] = Game.time; // Reset
     }
 
-    for (const creep of this.room.find(FIND_MY_CREEPS,
-      { filter: c => c.memory.room === this.room.name && c.memory.role === this.RoleName })
-      .map(c => new CreepExtra(c.id))
-    ) {
+    for (const creep of this.CreepsInRole()) {
       var task = creep.memory.jobMemory as MemoryShape;
       if (task == null || task == undefined) {
         console.log(`${this.room}${creep} TickRole: CreepExtra has invalid memory. Wiping...`);
