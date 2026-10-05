@@ -59,6 +59,8 @@ export class WorkerI extends RoomRole<WorkerTask> {
     return max < min ? min : max;
   };
 
+  IgnoreDroppedResourcesLessThan = 30;
+
   MediumSearchRange = 20;
   ShortSearchRange = 5;
 
@@ -156,8 +158,10 @@ export class WorkerI extends RoomRole<WorkerTask> {
 
   FindGatheringTask(creep: CreepExtra): WorkerTask {
     // Dropped Energy with reasonable amount remaining
-    const dropped = creep.pos.findClosestByPath(FIND_DROPPED_RESOURCES, { filter: r => r.resourceType === RESOURCE_ENERGY && r.amount > 30 });
-    if (dropped) return new WorkerTask(WorkerAction.Pickup, dropped.id as Id<Resource<RESOURCE_ENERGY>>);
+    for (const res of this.manager.room.find(FIND_DROPPED_RESOURCES, { filter: r => r.resourceType === RESOURCE_ENERGY && r.amount > this.IgnoreDroppedResourcesLessThan })) {
+      const countPickingUpSameRes = this.CurrentlyAssignedTasks.filter(t => t.action === WorkerAction.Pickup && t.target == res.id).length;
+      if (!countPickingUpSameRes) return new WorkerTask(WorkerAction.Pickup, res.id as Id<Resource<RESOURCE_ENERGY>>);
+    }
 
     // Collect from the nearest container that has energy
     const container = creep.pos.findClosestByPath(this.manager.Containers.filter(s => s.store.getUsedCapacity(RESOURCE_ENERGY)), { ignoreCreeps: true });
