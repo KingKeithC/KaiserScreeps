@@ -16,8 +16,15 @@ declare global {
     attackHostiles: boolean,
     disableWarriors: boolean,
     towerAttackRange: number,
-    recentAttacksOnMyCreeps: [time: number, victim: Id<CreepExtra>][],
+    recentEvents: EventSummary[],
   }
+}
+
+interface EventSummary {
+  time: number,
+  event: string,
+  summary: string,
+  value: number | null,
 }
 
 
@@ -62,8 +69,10 @@ export class RoomExtra {
     room.memory.attackHostiles ??= false;
     room.memory.disableWarriors ??= false;
     room.memory.towerAttackRange ??= 20;
-    room.memory.recentAttacksOnMyCreeps ??= [];
+    room.memory.recentEvents ??= [];
   }
+
+  MaxRecentEvents = 100;
 
   readonly MyCreepsInRoom: CreepExtra[];
 
@@ -188,13 +197,31 @@ export class RoomExtra {
     // Owned room
 
     this.CallOutHostiles();
-    this.ProcessEventLog();
+    this.ProcessEventsLastTick();
+    if (Game.time % this.MaxRecentEvents === 0) this.PrintEventSummary();
 
     // Build any designated roads
     this.BuildRoads();
 
     // Run each tower in the room
     for (const tower of this.Towers) this.TickTower(tower as StructureTower);
+  }
+
+  PrintEventSummary() {
+    const end = Game.time;
+    const start = end - this.MaxRecentEvents;
+    const groups = new Map<string, [number, number | null]>();
+    var widths = [10, 14, 18];
+    for (const e of this.room.memory.recentEvents) {
+      const [count, totalAmount] = groups.get(e.event) ?? [0, null];
+      groups.set(e.event, [count + 1, e.value ? (totalAmount ?? 0) + e.value : null]);
+    }
+    var summary = `    ============= EVENT SUMMARY FROM ${start} to ${end} (${this.MaxRecentEvents} Ticks) =============`;
+    var summary = `${"Event Name".padEnd(widths[0])} ${"Count".padStart(widths[1])} ${"Sum of Amount".padStart(widths[2])}`;
+    for (const [c, [count, amount]] of groups.entries())
+      summary += `\n\t${c.padEnd(widths[0])}: ${count.toString().padStart(widths[1])}, ${amount ? amount?.toString().padStart(widths[2]) : "<>"}`;
+    var summary = `\n    ================================================================================================`;
+    console.log(summary);
   }
 
   CallOutHostiles() {
@@ -212,9 +239,30 @@ export class RoomExtra {
     }
   }
 
-  ProcessEventLog() {
+  EventItemToSummary(item: EventItem): string {
+    switch (item.event) {
+      case EVENT_ATTACK:
+        return `Attack: ${item.data.attackType} -> ${item.data.targetId} for ${item.data.damage}`;
+      case EVENT_HARVEST:
+        return `Harvest: ${item.data.amount} from ${item.data.targetId}`;
+      case EVENT_BUILD:
+        return `${item.data.incomplete ? "Building" : "Completed"}: ${item.data.structureType} at (x:${item.data.x}, y:${item.data.y})${item.data.incomplete ? ` for ${item.data.amount}` : ""}`;
+      default:
+        return `todo`;
+    }
+  }
+
+  ProcessEventsLastTick() {
+    const events = this.room.getEventLog();
+    this.room.memory.recentEvents = (this.room.memory.recentEvents ?? []).concat(events.map(e => ({
+      time: Game.time - 1,
+      event: this.EventConstantToName(e.event),
+      summary: this.EventItemToSummary(e),
+      value: this.EventDataToValue(e),
+    }))).slice(-this.MaxRecentEvents);
+
     const myCreepsIdsInRoom = this.AssignedCreeps.map(c => c.id);
-    const newAttacksOnMyCreeps = this.room.getEventLog()
+    const newAttacksOnMyCreeps = events
       .filter(e => e.event === EVENT_ATTACK && myCreepsIdsInRoom.includes(e.data.targetId as Id<CreepExtra>))
       .map(a => ({
         time: Game.time - 1,
@@ -224,6 +272,40 @@ export class RoomExtra {
       console.log(`ATTACKS PERFORMED IN [${this.name}] AGAINST MY CREEPS: `)
       for (const att of newAttacksOnMyCreeps)
         console.log(JSON.stringify(att));
+    }
+  }
+
+  EventConstantToName(event: EventConstant): string {
+    switch (event) {
+      case EVENT_ATTACK: return "Attack";
+      case EVENT_OBJECT_DESTROYED: return "Destroyed";
+      case EVENT_ATTACK_CONTROLLER: return "Attack Controller";
+      case EVENT_BUILD: return "Build";
+      case EVENT_HARVEST: return "Harvest";
+      case EVENT_HEAL: return "Heal";
+      case EVENT_REPAIR: return "Repair";
+      case EVENT_RESERVE_CONTROLLER: return "Reserve";
+      case EVENT_UPGRADE_CONTROLLER: return "Upgrade";
+      case EVENT_EXIT: return "Exit";
+      case EVENT_POWER: return "Power";
+      case EVENT_TRANSFER: return "Transfer";
+    }
+  }
+
+  EventDataToValue(event: EventItem): number | null {
+    switch (event.event) {
+      case EVENT_ATTACK: return event.data.damage;
+      case EVENT_OBJECT_DESTROYED: return null;
+      case EVENT_ATTACK_CONTROLLER: return event.data;
+      case EVENT_BUILD: return event.data.amount;
+      case EVENT_HARVEST: return event.data.amount;
+      case EVENT_HEAL: return event.data.amount;
+      case EVENT_REPAIR: return event.data.amount;
+      case EVENT_RESERVE_CONTROLLER: return event.data.amount;
+      case EVENT_UPGRADE_CONTROLLER: return event.data.amount;
+      case EVENT_EXIT: return null;
+      case EVENT_POWER: return null;
+      case EVENT_TRANSFER: return event.data.amount;
     }
   }
 
