@@ -37,7 +37,13 @@ export abstract class RoomRole<MemoryShape extends Object> {
     return this.manager.CreepsByRole.get(this.RoleName) ?? [];
   }
 
-  GlobalCount: number = -1; // -1 for unlimited
+  private _GlobalCount: number = -1; // -1 for unlimited
+  public get GlobalCount(): number {
+    return this._GlobalCount;
+  }
+  public set GlobalCount(value: number) {
+    this._GlobalCount = value;
+  }
 
   // RCL Ranges to constrain role spawns
   StartSpawnAtRCL: number = 1;

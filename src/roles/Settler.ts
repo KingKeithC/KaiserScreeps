@@ -1,75 +1,62 @@
 import { CreepExtra } from "Creep";
+import { unique } from "lodash";
+import { RoomExtra } from "Room";
 import { RoomRole } from "./Role";
 
 class SettlerMemory extends Object {
-  readonly claimedRoomDirection?: DirectionConstant;
-  readonly push: boolean;
-  readonly reserve: boolean;
-
-  constructor(direction?: DirectionConstant, push: boolean = false, reserve: boolean = false) {
-    super();
-    this.claimedRoomDirection = direction;
-    this.push = push;
-    this.reserve = reserve;
-  }
+  claimedRoom?: string;
+  reserve?: boolean;
 }
 
 export class Settler extends RoomRole<SettlerMemory> {
   static readonly RoleName: string = "Settler";
   BodyParts = [MOVE, MOVE, WORK, CLAIM];
 
-  InitialJobMemory = new SettlerMemory();
-
   CountPerRoom = 1;
-  GlobalCount = 2;
+  override get GlobalCount(): number { return this.FindClaimedRooms().length; }
 
-  HomeIdleRange = 30;
+  get InitialJobMemory(): SettlerMemory {
+    return ({
+      claimedRoom: this.FindClaimedRooms().pop()?.name,
+    });
+  };
 
-
-  FindSpawns(): StructureSpawn[] {
-    // Any spawn in any of our rooms
-    return Object.values(Game.rooms).map(r => r.find(FIND_MY_SPAWNS)).reduce((acc, elem) => acc.concat(elem), [])
+  FindClaimedRooms(): RoomExtra[] {
+    const claimedRooms = Object.values(Game.flags)
+      .filter(f => f.name.startsWith("Claim") && f.room != undefined)
+      .map(f => new RoomExtra(f.room!));
+    return unique(claimedRooms);
   }
 
-  ClaimedRoom(mem: SettlerMemory): Room | undefined {
-    if (!mem.claimedRoomDirection) return;
-    return Game.rooms[mem.claimedRoomDirection];
-  }
-
-  ReturnHome(settler: CreepExtra): void {
-    settler.MoveCreep(this.manager.controller!, { range: this.HomeIdleRange });
-  }
-
-  TickCreep(creep: CreepExtra, memory: SettlerMemory): void {
-    const claim = this.ClaimedRoom(memory);
-    if (!memory.claimedRoomDirection || !claim || !claim.controller) {
-      this.ReturnHome(creep);
-      return;
-    } else if (claim.controller.owner != undefined && claim.controller.owner !== this.manager.controller?.owner) {
-      console.log(`[${this.manager.name}] -> ${claim}${creep} Claimed room is no longer neutral or ours ${claim.controller.owner}!`)
-      this.ReturnHome(creep);
+  TickCreep(creep: CreepExtra, task: SettlerMemory): void {
+    // Do nothing if no claim
+    if (!task.claimedRoom) {
+      if (Game.time % 20 === 0) console.log(`[${this.manager.room.name}][${creep.name}]: I have no claim!`);
       return;
     }
 
-    const hostiles = claim.find(FIND_HOSTILE_CREEPS);
-    if (hostiles.length > 0) {
-      const msg = `[${this.manager.name}] -> ${claim}${creep} !!! Claimed room has ${hostiles.length} hostiles!`;
-
-      if (!memory.push) {
-        console.log(msg + " Not set to push, disengaging.");
-        this.ReturnHome(creep);
-        return;
-      }
-      console.log(msg + " For the Homeland!...");
+    // Get the claimed room object
+    const claimed = new RoomExtra(Game.rooms[task.claimedRoom]);
+    if (!claimed) {
+      console.log(`[${this.manager.room.name}][${creep.name}]: Claimed room is not accessible.`);
+      return;
     }
 
-    if (creep.MoveCreep(claim.controller.pos, { range: 1 }) != 1)
+    // Get the claimed room's controller
+    if (!claimed.controller) {
+      console.log(`[${this.manager.room.name}][${creep.name}]: Claimed room has no controller.`);
       return;
+    }
 
-    // Claim it
-    if (memory.reserve)
-      creep.reserveController(claim.controller);
-    else
-      creep.claimController(claim.controller);
+    // Move until in range of the controller
+    if (creep.MoveCreep(claimed.controller, { range: 1 }) !== 1) return;
+
+    if (task.reserve != undefined && task.reserve) {
+      console.log(`[${this.manager.room.name}][${creep.name}]: Reserving controller in ${claimed.name} (${claimed.controller.reservation?.ticksToEnd}).`);
+      creep.reserveController(claimed.controller);
+    } else {
+      console.log(`[${this.manager.room.name}][${creep.name}]: Claiming controller in ${claimed.name} (${claimed.controller.progress} / ${claimed.controller.progressTotal}).`);
+      creep.claimController(claimed.controller);
+    }
   }
 }
