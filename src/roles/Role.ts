@@ -27,20 +27,8 @@ export abstract class RoomRole<MemoryShape extends Object> {
   TickEnd(): void { }
 
   // -1 for unlimited
-  private _GlobalCount: number = -1;
-  public get GlobalCount(): number {
-    return this._GlobalCount;
-  }
-  public set GlobalCount(value: number) {
-    this._GlobalCount = value;
-  }
-  private _CountPerRoom: number = -1;
-  public get CountPerRoom(): number {
-    return this._CountPerRoom;
-  }
-  public set CountPerRoom(value: number) {
-    this._CountPerRoom = value;
-  }
+  GlobalCount(): number { return -1 }
+  CountPerRoom(): number { return -1 }
 
   // RCL Ranges to constrain role spawns
   StartSpawnAtRCL: number = 1;
@@ -122,18 +110,18 @@ export abstract class RoomRole<MemoryShape extends Object> {
     };
 
     // or global quota met if there is one
-    if (this.GlobalCount >= 0) {
+    if (this.GlobalCount() >= 0) {
       const globalCount = this.CreepsInRole.length;
-      if (globalCount >= this.GlobalCount) {
+      if (globalCount >= this.GlobalCount()) {
         console.log(`[${this.RoleName}]: Global Quota Met ${globalCount}/${this.GlobalCount}`);
         return;
       }
     }
 
     // determine room quota, from class by default, or memory if set there
-    var roomQuota = this.CountPerRoom;
-    if (this.room.memory.quotas && this.room.memory.quotas[this.RoleName])
-      roomQuota = this.room.memory.quotas[this.RoleName];
+    var roomQuota = this.CountPerRoom();
+    if (this.room.memory.quotas && this.room.Quota(this))
+      roomQuota = this.room.Quota(this);
 
     // or room quota met
     const roomCount = this.CreepsInRole().length;

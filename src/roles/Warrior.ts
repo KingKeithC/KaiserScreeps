@@ -12,7 +12,7 @@ export class Warrior extends RoomRole<WarriorMemory> {
   BodyParts = [MOVE, MOVE, MOVE, TOUGH, TOUGH, ATTACK, ATTACK];
 
   // 1 Per Invader
-  get CountPerRoom() {
+  CountPerRoom() {
     if ((this.room.memory.attackHostiles ?? false) || (this.room.memory.disableWarriors ?? false))
       return this.room.find(FIND_HOSTILE_CREEPS).length;
     else

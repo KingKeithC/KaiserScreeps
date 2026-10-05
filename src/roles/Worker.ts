@@ -49,7 +49,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
   MediumSearchRange = 20;
   ShortSearchRange = 5;
 
-  override get CountPerRoom(): number {
+  CountPerRoom(): number {
     const Tier1Count = 6;
     const Tier2Count = this.room.find(FIND_MY_CREEPS, { filter: c => c.memory.room === this.room.name && c.memory.role === 'WorkerII' }).length;
     return Tier1Count - Tier2Count <= 0 ? 0 : Tier1Count - Tier2Count;
@@ -452,7 +452,7 @@ export class WorkerII extends WorkerI {
   StartSpawnAtRCL = 2;
   StopSpawnAtRCL = 100;
   BodyParts = [MOVE, MOVE, WORK, WORK, CARRY, CARRY, CARRY, CARRY, CARRY];
-  override get CountPerRoom() { return 10; }
+  CountPerRoom() { return 10; }
 
   override CanSpawn(): boolean {
     // There must be at least 1 miner before we spawn WorkerII
