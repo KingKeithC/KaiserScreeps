@@ -41,36 +41,34 @@ export class WorkerI extends RoomRole<WorkerTask> {
   StartSpawnAtRCL = 0;
   StopSpawnAtRCL = 4;
   BodyParts = [WORK, CARRY, MOVE];
-
-  get CountPerRoom() {
-    const max = 6;
-    const T2 = Object.values(Game.creeps).filter(c => c.memory.room === this.manager.name && c.memory.role === 'WorkerII').length;
-    return max - T2 <= 0 ? 0 : max - T2;
-  }
-
   MaxMaintenanceWorkers = 2;
   MaxRepairWorkers = 4;
   ControllerMaintenanceThreshold = 5000; // Start upgrading when ticksToDowngrade is less than this.
   ControllerMaintenanceBuffer = 5000;    // Stop upgrading when ticksToDowngrade is greater than `ControllerMaintenanceThreshold+ControllerMaintenanceBuffer`.
+  IgnoreDroppedResourcesLessThan = 30;
+  MediumSearchRange = 20;
+  ShortSearchRange = 5;
 
-  get MaxSupplyWorkers() { return this.manager.SpawnsOrExtensions.length; }
+  override get CountPerRoom(): number {
+    const Tier1Count = 6;
+    const Tier2Count = this.room.find(FIND_MY_CREEPS, { filter: c => c.memory.room === this.room.name && c.memory.role === 'WorkerII' }).length;
+    return Tier1Count - Tier2Count <= 0 ? 0 : Tier1Count - Tier2Count;
+  }
+
+  get MaxSupplyWorkers() { return this.room.SpawnsOrExtensions.length; }
   get MaxConstructionWorkers() {
-    const max = Math.floor(this.manager.ConstructionSites.length / 4);
+    const max = Math.floor(this.room.find(FIND_MY_CONSTRUCTION_SITES).length / 4);
     const min = 2;
     return max < min ? min : max;
   };
 
-  IgnoreDroppedResourcesLessThan = 30;
-
-  MediumSearchRange = 20;
-  ShortSearchRange = 5;
 
   // Main creep control loop
   TickCreep(creep: CreepExtra, currentTask: WorkerTask): void {
     if (this.IsTaskComplete(creep, currentTask)) {
       const newTask = this.Reassign(creep);
-      console.log(`${this.manager.room}${creep} Reassigned: ${JSON.stringify(currentTask)} -> ${JSON.stringify(newTask)}`);
-      this.manager.room.memory.recentEvents?.push({
+      console.log(`${this.room}${creep} Reassigned: ${JSON.stringify(currentTask)} -> ${JSON.stringify(newTask)}`);
+      this.room.memory.recentEvents?.push({
         time: Game.time,
         event: `Worker Reassign ${currentTask.action} -> ${newTask.action}`,
         summary: `Worker Reassign ${currentTask.action} -> ${newTask.action}`,
@@ -85,27 +83,24 @@ export class WorkerI extends RoomRole<WorkerTask> {
   Reassign(creep: CreepExtra): WorkerTask {
     if (creep.store.getUsedCapacity(RESOURCE_ENERGY) === 0)
       return this.FindGatheringTask(creep);
-    else if (this.manager.HostileCreeps.length > 0)
+    else if (this.room.find(FIND_HOSTILE_CREEPS).length > 0)
       return this.FindWartimeSpendingTask(creep);
     else
       return this.FindSpendingTask(creep);
   }
 
-  ControllerMaintenanceTask?: WorkerTask = this.manager.controller?.my == true
-    ? new WorkerTask(WorkerAction.MaintainController, this.manager.controller.id)
+  ControllerMaintenanceTask?: WorkerTask = this.room.controller?.my == true
+    ? new WorkerTask(WorkerAction.MaintainController, this.room.controller.id)
     : undefined;
 
-  ControllerUpgradeTask?: WorkerTask = this.manager.controller?.my == true
-    ? new WorkerTask(WorkerAction.UpgradeController, this.manager.controller.id)
+  ControllerUpgradeTask?: WorkerTask = this.room.controller?.my == true
+    ? new WorkerTask(WorkerAction.UpgradeController, this.room.controller.id)
     : undefined;
 
-  // private _CurrentlyAssignedTasks?: WorkerTask[];
-  get CurrentlyAssignedTasks(): WorkerTask[] {
-    // if (!this._CurrentlyAssignedTasks) this._CurrentlyAssignedTasks = this.CreepsInRoomAndRole
-    return this.CreepsInRoomAndRole
+  CurrentlyAssignedTasks(): WorkerTask[] {
+    return this.CreepsInRole()
       .filter(c => c.memory.jobMemory as WorkerTask)
       .map(c => c.memory.jobMemory as WorkerTask);
-    // return this._CurrentlyAssignedTasks;
   }
 
   FindWartimeSpendingTask(creep: CreepExtra): WorkerTask {
@@ -118,7 +113,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
     if (site) return new WorkerTask(WorkerAction.Build, site.id);
 
     // Structures in need of repair
-    const delapitated = this.manager.FindMostNeededRepair();
+    const delapitated = this.room.FindMostNeededRepair();
     if (delapitated) return new WorkerTask(WorkerAction.Repair, delapitated.id);
 
     // Default
@@ -129,7 +124,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
     // Select target in order of priority
 
     // Spawns/Extensions/Towers with room for energy
-    const currentTransferTasks = this.CurrentlyAssignedTasks
+    const currentTransferTasks = this.CurrentlyAssignedTasks()
       .filter(t => t.action === WorkerAction.Supply);
     if (currentTransferTasks.length < this.MaxSupplyWorkers) {
       const structureNeedingEnergy = this.FindMostNeedsSupply(creep.pos);
@@ -138,15 +133,15 @@ export class WorkerI extends RoomRole<WorkerTask> {
     }
 
     // Controller at risk of downgrade
-    const currentMaintenanceTasks = this.CurrentlyAssignedTasks.filter(t => t.action === WorkerAction.MaintainController);
+    const currentMaintenanceTasks = this.CurrentlyAssignedTasks().filter(t => t.action === WorkerAction.MaintainController);
     if (
       this.ControllerMaintenanceTask
       && currentMaintenanceTasks.length < this.MaxMaintenanceWorkers
-      && this.manager.controller!.ticksToDowngrade < this.ControllerMaintenanceThreshold
+      && this.room.controller!.ticksToDowngrade < this.ControllerMaintenanceThreshold
     ) return this.ControllerMaintenanceTask;
 
     // Ongoing Construction
-    const currentConstructionTasks = this.CurrentlyAssignedTasks
+    const currentConstructionTasks = this.CurrentlyAssignedTasks()
       .filter(t => t.action === WorkerAction.Build);
     if (currentConstructionTasks.length < this.MaxConstructionWorkers) {
       const site = this.FindSuitableConstruction(creep.pos);
@@ -154,11 +149,11 @@ export class WorkerI extends RoomRole<WorkerTask> {
     }
 
     // Structures in need of repair
-    const currentRepairTasks = this.CurrentlyAssignedTasks.filter(t => t.action === WorkerAction.Repair);
+    const currentRepairTasks = this.CurrentlyAssignedTasks().filter(t => t.action === WorkerAction.Repair);
     if (currentRepairTasks.length < this.MaxRepairWorkers) {
-      const delapitated = this.manager.FindMostNeededRepair();
+      const delapitated = this.room.FindMostNeededRepair();
       if (delapitated) return new WorkerTask(WorkerAction.Repair, delapitated.id);
-      else console.log(`[${this.manager.name}]${creep}: No repairs needed!`);
+      else console.log(`[${this.room.name}]${creep}: No repairs needed!`);
     }
 
     // Nothing else to do so just upgrade forever
@@ -170,20 +165,21 @@ export class WorkerI extends RoomRole<WorkerTask> {
 
   FindGatheringTask(creep: CreepExtra): WorkerTask {
     // Dropped Energy with reasonable amount remaining
-    for (const res of this.manager.room.find(FIND_DROPPED_RESOURCES, { filter: r => r.resourceType === RESOURCE_ENERGY && r.amount > this.IgnoreDroppedResourcesLessThan })) {
-      const countPickingUpSameRes = this.CurrentlyAssignedTasks.filter(t => t.action === WorkerAction.Pickup && t.target == res.id).length;
+    for (const res of this.room.find(FIND_DROPPED_RESOURCES, { filter: r => r.resourceType === RESOURCE_ENERGY && r.amount > this.IgnoreDroppedResourcesLessThan })) {
+      const countPickingUpSameRes = this.CurrentlyAssignedTasks().filter(t => t.action === WorkerAction.Pickup && t.target == res.id).length;
       if (!countPickingUpSameRes) return new WorkerTask(WorkerAction.Pickup, res.id as Id<Resource<RESOURCE_ENERGY>>);
     }
 
     // Collect from the nearest container that has energy
-    const container = creep.pos.findClosestByPath(this.manager.Containers.filter(s => s.store.getUsedCapacity(RESOURCE_ENERGY)), { ignoreCreeps: true });
+    const container = creep.pos.findClosestByPath(FIND_STRUCTURES, { filter: s => s.structureType === STRUCTURE_CONTAINER && s.store.getUsedCapacity(RESOURCE_ENERGY) });
     if (container) return new WorkerTask(WorkerAction.CollectEnergy, container.id);
 
     // Collect from the fullest miner in medium range
-    const miners = creep.pos.findInRange(
-      (this.manager.CreepsByRole.get("Miner") ?? []).filter(m => m.store.getUsedCapacity(RESOURCE_ENERGY)),
-      this.MediumSearchRange
-    ).sort((a, b) => a.store.energy - b.store.energy).pop();
+    const miners = creep.pos.findInRange(FIND_MY_CREEPS, this.MediumSearchRange, {
+      filter: c => c.memory.room === this.room.name
+        && c.memory.role === "Miner"
+        && c.store.getUsedCapacity(RESOURCE_ENERGY)
+    }).sort((a, b) => a.store.energy - b.store.energy).pop();
     if (miners) return new WorkerTask(WorkerAction.CollectEnergy, miners.id);
 
     // Do harvesting on our own
@@ -195,53 +191,59 @@ export class WorkerI extends RoomRole<WorkerTask> {
   }
 
   FindSuitableConstruction(pos: RoomPosition): ConstructionSite | null {
-    return pos.findClosestByPath(this.manager.ConstructionSites, { ignoreCreeps: true });
+    return pos.findClosestByPath(FIND_MY_CONSTRUCTION_SITES, { ignoreCreeps: true, filter: c => c.progress < c.progressTotal });
   }
 
-  FindClosestNeedsSupply(pos: RoomPosition): AnyStoreStructure | null {
+  FindClosestNeedsSupply(pos: RoomPosition): StructureSpawn | StructureExtension | StructureTower | null {
     // Return the Spawn/Extension/Tower with room for energy
     // and the least number of other assigned transfers
-    return pos.findClosestByPath(
-      [...this.manager.SpawnsOrExtensions, ...this.manager.Towers]
-        .filter(s => s.store.getFreeCapacity(RESOURCE_ENERGY)),
-      { ignoreCreeps: true }
-    );
+    return pos.findClosestByPath(FIND_MY_STRUCTURES, {
+      ignoreCreeps: true,
+      filter: s => (
+        s.structureType === STRUCTURE_SPAWN
+        || s.structureType === STRUCTURE_EXTENSION
+        || s.structureType === STRUCTURE_TOWER
+      ) && s.store.getFreeCapacity(RESOURCE_ENERGY),
+    });
   }
 
-  FindMostNeedsSupply(pos: RoomPosition): AnyStoreStructure | undefined {
+  FindMostNeedsSupply(pos: RoomPosition): AnyOwnedStructure | undefined {
     // Get all transfers in progress
-    const currentTransferTasks = this.CurrentlyAssignedTasks
-      .filter(t => t.action === WorkerAction.Supply);
+    const currentTransferTasks = this.CurrentlyAssignedTasks().filter(t => t.action === WorkerAction.Supply);
 
     // Group by target and return count of group
-    const storesByCount = new Map<Id<AnyStoreStructure>, number>();
+    const storesByCount = new Map<Id<AnyOwnedStructure>, number>();
     for (const t of currentTransferTasks)
       storesByCount.set(
-        t.target as Id<AnyStoreStructure>,
-        (storesByCount.get(t.target as Id<AnyStoreStructure>) ?? 0) + 1
+        t.target as Id<AnyOwnedStructure>,
+        (storesByCount.get(t.target as Id<AnyOwnedStructure>) ?? 0) + 1
       );
 
     // Return the Spawn/Extension/Tower with room for energy
     // and the least number of other assigned transfers
-    return [...this.manager.SpawnsOrExtensions, ...this.manager.Towers]
-      .filter(s => s.store.getFreeCapacity(RESOURCE_ENERGY))
-      .map(s => ({ store: s, transferCount: storesByCount.get(s.id) ?? 0 }))
+    return this.room.find(FIND_MY_STRUCTURES, {
+      filter: s => (
+        s.structureType === STRUCTURE_SPAWN
+        || s.structureType === STRUCTURE_EXTENSION
+        || s.structureType === STRUCTURE_TOWER
+      ) && s.store.getFreeCapacity(RESOURCE_ENERGY),
+    }).map(s => ({ store: s, transferCount: storesByCount.get(s.id) ?? 0 }))
       .sort((b, a) => a.transferCount - b.transferCount)
       .pop()?.store;
   }
 
   FindLeastAssignedSource(): Source | undefined {
     const harvestersBySource = new Map<Id<Source>, number>();
-    for (const c of [
-      ...this.manager.CreepsByRole.get("WorkerI") ?? [],
-      ...this.manager.CreepsByRole.get("WorkerII") ?? [],
-    ]) {
+    for (const c of this.room.find(
+      FIND_MY_CREEPS,
+      { filter: c => c.memory.room === this.room.name && c.memory.role.startsWith("Worker") })
+    ) {
       const mem = c.memory.jobMemory as WorkerTask;
       if (!mem.target) continue;
       const obj = Game.getObjectById(mem.target);
       if (obj instanceof Source) harvestersBySource.set(obj.id, (harvestersBySource.get(obj.id) ?? 0) + 1)
     }
-    return this.manager.Sources
+    return this.room.find(FIND_SOURCES)
       .map(source => ({ source, count: harvestersBySource.get(source.id) ?? 0 }))
       .sort((b, a) => a.count - b.count)
       .pop()?.source;
@@ -253,7 +255,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
       // Target may be null in this one case
       if (task.action === WorkerAction.Idle) return;
 
-      console.log(`[${this.manager.name}]${creep}: Act: ${creep} has null/undefined target in memory: ${task.target}`)
+      console.log(`[${this.room.name}]${creep}: Act: ${creep} has null/undefined target in memory: ${task.target}`)
       return;
     }
 
@@ -264,7 +266,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
       // Finished a construction
       if (task.action === WorkerAction.Build) return;
 
-      console.log(`[${this.manager.name}]${creep}: Act: ${creep} Game.getObjectById returned null`)
+      console.log(`[${this.room.name}]${creep}: Act: ${creep} Game.getObjectById returned null`)
       return;
     }
 
@@ -274,7 +276,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
       case (WorkerAction.Pickup): {
         const t = targetObject as Resource;
         result = creep.pickup(t)
-        if (result === OK) console.log(`[${this.manager.name}]${creep}: Act: Picked up ${t}.`);
+        if (result === OK) console.log(`[${this.room.name}]${creep}: Act: Picked up ${t}.`);
         break;
       }
       case (WorkerAction.CollectEnergy): {
@@ -285,7 +287,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
           // console.log(`[${this.manager.name}]${creep}: Awaiting energy transfer (${creep.store.energy}/${creep.store.getCapacity(RESOURCE_ENERGY)}).`);
           result = ERR_NOT_IN_RANGE; // Forces them to move toward the Miner.
         } else {
-          console.log(`[${this.manager.name}]${creep}: Unknown target for CollectEnergy: ${targetObject}`);
+          console.log(`[${this.room.name}]${creep}: Unknown target for CollectEnergy: ${targetObject}`);
         }
         break;
       }
@@ -321,7 +323,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
         break;
       }
       default: {
-        console.log(`[${this.manager.name}]${creep}: Act: Unknown Action ${JSON.stringify(task)}.`);
+        console.log(`[${this.room.name}]${creep}: Act: Unknown Action ${JSON.stringify(task)}.`);
         break;
       }
     }
@@ -353,7 +355,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
       }
       default: {
         // Generic print all
-        console.log(`[${this.manager.name}]${creep}: Act: Task ${JSON.stringify(task)} was not successful: ${result}`);
+        console.log(`[${this.room.name}]${creep}: Act: Task ${JSON.stringify(task)} was not successful: ${result}`);
         return;
       }
     }
@@ -368,7 +370,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
     if (!targetObject && task.action === WorkerAction.Build)
       return true; // Builders can have stale objects so don't log an error
     else if (!targetObject) {
-      console.log(`[${this.manager.name}]${creep}: IsTaskComplete: Game.getObjectById of ${task.target} is null`);
+      console.log(`[${this.room.name}]${creep}: IsTaskComplete: Game.getObjectById of ${task.target} is null`);
       return true;
     }
 
@@ -383,7 +385,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
         if (targetObject instanceof Creep) return targetObject.store.energy === 0;
         if (targetObject instanceof Resource && targetObject.resourceType === RESOURCE_ENERGY) return targetObject.amount > 0;
 
-        console.log(`[${this.manager.name}]${creep}: Assuming collection is complete: ${targetObject}`);
+        console.log(`[${this.room.name}]${creep}: Assuming collection is complete: ${targetObject}`);
         return true;
       }
       case (WorkerAction.Pickup): {
@@ -396,7 +398,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
       }
       case (WorkerAction.MaintainController): {
         if (creep.store.energy === 0) return true;
-        return this.manager.controller!.ticksToDowngrade > (this.ControllerMaintenanceThreshold + this.ControllerMaintenanceBuffer)
+        return this.room.controller!.ticksToDowngrade > (this.ControllerMaintenanceThreshold + this.ControllerMaintenanceBuffer)
       }
       case (WorkerAction.Build): {
         if (creep.store.energy === 0) return true;
@@ -414,15 +416,15 @@ export class WorkerI extends RoomRole<WorkerTask> {
         return t.store.getFreeCapacity(RESOURCE_ENERGY) === 0;
       }
       default: {
-        console.log(`[${this.manager.name}]${creep}: IsTaskComplete: Unknown Task is complete: ${JSON.stringify(task)}`);
+        console.log(`[${this.room.name}]${creep}: IsTaskComplete: Unknown Task is complete: ${JSON.stringify(task)}`);
         return true;
       }
     }
   }
 
   TickEnd(): void {
-    if (this.manager.memory.enableVisuals ?? true) {
-      for (const t of this.CurrentlyAssignedTasks) {
+    if (this.room.EnableVisuals) {
+      for (const t of this.CurrentlyAssignedTasks()) {
         var colour = "#000000";
         switch (t.action) {
           case WorkerAction.Build: colour = "#fc0fc0"; break;
@@ -438,7 +440,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
         if (!t.target) continue;
         const obj = Game.getObjectById(t.target);
         if (!obj) continue;
-        this.manager.room.visual.circle(obj.pos.x, obj.pos.y, { fill: colour, radius: 0.25 });
+        this.room.visual.circle(obj.pos.x, obj.pos.y, { fill: colour, radius: 0.25 });
       }
     }
   }
@@ -454,8 +456,10 @@ export class WorkerII extends WorkerI {
 
   override CanSpawn(): boolean {
     // There must be at least 1 miner before we spawn WorkerII
-    if ((this.manager.CreepsByRole.get("Miner")?.length ?? 0) > 0)
-      return true;
+    if ((this.room.find(
+      FIND_MY_CREEPS,
+      { filter: c => c.memory.room === this.room.name && c.memory.role === "Miner" }).length ?? 0
+    ) > 0) return true;
 
     console.log("Not enough miners to spawn WorkerII")
     return false;

@@ -7,27 +7,8 @@ const MainLoop = () => {
   Memory.rooms ??= {};
   Memory.creeps ??= {};
 
-  // Get all my creeps, and convert them to `CreepExtra`
-  const MyCreeps: CreepExtra[] = Object.values(Game.creeps).map(c => new CreepExtra(c.id));
-
-  // Group my creeps by room they are in
-  const MyCreepsByRoom: Map<Room, CreepExtra[]> = new Map();
-  for (const c of MyCreeps) MyCreepsByRoom.set(c.room, [...MyCreepsByRoom.get(c.room) ?? [], c]);
-
-  // Instantiate a RoomManager for, and tick each room.
-  const Rooms: RoomExtra[] = [];
-  for (const [room, myCreepsInRoom] of MyCreepsByRoom.entries()) Rooms.push(new RoomExtra(room, myCreepsInRoom));
-
-  // Since the managers above are based on spawned creeps,
-  // it can miss rooms we have access to after respawning
-  if (Rooms.length === 0) {
-    // Add a manager for all rooms we can access
-    for (const room of Object.values(Game.rooms)) {
-      Rooms.push(new RoomExtra(room, []))
-    }
-  }
-
-  for (const m of Rooms) m.TickRoom(Rooms);
+  const VisibleRooms: RoomExtra[] = Object.values(Game.rooms).map(r => new RoomExtra(r.name));
+  for (const r of VisibleRooms) r.TickRoom();
 }
 
 // When compiling TS to JS and bundling with rollup, the line numbers and file names in error messages change

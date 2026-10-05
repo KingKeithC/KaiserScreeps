@@ -21,6 +21,9 @@ declare global {
     towerAttackRange: number,
     disableEvents?: boolean,
     recentEvents: EventSummary[],
+    eventReportingFrequencyTicks: number,
+    maxEventLogPerRoom: number,
+    hostileReportFrequency: number,
   }
 }
 
@@ -39,17 +42,7 @@ interface HostileInfo {
   partCounts: { [part: string]: number };
 }
 
-export class RoomExtra {
-
-  readonly room: Room;
-
-  get name(): string { return this.room.name; }
-  get controller(): StructureController | undefined { return this.room.controller; }
-  get memory(): RoomMemory { return this.room.memory; }
-  get energyAvailable(): number { return this.room.energyAvailable; }
-  get energyCapacityAvailable(): number { return this.room.energyCapacityAvailable; }
-
-  toString(): string { return this.room.toString(); }
+export class RoomExtra extends Room {
 
   static StatusOf(room: Room): RoomControlStatus {
     if (room.controller?.my)
@@ -65,133 +58,47 @@ export class RoomExtra {
     return RoomControlStatus.Hostile;
   }
 
-  static InitRoomMemory(room: Room) {
-    console.log(`[${this.name}]: Initializing Memory for new Room...`);
-    Memory.rooms ??= {};
-    room.memory.status ??= RoomExtra.StatusOf(room);
-    room.memory.lastSpawnTick ??= {};
-    room.memory.attackHostiles ??= false;
-    room.memory.disableWarriors ??= false;
-    room.memory.towerAttackRange ??= 20;
-    room.memory.recentEvents ??= [];
+  TowerCriticalSupplyRatio: number = this.find(FIND_HOSTILE_CREEPS).length ? 0.80 : 0.50;
+
+  get Status(): RoomControlStatus { return this.memory.status ?? RoomExtra.StatusOf(this) }
+  get EnableVisuals(): boolean { return this.memory.enableVisuals ?? true }
+  get AttackHostiles(): boolean { return this.memory.attackHostiles ?? true }
+  get DisableWarriors(): boolean { return this.memory.disableWarriors ?? false }
+  get TowerAttackRange(): number { return this.memory.towerAttackRange ?? 75 }
+  get DisableEvents(): boolean { return this.memory.disableEvents ?? false }
+  get RecentEvents(): EventSummary[] { return this.memory.recentEvents ?? [] }
+  get EventReportingFrequencyTicks(): number { return this.memory.eventReportingFrequencyTicks ?? 250 }
+  get MaxEventLogPerRoom(): number { return this.memory.maxEventLogPerRoom ?? 2000 }
+  get HostileReportFrequency(): number { return this.memory.hostileReportFrequency ?? 10 }
+
+  LastSpawnTick(role: RoomRole<Object>): number { return this.memory.lastSpawnTick[role.RoleName] ?? 0; }
+  Quota(role: RoomRole<Object>): number { return (this.memory.quotas ?? {})[role.RoleName] ?? role.CountPerRoom; }
+
+  SpawnsOrExtensions(): (StructureSpawn | StructureExtension)[] {
+    return this.find(FIND_MY_STRUCTURES, {
+      filter: s =>
+        s.structureType === STRUCTURE_SPAWN
+        || s.structureType === STRUCTURE_EXTENSION
+    })
   }
 
-  EventReportingFrequencyTicks = 250;
-  MaxEventLogPerRoom = 2000;
+  AssignedCreeps(): CreepExtra[] { return this.find(FIND_MY_CREEPS, { filter: c => c.memory.room === this.name }) }
 
-  readonly MyCreepsInRoom: CreepExtra[];
-
-  // Mutually Exclusive Creep Groups
-  readonly HostileCreeps: CreepExtra[] = [];
-  readonly AssignedCreeps: CreepExtra[] = [];
-  readonly UnassignedCreeps: CreepExtra[] = [];
-  readonly MyCreepsAssignedElsewhere: CreepExtra[] = [];
-
-  readonly MyStructures: AnyOwnedStructure[] = [];
-  readonly ConstructionSites: ConstructionSite<BuildableStructureConstant>[] = [];
-  readonly Sources: Source[] = [];
-
-  // Mutually exclusive Structure Groups
-  readonly Towers: StructureTower[] = [];
-  readonly Spawns: StructureSpawn[] = [];
-  readonly SpawnExtensions: StructureExtension[] = [];
-  readonly OtherMyStructures: AnyOwnedStructure[] = [];
-  readonly HostileStructures: AnyOwnedStructure[] = [];
-  readonly Containers: StructureContainer[] = [];
-  readonly Walls: StructureWall[] = [];
-  readonly Ramparts: StructureRampart[] = [];
-  readonly Roads: StructureRoad[] = [];
-  readonly OtherNeutralStructures: AnyStructure[] = [];
-
-  TowerAttackRangeTiles: number = 15;
-  TowerCriticalSupplyRatio: number = 0.50;
-
-  HostileReportFrequency = 10;
-
-  constructor(room: Room, myCreepsInRoom: CreepExtra[] = []) {
-    this.room = room;
-
-    this.MyCreepsInRoom = myCreepsInRoom;
-
-    // Sort all creeps in the room into exclusive groups
-    for (const c of myCreepsInRoom) {
-      if (c.memory.room === this.name) {
-        this.AssignedCreeps.push(c);
-      }
-      else if (c.pos.roomName === this.name)
-        this.UnassignedCreeps.push(c);
-      else
-        this.MyCreepsAssignedElsewhere.push(c);
-    }
-
-    // We should be able to access all my creeps in the colony
-    // as well as hostiles in this room from this instance.
-    this.HostileCreeps = room.find(FIND_HOSTILE_CREEPS);
-    this.ConstructionSites = room.find(FIND_CONSTRUCTION_SITES);
-    this.Sources = room.find(FIND_SOURCES);
-
-    // Sort all the structures in the room into groups
-    for (const s of room.find(FIND_STRUCTURES)) {
-      if (s instanceof OwnedStructure) {
-        if (s.my) this.MyStructures.push(s);
-
-        if (s.structureType === STRUCTURE_SPAWN)
-          this.Spawns.push(s);
-        else if (s.structureType === STRUCTURE_EXTENSION)
-          this.SpawnExtensions.push(s);
-        else if (s.structureType === STRUCTURE_TOWER)
-          this.Towers.push(s);
-        else if (s.structureType === STRUCTURE_RAMPART)
-          this.Ramparts.push(s);
-        else if (s.my)
-          this.OtherMyStructures.push(s)
-        else
-          this.HostileStructures.push(s)
-      } else {
-        if (s.structureType === STRUCTURE_CONTAINER)
-          this.Containers.push(s);
-        else if (s.structureType === STRUCTURE_WALL)
-          this.Walls.push(s);
-        else if (s.structureType === STRUCTURE_ROAD)
-          this.Roads.push(s);
-        else
-          this.OtherNeutralStructures.push(s);
-      }
-    }
-
-    // Other Properties dependent on those above
-    this.TowerCriticalSupplyRatio = this.HostileCreeps.length > 0 ? 0.90 : 0.60;
-  }
-
-  get SpawnsOrExtensions() { return [...this.Spawns, ...this.SpawnExtensions]; }
-
-  // Group creeps assigned to this room into lists by role
-  get CreepsByRole(): Map<string, CreepExtra[]> {
-    const map = new Map();
-    for (const c of this.AssignedCreeps)
-      if (RoomRole.Registry.has(c.memory.role)) {
-        const creeps = map.get(c.memory.role) ?? [];
-        creeps.push(c);
-        map.set(c.memory.role, creeps);
-      } else {
-        console.log(`[${this.name}]${c}: Is assigned to unknown role: ${c.memory.role}`);
-      }
-    return map;
-  }
-
-  TickRoom(allRoomManagers: RoomExtra[]) {
-    // Init room if missing from memory
-    if (!(this.name in Memory.rooms)) RoomExtra.InitRoomMemory(this.room);
-
-    // Any Room
-
-    var offset = 0;
+  TickRoles() {
+    var spawnOffset = 0;
     for (const roleType of RoomRole.Registry.values()) {
       const role = new roleType(this); // Construct a role instance for the room
-      role.SpawnTickOffet = offset;
-      offset += 10; // Spawn each role about 10 ticks apart
+      role.SpawnTickOffet = spawnOffset;
+      spawnOffset += 10; // Spawn each role about 10 ticks apart
       role.TickRole(); // Run it
     }
+  }
+
+  TickRoom() {
+    // Any Room
+
+    // Tick each role
+    this.TickRoles();
 
     if (this.memory.status !== RoomControlStatus.Owned) {
       console.log(`[${this.name}]: Not owned: ${this.memory.status}.`)
@@ -203,7 +110,7 @@ export class RoomExtra {
     this.CallOutHostiles();
 
     // Handle events, if not disabled
-    if (!(this.room.memory.disableEvents ?? false)) {
+    if (this.EventReportingFrequencyTicks >= 0) {
       this.ProcessEventsLastTick();
       if (Game.time % this.EventReportingFrequencyTicks === 0) this.PrintEventSummary();
     }
@@ -212,7 +119,8 @@ export class RoomExtra {
     this.BuildRoads();
 
     // Run each tower in the room
-    for (const tower of this.Towers) this.TickTower(tower as StructureTower);
+    for (const tower of this.find(FIND_MY_STRUCTURES, { filter: s => s.structureType === STRUCTURE_TOWER && s.my }))
+      this.TickTower(tower as StructureTower);
   }
 
   PrintEventSummary() {
@@ -226,7 +134,7 @@ export class RoomExtra {
     var summary = "";
 
     // Iterate the events to summarize them
-    for (const e of this.room.memory.recentEvents) {
+    for (const e of this.memory.recentEvents) {
       grandTotalEventCount++;
 
       // Get current & calculate new group entries
@@ -249,7 +157,7 @@ export class RoomExtra {
     widths = widths.map(w => w + extraPadding);
 
     // Construct the actual message
-    summary += `============= ${this.room.name} EVENT SUMMARY FROM ${start} to ${end} (~${this.EventReportingFrequencyTicks} Ticks) =============`;
+    summary += `============= ${this.name} EVENT SUMMARY FROM ${start} to ${end} (~${this.EventReportingFrequencyTicks} Ticks) =============`;
     summary += `\n   ${headers[0].padEnd(widths[0])} ${headers[1].padStart(widths[1])} ${headers[2].padStart(widths[2])}`;
     summary += `\n   ${"-".repeat(headers[0].length).padEnd(widths[0])} ${"-".repeat(headers[1].length).padStart(widths[1])} ${"-".repeat(headers[2].length).padStart(widths[2])}`;
     for (const c of printorder) {
@@ -262,12 +170,13 @@ export class RoomExtra {
     console.log(summary);
 
     // Wipe the event log
-    this.room.memory.recentEvents = [];
+    this.memory.recentEvents = [];
   }
 
   CallOutHostiles() {
-    if (Game.time % this.HostileReportFrequency === 0 && this.HostileCreeps.length > 0) {
-      const hostileDetails: HostileInfo[] = this.HostileCreeps.map(c => ({
+    const hostiles = this.find(FIND_HOSTILE_CREEPS);
+    if (hostiles && Game.time % this.HostileReportFrequency === 0) {
+      const hostileDetails: HostileInfo[] = hostiles.map(c => ({
         owner: c.owner.username,
         name: c.name,
         bodyCost: CreepExtra.BodyCost(c.body.map(p => p.type)),
@@ -276,7 +185,7 @@ export class RoomExtra {
           return counts;
         }, {} as Record<string, number>),
       }));
-      console.log(`[${this.name}] !!! ${this.HostileCreeps.length} hostiles spotted: ${JSON.stringify(hostileDetails)}`);
+      console.log(`[${this.name}] !!! ${hostiles.length} hostiles spotted: ${JSON.stringify(hostileDetails)}`);
     }
   }
 
@@ -294,15 +203,15 @@ export class RoomExtra {
   }
 
   ProcessEventsLastTick() {
-    const events = this.room.getEventLog();
-    this.room.memory.recentEvents = (this.room.memory.recentEvents ?? []).concat(events.map(e => ({
+    const events = this.getEventLog();
+    this.memory.recentEvents = (this.memory.recentEvents ?? []).concat(events.map(e => ({
       time: Game.time - 1,
       event: this.EventConstantToName(e.event),
       summary: this.EventItemToSummary(e),
       value: this.EventDataToValue(e),
     }))).slice(-this.MaxEventLogPerRoom);
 
-    const myCreepsIdsInRoom = this.AssignedCreeps.map(c => c.id);
+    const myCreepsIdsInRoom = this.find(FIND_MY_CREEPS).map(c => c.id);
     const newAttacksOnMyCreeps = events
       .filter(e => e.event === EVENT_ATTACK && myCreepsIdsInRoom.includes(e.data.targetId as Id<CreepExtra>))
       .map(a => ({
@@ -351,32 +260,26 @@ export class RoomExtra {
   }
 
   FindNearestRepair(pos: RoomPosition): AnyStructure | null {
-    return pos.findClosestByPath(this.MyStructures, { ignoreCreeps: true, filter: s => s.hits < s.hitsMax && s.structureType !== STRUCTURE_RAMPART })
-      ?? pos.findClosestByPath(this.Ramparts, { ignoreCreeps: true, filter: s => s.hits < s.hitsMax })
-      ?? pos.findClosestByPath(this.Roads, { ignoreCreeps: true, filter: s => s.hits < s.hitsMax })
-      ?? pos.findClosestByPath(this.Walls, { ignoreCreeps: true, filter: s => s.hits < s.hitsMax });
+    return pos.findClosestByPath(FIND_MY_STRUCTURES, { ignoreCreeps: true, filter: s => s.hits < s.hitsMax && s.structureType !== STRUCTURE_RAMPART })
+      ?? pos.findClosestByPath(FIND_STRUCTURES, { ignoreCreeps: true, filter: s => s.structureType === STRUCTURE_RAMPART || s.structureType === STRUCTURE_WALL && s.hits < s.hitsMax })
+      ?? pos.findClosestByPath(FIND_STRUCTURES, { ignoreCreeps: true, filter: s => s.hits < s.hitsMax });
   }
 
   FindMostNeededRepair(): AnyStructure | null {
     // Weakest Walls/Ramparts
-    const wallsRamparts = [...this.Ramparts, ...this.Walls];
-    const wallLike = wallsRamparts
-      .filter(w => w.hits < w.hitsMax)
+    const wallLike = this.find(FIND_STRUCTURES, { filter: s => s.structureType === STRUCTURE_RAMPART || s.structureType === STRUCTURE_WALL && s.hits < s.hitsMax })
       .sort((b, a) => (a.hits / a.hitsMax) - (b.hits / b.hitsMax)).pop();
     if (wallLike) return wallLike;
 
     // Weakest Owned Structure (except ramparts)
-    const allStruct = this.MyStructures.filter(s => s.structureType !== STRUCTURE_RAMPART)
-      .filter(s => s.hits < s.hitsMax)
+    const allStruct = this.find(FIND_MY_STRUCTURES, { filter: s => s.hits < s.hitsMax && s.structureType !== STRUCTURE_RAMPART })
       .sort((b, a) => (a.hits / a.hitsMax) - (b.hits / b.hitsMax)).pop();
     if (allStruct) return allStruct;
 
-    // Weakest roads
-    const road = this.Roads
-      .filter(r => r.hits < r.hitsMax)
+    // Weakest other structure (besides walls/ramparts)
+    const road = this.find(FIND_STRUCTURES, { filter: s => !(s.structureType === STRUCTURE_RAMPART || s.structureType === STRUCTURE_WALL) && s.hits < s.hitsMax })
       .sort((b, a) => (a.hits / a.hitsMax) - (b.hits / b.hitsMax)).pop();
     if (road) return road;
-
 
     return null;
   }
@@ -389,22 +292,21 @@ export class RoomExtra {
 
     // Find lowest health hostile in range
     if (this.memory.attackHostiles ?? false) {
-      const range = (this.memory.towerAttackRange ?? this.TowerAttackRangeTiles);
       const weakestHostile = t.pos
-        .findInRange(this.HostileCreeps, range)
+        .findInRange(FIND_HOSTILE_CREEPS, this.TowerAttackRange)
         .sort((b, a) => (a.hits / a.hitsMax) - (b.hits / b.hitsMax))
         .pop();
       if (weakestHostile) {
-        this.room.visual.circle(t.pos, { radius: range, stroke: Colours.ATTACK_RANGE });
+        this.visual.circle(t.pos, { radius: this.TowerAttackRange, stroke: Colours.ATTACK_RANGE });
         t.attack(weakestHostile);
         return;
       }
     }
 
     // My creeps in need of healing, weakest first
-    const weakestFriendly = this.MyCreepsInRoom
+    const weakestFriendly = this.find(FIND_MY_CREEPS)
       .filter(c => c.hits < c.hitsMax)
-      .sort((a, b) => (a.hits / a.hitsMax) - (b.hits / b.hitsMax))
+      .sort((b, a) => (a.hits / a.hitsMax) - (b.hits / b.hitsMax))
       .pop();
     if (weakestFriendly) {
       t.heal(weakestFriendly);
@@ -413,7 +315,10 @@ export class RoomExtra {
 
     if (supplyRatio >= this.TowerCriticalSupplyRatio) {
       const needRepair = this.FindMostNeededRepair();
-      if (needRepair) t.repair(needRepair);
+      if (needRepair) {
+        t.repair(needRepair);
+        return;
+      }
     }
   }
 
@@ -426,9 +331,9 @@ export class RoomExtra {
       const path = start.pos.findPathTo(end, { maxRooms: 1, swampCost: 2, plainCost: 4, ignoreCreeps: true });
       var built = false;
 
-      if (this.room.createConstructionSite(start.pos.x, start.pos.y, STRUCTURE_ROAD) === OK) built = true;
-      for (const pos of path) if (this.room.createConstructionSite(pos.x, pos.y, STRUCTURE_ROAD) === OK) built = true;
-      if (this.room.createConstructionSite(end.pos.x, end.pos.y, STRUCTURE_ROAD) === OK) built = true;
+      if (this.createConstructionSite(start.pos.x, start.pos.y, STRUCTURE_ROAD) === OK) built = true;
+      for (const pos of path) if (this.createConstructionSite(pos.x, pos.y, STRUCTURE_ROAD) === OK) built = true;
+      if (this.createConstructionSite(end.pos.x, end.pos.y, STRUCTURE_ROAD) === OK) built = true;
 
       if (built) {
         start.remove();

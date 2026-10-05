@@ -12,7 +12,7 @@ export class Settler extends RoomRole<SettlerMemory> {
   static readonly RoleName: string = "Settler";
   BodyParts = [MOVE, MOVE, WORK, CLAIM];
 
-  CountPerRoom = 1;
+  get CountPerRoom(): number { return 1 };
   override get GlobalCount(): number { return this.FindClaimedRooms().length; }
 
   get InitialJobMemory(): SettlerMemory {
@@ -31,20 +31,20 @@ export class Settler extends RoomRole<SettlerMemory> {
   TickCreep(creep: CreepExtra, task: SettlerMemory): void {
     // Do nothing if no claim
     if (!task.claimedRoom) {
-      if (Game.time % 20 === 0) console.log(`[${this.manager.room.name}][${creep.name}]: I have no claim!`);
+      if (Game.time % 20 === 0) console.log(`[${this.room.name}][${creep.name}]: I have no claim!`);
       return;
     }
 
-    // Get the claimed room object
-    const claimed = new RoomExtra(Game.rooms[task.claimedRoom]);
+    // Get the claimed room object if we can
+    const claimed = new RoomExtra(task.claimedRoom);
     if (!claimed) {
-      console.log(`[${this.manager.room.name}][${creep.name}]: Claimed room is not accessible.`);
+      console.log(`[${this.room.name}][${creep.name}]: Claimed room is not accessible.`);
       return;
     }
 
     // Get the claimed room's controller
     if (!claimed.controller) {
-      console.log(`[${this.manager.room.name}][${creep.name}]: Claimed room has no controller.`);
+      console.log(`[${this.room.name}][${creep.name}]: Claimed room has no controller.`);
       return;
     }
 
@@ -52,10 +52,10 @@ export class Settler extends RoomRole<SettlerMemory> {
     if (creep.MoveCreep(claimed.controller, { range: 1 }) !== 1) return;
 
     if (task.reserve != undefined && task.reserve) {
-      console.log(`[${this.manager.room.name}][${creep.name}]: Reserving controller in ${claimed.name} (${claimed.controller.reservation?.ticksToEnd}).`);
+      console.log(`[${this.room.name}][${creep.name}]: Reserving controller in ${claimed.name} (${claimed.controller.reservation?.ticksToEnd}).`);
       creep.reserveController(claimed.controller);
     } else {
-      console.log(`[${this.manager.room.name}][${creep.name}]: Claiming controller in ${claimed.name} (${claimed.controller.progress} / ${claimed.controller.progressTotal}).`);
+      console.log(`[${this.room.name}][${creep.name}]: Claiming controller in ${claimed.name} (${claimed.controller.progress} / ${claimed.controller.progressTotal}).`);
       creep.claimController(claimed.controller);
     }
   }
