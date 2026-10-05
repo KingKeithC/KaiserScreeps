@@ -1,5 +1,6 @@
 import { Colours } from "Data";
 import { sum } from "lodash";
+import { LogLevel, LogMsg } from "utils/Logging";
 
 declare global {
   interface CreepMemory {
@@ -33,9 +34,8 @@ export class CreepExtra extends Creep {
       .map(c => new CreepExtra(c.id));
   }
 
-  Log(msg: string): void {
-    console.log(`[M:${this.memory.room}][M:${this.memory.role}][C:${this.name}]: ${msg}`);
-  }
+  LogInfo(msg: string): void { LogMsg(LogLevel.Info, msg, { creep: this }); }
+  LogDebug(msg: string): void { LogMsg(LogLevel.Debug, msg, { creep: this }); }
 
   MoveLong(dest: RoomPosition | { pos: RoomPosition; }, opts?: MoveToOpts): number {
     return this.moveTo(dest, {

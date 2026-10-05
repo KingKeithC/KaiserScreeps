@@ -1,5 +1,6 @@
 import { CreepExtra } from "Creep";
 import { RoomRole } from "roles/Role";
+import { LogLevel, LogMsg } from "utils/Logging";
 
 export enum RoomControlStatus {
   Owned,
@@ -54,7 +55,7 @@ export class RoomExtra {
   }
 
   static InitRoomMemory(room: Room) {
-    console.log(`RoomExtra: Initializing Memory for new Room...`);
+    LogMsg(LogLevel.Info, "RoomExtra: Initializing Memory for new Room...");
     Memory.rooms ??= {};
     room.memory.status ??= RoomExtra.StatusOf(room);
     room.memory.lastSpawnTick ??= {};
@@ -149,9 +150,9 @@ export class RoomExtra {
     this.TowerCriticalSupplyRatio = this.HostileCreeps.length > 0 ? 0.90 : 0.60;
   }
 
-  Log(msg: string): void {
-    console.log(`[C:${this.name}]: ${msg}`);
-  }
+
+  LogInfo(msg: string): void { LogMsg(LogLevel.Info, msg, { room: this }); }
+  LogDebug(msg: string): void { LogMsg(LogLevel.Debug, msg, { room: this }); }
 
   get SpawnsOrExtensions() { return [...this.Spawns, ...this.SpawnExtensions]; }
 
@@ -164,7 +165,7 @@ export class RoomExtra {
         creeps.push(c);
         map.set(c.memory.role, creeps);
       } else {
-        c.Log(`Is assigned to unknown role: ${c.memory.role}`);
+        c.LogInfo(`Is assigned to unknown role: ${c.memory.role}`);
       }
     return map;
   }
@@ -184,7 +185,7 @@ export class RoomExtra {
     }
 
     if (this.memory.status !== RoomControlStatus.Owned) {
-      this.Log(`Not owned: ${this.memory.status}.`)
+      this.LogInfo(`Not owned: ${this.memory.status}.`)
       return;
     }
 
@@ -211,7 +212,7 @@ export class RoomExtra {
           return counts;
         }, {} as Record<string, number>),
       }));
-      this.Log(`!!! ${this.HostileCreeps.length} hostiles spotted: ${JSON.stringify(hostileDetails)}`);
+      this.LogInfo(`!!! ${this.HostileCreeps.length} hostiles spotted: ${JSON.stringify(hostileDetails)}`);
     }
   }
 
@@ -224,9 +225,9 @@ export class RoomExtra {
         victim: (a as { data: { targetId: string } }).data.targetId,
       }));
     if (newAttacksOnMyCreeps.length > 0) {
-      this.Log(`ATTACKS PERFORMED AGAINST MY CREEPS: `)
+      this.LogInfo(`ATTACKS PERFORMED AGAINST MY CREEPS: `)
       for (const att of newAttacksOnMyCreeps)
-        this.Log(JSON.stringify(att));
+        this.LogInfo(JSON.stringify(att));
     }
   }
 

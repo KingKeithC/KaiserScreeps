@@ -1,11 +1,13 @@
 import { ErrorMapper } from "utils/ErrorMapper";
+import { LogLevel } from "utils/Logging";
 import { CreepExtra } from "Creep";
 import { RoomExtra } from "Room";
-import "roles";
+
 
 const MainLoop = () => {
   Memory.rooms ??= {};
   Memory.creeps ??= {};
+  Memory.logLevel ??= LogLevel.Info;
 
   // Get all my creeps, and convert them to `CreepExtra`
   const MyCreeps: CreepExtra[] = Object.values(Game.creeps).map(c => new CreepExtra(c.id));
