@@ -420,6 +420,10 @@ export class WorkerII extends WorkerI {
 
   override CanSpawn(): boolean {
     // There must be at least 1 miner before we spawn WorkerII
-    return (this.manager.CreepsByRole.get("Miner") ?? 0) >= 1;
+    if ((this.manager.CreepsByRole.get("Miner")?.length ?? 0) > 0)
+      return true;
+
+    console.log("Not enough miners to spawn WorkerII")
+    return false;
   }
 }
