@@ -159,6 +159,8 @@ export class RoomExtra {
     this.TowerCriticalSupplyRatio = this.HostileCreeps.length > 0 ? 0.90 : 0.60;
   }
 
+  get SpawnsOrExtensions() { return [...this.Spawns, ...this.SpawnExtensions]; }
+
   TickRoom(allRoomManagers: RoomExtra[]) {
     // Init room if missing from memory
     if (!(this.name in Memory.rooms)) RoomExtra.InitRoomMemory(this.room);

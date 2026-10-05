@@ -8,24 +8,25 @@ enum WorkerAction {
   MaintainController = '🦸‍♀️',
   Build = '🏗️',
   Repair = '🛠️',
-  Transfer = '🫴',
+  Supply = '🫴',
   UpgradeController = '🔼',
   Pickup = "🧹"
 }
 
+type WorkerTarget = Id<ConstructionSite<BuildableStructureConstant> | AnyStructure | Source | Creep | Resource<RESOURCE_ENERGY> | StructureContainer>
+
 class WorkerTask extends Object {
   readonly action: WorkerAction;
-  readonly target: Id<ConstructionSite<BuildableStructureConstant> | AnyOwnedStructure | Source | Creep | Resource<RESOURCE_ENERGY> | StructureContainer> | null;
+  readonly target: WorkerTarget | null;
 
-  constructor(action: WorkerAction, id: Id<ConstructionSite<BuildableStructureConstant> | AnyOwnedStructure | Source | Creep | Resource<RESOURCE_ENERGY> | StructureContainer> | null = null) {
+  constructor(action: WorkerAction, id?: WorkerTarget) {
     super();
 
-    if (id == null && action !== WorkerAction.Idle) {
-      throw new Error(`Id was null with a non idle action: ${action}`);
-    }
-
     this.action = action;
-    this.target = id;
+    this.target = id ? id : null;
+    if ((!id) && action === WorkerAction.Idle) {
+      throw new Error(`Id was ${id} with a non idle action: ${action}`);
+    }
   }
 
   equals(other: WorkerTask) {
@@ -50,7 +51,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
   ControllerMaintenanceThreshold = 5000; // Start upgrading when ticksToDowngrade is less than this.
   ControllerMaintenanceBuffer = 5000;    // Stop upgrading when ticksToDowngrade is greater than `ControllerMaintenanceThreshold+ControllerMaintenanceBuffer`.
 
-  MaxTransferrers = 1;
+  get MaxSupplyWorkers() { return this.manager.SpawnsOrExtensions.length; }
   MaxMaintenanceWorkers = 2;
   MaxConstructionWorkers = 3;
 
@@ -81,6 +82,10 @@ export class WorkerI extends RoomRole<WorkerTask> {
     ? new WorkerTask(WorkerAction.MaintainController, this.manager.controller.id)
     : undefined;
 
+  ControllerUpgradeTask?: WorkerTask = this.manager.controller?.my == true
+    ? new WorkerTask(WorkerAction.UpgradeController, this.manager.controller.id)
+    : undefined;
+
   private _CurrentlyAssignedTasks?: WorkerTask[];
   get CurrentlyAssignedTasks(): WorkerTask[] {
     if (!this._CurrentlyAssignedTasks) this._CurrentlyAssignedTasks = this.CreepsInRoomAndRole
@@ -90,33 +95,17 @@ export class WorkerI extends RoomRole<WorkerTask> {
   }
 
   FindWartimeSpendingTask(creep: CreepExtra): WorkerTask {
-    const currentTransferTasks = this.CurrentlyAssignedTasks.filter(t => t.action === WorkerAction.Transfer);
-    const spawnOrExtensionNeedingEnergy = creep.pos.findClosestByPath(
-      [...this.manager.Spawns, ...this.manager.SpawnExtensions], {
-      ignoreCreeps: true,
-      filter: s =>
-        s.store.getFreeCapacity(RESOURCE_ENERGY) > 0
-        && !currentTransferTasks.includes(new WorkerTask(WorkerAction.Transfer, s.id)),
-    });
-    if (spawnOrExtensionNeedingEnergy) {
-      const transferTask = new WorkerTask(WorkerAction.Transfer, spawnOrExtensionNeedingEnergy.id);
-      currentTransferTasks.push(transferTask);
-      return transferTask;
-    }
+    // Spawns/Extensions/Towers with room for energy
+    const structureNeedingEnergy = this.FindSuitableNeedsSupply(creep.pos);
+    if (structureNeedingEnergy) return new WorkerTask(WorkerAction.Supply, structureNeedingEnergy.id);
 
-    // Towers with room for energy
-    const tower = creep.pos.findClosestByPath(this.manager.Towers, {
-      ignoreCreeps: true,
-      filter: (s) => s.store.getFreeCapacity(RESOURCE_ENERGY),
-    });
-    if (tower) return new WorkerTask(WorkerAction.Transfer, tower.id);
+    // Ongoing Construction
+    const site = this.FindSuitableConstruction(creep.pos);
+    if (site) return new WorkerTask(WorkerAction.Build, site.id);
 
     // Structures in need of repair
-    const delapitated = this.manager.Spawns[0].pos.findClosestByPath(this.manager.MyStructures, { filter: (s) => s.hits < s.hitsMax, ignoreCreeps: true });
+    const delapitated = this.FindSuitableRepair(creep.pos)
     if (delapitated) return new WorkerTask(WorkerAction.Repair, delapitated.id);
-
-    // Nothing else to do so just upgrade forever
-    if (this.ControllerMaintenanceTask) return new WorkerTask(WorkerAction.UpgradeController, this.ControllerMaintenanceTask.target);
 
     // Default
     return new WorkerTask(WorkerAction.Idle);
@@ -124,27 +113,18 @@ export class WorkerI extends RoomRole<WorkerTask> {
 
   FindSpendingTask(creep: CreepExtra): WorkerTask {
     // Select target in order of priority
-    const currentTransferTasks = this.CurrentlyAssignedTasks.filter(t => t.action === WorkerAction.Transfer);
-    const currentMaintenanceTasks = this.CurrentlyAssignedTasks.filter(t => t.action === WorkerAction.MaintainController);
-    const currentConstructionTasks = this.CurrentlyAssignedTasks.filter(t => t.action === WorkerAction.Build);
 
-    // Spawns/Extensions with room for energy
-    if (currentTransferTasks.length < this.MaxTransferrers) {
-      const spawnOrExtensionNeedingEnergy = creep.pos.findClosestByPath(
-        [...this.manager.Spawns, ...this.manager.SpawnExtensions], {
-        ignoreCreeps: true,
-        filter: s =>
-          s.store.getFreeCapacity(RESOURCE_ENERGY) > 0
-          && !currentTransferTasks.includes(new WorkerTask(WorkerAction.Transfer, s.id)),
-      });
-      if (spawnOrExtensionNeedingEnergy) {
-        const transferTask = new WorkerTask(WorkerAction.Transfer, spawnOrExtensionNeedingEnergy.id);
-        currentTransferTasks.push(transferTask);
-        return transferTask;
-      }
+    // Spawns/Extensions/Towers with room for energy
+    const currentTransferTasks = this.CurrentlyAssignedTasks
+      .filter(t => t.action === WorkerAction.Supply);
+    if (currentTransferTasks.length < this.MaxSupplyWorkers) {
+      const structureNeedingEnergy = this.FindSuitableNeedsSupply(creep.pos);
+      if (structureNeedingEnergy)
+        return new WorkerTask(WorkerAction.Supply, structureNeedingEnergy.id);
     }
 
     // Controller at risk of downgrade
+    const currentMaintenanceTasks = this.CurrentlyAssignedTasks.filter(t => t.action === WorkerAction.MaintainController);
     if (
       this.ControllerMaintenanceTask
       && currentMaintenanceTasks.length < this.MaxMaintenanceWorkers
@@ -152,24 +132,19 @@ export class WorkerI extends RoomRole<WorkerTask> {
     ) return this.ControllerMaintenanceTask;
 
     // Ongoing Construction
+    const currentConstructionTasks = this.CurrentlyAssignedTasks
+      .filter(t => t.action === WorkerAction.Build);
     if (currentConstructionTasks.length < this.MaxConstructionWorkers) {
-      const site = creep.pos.findClosestByPath(this.manager.ConstructionSites, { ignoreCreeps: true });
+      const site = this.FindSuitableConstruction(creep.pos);
       if (site) return new WorkerTask(WorkerAction.Build, site.id);
     }
 
-    // Towers with room for energy
-    const tower = creep.pos.findClosestByPath(this.manager.Towers, {
-      ignoreCreeps: true,
-      filter: (s) => s.store.getFreeCapacity(RESOURCE_ENERGY),
-    });
-    if (tower) return new WorkerTask(WorkerAction.Transfer, tower.id);
-
     // Structures in need of repair
-    const delapitated = creep.pos.findClosestByPath(this.manager.MyStructures, { filter: (s) => s.hits < s.hitsMax, ignoreCreeps: true });
+    const delapitated = this.FindSuitableRepair(creep.pos)
     if (delapitated) return new WorkerTask(WorkerAction.Repair, delapitated.id);
 
     // Nothing else to do so just upgrade forever
-    if (this.ControllerMaintenanceTask) return new WorkerTask(WorkerAction.UpgradeController, this.ControllerMaintenanceTask.target);
+    if (this.ControllerUpgradeTask) return this.ControllerUpgradeTask;
 
     // Default
     return new WorkerTask(WorkerAction.Idle);
@@ -178,11 +153,11 @@ export class WorkerI extends RoomRole<WorkerTask> {
   FindGatheringTask(creep: CreepExtra): WorkerTask {
     // Dropped Energy with reasonable amount remaining
     const dropped = creep.pos.findClosestByPath(FIND_DROPPED_RESOURCES, { filter: r => r.resourceType === RESOURCE_ENERGY && r.amount > 30 });
-    if (dropped instanceof Resource) return new WorkerTask(WorkerAction.Pickup, dropped.id as Id<Resource<RESOURCE_ENERGY>>);
+    if (dropped) return new WorkerTask(WorkerAction.Pickup, dropped.id as Id<Resource<RESOURCE_ENERGY>>);
 
     // Collect from the nearest container that has energy
     const container = creep.pos.findClosestByPath(this.manager.Containers.filter(s => s.store.getUsedCapacity(RESOURCE_ENERGY)), { ignoreCreeps: true });
-    if (container instanceof StructureContainer) return new WorkerTask(WorkerAction.CollectEnergy, container.id);
+    if (container) return new WorkerTask(WorkerAction.CollectEnergy, container.id);
 
     // Collect from the fullest miner in medium range
     const miners = creep.pos.findInRange(
@@ -192,15 +167,47 @@ export class WorkerI extends RoomRole<WorkerTask> {
     if (miners) return new WorkerTask(WorkerAction.CollectEnergy, miners.id);
 
     // Do harvesting on our own
-    const source = this.LocateSource(creep);
+    const source = this.FindSuitableSource();
     if (source) return new WorkerTask(WorkerAction.Mine, source);
 
     // Nothing to do without energy
     return new WorkerTask(WorkerAction.Idle);
   }
 
+  FindSuitableConstruction(pos: RoomPosition): ConstructionSite | null {
+    return pos.findClosestByPath(this.manager.ConstructionSites, { ignoreCreeps: true });
+  }
 
-  LocateSource(creep: CreepExtra): Id<Source> | undefined {
+  FindSuitableNeedsSupply(pos: RoomPosition): AnyStoreStructure | undefined {
+    // Get all transfers in progress
+    const currentTransferTasks = this.CurrentlyAssignedTasks
+      .filter(t => t.action === WorkerAction.Supply);
+
+    // Group by target and return count of group
+    const storesByCount = new Map<Id<AnyStoreStructure>, number>();
+    for (const t of currentTransferTasks)
+      storesByCount.set(
+        t.target as Id<AnyStoreStructure>,
+        (storesByCount.get(t.target as Id<AnyStoreStructure>) ?? 0) + 1
+      );
+
+    // Return the Spawn/Extension/Tower with room for energy
+    // and the least number of other assigned transfers
+    return [...this.manager.SpawnsOrExtensions, ...this.manager.Towers]
+      .filter(s => s.store.getFreeCapacity(RESOURCE_ENERGY))
+      .map(s => ({ store: s, transferCount: storesByCount.get(s.id) ?? 0 }))
+      .sort((b, a) => a.transferCount - b.transferCount)
+      .pop()?.store;
+  }
+
+  FindSuitableRepair(pos: RoomPosition): AnyStructure | null {
+    return pos.findClosestByPath(
+      this.manager.MyStructures
+        .filter(s => s.hits < s.hitsMax),
+      { ignoreCreeps: true });
+  }
+
+  FindSuitableSource(): Id<Source> | undefined {
     const harvestersBySource = new Map<Id<Source>, number>();
     for (const c of [
       ...this.manager.CreepsByRole.get("WorkerI") ?? [],
@@ -278,7 +285,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
         // if (result === OK) console.log(`${this.room}${creep}: Act: Repaired ${t} (${t.hits}/${t.hitsMax}) %${(t.hits / t.hitsMax * 100).toFixed(2)}.`);
         break;
       }
-      case (WorkerAction.Transfer): {
+      case (WorkerAction.Supply): {
         const t = targetObject as AnyStoreStructure;
         result = creep.transfer(t, RESOURCE_ENERGY);
         // if (result === OK) console.log(`${this.room}${creep}: Act: Supplied ${t}.`);
@@ -310,7 +317,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
         var minDistance = 3;
         if (
           task.action === WorkerAction.Mine
-          || task.action === WorkerAction.Transfer
+          || task.action === WorkerAction.Supply
           || task.action === WorkerAction.CollectEnergy
         )
           minDistance = 1;
@@ -378,7 +385,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
         const t = targetObject as AnyOwnedStructure;
         return t.hits === t.hitsMax;
       }
-      case (WorkerAction.Transfer): {
+      case (WorkerAction.Supply): {
         if (creep.store.energy === 0) return true;
         const t = targetObject as AnyStoreStructure;
         return t.store.getFreeCapacity(RESOURCE_ENERGY) === 0;
