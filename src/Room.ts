@@ -234,6 +234,9 @@ export class RoomExtra {
       summaryByEvent.set(e.event, [newCount, newTotal]);
     }
 
+    // Add 2 to each width for padding
+    widths = widths.map(w => w + 2);
+
     // Construct the actual message
     summary += `============= ${this.room.name} EVENT SUMMARY FROM ${start} to ${end} (~${this.EventReportingFrequencyTicks} Ticks) =============`;
     summary += `\n${headers[0].padEnd(widths[0])} ${headers[1].padStart(widths[1])} ${headers[2].padStart(widths[2])}`;
