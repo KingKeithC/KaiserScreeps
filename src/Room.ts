@@ -16,6 +16,7 @@ declare global {
     attackHostiles: boolean,
     disableWarriors: boolean,
     towerAttackRange: number,
+    disableEvents?: boolean,
     recentEvents: EventSummary[],
   }
 }
@@ -197,8 +198,12 @@ export class RoomExtra {
     // Owned room
 
     this.CallOutHostiles();
-    this.ProcessEventsLastTick();
-    if (Game.time % this.EventReportingFrequencyTicks === 0) this.PrintEventSummary();
+
+    // Handle events, if not disabled
+    if (!(this.room.memory.disableEvents ?? false)) {
+      this.ProcessEventsLastTick();
+      if (Game.time % this.EventReportingFrequencyTicks === 0) this.PrintEventSummary();
+    }
 
     // Build any designated roads
     this.BuildRoads();
