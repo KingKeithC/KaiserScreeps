@@ -226,6 +226,55 @@ export class RoomExtra {
     }
   }
 
+  FindNearestRepair(pos: RoomPosition): AnyStructure | null {
+    var candidates: AnyStructure[] = [];
+
+    // Weakest Owned Structure (except ramparts)
+    candidates.concat(this.MyStructures
+      .filter(s => s.structureType !== STRUCTURE_RAMPART)
+      .filter(s => s.hits < s.hitsMax)
+      .sort((b, a) => (a.hits / a.hitsMax) - (b.hits / b.hitsMax))
+    );
+
+    // Weakest roads
+    candidates.concat(this.Roads
+      .filter(r => r.hits < r.hitsMax)
+      .sort((b, a) => (a.hits / a.hitsMax) - (b.hits / b.hitsMax))
+    );
+
+    // Weakest Walls/Ramparts
+    const wallsRamparts = [...this.Ramparts, ...this.Walls];
+    candidates.concat(wallsRamparts
+      .filter(w => w.hits < w.hitsMax)
+      .sort((b, a) => (a.hits / a.hitsMax) - (b.hits / b.hitsMax))
+    );
+
+    return pos.findClosestByPath(candidates, { ignoreCreeps: true });
+  }
+
+  FindMostNeededRepair(): AnyStructure | null {
+    // Weakest Owned Structure (except ramparts)
+    const allStruct = this.MyStructures.filter(s => s.structureType !== STRUCTURE_RAMPART)
+      .filter(s => s.hits < s.hitsMax)
+      .sort((b, a) => (a.hits / a.hitsMax) - (b.hits / b.hitsMax)).pop()
+    if (allStruct) return allStruct;
+
+    // Weakest roads
+    const road = this.Roads
+      .filter(r => r.hits < r.hitsMax)
+      .sort((b, a) => (a.hits / a.hitsMax) - (b.hits / b.hitsMax)).pop()
+    if (road) return road;
+
+    // Weakest Walls/Ramparts
+    const wallsRamparts = [...this.Ramparts, ...this.Walls];
+    const wallLike = wallsRamparts
+      .filter(w => w.hits < w.hitsMax)
+      .sort((b, a) => (a.hits / a.hitsMax) - (b.hits / b.hitsMax)).pop()
+    if (wallLike) return wallLike;
+
+    return null;
+  }
+
   TickTower(t: StructureTower) {
     const supplyRatio = t.store.getUsedCapacity(RESOURCE_ENERGY) / t.store.getCapacity(RESOURCE_ENERGY);
     if (!t.isActive || !supplyRatio) return; // RCL or Energy too low to work
@@ -255,32 +304,8 @@ export class RoomExtra {
     }
 
     if (supplyRatio >= this.TowerCriticalSupplyRatio) {
-      // Walls/Ramparts
-      const wallLike = [...this.Ramparts, ...this.Walls]
-        .filter(w => w.hits < w.hitsMax)
-        .sort((b, a) => (a.hits / a.hitsMax) - (b.hits / b.hitsMax)).pop()
-      if (wallLike) {
-        t.repair(wallLike);
-        return;
-      }
-
-      // All roads in most need of repair
-      const road = this.Roads
-        .filter(r => r.hits < r.hitsMax)
-        .sort((b, a) => (a.hits / a.hitsMax) - (b.hits / b.hitsMax)).pop()
-      if (road) {
-        t.repair(road);
-        return;
-      }
-
-      // All other structures, weakest first
-      const allStruct = this.MyStructures
-        .filter(s => s.hits < s.hitsMax)
-        .sort((b, a) => (a.hits / a.hitsMax) - (b.hits / b.hitsMax)).pop()
-      if (allStruct) {
-        t.repair(allStruct);
-        return;
-      }
+      const needRepair = this.FindMostNeededRepair();
+      if (needRepair) t.repair(needRepair);
     }
   }
 

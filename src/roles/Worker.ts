@@ -111,7 +111,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
     if (site) return new WorkerTask(WorkerAction.Build, site.id);
 
     // Structures in need of repair
-    const delapitated = this.FindSuitableRepair(creep.pos)
+    const delapitated = this.manager.FindMostNeededRepair();
     if (delapitated) return new WorkerTask(WorkerAction.Repair, delapitated.id);
 
     // Default
@@ -147,7 +147,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
     }
 
     // Structures in need of repair
-    const delapitated = this.FindSuitableRepair(creep.pos)
+    const delapitated = this.manager.FindNearestRepair(creep.pos);
     if (delapitated) return new WorkerTask(WorkerAction.Repair, delapitated.id);
 
     // Nothing else to do so just upgrade forever
@@ -207,13 +207,6 @@ export class WorkerI extends RoomRole<WorkerTask> {
       .map(s => ({ store: s, transferCount: storesByCount.get(s.id) ?? 0 }))
       .sort((b, a) => a.transferCount - b.transferCount)
       .pop()?.store;
-  }
-
-  FindSuitableRepair(pos: RoomPosition): AnyStructure | null {
-    return pos.findClosestByPath(
-      this.manager.MyStructures
-        .filter(s => s.hits < s.hitsMax),
-      { ignoreCreeps: true });
   }
 
   FindSuitableSource(): Id<Source> | undefined {
