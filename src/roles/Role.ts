@@ -182,10 +182,10 @@ export abstract class RoomRole<MemoryShape extends Object> {
       // Log the result
 
       if (result === OK) {
-        console.log(`${this.manager}[creep ${newName}]: (${roomCount}+1/${this.CountPerRoom}) Spawning @ ${spawnPoint.name}...`);
+        console.log(`${this.manager}[creep ${newName}]: (${roomCount}+1/${roomQuota}) Spawning @ ${spawnPoint.name}...`);
         return; // Successful, no need to proceed.
       }
-      console.log(`${this.manager}[creep ${newName}]: (${roomCount}/${this.CountPerRoom}) Unable to spawn at ${spawnPoint} due to: ${result}...`);
+      console.log(`${this.manager}[creep ${newName}]: (${roomCount}/${roomQuota}) Unable to spawn at ${spawnPoint} due to: ${result}...`);
     }
     console.log(`${this.manager}[creep ${newName}]: All spawn attempts failed... woe is me for I did not experience life :(`);
   }
