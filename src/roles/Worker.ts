@@ -49,14 +49,24 @@ export class WorkerI extends RoomRole<WorkerTask> {
     return max - T2 <= 0 ? 0 : max - T2;
   }
 
-  ControllerMaintenanceThreshold = 5000; // Start upgrading when ticksToDowngrade is less than this.
-  ControllerMaintenanceBuffer = 5000;    // Stop upgrading when ticksToDowngrade is greater than `ControllerMaintenanceThreshold+ControllerMaintenanceBuffer`.
+  MaxMaintenanceWorkers = 2;
+  ControllerMaintenanceThreshold = 1000; // Start upgrading when ticksToDowngrade is less than this.
+  ControllerMaintenanceBuffer = 2000;    // Stop upgrading when ticksToDowngrade is greater than `ControllerMaintenanceThreshold+ControllerMaintenanceBuffer`.
 
   MaxSupplyWorkers = 3;
   MaxSupplyPerTarget = 1;
-  MaxMaintenanceWorkers = 2;
+  SupplyPriorities: ((s: AnyStoreStructure) => boolean)[] = [
+    (s => s instanceof StructureExtension || s instanceof StructureSpawn),
+    (s => s instanceof StructureTower),
+    (_ => true),
+  ];
+
   MaxRepairWorkers = 4;
   MaxRepairPerTarget = 1;
+  RepairPriorities: ((s: AnyStructure) => boolean)[] = [
+    (s => s instanceof StructureWall || s instanceof StructureRampart),
+    (_ => true),
+  ];
 
   // At least 2, but no more than 1/4 of the number of sites
   get MaxConstructionWorkers() {
@@ -64,6 +74,12 @@ export class WorkerI extends RoomRole<WorkerTask> {
     const min = 2;
     return max < min ? min : max;
   };
+  ConstructionPriorities: ((c: ConstructionSite) => boolean)[] = [
+    (c => c.structureType === STRUCTURE_EXTENSION || c.structureType === STRUCTURE_SPAWN),
+    (c => c.structureType === STRUCTURE_RAMPART || c.structureType === STRUCTURE_WALL),
+    (c => c.structureType === STRUCTURE_STORAGE || c.structureType === STRUCTURE_CONTAINER),
+    (_ => true),
+  ];
 
   IgnoreDroppedResourcesLessThan = 30;
 
@@ -154,7 +170,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
     if (spawnNeedingEnergy) return new WorkerTask(WorkerAction.Supply, spawnNeedingEnergy.id);
 
     // Ongoing Construction
-    const site = this.FindClosestConstruction(creep.pos);
+    const site = this.FindClosestConstructionByPriority(creep.pos);
     if (site) return new WorkerTask(WorkerAction.Build, site.id);
 
     // Tower needing energy
@@ -184,23 +200,17 @@ export class WorkerI extends RoomRole<WorkerTask> {
     if (spawn) return new WorkerTask(WorkerAction.Supply, spawn.id);
 
     // If not enough construction workers, find closest site
-    if (this.WorkerActionCount(WorkerAction.Build) < this.MaxConstructionWorkers) {
-      const site = this.FindClosestConstruction(creep.pos);
-      if (site) return new WorkerTask(WorkerAction.Build, site.id);
-    }
+    const cons = this.FindClosestConstructionByPriority(creep.pos);
+    if (cons) return new WorkerTask(WorkerAction.Build, cons.id);
 
     // If not enough suppliers, find nearest unsupplied Tower
-    if (this.WorkerActionCount(WorkerAction.Supply) < this.MaxSupplyWorkers) {
-      const site = this.FindUnsuppliedSupplyTarget(creep, this.manager.Towers);
-      if (site) return new WorkerTask(WorkerAction.Supply, site.id);
-    }
+    const tower = this.FindUnsuppliedSupplyTarget(creep, this.manager.Towers);
+    if (tower) return new WorkerTask(WorkerAction.Supply, tower.id);
 
     // If not enough repair workers, find nearest repair
-    if (this.WorkerActionCount(WorkerAction.Repair) < this.MaxRepairWorkers) {
-      const site = this.FindUnsuppliedRepair(creep);
-      if (site) return new WorkerTask(WorkerAction.Repair, site.id);
-      else console.log(`[${this.manager.name}]${creep}: No repairs needed!`);
-    }
+    const repair = this.FindUnsuppliedRepair(creep);
+    if (repair) return new WorkerTask(WorkerAction.Repair, repair.id);
+    else console.log(`[${this.manager.name}]${creep}: No repairs needed!`);
 
     // Nothing else to do so just upgrade forever
     if (this.ControllerUpgradeTask) return this.ControllerUpgradeTask;
@@ -235,14 +245,17 @@ export class WorkerI extends RoomRole<WorkerTask> {
     return new WorkerTask(WorkerAction.Idle);
   }
 
-  FindClosestConstruction(pos: RoomPosition): ConstructionSite | null {
-    return pos.findClosestByPath(FIND_MY_CONSTRUCTION_SITES, { ignoreCreeps: true });
-  }
+  FindClosestConstructionByPriority(pos: RoomPosition): ConstructionSite | null {
+    const constructions = this.manager.room.find(FIND_MY_CONSTRUCTION_SITES);
+    const constructionsByPriority = [];
 
-  FindMostCompleteConstruction(): ConstructionSite | undefined {
-    return this.manager.room.find(FIND_MY_CONSTRUCTION_SITES)
-      .sort((a, b) => (a.progress / a.progressTotal) - (b.progress / b.progressTotal))
-      .pop();
+    for (const p of this.ConstructionPriorities)
+      constructionsByPriority.push(constructions.filter(p))
+
+    for (const p of constructionsByPriority)
+      return pos.findClosestByPath(p, { ignoreCreeps: true });
+
+    return null;
   }
 
   // Return the closest Spawn/Extension/Tower with room for energy
