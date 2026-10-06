@@ -149,16 +149,20 @@ export class WorkerI extends RoomRole<WorkerTask> {
   WorkerActionCount(action: WorkerAction): number { return (this.WorkersByAction.get(action) ?? []).length; }
 
   FindWartimeSpendingTask(creep: CreepExtra): WorkerTask {
-    // Spawns/Extensions/Towers with room for energy
-    const structureNeedingEnergy = this.FindClosestNeedsSupply(creep.pos);
-    if (structureNeedingEnergy) return new WorkerTask(WorkerAction.Supply, structureNeedingEnergy.id);
+    // Spawns/Extensions needing energy
+    const spawnNeedingEnergy = this.FindClosestNeedsSupply(creep.pos, this.manager.SpawnsOrExtensions);
+    if (spawnNeedingEnergy) return new WorkerTask(WorkerAction.Supply, spawnNeedingEnergy.id);
 
     // Ongoing Construction
     const site = this.FindClosestConstruction(creep.pos);
     if (site) return new WorkerTask(WorkerAction.Build, site.id);
 
+    // Tower needing energy
+    const towerNeedingEnergy = this.FindClosestNeedsSupply(creep.pos, this.manager.SpawnsOrExtensions);
+    if (towerNeedingEnergy) return new WorkerTask(WorkerAction.Supply, towerNeedingEnergy.id);
+
     // Structures in need of repair
-    const delapitated = this.manager.FindMostNeededRepair();
+    const delapitated = this.manager.FindRepairByPriority();
     if (delapitated) return new WorkerTask(WorkerAction.Repair, delapitated.id);
 
     // Default
@@ -175,9 +179,9 @@ export class WorkerI extends RoomRole<WorkerTask> {
       && this.manager.controller!.ticksToDowngrade < this.ControllerMaintenanceThreshold
     ) return this.ControllerMaintenanceTask;
 
-    // If not enough suppliers, find nearest unsupplied Spawns/Extensions/Towers
+    // If not enough suppliers, find nearest unsupplied Spawn/Extension
     if (this.WorkerActionCount(WorkerAction.Supply) < this.MaxSupplyWorkers) {
-      const site = this.FindUnsuppliedSupplyTarget(creep);
+      const site = this.FindUnsuppliedSupplyTarget(creep, this.manager.SpawnsOrExtensions);
       if (site) return new WorkerTask(WorkerAction.Supply, site.id);
     }
 
@@ -185,6 +189,12 @@ export class WorkerI extends RoomRole<WorkerTask> {
     if (this.WorkerActionCount(WorkerAction.Build) < this.MaxConstructionWorkers) {
       const site = this.FindClosestConstruction(creep.pos);
       if (site) return new WorkerTask(WorkerAction.Build, site.id);
+    }
+
+    // If not enough suppliers, find nearest unsupplied Tower
+    if (this.WorkerActionCount(WorkerAction.Supply) < this.MaxSupplyWorkers) {
+      const site = this.FindUnsuppliedSupplyTarget(creep, this.manager.Towers);
+      if (site) return new WorkerTask(WorkerAction.Supply, site.id);
     }
 
     // If not enough repair workers, find nearest repair
@@ -238,17 +248,13 @@ export class WorkerI extends RoomRole<WorkerTask> {
   }
 
   // Return the closest Spawn/Extension/Tower with room for energy
-  FindClosestNeedsSupply(pos: RoomPosition): AnyStoreStructure | null {
-    return pos.findClosestByPath(
-      [...this.manager.SpawnsOrExtensions, ...this.manager.Towers]
-        .filter(s => s.store.getFreeCapacity(RESOURCE_ENERGY)),
-      { ignoreCreeps: true }
-    );
+  FindClosestNeedsSupply(pos: RoomPosition, candidates: AnyStoreStructure[]): AnyStoreStructure | null {
+    return pos.findClosestByPath(candidates, { ignoreCreeps: true, filter: s => s.store.getFreeCapacity(RESOURCE_ENERGY) });
   }
 
   // Return the closest Spawn/Extension/Tower with room for energy
   // and the least number of other assigned suppliers
-  FindUnsuppliedSupplyTarget(supplier: CreepExtra): AnyStoreStructure | undefined {
+  FindUnsuppliedSupplyTarget(supplier: CreepExtra, candidates: AnyStoreStructure[]): AnyStoreStructure | undefined {
     // Get all transfers in progress
     const inProgressSupplyTasks = this.CurrentlyAssignedTasks.filter(t => t.action === WorkerAction.Supply);
 
@@ -260,7 +266,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
     }
 
     // Get candidates and group by number of suppliers
-    const needsSupply = [...this.manager.SpawnsOrExtensions, ...this.manager.Towers]
+    const needsSupply = candidates
       .filter(s => s.store.getFreeCapacity(RESOURCE_ENERGY))
       .map(s => ({ store: s, transferCount: supplyTargetsByCount.get(s.id) ?? 0 }))
       .filter((_, count) => count < this.MaxSupplyPerTarget)

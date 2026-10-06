@@ -357,7 +357,7 @@ export class RoomExtra {
       ?? pos.findClosestByPath(this.Walls, { ignoreCreeps: true, filter: s => s.hits < s.hitsMax });
   }
 
-  FindMostNeededRepair(): AnyStructure | null {
+  FindRepairByPriority(): AnyStructure | null {
     // Weakest Walls/Ramparts
     const wallsRamparts = [...this.Ramparts, ...this.Walls];
     const wallLike = wallsRamparts
@@ -376,7 +376,6 @@ export class RoomExtra {
       .filter(r => r.hits < r.hitsMax)
       .sort((b, a) => (a.hits / a.hitsMax) - (b.hits / b.hitsMax)).pop();
     if (road) return road;
-
 
     return null;
   }
@@ -412,7 +411,7 @@ export class RoomExtra {
     }
 
     if (supplyRatio >= this.TowerCriticalSupplyRatio) {
-      const needRepair = this.FindMostNeededRepair();
+      const needRepair = this.FindRepairByPriority();
       if (needRepair) t.repair(needRepair);
     }
   }
