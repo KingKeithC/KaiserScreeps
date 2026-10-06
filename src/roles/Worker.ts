@@ -42,18 +42,21 @@ export class WorkerI extends RoomRole<WorkerTask> {
   StopSpawnAtRCL = 4;
   BodyParts = [WORK, CARRY, MOVE];
 
+  // Up to 6, less one for each WorkerII that is spawned.
   get CountPerRoom() {
     const max = 6;
     const T2 = Object.values(Game.creeps).filter(c => c.memory.room === this.manager.name && c.memory.role === 'WorkerII').length;
     return max - T2 <= 0 ? 0 : max - T2;
   }
 
-  MaxMaintenanceWorkers = 2;
-  MaxRepairWorkers = 4;
   ControllerMaintenanceThreshold = 5000; // Start upgrading when ticksToDowngrade is less than this.
   ControllerMaintenanceBuffer = 5000;    // Stop upgrading when ticksToDowngrade is greater than `ControllerMaintenanceThreshold+ControllerMaintenanceBuffer`.
 
-  get MaxSupplyWorkers() { return Math.ceil(this.manager.SpawnsOrExtensions.length / 2); }
+  MaxSupplyWorkers = 3;
+  MaxMaintenanceWorkers = 2;
+  MaxRepairWorkers = 4;
+
+  // At least 2, but no more than 1/4 of the number of sites
   get MaxConstructionWorkers() {
     const max = Math.floor(this.manager.ConstructionSites.length / 4);
     const min = 2;
@@ -65,7 +68,6 @@ export class WorkerI extends RoomRole<WorkerTask> {
   MediumSearchRange = 20;
   ShortSearchRange = 5;
 
-  // Main creep control loop
   TickCreep(creep: CreepExtra, currentTask: WorkerTask): void {
     if (this.IsTaskComplete(creep, currentTask)) {
       const newTask = this.Reassign(creep);
@@ -99,14 +101,50 @@ export class WorkerI extends RoomRole<WorkerTask> {
     ? new WorkerTask(WorkerAction.UpgradeController, this.manager.controller.id)
     : undefined;
 
-  // private _CurrentlyAssignedTasks?: WorkerTask[];
   get CurrentlyAssignedTasks(): WorkerTask[] {
-    // if (!this._CurrentlyAssignedTasks) this._CurrentlyAssignedTasks = this.CreepsInRoomAndRole
-    return this.CreepsInRoomAndRole
-      .filter(c => c.memory.jobMemory as WorkerTask)
-      .map(c => c.memory.jobMemory as WorkerTask);
-    // return this._CurrentlyAssignedTasks;
+    return this.manager.room.find(FIND_MY_CREEPS, {
+      filter: c => c.memory.role.startsWith("Worker")
+    }).map(c => c.memory.jobMemory as WorkerTask);
   }
+
+  private _WorkersByActionAndTarget?: Map<WorkerAction, Map<WorkerTarget, CreepExtra[]>>;
+  get WorkersByActionAndTarget(): Map<WorkerAction, Map<WorkerTarget, CreepExtra[]>> {
+    // Return cached
+    if (this._WorkersByActionAndTarget != undefined) return this._WorkersByActionAndTarget;
+
+    // Generate cache and return
+    const res = new Map<WorkerAction, Map<WorkerTarget, CreepExtra[]>>();
+    for (const worker of this.manager.room.find(FIND_MY_CREEPS, {
+      filter: c => c.memory.role.startsWith("Worker")
+    })) {
+      const task = worker.memory.jobMemory as WorkerTask;
+      if (task.action === WorkerAction.Idle) continue;
+      const actionGroup = res.get(task.action) ?? new Map();
+      const targetWorkers = [...(actionGroup.get(task.target) ?? []), worker];
+      actionGroup.set(task.target, targetWorkers);
+      res.set(task.action, actionGroup);
+    }
+
+    this._WorkersByActionAndTarget = res;
+    return this._WorkersByActionAndTarget;
+  }
+
+  private _WorkersByAction?: Map<WorkerAction, CreepExtra[]>;
+  get WorkersByAction(): Map<WorkerAction, CreepExtra[]> {
+    // Return cached
+    if (this._WorkersByAction != undefined) return this._WorkersByAction;
+
+    // Generate cache and return
+    const res = new Map();
+    for (const [action, workersBytarget] of this.WorkersByActionAndTarget.entries())
+      for (const [target, workers] of workersBytarget.entries())
+        res.set(action, [...res.get(action) ?? [], ...workers]);
+
+    this._WorkersByAction = res;
+    return this._WorkersByAction;
+  }
+
+  WorkerActionCount(action: WorkerAction): number { return (this.WorkersByAction.get(action) ?? []).length; }
 
   FindWartimeSpendingTask(creep: CreepExtra): WorkerTask {
     // Spawns/Extensions/Towers with room for energy
@@ -129,33 +167,27 @@ export class WorkerI extends RoomRole<WorkerTask> {
     // Select target in order of priority
 
     // Spawns/Extensions/Towers with room for energy
-    const currentTransferTasks = this.CurrentlyAssignedTasks
-      .filter(t => t.action === WorkerAction.Supply);
-    if (currentTransferTasks.length < this.MaxSupplyWorkers) {
-      const structureNeedingEnergy = this.FindMostNeedsSupply(creep.pos);
+    if (this.WorkerActionCount(WorkerAction.Supply) < this.MaxSupplyWorkers) {
+      const structureNeedingEnergy = this.FindMostSuppliable(creep);
       if (structureNeedingEnergy)
         return new WorkerTask(WorkerAction.Supply, structureNeedingEnergy.id);
     }
 
     // Controller at risk of downgrade
-    const currentMaintenanceTasks = this.CurrentlyAssignedTasks.filter(t => t.action === WorkerAction.MaintainController);
     if (
       this.ControllerMaintenanceTask
-      && currentMaintenanceTasks.length < this.MaxMaintenanceWorkers
+      && this.WorkerActionCount(WorkerAction.MaintainController) < this.MaxMaintenanceWorkers
       && this.manager.controller!.ticksToDowngrade < this.ControllerMaintenanceThreshold
     ) return this.ControllerMaintenanceTask;
 
     // Ongoing Construction
-    const currentConstructionTasks = this.CurrentlyAssignedTasks
-      .filter(t => t.action === WorkerAction.Build);
-    if (currentConstructionTasks.length < this.MaxConstructionWorkers) {
+    if (this.WorkerActionCount(WorkerAction.Build) < this.MaxConstructionWorkers) {
       const site = this.FindConstructionByPriority();
       if (site) return new WorkerTask(WorkerAction.Build, site.id);
     }
 
     // Structures in need of repair
-    const currentRepairTasks = this.CurrentlyAssignedTasks.filter(t => t.action === WorkerAction.Repair);
-    if (currentRepairTasks.length < this.MaxRepairWorkers) {
+    if (this.WorkerActionCount(WorkerAction.Repair) < this.MaxRepairWorkers) {
       const delapitated = this.manager.FindMostNeededRepair();
       if (delapitated) return new WorkerTask(WorkerAction.Repair, delapitated.id);
       else console.log(`[${this.manager.name}]${creep}: No repairs needed!`);
@@ -215,24 +247,24 @@ export class WorkerI extends RoomRole<WorkerTask> {
     );
   }
 
-  FindMostNeedsSupply(pos: RoomPosition): AnyStoreStructure | undefined {
+  // Return the Spawn/Extension/Tower with enough room
+  // for energy that we can fully supply them
+  // and the least number of other assigned suppliers
+  FindMostSuppliable(supplier: CreepExtra): AnyStoreStructure | undefined {
     // Get all transfers in progress
-    const currentTransferTasks = this.CurrentlyAssignedTasks
-      .filter(t => t.action === WorkerAction.Supply);
+    const inProgressSupplyTasks = this.CurrentlyAssignedTasks.filter(t => t.action === WorkerAction.Supply);
 
     // Group by target and return count of group
-    const storesByCount = new Map<Id<AnyStoreStructure>, number>();
-    for (const t of currentTransferTasks)
-      storesByCount.set(
-        t.target as Id<AnyStoreStructure>,
-        (storesByCount.get(t.target as Id<AnyStoreStructure>) ?? 0) + 1
-      );
+    const supplyTargetsByCount = new Map();
+    for (const t of inProgressSupplyTasks) {
+      const existing = supplyTargetsByCount.get(t.target!) ?? 0;
+      supplyTargetsByCount.set(t.target!, existing + 1);
+    }
 
-    // Return the Spawn/Extension/Tower with room for energy
-    // and the least number of other assigned transfers
+    console.log(`this.MaxSupplyWorkers: ${this.MaxSupplyWorkers}, supplyTargetsByCount: ${JSON.stringify([...supplyTargetsByCount])}, inProgressSupplyTasks: ${JSON.stringify(inProgressSupplyTasks)}`);
     return [...this.manager.SpawnsOrExtensions, ...this.manager.Towers]
-      .filter(s => s.store.getFreeCapacity(RESOURCE_ENERGY))
-      .map(s => ({ store: s, transferCount: storesByCount.get(s.id) ?? 0 }))
+      .filter(s => s.store.getFreeCapacity(RESOURCE_ENERGY) >= supplier.store.getUsedCapacity(RESOURCE_ENERGY))
+      .map(s => ({ store: s, transferCount: supplyTargetsByCount.get(s.id) ?? 0 }))
       .sort((b, a) => a.transferCount - b.transferCount)
       .pop()?.store;
   }
