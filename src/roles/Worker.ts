@@ -56,6 +56,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
   MaxSupplyPerTarget = 1;
   MaxMaintenanceWorkers = 2;
   MaxRepairWorkers = 4;
+  MaxRepairPerTarget = 1;
 
   // At least 2, but no more than 1/4 of the number of sites
   get MaxConstructionWorkers() {
@@ -153,7 +154,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
     if (structureNeedingEnergy) return new WorkerTask(WorkerAction.Supply, structureNeedingEnergy.id);
 
     // Ongoing Construction
-    const site = this.FindConstructionByDistance(creep.pos);
+    const site = this.FindClosestConstruction(creep.pos);
     if (site) return new WorkerTask(WorkerAction.Build, site.id);
 
     // Structures in need of repair
@@ -167,13 +168,6 @@ export class WorkerI extends RoomRole<WorkerTask> {
   FindSpendingTask(creep: CreepExtra): WorkerTask {
     // Select target in order of priority
 
-    // Spawns/Extensions/Towers with room for energy
-    if (this.WorkerActionCount(WorkerAction.Supply) < this.MaxSupplyWorkers) {
-      const structureNeedingEnergy = this.FindNearestUnassignedSupplyTarget(creep);
-      if (structureNeedingEnergy)
-        return new WorkerTask(WorkerAction.Supply, structureNeedingEnergy.id);
-    }
-
     // Controller at risk of downgrade
     if (
       this.ControllerMaintenanceTask
@@ -181,16 +175,22 @@ export class WorkerI extends RoomRole<WorkerTask> {
       && this.manager.controller!.ticksToDowngrade < this.ControllerMaintenanceThreshold
     ) return this.ControllerMaintenanceTask;
 
-    // Ongoing Construction
+    // If not enough construction workers, find closest site
     if (this.WorkerActionCount(WorkerAction.Build) < this.MaxConstructionWorkers) {
-      const site = this.FindConstructionByPriority();
+      const site = this.FindClosestConstruction(creep.pos);
       if (site) return new WorkerTask(WorkerAction.Build, site.id);
     }
 
-    // Structures in need of repair
+    // If not enough suppliers, find nearest unsupplied Spawns/Extensions/Towers
+    if (this.WorkerActionCount(WorkerAction.Supply) < this.MaxSupplyWorkers) {
+      const site = this.FindUnsuppliedSupplyTarget(creep);
+      if (site) return new WorkerTask(WorkerAction.Supply, site.id);
+    }
+
+    // If not enough repair workers, find nearest repair
     if (this.WorkerActionCount(WorkerAction.Repair) < this.MaxRepairWorkers) {
-      const delapitated = this.manager.FindMostNeededRepair();
-      if (delapitated) return new WorkerTask(WorkerAction.Repair, delapitated.id);
+      const site = this.FindUnsuppliedRepair(creep);
+      if (site) return new WorkerTask(WorkerAction.Repair, site.id);
       else console.log(`[${this.manager.name}]${creep}: No repairs needed!`);
     }
 
@@ -227,13 +227,12 @@ export class WorkerI extends RoomRole<WorkerTask> {
     return new WorkerTask(WorkerAction.Idle);
   }
 
-  FindConstructionByDistance(pos: RoomPosition): ConstructionSite | null {
-    return pos.findClosestByPath(this.manager.ConstructionSites, { ignoreCreeps: true });
+  FindClosestConstruction(pos: RoomPosition): ConstructionSite | null {
+    return pos.findClosestByPath(FIND_MY_CONSTRUCTION_SITES, { ignoreCreeps: true });
   }
 
-  FindConstructionByPriority(): ConstructionSite | undefined {
+  FindMostCompleteConstruction(): ConstructionSite | undefined {
     return this.manager.room.find(FIND_MY_CONSTRUCTION_SITES)
-      .filter(s => s.progress < s.progressTotal)
       .sort((a, b) => (a.progress / a.progressTotal) - (b.progress / b.progressTotal))
       .pop();
   }
@@ -251,7 +250,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
   // Return the Spawn/Extension/Tower with enough room
   // for energy that we can fully supply them
   // and the least number of other assigned suppliers
-  FindNearestUnassignedSupplyTarget(supplier: CreepExtra): AnyStoreStructure | undefined {
+  FindUnsuppliedSupplyTarget(supplier: CreepExtra): AnyStoreStructure | undefined {
     // Get all transfers in progress
     const inProgressSupplyTasks = this.CurrentlyAssignedTasks.filter(t => t.action === WorkerAction.Supply);
 
@@ -272,6 +271,27 @@ export class WorkerI extends RoomRole<WorkerTask> {
 
     if (needsSupply.length === 0) console.log("No unsupplied candidates found.");
     return supplier.pos.findClosestByPath(needsSupply, { ignoreCreeps: true }) ?? undefined;
+  }
+
+  FindUnsuppliedRepair(supplier: CreepExtra): AnyStructure | undefined {
+    const inProgressRepairTasks = this.CurrentlyAssignedTasks.filter(t => t.action === WorkerAction.Repair);
+
+    // Group by target and return count of group
+    const targetsByCount = new Map();
+    for (const t of inProgressRepairTasks) {
+      const existing = targetsByCount.get(t.target!) ?? 0;
+      targetsByCount.set(t.target!, existing + 1);
+    }
+
+    // Get candidates and group by number of suppliers
+    const needsRepair = this.manager.room.find(FIND_STRUCTURES, { filter: s => s.hits < s.hitsMax })
+      .map(s => ({ site: s, count: targetsByCount.get(s.id) ?? 0 }))
+      .filter((_, count) => count < this.MaxRepairPerTarget)
+      .sort((b, a) => a.count - b.count)
+      .map(c => c.site);
+
+    if (needsRepair.length === 0) console.log("No unsupplied repairs found.");
+    return supplier.pos.findClosestByPath(needsRepair, { ignoreCreeps: true }) ?? undefined;
   }
 
   FindLeastAssignedSource(): Source | undefined {
