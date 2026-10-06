@@ -114,7 +114,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
     if (structureNeedingEnergy) return new WorkerTask(WorkerAction.Supply, structureNeedingEnergy.id);
 
     // Ongoing Construction
-    const site = this.FindSuitableConstruction(creep.pos);
+    const site = this.FindConstructionByDistance(creep.pos);
     if (site) return new WorkerTask(WorkerAction.Build, site.id);
 
     // Structures in need of repair
@@ -149,7 +149,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
     const currentConstructionTasks = this.CurrentlyAssignedTasks
       .filter(t => t.action === WorkerAction.Build);
     if (currentConstructionTasks.length < this.MaxConstructionWorkers) {
-      const site = this.FindSuitableConstruction(creep.pos);
+      const site = this.FindConstructionByPriority();
       if (site) return new WorkerTask(WorkerAction.Build, site.id);
     }
 
@@ -194,8 +194,15 @@ export class WorkerI extends RoomRole<WorkerTask> {
     return new WorkerTask(WorkerAction.Idle);
   }
 
-  FindSuitableConstruction(pos: RoomPosition): ConstructionSite | null {
+  FindConstructionByDistance(pos: RoomPosition): ConstructionSite | null {
     return pos.findClosestByPath(this.manager.ConstructionSites, { ignoreCreeps: true });
+  }
+
+  FindConstructionByPriority(): ConstructionSite | undefined {
+    return this.manager.room.find(FIND_MY_CONSTRUCTION_SITES)
+      .filter(s => s.progress < s.progressTotal)
+      .sort((a, b) => (a.progress / a.progressTotal) - (b.progress / b.progressTotal))
+      .pop();
   }
 
   FindClosestNeedsSupply(pos: RoomPosition): AnyStoreStructure | null {
