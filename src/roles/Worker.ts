@@ -271,7 +271,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
       .sort((b, a) => a.transferCount - b.transferCount)
       .map(c => c.store);
 
-    if (needsSupply.length === 0) console.log("No unsupplied candidates found.");
+    // if (needsSupply.length === 0) console.log("No unsupplied candidates found.");
     return supplier.pos.findClosestByPath(needsSupply, { ignoreCreeps: true }) ?? undefined;
   }
 
