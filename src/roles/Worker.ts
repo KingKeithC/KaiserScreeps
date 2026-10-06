@@ -71,7 +71,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
   TickCreep(creep: CreepExtra, currentTask: WorkerTask): void {
     if (this.IsTaskComplete(creep, currentTask)) {
       const newTask = this.Reassign(creep);
-      console.log(`${this.manager.room}${creep} Reassigned: ${JSON.stringify(currentTask)} -> ${JSON.stringify(newTask)}`);
+      // console.log(`${this.manager.room}${creep} Reassigned: ${JSON.stringify(currentTask)} -> ${JSON.stringify(newTask)}`);
       this.manager.room.memory.recentEvents?.push({
         time: Game.time,
         event: `Worker Reassign ${currentTask.action} -> ${newTask.action}`,
@@ -261,7 +261,6 @@ export class WorkerI extends RoomRole<WorkerTask> {
       supplyTargetsByCount.set(t.target!, existing + 1);
     }
 
-    console.log(`this.MaxSupplyWorkers: ${this.MaxSupplyWorkers}, supplyTargetsByCount: ${JSON.stringify([...supplyTargetsByCount])}, inProgressSupplyTasks: ${JSON.stringify(inProgressSupplyTasks)}`);
     return [...this.manager.SpawnsOrExtensions, ...this.manager.Towers]
       .filter(s => s.store.getFreeCapacity(RESOURCE_ENERGY) >= supplier.store.getUsedCapacity(RESOURCE_ENERGY))
       .map(s => ({ store: s, transferCount: supplyTargetsByCount.get(s.id) ?? 0 }))
@@ -460,6 +459,10 @@ export class WorkerI extends RoomRole<WorkerTask> {
   }
 
   TickEnd(): void {
+    console.log(`End T${Game.time} of ${this.RoleName} in ${this.manager.room.name}.`)
+    console.log(`WorkersByAction: ${JSON.stringify([...this.WorkersByAction])}`)
+
+    // Draw visuals
     if (this.manager.memory.enableVisuals ?? true) {
       for (const t of this.CurrentlyAssignedTasks) {
         var colour = "#000000";
