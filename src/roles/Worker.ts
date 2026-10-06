@@ -53,7 +53,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
   ControllerMaintenanceThreshold = 5000; // Start upgrading when ticksToDowngrade is less than this.
   ControllerMaintenanceBuffer = 5000;    // Stop upgrading when ticksToDowngrade is greater than `ControllerMaintenanceThreshold+ControllerMaintenanceBuffer`.
 
-  get MaxSupplyWorkers() { return this.manager.SpawnsOrExtensions.length; }
+  get MaxSupplyWorkers() { return Math.ceil(this.manager.SpawnsOrExtensions.length / 2); }
   get MaxConstructionWorkers() {
     const max = Math.floor(this.manager.ConstructionSites.length / 4);
     const min = 2;
