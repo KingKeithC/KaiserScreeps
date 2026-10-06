@@ -53,6 +53,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
   ControllerMaintenanceBuffer = 5000;    // Stop upgrading when ticksToDowngrade is greater than `ControllerMaintenanceThreshold+ControllerMaintenanceBuffer`.
 
   MaxSupplyWorkers = 3;
+  MaxSupplyPerTarget = 1;
   MaxMaintenanceWorkers = 2;
   MaxRepairWorkers = 4;
 
@@ -168,7 +169,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
 
     // Spawns/Extensions/Towers with room for energy
     if (this.WorkerActionCount(WorkerAction.Supply) < this.MaxSupplyWorkers) {
-      const structureNeedingEnergy = this.FindMostSuppliable(creep);
+      const structureNeedingEnergy = this.FindNearestUnassignedSupplyTarget(creep);
       if (structureNeedingEnergy)
         return new WorkerTask(WorkerAction.Supply, structureNeedingEnergy.id);
     }
@@ -250,7 +251,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
   // Return the Spawn/Extension/Tower with enough room
   // for energy that we can fully supply them
   // and the least number of other assigned suppliers
-  FindMostSuppliable(supplier: CreepExtra): AnyStoreStructure | undefined {
+  FindNearestUnassignedSupplyTarget(supplier: CreepExtra): AnyStoreStructure | undefined {
     // Get all transfers in progress
     const inProgressSupplyTasks = this.CurrentlyAssignedTasks.filter(t => t.action === WorkerAction.Supply);
 
@@ -261,11 +262,16 @@ export class WorkerI extends RoomRole<WorkerTask> {
       supplyTargetsByCount.set(t.target!, existing + 1);
     }
 
-    return [...this.manager.SpawnsOrExtensions, ...this.manager.Towers]
+    // Get candidates and group by number of suppliers
+    const needsSupply = [...this.manager.SpawnsOrExtensions, ...this.manager.Towers]
       .filter(s => s.store.getFreeCapacity(RESOURCE_ENERGY))
       .map(s => ({ store: s, transferCount: supplyTargetsByCount.get(s.id) ?? 0 }))
+      .filter((_, count) => count < this.MaxSupplyPerTarget)
       .sort((b, a) => a.transferCount - b.transferCount)
-      .pop()?.store;
+      .map(c => c.store);
+
+    if (needsSupply.length === 0) console.log("No unsupplied candidates found.");
+    return supplier.pos.findClosestByPath(needsSupply, { ignoreCreeps: true }) ?? undefined;
   }
 
   FindLeastAssignedSource(): Source | undefined {
