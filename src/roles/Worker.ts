@@ -175,16 +175,16 @@ export class WorkerI extends RoomRole<WorkerTask> {
       && this.manager.controller!.ticksToDowngrade < this.ControllerMaintenanceThreshold
     ) return this.ControllerMaintenanceTask;
 
-    // If not enough construction workers, find closest site
-    if (this.WorkerActionCount(WorkerAction.Build) < this.MaxConstructionWorkers) {
-      const site = this.FindClosestConstruction(creep.pos);
-      if (site) return new WorkerTask(WorkerAction.Build, site.id);
-    }
-
     // If not enough suppliers, find nearest unsupplied Spawns/Extensions/Towers
     if (this.WorkerActionCount(WorkerAction.Supply) < this.MaxSupplyWorkers) {
       const site = this.FindUnsuppliedSupplyTarget(creep);
       if (site) return new WorkerTask(WorkerAction.Supply, site.id);
+    }
+
+    // If not enough construction workers, find closest site
+    if (this.WorkerActionCount(WorkerAction.Build) < this.MaxConstructionWorkers) {
+      const site = this.FindClosestConstruction(creep.pos);
+      if (site) return new WorkerTask(WorkerAction.Build, site.id);
     }
 
     // If not enough repair workers, find nearest repair
@@ -237,9 +237,8 @@ export class WorkerI extends RoomRole<WorkerTask> {
       .pop();
   }
 
+  // Return the closest Spawn/Extension/Tower with room for energy
   FindClosestNeedsSupply(pos: RoomPosition): AnyStoreStructure | null {
-    // Return the Spawn/Extension/Tower with room for energy
-    // and the least number of other assigned transfers
     return pos.findClosestByPath(
       [...this.manager.SpawnsOrExtensions, ...this.manager.Towers]
         .filter(s => s.store.getFreeCapacity(RESOURCE_ENERGY)),
@@ -247,8 +246,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
     );
   }
 
-  // Return the Spawn/Extension/Tower with enough room
-  // for energy that we can fully supply them
+  // Return the closest Spawn/Extension/Tower with room for energy
   // and the least number of other assigned suppliers
   FindUnsuppliedSupplyTarget(supplier: CreepExtra): AnyStoreStructure | undefined {
     // Get all transfers in progress
