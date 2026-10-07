@@ -1,9 +1,16 @@
 import { ErrorMapper } from "utils/ErrorMapper";
 import "roles";
+import { unique } from "lodash";
+import { RoomExtra } from "Room";
 
 const MainLoop = () => {
   Memory.rooms ??= {};
   Memory.creeps ??= {};
+
+  const roomNames = unique([...Object.keys(Memory.rooms), ...Object.keys(Game.rooms)]);
+  const rooms = roomNames.map(name => new RoomExtra(name));
+  for (const room of rooms)
+    room.TickRoom(rooms);
 }
 
 // When compiling TS to JS and bundling with rollup, the line numbers and file names in error messages change
