@@ -234,10 +234,9 @@ export class WorkerI extends RoomRole<WorkerTask> {
     if (container) return new WorkerTask(WorkerAction.CollectEnergy, container.id);
 
     // Collect from the fullest miner in medium range
-    const miners = creep.pos.findInRange(
-      (this.manager.CreepsByRole.get("Miner") ?? []).filter(m => m.store.getUsedCapacity(RESOURCE_ENERGY)),
-      this.MediumSearchRange
-    ).sort((a, b) => a.store.energy - b.store.energy).pop();
+    const allMiners = this.manager.room.find(FIND_MY_CREEPS, { filter: c => c.memory.role.startsWith("Mine") && c.store.getUsedCapacity(RESOURCE_ENERGY) });
+    const miners = creep.pos.findInRange(allMiners, this.MediumSearchRange)
+      .sort((a, b) => a.store.energy - b.store.energy).pop();
     if (miners) return new WorkerTask(WorkerAction.CollectEnergy, miners.id);
 
     // Do harvesting on our own
@@ -551,7 +550,8 @@ export class WorkerII extends WorkerI {
 
   override CanSpawn(): boolean {
     // There must be at least 1 miner before we spawn WorkerII
-    if ((this.manager.CreepsByRole.get("Miner")?.length ?? 0) > 0)
+    const allMiners = this.manager.room.find(FIND_MY_CREEPS, { filter: c => c.memory.role.startsWith("Mine") });
+    if (allMiners.length)
       return true;
 
     console.log("Not enough miners to spawn a worker > I.");
