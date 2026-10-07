@@ -295,7 +295,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
     // Get candidates and group by number of suppliers
     const needsRepair = this.manager.room.find(FIND_STRUCTURES, { filter: s => s.hits < s.hitsMax })
       .map(s => ({ site: s, count: targetsByCount.get(s.id) ?? 0 }))
-      .filter((_, count) => count < this.MaxRepairPerTarget)
+      .filter(s => s.count < this.MaxRepairPerTarget)
       .sort((b, a) => a.count - b.count)
       .map(c => c.site);
 
