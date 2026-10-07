@@ -542,7 +542,11 @@ export class WorkerII extends WorkerI {
   StartSpawnAtRCL = 2;
   StopSpawnAtRCL = 100;
   BodyParts = [MOVE, MOVE, WORK, WORK, CARRY, CARRY, CARRY, CARRY, CARRY];
-  override get CountPerRoom() { return 12; }
+  override get CountPerRoom() {
+    const max = 12;
+    const T3 = Object.values(Game.creeps).filter(c => c.memory.room === this.manager.name && c.memory.role === 'WorkerIII').length;
+    return max - T3 <= 0 ? 0 : max - T3;
+  }
 
   override CanSpawn(): boolean {
     // There must be at least 1 miner before we spawn WorkerII
@@ -552,4 +556,12 @@ export class WorkerII extends WorkerI {
     console.log("Not enough miners to spawn WorkerII");
     return false;
   }
+}
+
+export class WorkerIII extends WorkerII {
+  static override readonly RoleName: string = "WorkerII";
+  StartSpawnAtRCL = 2;
+  StopSpawnAtRCL = 100;
+  BodyParts = [MOVE, MOVE, MOVE, MOVE, WORK, WORK, WORK, WORK, CARRY, CARRY, CARRY, CARRY];
+  override get CountPerRoom() { return 6; }
 }

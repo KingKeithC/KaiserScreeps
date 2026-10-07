@@ -65,8 +65,8 @@ export class RoomExtra {
     return RoomControlStatus.Hostile;
   }
 
-  EventReportingFrequencyTicks = 250;
-  MaxEventLogPerRoom = 2000;
+  EventReportingFrequencyTicks = 2000;
+  MaxEventLogPerRoom = 10000;
 
   TowerAttackRangeTiles: number = 15;
   TowerCriticalSupplyRatio: number = 0.75;
