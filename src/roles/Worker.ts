@@ -536,7 +536,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
 export class WorkerII extends WorkerI {
   static override readonly RoleName: string = "WorkerII";
 
-  override SpawnRate: number = super.SpawnRate / 2;
+  SpawnRate = 45;
   StartSpawnAtRCL = 2;
   StopSpawnAtRCL = 100;
   BodyParts = [MOVE, MOVE, WORK, WORK, CARRY, CARRY, CARRY, CARRY, CARRY];
