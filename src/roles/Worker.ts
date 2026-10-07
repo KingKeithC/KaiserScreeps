@@ -60,6 +60,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
   ];
 
   MaxRepairPerTarget = 1;
+  MaxRepairPerRoom = 5;
   RepairStartRatio = 0.5
   RepairPriorities: ((s: AnyStructure) => boolean)[] = [
     (s => s instanceof StructureContainer || s instanceof StructurePortal),
@@ -208,9 +209,11 @@ export class WorkerI extends RoomRole<WorkerTask> {
     if (tower) return new WorkerTask(WorkerAction.Supply, tower.id);
 
     // If not enough repair workers, find nearest repair
-    const repair = this.FindUnsuppliedRepair(creep);
-    if (repair) return new WorkerTask(WorkerAction.Repair, repair.id);
-    else console.log(`[${this.manager.name}]${creep}: No repairs needed!`);
+    if (this.WorkerActionCount(WorkerAction.Repair) < this.MaxRepairPerRoom) {
+      const repair = this.FindUnsuppliedRepair(creep);
+      if (repair) return new WorkerTask(WorkerAction.Repair, repair.id);
+      else console.log(`[${this.manager.name}]${creep}: No repairs needed!`);
+    }
 
     // Nothing else to do so just upgrade forever
     if (this.ControllerUpgradeTask) return this.ControllerUpgradeTask;
