@@ -1,3 +1,7 @@
 {
-    "js/ts.tsdk.path": "node_modules/typescript/lib"
+  "js/ts.tsdk.path": "node_modules/typescript/lib",
+  "js/ts.preferences.quoteStyle": "double",
+  "js/ts.format.semicolons": "insert",
+  "js/ts.tsserver.experimental.enableProjectDiagnostics": true,
+  "js/ts.implicitProjectConfig.target": "ES2018",
 }
