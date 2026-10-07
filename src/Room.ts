@@ -104,7 +104,7 @@ export class RoomExtra {
           // this.room.visual.rect(x, y, 1, 1, { fill: Colours.ATTACK_RANGE });
         }
 
-    console.log(`Searched ${spaces} spaces and found ${possibleMiners} possible positions for miners.`);
+    // console.log(`Searched ${spaces} spaces and found ${possibleMiners} possible positions for miners.`);
     return possibleMiners;
   }
 

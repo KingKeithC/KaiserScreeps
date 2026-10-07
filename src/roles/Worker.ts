@@ -234,7 +234,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
       const distance = creep.pos.findPathTo(res, { ignoreCreeps: true }).length;
       const approxAmtRemaining = Math.ceil(res.amount / 1000) * distance;
       const collect = approxAmtRemaining > this.IgnoreDroppedResourcesLessThan;
-      console.log(`${collect ? "Collecting" : "Ignorning"} Dropped ${res} that is ${distance} steps away, currently has ${res.amount} remaining, we expect ${approxAmtRemaining} by the time we get there.`);
+      // console.log(`${collect ? "Collecting" : "Ignoring"} Dropped ${res} that is ${distance} steps away, currently has ${res.amount} remaining, we expect ${approxAmtRemaining} by the time we get there.`);
       if (collect) return new WorkerTask(WorkerAction.Pickup, res.id as Id<Resource<RESOURCE_ENERGY>>);
     }
 
