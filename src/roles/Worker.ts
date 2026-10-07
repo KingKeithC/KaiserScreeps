@@ -59,6 +59,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
     (_ => true),
   ];
 
+  RepairDamageRatio = 0.5
   MaxRepairPerTarget = 1;
   RepairPriorities: ((s: AnyStructure) => boolean)[] = [
     (s => s instanceof StructureWall || s instanceof StructureRampart),
@@ -294,7 +295,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
     }
 
     // Get candidates and group by number of suppliers
-    const needsRepair = this.manager.room.find(FIND_STRUCTURES, { filter: s => s.hits < s.hitsMax })
+    const needsRepair = this.manager.room.find(FIND_STRUCTURES, { filter: s => (s.hits / s.hitsMax) < this.RepairDamageRatio })
       .map(s => ({ site: s, count: targetsByCount.get(s.id) ?? 0 }))
       .filter(s => s.count < this.MaxRepairPerTarget)
       .sort((b, a) => a.count - b.count)
