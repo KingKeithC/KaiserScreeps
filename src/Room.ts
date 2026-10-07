@@ -17,6 +17,7 @@ declare global {
     lastSpawnTick: { [roleName: string]: number; };
     quotas?: { [roleName: string]: number; };
     enableVisuals?: boolean,
+    enableRepairOverlay?: boolean,
     attackHostiles: boolean,
     disableWarriors: boolean,
     towerAttackRange: number,
@@ -69,6 +70,7 @@ export class RoomExtra {
 
   get Status(): RoomControlStatus { return this.room.memory.status ?? RoomExtra.StatusOf(this.room); }
   get EnableVisuals(): boolean { return this.room.memory.enableVisuals ?? true; }
+  get EnableRepairOverlay(): boolean { return this.room.memory.enableRepairOverlay ?? false; }
   get AttackHostiles(): boolean { return this.room.memory.attackHostiles ?? true; }
   get DisableWarriors(): boolean { return this.room.memory.disableWarriors ?? false; }
   get TowerAttackRange(): number { return this.room.memory.towerAttackRange ?? 20; }
@@ -183,6 +185,21 @@ export class RoomExtra {
     // Run each tower in the room
     for (const tower of this.Towers)
       this.TickTower(tower as StructureTower);
+
+    if (this.EnableVisuals && this.EnableRepairOverlay) this.DrawRepairOverlay();
+  }
+
+  DrawRepairOverlay(): void {
+    const damaged = this.room.find(FIND_STRUCTURES, { filter: s => s.hits < s.hitsMax });
+    const emptyHealth = [255, 0, 0];
+    const fullHealth = [0, 255, 0];
+    for (const d of damaged) {
+      // lerp between fullHealth and emptyHealth based on damageRatio.
+      const damageRatio = 1 - (d.hits / d.hitsMax);
+      const healthColour = fullHealth.map((channel, index) => Math.round(channel + (emptyHealth[index] - channel) * damageRatio));
+      const colourCode = "#" + healthColour.map(value => Math.max(0, Math.min(255, value)).toString(16).padStart(2, "0")).join("");
+      this.room.visual.rect(d.pos.x - 0.5, d.pos.y - 0.5, 1, 1, { fill: colourCode });
+    }
   }
 
   PrintEventSummary() {
