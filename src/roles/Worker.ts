@@ -542,7 +542,7 @@ export class WorkerII extends WorkerI {
   StartSpawnAtRCL = 2;
   StopSpawnAtRCL = 100;
   BodyParts = [MOVE, MOVE, WORK, WORK, CARRY, CARRY, CARRY, CARRY, CARRY];
-  override get CountPerRoom() { return 15; }
+  override get CountPerRoom() { return 12; }
 
   override CanSpawn(): boolean {
     // There must be at least 1 miner before we spawn WorkerII
