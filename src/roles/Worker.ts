@@ -169,22 +169,23 @@ export class WorkerI extends RoomRole<WorkerTask> {
 
   FindWartimeSpendingTask(creep: CreepExtra): WorkerTask {
     // Spawns/Extensions needing energy
-    const spawnNeedingEnergy = this.FindClosestNeedsSupply(creep.pos, this.manager.SpawnsOrExtensions);
+    const spawnNeedingEnergy = this.FindSupplyByPriorityAndPath(creep, this.manager.SpawnsOrExtensions);
     if (spawnNeedingEnergy) return new WorkerTask(WorkerAction.Supply, spawnNeedingEnergy.id);
 
     // Ongoing Construction
-    const site = this.FindClosestConstructionByPriority(creep.pos);
+    const site = this.FindConstructionByPriorityAndPath(creep.pos);
     if (site) return new WorkerTask(WorkerAction.Build, site.id);
 
     // Tower needing energy
-    const towerNeedingEnergy = this.FindClosestNeedsSupply(creep.pos, this.manager.SpawnsOrExtensions);
+    const towerNeedingEnergy = this.FindSupplyByPriorityAndPath(creep, this.manager.Towers);
     if (towerNeedingEnergy) return new WorkerTask(WorkerAction.Supply, towerNeedingEnergy.id);
 
     // Structures in need of repair
-    const delapitated = this.manager.FindRepairByPriority();
-    if (delapitated) return new WorkerTask(WorkerAction.Repair, delapitated.id);
+    const damaged = this.manager.FindRepairByPriority();
+    if (damaged) return new WorkerTask(WorkerAction.Repair, damaged.id);
 
     // Default
+    console.log(`${this.manager.room.name}${creep.name}: FindWartimeSpendingTask no tasks found!`);
     return new WorkerTask(WorkerAction.Idle);
   }
 
@@ -198,20 +199,20 @@ export class WorkerI extends RoomRole<WorkerTask> {
     ) return this.ControllerMaintenanceTask;
 
     // Find nearest unsupplied Spawn/Extension, regardless of worker count
-    const spawn = this.FindUnsuppliedSupplyTarget(creep, this.manager.SpawnsOrExtensions);
+    const spawn = this.FindSupplyByPriorityAndPath(creep, this.manager.SpawnsOrExtensions);
     if (spawn) return new WorkerTask(WorkerAction.Supply, spawn.id);
 
     // If not enough construction workers, find closest site
-    const cons = this.FindClosestConstructionByPriority(creep.pos);
+    const cons = this.FindConstructionByPriorityAndPath(creep.pos);
     if (cons) return new WorkerTask(WorkerAction.Build, cons.id);
 
     // If not enough suppliers, find nearest unsupplied Tower
-    const tower = this.FindUnsuppliedSupplyTarget(creep, this.manager.Towers);
+    const tower = this.FindSupplyByPriorityAndPath(creep, this.manager.Towers);
     if (tower) return new WorkerTask(WorkerAction.Supply, tower.id);
 
     // If not enough repair workers, find nearest repair
     if (this.WorkerActionCount(WorkerAction.Repair) < this.MaxRepairPerRoom) {
-      const repair = this.FindUnsuppliedRepair(creep);
+      const repair = this.FindRepairByPriorityAndPath(creep);
       if (repair) return new WorkerTask(WorkerAction.Repair, repair.id);
       else console.log(`[${this.manager.room}]${creep}: No repairs needed!`);
     }
@@ -220,52 +221,56 @@ export class WorkerI extends RoomRole<WorkerTask> {
     if (this.ControllerUpgradeTask) return this.ControllerUpgradeTask;
 
     // Default
+    console.log(`${this.manager.room.name}${creep.name}: FindSpendingTask no tasks found!`);
     return new WorkerTask(WorkerAction.Idle);
   }
 
   FindGatheringTask(creep: CreepExtra): WorkerTask {
     // Dropped Energy with reasonable amount remaining
-    for (const res of this.manager.room.find(FIND_DROPPED_RESOURCES, { filter: r => r.resourceType === RESOURCE_ENERGY && r.amount > this.IgnoreDroppedResourcesLessThan })) {
+    const droppedResources = this.manager.room.find(FIND_DROPPED_RESOURCES, { filter: r => r.resourceType === RESOURCE_ENERGY });
+    for (const res of droppedResources) {
       const countPickingUpSameRes = this.CurrentlyAssignedTasks.filter(t => t.action === WorkerAction.Pickup && t.target == res.id).length;
-      if (!countPickingUpSameRes) return new WorkerTask(WorkerAction.Pickup, res.id as Id<Resource<RESOURCE_ENERGY>>);
+      if (countPickingUpSameRes) continue;
+      const distance = creep.pos.findPathTo(res, { ignoreCreeps: true }).length;
+      const approxAmtRemaining = Math.ceil(res.amount / 1000) * distance;
+      const collect = approxAmtRemaining > this.IgnoreDroppedResourcesLessThan;
+      console.log(`${collect ? "Collecting" : "Ignorning"} Dropped ${res} that is ${distance} steps away, currently has ${res.amount} remaining, we expect ${approxAmtRemaining} by the time we get there.`);
+      if (collect) return new WorkerTask(WorkerAction.Pickup, res.id as Id<Resource<RESOURCE_ENERGY>>);
     }
 
-    // Collect from the nearest container that has energy
+    // Collect from container that has energy
     const container = creep.pos.findClosestByPath(FIND_STRUCTURES, { ignoreCreeps: true, filter: s => s.structureType === STRUCTURE_CONTAINER && s.store.getUsedCapacity(RESOURCE_ENERGY) });
     if (container) return new WorkerTask(WorkerAction.CollectEnergy, container.id);
 
     // Collect from the fullest miner in medium range
     const allMiners = this.manager.room.find(FIND_MY_CREEPS, { filter: c => c.memory.role.startsWith("Mine") && c.store.getUsedCapacity(RESOURCE_ENERGY) });
-    const miners = creep.pos.findInRange(allMiners, this.MediumSearchRange)
-      .sort((a, b) => a.store.energy - b.store.energy).pop();
-    if (miners) return new WorkerTask(WorkerAction.CollectEnergy, miners.id);
+    const bestMiner = creep.pos.findInRange(allMiners, this.MediumSearchRange).sort((a, b) => a.store.energy - b.store.energy).pop();
+    if (bestMiner) return new WorkerTask(WorkerAction.CollectEnergy, bestMiner.id);
 
     // Do harvesting on our own
     const source = this.FindLeastAssignedSource();
     if (source) return new WorkerTask(WorkerAction.Mine, source.id);
 
     // Nothing to do without energy
+    console.log(`${this.manager.room.name}${creep.name}: FindGatheringTask no tasks found!`);
     return new WorkerTask(WorkerAction.Idle);
   }
 
-  FindClosestConstructionByPriority(pos: RoomPosition): ConstructionSite | null {
+  FindConstructionByPriorityAndPath(pos: RoomPosition): ConstructionSite | null {
     const constructions = this.manager.room.find(FIND_MY_CONSTRUCTION_SITES);
+    var priorityIndex = 0;
     for (const p of this.ConstructionPriorities) {
       const group = constructions.filter(p);
       if (group.length) return pos.findClosestByPath(group, { ignoreCreeps: true });
+      priorityIndex++;
     }
-    // console.log("No constructions needing supply.");
+    // console.log(`No constructions found, searched ${priorityIndex} priority groups.`);
     return null;
   }
 
   // Return the closest Spawn/Extension/Tower with room for energy
-  FindClosestNeedsSupply(pos: RoomPosition, candidates: AnyStoreStructure[]): AnyStoreStructure | null {
-    return pos.findClosestByPath(candidates, { ignoreCreeps: true, filter: s => s.store.getFreeCapacity(RESOURCE_ENERGY) });
-  }
-
-  // Return the closest Spawn/Extension/Tower with room for energy
   // and the least number of other assigned suppliers
-  FindUnsuppliedSupplyTarget(supplier: CreepExtra, candidates: AnyStoreStructure[]): AnyStoreStructure | null {
+  FindSupplyByPriorityAndPath(supplier: CreepExtra, candidates: AnyStoreStructure[]): AnyStoreStructure | null {
     // Get all transfers in progress
     const inProgressSupplyTasks = this.CurrentlyAssignedTasks.filter(t => t.action === WorkerAction.Supply);
 
@@ -276,22 +281,23 @@ export class WorkerI extends RoomRole<WorkerTask> {
       supplyTargetsByCount.set(t.target!, existing + 1);
     }
 
+    var priorityIndex = 0;
     for (const p of this.SupplyPriorities) {
       // Get candidates and group by number of suppliers
       const needsSupply = candidates
-        .filter(s => p(s) && s.store.getFreeCapacity(RESOURCE_ENERGY))
-        .map(s => ({ store: s, transferCount: supplyTargetsByCount.get(s.id) ?? 0 }))
-        .filter(s => s.transferCount < this.MaxSupplyPerTarget)
-        .map(s => s.store);
+        .map(s => ({ structure: s, suppliers: supplyTargetsByCount.get(s.id) ?? 0 }))
+        .filter(s => s.structure.store.getFreeCapacity(RESOURCE_ENERGY) && p(s.structure) && s.suppliers < this.MaxSupplyPerTarget)
+        .map(s => s.structure);
 
       if (needsSupply.length) return supplier.pos.findClosestByPath(needsSupply, { ignoreCreeps: true });
+      priorityIndex++;
     }
 
-    // console.log("No targets needing supply.");
+    // console.log(`No targets needing supply found, searched ${priorityIndex} priority groups.`);
     return null;
   }
 
-  FindUnsuppliedRepair(supplier: CreepExtra): AnyStructure | undefined | null {
+  FindRepairByPriorityAndPath(supplier: CreepExtra): AnyStructure | undefined | null {
     const inProgressRepairTasks = this.CurrentlyAssignedTasks.filter(t => t.action === WorkerAction.Repair);
 
     // Group by target and return count of group
@@ -301,22 +307,20 @@ export class WorkerI extends RoomRole<WorkerTask> {
       targetsByCount.set(t.target!, existing + 1);
     }
 
-    const repairs = this.manager.room.find(FIND_STRUCTURES, { filter: s => (s.hits / s.hitsMax) < this.RepairStartRatio });
-    const repairPriorities = [];
-    for (const p of this.RepairPriorities) repairPriorities.push(repairs.filter(p));
-    for (const group of repairPriorities) {
+    const repairs = this.manager.room.find(FIND_STRUCTURES, { filter: s => s.hits < s.hitsMax });
+    var priorityIndex = 0;
+    for (const p of this.RepairPriorities) {
       // Get candidates and group by number of suppliers
-      const needsRepair = group
+      const needsRepair = repairs
         .map(s => ({ site: s, count: targetsByCount.get(s.id) ?? 0 }))
-        .filter(s => s.count < this.MaxRepairPerTarget)
-        .sort((b, a) => a.count - b.count)
+        .filter(s => p(s.site) && s.count < this.MaxRepairPerTarget)
         .map(c => c.site);
 
-      if (needsRepair.length === 0) continue;
-      return supplier.pos.findClosestByPath(needsRepair, { ignoreCreeps: true });
+      if (needsRepair.length > 0) return supplier.pos.findClosestByPath(needsRepair, { ignoreCreeps: true });
+      priorityIndex++;
     }
 
-    console.log("No unsupplied repairs found.");
+    // console.log(`No repairs found, searched ${priorityIndex} priority groups.`);
     return null;
   }
 
