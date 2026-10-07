@@ -65,8 +65,8 @@ export class RoomExtra {
     return RoomControlStatus.Hostile;
   }
 
-  EventReportingFrequencyTicks = 2000;
-  MaxEventLogPerRoom = 10000;
+  EventReportingFrequencyTicks = 500;
+  MaxEventLogPerRoom = 1500;
 
   TowerAttackRangeTiles: number = 15;
   TowerCriticalSupplyRatio: number = 0.75;
@@ -223,7 +223,7 @@ export class RoomExtra {
 
     // Print it
     console.log(summary);
-    Game.notify(summary, 60 * 6);
+    // Game.notify(summary, 60 * 6);
 
     // Wipe the event log
     this.room.memory.recentEvents = [];
