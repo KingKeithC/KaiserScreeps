@@ -338,6 +338,21 @@ export class WorkerI extends RoomRole<WorkerTask> {
       .pop()?.source;
   }
 
+  WithdrawFromEnergySources(creep: CreepExtra): ScreepsReturnCode {
+    const hasEnergy = creep.pos.findInRange([
+      ...this.manager.room.find(FIND_MY_CREEPS, { filter: c => c.memory.role.startsWith("Miner") }),
+      ...this.manager.room.find(FIND_STRUCTURES, { filter: s => s.structureType === STRUCTURE_CONTAINER }) as StructureContainer[],
+    ], 1, { filter: c => c.store.getUsedCapacity(RESOURCE_ENERGY) })
+      .sort((a, b) => (a.store.getUsedCapacity(RESOURCE_ENERGY) / a.store.getCapacity(RESOURCE_ENERGY)) - (b.store.getUsedCapacity(RESOURCE_ENERGY) / b.store.getCapacity(RESOURCE_ENERGY)))
+      .pop();
+    // Transer theirs to us
+    if (hasEnergy && hasEnergy instanceof Creep) return hasEnergy.transfer(creep, RESOURCE_ENERGY);
+    else if (hasEnergy && hasEnergy instanceof StructureContainer) return creep.withdraw(hasEnergy, RESOURCE_ENERGY);
+
+    // console.log(`WithdrawFromEnergySources: Unknown source: ${hasEnergy}`);
+    return ERR_NOT_IN_RANGE;
+  }
+
   Act(creep: CreepExtra, task: WorkerTask): void {
     // Validate Target
     if (task.target == null || task.target == undefined) {
@@ -369,15 +384,8 @@ export class WorkerI extends RoomRole<WorkerTask> {
         break;
       }
       case (WorkerAction.CollectEnergy): {
-        if (targetObject instanceof StructureContainer || targetObject instanceof Tombstone || targetObject instanceof Ruin) {
-          result = creep.withdraw(targetObject, RESOURCE_ENERGY);
-          // console.log(`[${this.manager.name}]${creep}: Withdrawing energy... (${t.store.energy}/${t.store.getCapacity(RESOURCE_ENERGY)} -> ${creep.store.energy}/${creep.store.getCapacity(RESOURCE_ENERGY)})`);
-        } else if (targetObject instanceof Creep) {
-          // console.log(`[${this.manager.name}]${creep}: Awaiting energy transfer (${creep.store.energy}/${creep.store.getCapacity(RESOURCE_ENERGY)}).`);
-          result = ERR_NOT_IN_RANGE; // Forces them to move toward the Miner.
-        } else {
-          console.log(`[${this.manager.name}]${creep}: Unknown target for CollectEnergy: ${targetObject}`);
-        }
+        result = this.WithdrawFromEnergySources(creep);
+        if (result === OK) console.log(`[${this.manager.name}]${creep}: Act: Collected Energy from nearby source.`);
         break;
       }
       case (WorkerAction.UpgradeController):
