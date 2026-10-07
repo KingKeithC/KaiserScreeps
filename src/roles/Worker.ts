@@ -73,8 +73,9 @@ export class WorkerI extends RoomRole<WorkerTask> {
   };
   ConstructionPriorities: ((c: ConstructionSite) => boolean)[] = [
     (c => c.structureType === STRUCTURE_EXTENSION || c.structureType === STRUCTURE_SPAWN),
-    (c => c.structureType === STRUCTURE_RAMPART || c.structureType === STRUCTURE_WALL),
     (c => c.structureType === STRUCTURE_STORAGE || c.structureType === STRUCTURE_CONTAINER),
+    (c => c.structureType === STRUCTURE_ROAD),
+    (c => c.structureType === STRUCTURE_RAMPART || c.structureType === STRUCTURE_WALL),
     (_ => true),
   ];
 
@@ -249,7 +250,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
       constructionsByPriority.push(constructions.filter(p))
 
     for (const p of constructionsByPriority)
-      return pos.findClosestByPath(p, { ignoreCreeps: true });
+      if (p.length) return pos.findClosestByPath(p, { ignoreCreeps: true });
 
     return null;
   }
