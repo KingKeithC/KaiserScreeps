@@ -64,7 +64,8 @@ export class WorkerI extends RoomRole<WorkerTask> {
   RepairStartRatio = 0.5;
   RepairPriorities: ((s: AnyStructure) => boolean)[] = [
     (s => s instanceof StructureContainer || s instanceof StructurePortal),
-    (s => !(s instanceof StructureContainer || s instanceof StructurePortal || s instanceof StructureRoad || s instanceof StructureWall) && s.my),
+    (s => s instanceof StructureRoad),
+    (s => !(s instanceof StructureContainer || s instanceof StructurePortal || s instanceof StructureRoad || s instanceof StructureWall || s instanceof StructureRampart) && s.my),
     (s => s instanceof StructureWall || s instanceof StructureRampart),
     (_ => true),
   ];
