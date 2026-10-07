@@ -52,7 +52,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
   ControllerMaintenanceThreshold = 3500; // Start upgrading when ticksToDowngrade is less than this.
   ControllerMaintenanceBuffer = 2000;    // Stop upgrading when ticksToDowngrade is greater than `ControllerMaintenanceThreshold+ControllerMaintenanceBuffer`.
 
-  MaxSupplyPerTarget = 1;
+  MaxSupplyPerTarget = 2;
   SupplyPriorities: ((s: AnyStoreStructure) => boolean)[] = [
     (s => s instanceof StructureExtension || s instanceof StructureSpawn),
     (s => s instanceof StructureTower),
