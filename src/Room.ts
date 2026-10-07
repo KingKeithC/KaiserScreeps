@@ -69,7 +69,7 @@ export class RoomExtra {
   MaxEventLogPerRoom = 2000;
 
   TowerAttackRangeTiles: number = 15;
-  TowerCriticalSupplyRatio: number = 0.50;
+  TowerCriticalSupplyRatio: number = 0.75;
 
   HostileReportFrequency = 10;
 
