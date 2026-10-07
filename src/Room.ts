@@ -75,6 +75,27 @@ export class RoomExtra {
 
   constructor(room: Room) { this.room = room; }
 
+  GetMaxMiners(): number {
+    const sources = this.room.find(FIND_SOURCES);
+    const terrain = this.room.getTerrain();
+    var spaces = 0;
+    var possibleMiners = 0;
+
+    for (const s of sources)
+      // Given the source.pos is the centre point
+      // get the positions of all the surrounding spaces
+      for (var x = s.pos.x - 1; x <= s.pos.x + 1; x++)
+        for (var y = s.pos.y - 1; y <= s.pos.y + 1; y++) {
+          if (x === s.pos.x && y === s.pos.y) continue; // Skip centre point
+          if (terrain.get(x, y) === 0) possibleMiners++;
+          spaces++;
+          // this.room.visual.rect(x, y, 1, 1, { fill: Colours.ATTACK_RANGE });
+        }
+
+    console.log(`Searched ${spaces} spaces and found ${possibleMiners} possible positions for miners.`);
+    return possibleMiners;
+  }
+
   get SpawnsOrExtensions() {
     return this.room.find(FIND_MY_STRUCTURES, {
       filter: s =>
