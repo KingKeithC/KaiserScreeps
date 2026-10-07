@@ -11,12 +11,12 @@ const MainLoop = () => {
   const MyCreeps: CreepExtra[] = Object.values(Game.creeps).map(c => new CreepExtra(c.id));
 
   // Group my creeps by room they are in
-  const MyCreepsByRoom: Map<Room, CreepExtra[]> = new Map();
-  for (const c of MyCreeps) MyCreepsByRoom.set(c.room, [...MyCreepsByRoom.get(c.room) ?? [], c]);
+  const MyCreepsByRoom: Map<string, CreepExtra[]> = new Map();
+  for (const c of MyCreeps) MyCreepsByRoom.set(c.memory.room, [...MyCreepsByRoom.get(c.memory.room) ?? [], c]);
 
   // Instantiate a RoomManager for, and tick each room.
   const Rooms: RoomExtra[] = [];
-  for (const [room, myCreepsInRoom] of MyCreepsByRoom.entries()) Rooms.push(new RoomExtra(room, myCreepsInRoom));
+  for (const [room, myCreepsInRoom] of MyCreepsByRoom.entries()) Rooms.push(new RoomExtra(new Room(room), myCreepsInRoom));
 
   // Since the managers above are based on spawned creeps,
   // it can miss rooms we have access to after respawning

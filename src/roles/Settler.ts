@@ -62,12 +62,16 @@ export class Settler extends RoomRole<SettlerMemory> {
     if (!claimed) {
       console.log(`[${this.manager.room.name}][${creep.name}]: We still don't have access to the claimed room.`);
       return;
+    } else {
+      console.log(`[${this.manager.room.name}][${creep.name}]: Can access room, trying to access controller...`);
     }
 
     // Get a reference to the controller in the room
     if (!claimed.controller) {
       console.log(`[${this.manager.room.name}][${creep.name}]: Claimed room has no controller.`);
       return;
+    } else {
+      console.log(`[${this.manager.room.name}][${creep.name}]: Proceeding to controller...`);
     }
 
     // Move to the controller
