@@ -155,6 +155,18 @@ export class RoomExtra {
     // Handle events, if not disabled
     if (!(this.room.memory.disableEvents ?? false)) {
       this.ProcessEventsLastTick();
+
+      if (Game.cpu.bucket === 10000) {
+        const res = Game.cpu.generatePixel();
+        console.log(`!!! Invoked Game.cpu.generatePixel() resulting in ${res}.`);
+        this.room.memory.recentEvents.push(({
+          event: `Generate Pixel ${res}`,
+          summary: `Generate Pixel ${res}`,
+          time: Game.time,
+          value: null,
+        }));
+      }
+
       if (Game.time % this.EventReportingFrequencyTicks === 0) this.PrintEventSummary();
     }
 
@@ -211,6 +223,7 @@ export class RoomExtra {
 
     // Print it
     console.log(summary);
+    Game.notify(summary, 60 * 6);
 
     // Wipe the event log
     this.room.memory.recentEvents = [];
