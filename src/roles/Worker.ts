@@ -13,7 +13,7 @@ enum WorkerAction {
   Pickup = "🧹"
 }
 
-type WorkerTarget = Id<ConstructionSite<BuildableStructureConstant> | AnyStructure | Source | Creep | Resource<RESOURCE_ENERGY> | StructureContainer>
+type WorkerTarget = Id<ConstructionSite<BuildableStructureConstant> | AnyStructure | Source | Creep | Resource<RESOURCE_ENERGY> | StructureContainer>;
 
 class WorkerTask extends Object {
   readonly action: WorkerAction;
@@ -61,7 +61,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
 
   MaxRepairPerTarget = 1;
   MaxRepairPerRoom = 3;
-  RepairStartRatio = 0.5
+  RepairStartRatio = 0.5;
   RepairPriorities: ((s: AnyStructure) => boolean)[] = [
     (s => s instanceof StructureContainer || s instanceof StructurePortal),
     (s => !(s instanceof StructureContainer || s instanceof StructurePortal || s instanceof StructureRoad || s instanceof StructureWall) && s.my),
@@ -71,7 +71,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
 
   // At least 2, but no more than 1/4 of the number of sites
   get MaxConstructionWorkers() {
-    const max = Math.floor(this.manager.ConstructionSites.length / 4);
+    const max = Math.floor(this.manager.room.find(FIND_MY_CONSTRUCTION_SITES).length / 4);
     const min = 2;
     return max < min ? min : max;
   };
@@ -107,7 +107,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
   Reassign(creep: CreepExtra): WorkerTask {
     if (creep.store.getUsedCapacity(RESOURCE_ENERGY) === 0)
       return this.FindGatheringTask(creep);
-    else if (this.manager.HostileCreeps.length > 0)
+    else if (this.manager.room.find(FIND_HOSTILE_CREEPS).length > 0)
       return this.FindWartimeSpendingTask(creep);
     else
       return this.FindSpendingTask(creep);
@@ -230,7 +230,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
     }
 
     // Collect from the nearest container that has energy
-    const container = creep.pos.findClosestByPath(this.manager.Containers.filter(s => s.store.getUsedCapacity(RESOURCE_ENERGY)), { ignoreCreeps: true });
+    const container = creep.pos.findClosestByPath(FIND_STRUCTURES, { ignoreCreeps: true, filter: s => s.structureType === STRUCTURE_CONTAINER && s.store.getUsedCapacity(RESOURCE_ENERGY) });
     if (container) return new WorkerTask(WorkerAction.CollectEnergy, container.id);
 
     // Collect from the fullest miner in medium range
@@ -253,7 +253,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
     const constructionsByPriority = [];
 
     for (const p of this.ConstructionPriorities)
-      constructionsByPriority.push(constructions.filter(p))
+      constructionsByPriority.push(constructions.filter(p));
 
     for (const p of constructionsByPriority)
       if (p.length) return pos.findClosestByPath(p, { ignoreCreeps: true });
@@ -327,9 +327,9 @@ export class WorkerI extends RoomRole<WorkerTask> {
       const mem = c.memory.jobMemory as WorkerTask;
       if (!mem.target) continue;
       const obj = Game.getObjectById(mem.target);
-      if (obj instanceof Source) harvestersBySource.set(obj.id, (harvestersBySource.get(obj.id) ?? 0) + 1)
+      if (obj instanceof Source) harvestersBySource.set(obj.id, (harvestersBySource.get(obj.id) ?? 0) + 1);
     }
-    return this.manager.Sources
+    return this.manager.room.find(FIND_SOURCES)
       .map(source => ({ source, count: harvestersBySource.get(source.id) ?? 0 }))
       .sort((b, a) => a.count - b.count)
       .pop()?.source;
@@ -341,7 +341,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
       // Target may be null in this one case
       if (task.action === WorkerAction.Idle) return;
 
-      console.log(`[${this.manager.name}]${creep}: Act: ${creep} has null/undefined target in memory: ${task.target}`)
+      console.log(`[${this.manager.name}]${creep}: Act: ${creep} has null/undefined target in memory: ${task.target}`);
       return;
     }
 
@@ -352,7 +352,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
       // Finished a construction
       if (task.action === WorkerAction.Build) return;
 
-      console.log(`[${this.manager.name}]${creep}: Act: ${creep} Game.getObjectById returned null`)
+      console.log(`[${this.manager.name}]${creep}: Act: ${creep} Game.getObjectById returned null`);
       return;
     }
 
@@ -361,7 +361,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
     switch (task.action) {
       case (WorkerAction.Pickup): {
         const t = targetObject as Resource;
-        result = creep.pickup(t)
+        result = creep.pickup(t);
         if (result === OK) console.log(`[${this.manager.name}]${creep}: Act: Picked up ${t}.`);
         break;
       }
@@ -404,7 +404,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
       }
       case (WorkerAction.Mine): {
         const t = targetObject as Source;
-        result = creep.harvest(t)
+        result = creep.harvest(t);
         // if (result === OK) console.log(`${this.room}${creep}: Act: Mined ${t}.`);
         break;
       }
@@ -484,7 +484,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
       }
       case (WorkerAction.MaintainController): {
         if (creep.store.energy === 0) return true;
-        return this.manager.controller!.ticksToDowngrade > (this.ControllerMaintenanceThreshold + this.ControllerMaintenanceBuffer)
+        return this.manager.controller!.ticksToDowngrade > (this.ControllerMaintenanceThreshold + this.ControllerMaintenanceBuffer);
       }
       case (WorkerAction.Build): {
         if (creep.store.energy === 0) return true;
@@ -547,7 +547,7 @@ export class WorkerII extends WorkerI {
     if ((this.manager.CreepsByRole.get("Miner")?.length ?? 0) > 0)
       return true;
 
-    console.log("Not enough miners to spawn WorkerII")
+    console.log("Not enough miners to spawn WorkerII");
     return false;
   }
 }

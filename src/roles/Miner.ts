@@ -2,7 +2,7 @@ import { CreepExtra } from "Creep";
 import { RoomRole } from "./Role";
 
 class MinerMemory extends Object {
-  sourceId?: Id<Source>
+  sourceId?: Id<Source>;
 }
 
 export class Miner extends RoomRole<MinerMemory> {
@@ -13,16 +13,16 @@ export class Miner extends RoomRole<MinerMemory> {
   DropoffRange = 4;
 
   // 2 miners per source
-  get CountPerRoom() { return this.manager.Sources.length; }
+  get CountPerRoom() { return this.manager.room.find(FIND_SOURCES).length; }
 
   LocateSource(creep: CreepExtra): Id<Source> | undefined {
     const minersBySource = new Map<Id<Source>, number>();
     for (const c of this.CreepsInRole) {
       const mem = c.memory.jobMemory as MinerMemory;
       if (!mem.sourceId) continue;
-      minersBySource.set(mem.sourceId, (minersBySource.get(mem.sourceId) ?? 0) + 1)
+      minersBySource.set(mem.sourceId, (minersBySource.get(mem.sourceId) ?? 0) + 1);
     }
-    return this.manager.Sources
+    return this.manager.room.find(FIND_SOURCES)
       .map(source => ({ source, count: minersBySource.get(source.id) ?? 0 }))
       .sort((b, a) => a.count - b.count)
       .pop()?.source.id;
@@ -33,7 +33,7 @@ export class Miner extends RoomRole<MinerMemory> {
       ...this.manager.CreepsByRole.get("WorkerI") ?? [],
       ...this.manager.CreepsByRole.get("WorkerII") ?? [],
       ...this.manager.CreepsByRole.get("Settler") ?? [],
-      ...this.manager.Containers,
+      ...this.manager.room.find(FIND_STRUCTURES, { filter: s => s.structureType === STRUCTURE_CONTAINER }) as StructureContainer[],
     ], 1, { filter: c => c.store.getFreeCapacity(RESOURCE_ENERGY) })
       .sort((a, b) => (a.store.getUsedCapacity(RESOURCE_ENERGY) / a.store.getCapacity(RESOURCE_ENERGY)) - (b.store.getUsedCapacity(RESOURCE_ENERGY) / b.store.getCapacity(RESOURCE_ENERGY)))
       .pop();
@@ -51,7 +51,7 @@ export class Miner extends RoomRole<MinerMemory> {
     const mineObj = Game.getObjectById(mem.sourceId);
     if (!mineObj) {
       mem.sourceId = this.LocateSource(creep);
-      console.log(`${this.manager.name}${creep}: Stored source is stale, refreshed to ${mem.sourceId}...`)
+      console.log(`${this.manager.name}${creep}: Stored source is stale, refreshed to ${mem.sourceId}...`);
       return;
     }
 

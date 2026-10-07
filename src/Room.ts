@@ -13,8 +13,8 @@ export enum RoomControlStatus {
 declare global {
   interface RoomMemory {
     status: RoomControlStatus,
-    lastSpawnTick: { [roleName: string]: number }
-    quotas?: { [roleName: string]: number }
+    lastSpawnTick: { [roleName: string]: number; };
+    quotas?: { [roleName: string]: number; };
     enableVisuals?: boolean,
     attackHostiles: boolean,
     disableWarriors: boolean,
@@ -36,7 +36,7 @@ interface HostileInfo {
   owner: string;
   name: string;
   bodyCost: number;
-  partCounts: { [part: string]: number };
+  partCounts: { [part: string]: number; };
 }
 
 export class RoomExtra {
@@ -65,105 +65,29 @@ export class RoomExtra {
     return RoomControlStatus.Hostile;
   }
 
-  static InitRoomMemory(room: Room) {
-    console.log(`[${this.name}]: Initializing Memory for new Room...`);
-    Memory.rooms ??= {};
-    room.memory.status ??= RoomExtra.StatusOf(room);
-    room.memory.lastSpawnTick ??= {};
-    room.memory.attackHostiles ??= false;
-    room.memory.disableWarriors ??= false;
-    room.memory.towerAttackRange ??= 20;
-    room.memory.recentEvents ??= [];
-  }
-
   EventReportingFrequencyTicks = 250;
   MaxEventLogPerRoom = 2000;
-
-  readonly MyCreepsInRoom: CreepExtra[];
-
-  // Mutually Exclusive Creep Groups
-  readonly HostileCreeps: CreepExtra[] = [];
-  readonly AssignedCreeps: CreepExtra[] = [];
-  readonly UnassignedCreeps: CreepExtra[] = [];
-  readonly MyCreepsAssignedElsewhere: CreepExtra[] = [];
-
-  readonly MyStructures: AnyOwnedStructure[] = [];
-  readonly ConstructionSites: ConstructionSite<BuildableStructureConstant>[] = [];
-  readonly Sources: Source[] = [];
-
-  // Mutually exclusive Structure Groups
-  readonly Towers: StructureTower[] = [];
-  readonly Spawns: StructureSpawn[] = [];
-  readonly SpawnExtensions: StructureExtension[] = [];
-  readonly OtherMyStructures: AnyOwnedStructure[] = [];
-  readonly HostileStructures: AnyOwnedStructure[] = [];
-  readonly Containers: StructureContainer[] = [];
-  readonly Walls: StructureWall[] = [];
-  readonly Ramparts: StructureRampart[] = [];
-  readonly Roads: StructureRoad[] = [];
-  readonly OtherNeutralStructures: AnyStructure[] = [];
 
   TowerAttackRangeTiles: number = 15;
   TowerCriticalSupplyRatio: number = 0.50;
 
   HostileReportFrequency = 10;
 
-  constructor(room: Room, myCreepsInRoom: CreepExtra[] = []) {
-    this.room = room;
+  constructor(room: Room) { this.room = room; }
 
-    this.MyCreepsInRoom = myCreepsInRoom;
-
-    // Sort all creeps in the room into exclusive groups
-    for (const c of myCreepsInRoom) {
-      if (c.memory.room === this.name) {
-        this.AssignedCreeps.push(c);
-      }
-      else if (c.pos.roomName === this.name)
-        this.UnassignedCreeps.push(c);
-      else
-        this.MyCreepsAssignedElsewhere.push(c);
-    }
-
-    // We should be able to access all my creeps in the colony
-    // as well as hostiles in this room from this instance.
-    this.HostileCreeps = room.find(FIND_HOSTILE_CREEPS);
-    this.ConstructionSites = room.find(FIND_CONSTRUCTION_SITES);
-    this.Sources = room.find(FIND_SOURCES);
-
-    // Sort all the structures in the room into groups
-    for (const s of room.find(FIND_STRUCTURES)) {
-      if (s instanceof OwnedStructure) {
-        if (s.my) this.MyStructures.push(s);
-
-        if (s.structureType === STRUCTURE_SPAWN)
-          this.Spawns.push(s);
-        else if (s.structureType === STRUCTURE_EXTENSION)
-          this.SpawnExtensions.push(s);
-        else if (s.structureType === STRUCTURE_TOWER)
-          this.Towers.push(s);
-        else if (s.structureType === STRUCTURE_RAMPART)
-          this.Ramparts.push(s);
-        else if (s.my)
-          this.OtherMyStructures.push(s)
-        else
-          this.HostileStructures.push(s)
-      } else {
-        if (s.structureType === STRUCTURE_CONTAINER)
-          this.Containers.push(s);
-        else if (s.structureType === STRUCTURE_WALL)
-          this.Walls.push(s);
-        else if (s.structureType === STRUCTURE_ROAD)
-          this.Roads.push(s);
-        else
-          this.OtherNeutralStructures.push(s);
-      }
-    }
-
-    // Other Properties dependent on those above
-    this.TowerCriticalSupplyRatio = this.HostileCreeps.length > 0 ? 0.90 : 0.60;
+  get SpawnsOrExtensions() {
+    return this.room.find(FIND_MY_STRUCTURES, {
+      filter: s =>
+        s.structureType === STRUCTURE_SPAWN || s.structureType === STRUCTURE_EXTENSION
+    }) as AnyStoreStructure[];
   }
 
-  get SpawnsOrExtensions() { return [...this.Spawns, ...this.SpawnExtensions]; }
+  get AssignedCreeps(): CreepExtra[] {
+    return this.room.find(FIND_MY_CREEPS, {
+      filter: c =>
+        c.my && !c.spawning && c.memory.room === this.room.name
+    }).map(c => new CreepExtra(c.id));
+  }
 
   // Group creeps assigned to this room into lists by role
   get CreepsByRole(): Map<string, CreepExtra[]> {
@@ -179,12 +103,14 @@ export class RoomExtra {
     return map;
   }
 
-  TickRoom(allRoomManagers: RoomExtra[]) {
-    // Init room if missing from memory
-    if (!(this.name in Memory.rooms)) RoomExtra.InitRoomMemory(this.room);
+  get Towers(): StructureTower[] {
+    return this.room.find(FIND_MY_STRUCTURES, { filter: s => s.structureType === STRUCTURE_TOWER });
+  }
 
+  OnTick() {
     // Any Room
 
+    // Run all our roles in the room
     var offset = 0;
     for (const roleType of RoomRole.Registry.values()) {
       const role = new roleType(this); // Construct a role instance for the room
@@ -193,8 +119,8 @@ export class RoomExtra {
       role.TickRole(); // Run it
     }
 
-    if (this.memory.status !== RoomControlStatus.Owned) {
-      console.log(`[${this.name}]: Not owned: ${this.memory.status}.`)
+    if (RoomExtra.StatusOf(this.room) !== RoomControlStatus.Owned) {
+      console.log(`[${this.name}]: Not owned: ${this.memory.status}.`);
       return;
     }
 
@@ -212,7 +138,8 @@ export class RoomExtra {
     this.BuildRoads();
 
     // Run each tower in the room
-    for (const tower of this.Towers) this.TickTower(tower as StructureTower);
+    for (const tower of this.Towers)
+      this.TickTower(tower as StructureTower);
   }
 
   PrintEventSummary() {
@@ -266,8 +193,9 @@ export class RoomExtra {
   }
 
   CallOutHostiles() {
-    if (Game.time % this.HostileReportFrequency === 0 && this.HostileCreeps.length > 0) {
-      const hostileDetails: HostileInfo[] = this.HostileCreeps.map(c => ({
+    const hostiles = this.room.find(FIND_HOSTILE_CREEPS);
+    if (Game.time % this.HostileReportFrequency === 0 && hostiles.length > 0) {
+      const hostileDetails: HostileInfo[] = hostiles.map(c => ({
         owner: c.owner.username,
         name: c.name,
         bodyCost: CreepExtra.BodyCost(c.body.map(p => p.type)),
@@ -276,7 +204,7 @@ export class RoomExtra {
           return counts;
         }, {} as Record<string, number>),
       }));
-      console.log(`[${this.name}] !!! ${this.HostileCreeps.length} hostiles spotted: ${JSON.stringify(hostileDetails)}`);
+      console.log(`[${this.name}] !!! ${hostiles.length} hostiles spotted: ${JSON.stringify(hostileDetails)}`);
     }
   }
 
@@ -307,10 +235,10 @@ export class RoomExtra {
       .filter(e => e.event === EVENT_ATTACK && myCreepsIdsInRoom.includes(e.data.targetId as Id<CreepExtra>))
       .map(a => ({
         time: Game.time - 1,
-        victim: (a as { data: { targetId: string } }).data.targetId,
+        victim: (a as { data: { targetId: string; }; }).data.targetId,
       }));
     if (newAttacksOnMyCreeps.length > 0) {
-      console.log(`ATTACKS PERFORMED IN [${this.name}] AGAINST MY CREEPS: `)
+      console.log(`ATTACKS PERFORMED IN [${this.name}] AGAINST MY CREEPS: `);
       for (const att of newAttacksOnMyCreeps)
         console.log(JSON.stringify(att));
     }
@@ -350,29 +278,22 @@ export class RoomExtra {
     }
   }
 
-  FindNearestRepair(pos: RoomPosition): AnyStructure | null {
-    return pos.findClosestByPath(this.MyStructures, { ignoreCreeps: true, filter: s => s.hits < s.hitsMax && s.structureType !== STRUCTURE_RAMPART })
-      ?? pos.findClosestByPath(this.Ramparts, { ignoreCreeps: true, filter: s => s.hits < s.hitsMax })
-      ?? pos.findClosestByPath(this.Roads, { ignoreCreeps: true, filter: s => s.hits < s.hitsMax })
-      ?? pos.findClosestByPath(this.Walls, { ignoreCreeps: true, filter: s => s.hits < s.hitsMax });
-  }
-
   FindRepairByPriority(): AnyStructure | null {
     // Weakest Walls/Ramparts
-    const wallsRamparts = [...this.Ramparts, ...this.Walls];
+    const wallsRamparts = this.room.find(FIND_STRUCTURES, { filter: s => s.structureType === STRUCTURE_RAMPART || s.structureType === STRUCTURE_WALL });
     const wallLike = wallsRamparts
       .filter(w => w.hits < w.hitsMax)
       .sort((b, a) => (a.hits / a.hitsMax) - (b.hits / b.hitsMax)).pop();
     if (wallLike) return wallLike;
 
     // Weakest Owned Structure (except ramparts)
-    const allStruct = this.MyStructures.filter(s => s.structureType !== STRUCTURE_RAMPART)
+    const allStruct = this.room.find(FIND_MY_STRUCTURES, { filter: s => s.structureType !== STRUCTURE_RAMPART })
       .filter(s => s.hits < s.hitsMax)
       .sort((b, a) => (a.hits / a.hitsMax) - (b.hits / b.hitsMax)).pop();
     if (allStruct) return allStruct;
 
     // Weakest roads
-    const road = this.Roads
+    const road = this.room.find(FIND_STRUCTURES, { filter: s => s.structureType === STRUCTURE_ROAD })
       .filter(r => r.hits < r.hitsMax)
       .sort((b, a) => (a.hits / a.hitsMax) - (b.hits / b.hitsMax)).pop();
     if (road) return road;
@@ -390,7 +311,7 @@ export class RoomExtra {
     if (this.memory.attackHostiles ?? false) {
       const range = (this.memory.towerAttackRange ?? this.TowerAttackRangeTiles);
       const weakestHostile = t.pos
-        .findInRange(this.HostileCreeps, range)
+        .findInRange(this.room.find(FIND_HOSTILE_CREEPS), range)
         .sort((b, a) => (a.hits / a.hitsMax) - (b.hits / b.hitsMax))
         .pop();
       if (weakestHostile) {
@@ -401,7 +322,7 @@ export class RoomExtra {
     }
 
     // My creeps in need of healing, weakest first
-    const weakestFriendly = this.MyCreepsInRoom
+    const weakestFriendly = this.room.find(FIND_MY_CREEPS)
       .filter(c => c.hits < c.hitsMax)
       .sort((a, b) => (a.hits / a.hitsMax) - (b.hits / b.hitsMax))
       .pop();
