@@ -85,11 +85,11 @@ export class Settler extends RoomRole<SettlerMemory> {
 
     // Act on the controller
     if (task.reserve != undefined && task.reserve) {
-      console.log(`[${this.manager.room.name}][${creep.name}]: Reserving controller in ${claimed.name} (${claimed.controller.reservation?.ticksToEnd}).`);
-      creep.reserveController(claimed.controller);
+      const res = creep.reserveController(claimed.controller);
+      console.log(`[${this.manager.room.name}][${creep.name}]: Reserving controller in ${claimed.name} (${claimed.controller.reservation?.ticksToEnd}), result ${res}.`);
     } else {
-      console.log(`[${this.manager.room.name}][${creep.name}]: Claiming controller in ${claimed.name} (${claimed.controller.progress} / ${claimed.controller.progressTotal}).`);
-      creep.claimController(claimed.controller);
+      const res = creep.claimController(claimed.controller);
+      console.log(`[${this.manager.room.name}][${creep.name}]: Claiming controller in ${claimed.name} (${claimed.controller.progress} / ${claimed.controller.progressTotal}), result ${res}.`);
     }
   }
 }
