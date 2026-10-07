@@ -72,6 +72,7 @@ export class RoomExtra {
   TowerCriticalSupplyRatio: number = 0.75;
 
   HostileReportFrequency = 10;
+  HostileNotificationThreshold = 4;
 
   constructor(room: Room) { this.room = room; }
 
@@ -227,7 +228,11 @@ export class RoomExtra {
           return counts;
         }, {} as Record<string, number>),
       }));
-      console.log(`[${this.name}] !!! ${hostiles.length} hostiles spotted: ${JSON.stringify(hostileDetails)}`);
+      const msg = `[${this.name}] !!! ${hostiles.length} hostiles spotted: ${JSON.stringify(hostileDetails)}`;
+      console.log(msg);
+      if (hostiles.length > this.HostileNotificationThreshold) {
+        Game.notify(`${Game.time}: More than ${this.HostileNotificationThreshold} hostiles spotted in ${this.room.name}:\n\n${msg}!`);
+      }
     }
   }
 
