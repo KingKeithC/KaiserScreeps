@@ -339,7 +339,8 @@ export class RoomExtra {
         .pop();
       if (weakestHostile) {
         this.room.visual.circle(t.pos, { radius: range, stroke: Colours.ATTACK_RANGE });
-        t.attack(weakestHostile);
+        const res = t.attack(weakestHostile);
+        console.log(`!!! Tower Attacked ${weakestHostile.name} from $${weakestHostile.owner.username} (${weakestHostile.hits}/${weakestHostile.hits}) with result ${res}!`);
         return;
       }
     }
@@ -350,7 +351,8 @@ export class RoomExtra {
       .sort((a, b) => (a.hits / a.hitsMax) - (b.hits / b.hitsMax))
       .pop();
     if (weakestFriendly) {
-      t.heal(weakestFriendly);
+      const res = t.heal(weakestFriendly);
+      console.log(`Tower Healed ${weakestFriendly.name} (${weakestFriendly.hits}/${weakestFriendly.hitsMax}) with result ${res}!`);
       return;
     }
 
