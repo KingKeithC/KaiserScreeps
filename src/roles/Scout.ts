@@ -10,7 +10,7 @@ class ScoutMemory extends Object {
 }
 
 export class Scout extends RoomRole<ScoutMemory> {
-  static readonly RoleName: string = "SettleScout";
+  static readonly RoleName: string = "Scout";
   BodyParts = [MOVE, MOVE, MOVE, MOVE];
 
   override get CountPerRoom(): number { return this.GlobalCount; }
