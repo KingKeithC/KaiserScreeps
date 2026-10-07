@@ -3,7 +3,7 @@ import { RoomRole } from "./Role";
 
 
 class WarriorMemory extends Object {
-  targetCreep?: Id<CreepExtra>
+  targetCreep?: Id<CreepExtra>;
 }
 
 export class Warrior extends RoomRole<WarriorMemory> {
@@ -13,7 +13,7 @@ export class Warrior extends RoomRole<WarriorMemory> {
 
   // 1 Per Invader
   get CountPerRoom() {
-    if ((this.manager.memory.attackHostiles ?? false) || (this.manager.memory.disableWarriors ?? false))
+    if (this.manager.AttackHostiles && !this.manager.DisableWarriors)
       return this.manager.room.find(FIND_HOSTILE_CREEPS).length;
     else
       return 0;

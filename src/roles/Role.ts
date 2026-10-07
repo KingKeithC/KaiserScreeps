@@ -67,10 +67,11 @@ export abstract class RoomRole<MemoryShape extends Object> {
     this.TickStart();
 
     // Check to do spawns every `this.SpawnRate` ticks.
-    const timeSinceLastSpawn = Game.time - (this.manager.memory.lastSpawnTick[this.RoleName] ?? 0) - this.SpawnTickOffet;
+    const lastSpawn = this.manager.LastSpawnTick(this.RoleName);
+    const timeSinceLastSpawn = Game.time - lastSpawn - this.SpawnTickOffet;
     if (timeSinceLastSpawn > this.SpawnRate || this.manager.room.find(FIND_MY_CREEPS).length === 0) {
       this.DoSpawns();
-      this.manager.memory.lastSpawnTick[this.RoleName] = Game.time; // Reset
+      this.manager.room.memory.lastSpawnTick[this.RoleName] = Game.time; // Reset
     }
 
     for (const creep of this.CreepsInRoomAndRole) {
@@ -121,8 +122,16 @@ export abstract class RoomRole<MemoryShape extends Object> {
       }
     }
 
+    // Cannot spawn if we don't own the controller
+    const mine = this.manager.room.controller?.my ?? false;
+    if (!mine) {
+      console.log(`${this.manager}[${this.RoleName}]: We don't control this room.`);
+      return;
+    };
+
+
     // Cannot spawn if RCL is wrong
-    const rcl = this.manager.controller?.level;
+    const rcl = this.manager.room.controller?.level ?? 0;
     if (!rcl || rcl < this.StartSpawnAtRCL || rcl >= this.StopSpawnAtRCL) {
       console.log(`${this.manager}[${this.RoleName}]: RCL (${rcl}) is outside spawn requirements (${this.StartSpawnAtRCL} <= RCL < ${this.StopSpawnAtRCL})`);
       return;
@@ -139,8 +148,7 @@ export abstract class RoomRole<MemoryShape extends Object> {
 
     // determine room quota, from class by default, or memory if set there
     var roomQuota = this.CountPerRoom;
-    if (this.manager.memory.quotas && this.manager.memory.quotas[this.RoleName])
-      roomQuota = this.manager.memory.quotas[this.RoleName];
+    if (this.manager.Quota(this.RoleName) >= 0) roomQuota = this.manager.Quota(this.RoleName);
 
     // or room quota met
     const roomCount = this.CreepsInRoomAndRole.length;
@@ -150,8 +158,8 @@ export abstract class RoomRole<MemoryShape extends Object> {
     }
 
     // or there isn't enough energy
-    if (this.manager.energyAvailable < this.RoleBodyCost()) {
-      console.log(`${this.manager}[${this.RoleName}]: Need to spawn (${roomCount}/${roomQuota}), but lack the energy (costs ${this.RoleBodyCost()}, have ${this.manager.energyAvailable}/${this.manager.energyCapacityAvailable})...`);
+    if (this.manager.room.energyAvailable < this.RoleBodyCost()) {
+      console.log(`${this.manager}[${this.RoleName}]: Need to spawn (${roomCount}/${roomQuota}), but lack the energy (costs ${this.RoleBodyCost()}, have ${this.manager.room.energyAvailable}/${this.manager.room.energyCapacityAvailable})...`);
       return;
     }
 
@@ -176,7 +184,7 @@ export abstract class RoomRole<MemoryShape extends Object> {
         newName,
         {
           memory: {
-            room: this.manager.name,
+            room: this.manager.room.name,
             role: this.RoleName,
             stuckTicks: 0,
             lastPos: { x: spawnPoint.pos.x, y: spawnPoint.pos.y },

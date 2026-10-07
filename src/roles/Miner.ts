@@ -14,7 +14,7 @@ export class Miner extends RoomRole<MinerMemory> {
 
   get CountPerRoom() {
     const max = this.manager.GetMaxMiners() + 1;
-    const T2 = Object.values(Game.creeps).filter(c => c.memory.room === this.manager.name && c.memory.role === 'MinerII').length;
+    const T2 = Object.values(Game.creeps).filter(c => c.memory.room === this.manager.room.name && c.memory.role === 'MinerII').length;
     return max - T2 <= 0 ? 0 : max - T2;
   }
 
@@ -48,14 +48,14 @@ export class Miner extends RoomRole<MinerMemory> {
   TickCreep(creep: CreepExtra, mem: MinerMemory): void {
     if (!mem.sourceId) {
       mem.sourceId = this.LocateSource(creep);
-      console.log(`${this.manager.name}${creep}: Miner assigned to ${mem.sourceId}...`);
+      console.log(`${this.manager.room.name}${creep}: Miner assigned to ${mem.sourceId}...`);
       return;
     }
 
     const mineObj = Game.getObjectById(mem.sourceId);
     if (!mineObj) {
       mem.sourceId = this.LocateSource(creep);
-      console.log(`${this.manager.name}${creep}: Stored source is stale, refreshed to ${mem.sourceId}...`);
+      console.log(`${this.manager.room.name}${creep}: Stored source is stale, refreshed to ${mem.sourceId}...`);
       return;
     }
 

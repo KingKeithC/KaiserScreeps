@@ -45,7 +45,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
   // Up to 6, less one for each WorkerII that is spawned.
   get CountPerRoom() {
     const max = 6;
-    const T2 = Object.values(Game.creeps).filter(c => c.memory.room === this.manager.name && c.memory.role === 'WorkerII').length;
+    const T2 = Object.values(Game.creeps).filter(c => c.memory.room === this.manager.room.name && c.memory.role === 'WorkerII').length;
     return max - T2 <= 0 ? 0 : max - T2;
   }
 
@@ -114,12 +114,12 @@ export class WorkerI extends RoomRole<WorkerTask> {
       return this.FindSpendingTask(creep);
   }
 
-  ControllerMaintenanceTask?: WorkerTask = this.manager.controller?.my == true
-    ? new WorkerTask(WorkerAction.MaintainController, this.manager.controller.id)
+  ControllerMaintenanceTask?: WorkerTask = this.manager.room.controller?.my == true
+    ? new WorkerTask(WorkerAction.MaintainController, this.manager.room.controller.id)
     : undefined;
 
-  ControllerUpgradeTask?: WorkerTask = this.manager.controller?.my == true
-    ? new WorkerTask(WorkerAction.UpgradeController, this.manager.controller.id)
+  ControllerUpgradeTask?: WorkerTask = this.manager.room.controller?.my == true
+    ? new WorkerTask(WorkerAction.UpgradeController, this.manager.room.controller.id)
     : undefined;
 
   get CurrentlyAssignedTasks(): WorkerTask[] {
@@ -194,7 +194,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
     // Controller at risk of downgrade
     if (
       this.ControllerMaintenanceTask
-      && this.manager.controller!.ticksToDowngrade < this.ControllerMaintenanceThreshold
+      && this.manager.room.controller!.ticksToDowngrade < this.ControllerMaintenanceThreshold
     ) return this.ControllerMaintenanceTask;
 
     // Find nearest unsupplied Spawn/Extension, regardless of worker count
@@ -213,7 +213,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
     if (this.WorkerActionCount(WorkerAction.Repair) < this.MaxRepairPerRoom) {
       const repair = this.FindUnsuppliedRepair(creep);
       if (repair) return new WorkerTask(WorkerAction.Repair, repair.id);
-      else console.log(`[${this.manager.name}]${creep}: No repairs needed!`);
+      else console.log(`[${this.manager.room}]${creep}: No repairs needed!`);
     }
 
     // Nothing else to do so just upgrade forever
@@ -359,7 +359,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
       // Target may be null in this one case
       if (task.action === WorkerAction.Idle) return;
 
-      console.log(`[${this.manager.name}]${creep}: Act: ${creep} has null/undefined target in memory: ${task.target}`);
+      console.log(`[${this.manager.room}]${creep}: Act: ${creep} has null/undefined target in memory: ${task.target}`);
       return;
     }
 
@@ -370,7 +370,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
       // Finished a construction
       if (task.action === WorkerAction.Build) return;
 
-      console.log(`[${this.manager.name}]${creep}: Act: ${creep} Game.getObjectById returned null`);
+      console.log(`[${this.manager.room}]${creep}: Act: ${creep} Game.getObjectById returned null`);
       return;
     }
 
@@ -380,7 +380,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
       case (WorkerAction.Pickup): {
         const t = targetObject as Resource;
         result = creep.pickup(t);
-        if (result === OK) console.log(`[${this.manager.name}]${creep}: Act: Picked up ${t}.`);
+        if (result === OK) console.log(`[${this.manager.room}]${creep}: Act: Picked up ${t}.`);
         break;
       }
       case (WorkerAction.CollectEnergy): {
@@ -420,7 +420,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
         break;
       }
       default: {
-        console.log(`[${this.manager.name}]${creep}: Act: Unknown Action ${JSON.stringify(task)}.`);
+        console.log(`[${this.manager.room}]${creep}: Act: Unknown Action ${JSON.stringify(task)}.`);
         break;
       }
     }
@@ -452,7 +452,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
       }
       default: {
         // Generic print all
-        console.log(`[${this.manager.name}]${creep}: Act: Task ${JSON.stringify(task)} was not successful: ${result}`);
+        console.log(`[${this.manager.room}]${creep}: Act: Task ${JSON.stringify(task)} was not successful: ${result}`);
         return;
       }
     }
@@ -467,7 +467,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
     if (!targetObject && task.action === WorkerAction.Build)
       return true; // Builders can have stale objects so don't log an error
     else if (!targetObject) {
-      console.log(`[${this.manager.name}]${creep}: IsTaskComplete: Game.getObjectById of ${task.target} is null`);
+      console.log(`[${this.manager.room}]${creep}: IsTaskComplete: Game.getObjectById of ${task.target} is null`);
       return true;
     }
 
@@ -483,7 +483,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
         if (targetObject instanceof Creep) return targetObject.store.energy === 0;
         if (targetObject instanceof Resource && targetObject.resourceType === RESOURCE_ENERGY) return targetObject.amount > 0;
 
-        console.log(`[${this.manager.name}]${creep}: Assuming collection is complete: ${targetObject}`);
+        console.log(`[${this.manager.room}]${creep}: Assuming collection is complete: ${targetObject}`);
         return true;
       }
       case (WorkerAction.Pickup): {
@@ -496,7 +496,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
       }
       case (WorkerAction.MaintainController): {
         if (creep.store.energy === 0) return true;
-        return this.manager.controller!.ticksToDowngrade > (this.ControllerMaintenanceThreshold + this.ControllerMaintenanceBuffer);
+        return this.manager.room.controller!.ticksToDowngrade > (this.ControllerMaintenanceThreshold + this.ControllerMaintenanceBuffer);
       }
       case (WorkerAction.Build): {
         if (creep.store.energy === 0) return true;
@@ -514,7 +514,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
         return t.store.getFreeCapacity(RESOURCE_ENERGY) === 0;
       }
       default: {
-        console.log(`[${this.manager.name}]${creep}: IsTaskComplete: Unknown Task is complete: ${JSON.stringify(task)}`);
+        console.log(`[${this.manager.room.name}]${creep}: IsTaskComplete: Unknown Task is complete: ${JSON.stringify(task)}`);
         return true;
       }
     }
@@ -522,7 +522,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
 
   TickEnd(): void {
     // Draw visuals
-    if (this.manager.memory.enableVisuals ?? true) {
+    if (this.manager.EnableVisuals) {
       for (const t of this.CurrentlyAssignedTasks) {
         var colour = "#000000";
         switch (t.action) {
@@ -554,7 +554,7 @@ export class WorkerII extends WorkerI {
   BodyParts = [MOVE, MOVE, WORK, WORK, CARRY, CARRY, CARRY, CARRY, CARRY];
   override get CountPerRoom() {
     const max = 12;
-    const T3 = Object.values(Game.creeps).filter(c => c.memory.room === this.manager.name && c.memory.role === 'WorkerIII').length;
+    const T3 = Object.values(Game.creeps).filter(c => c.memory.room === this.manager.room.name && c.memory.role === 'WorkerIII').length;
     return max - T3 <= 0 ? 0 : max - T3;
   }
 

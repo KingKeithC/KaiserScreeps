@@ -7,7 +7,8 @@ export enum RoomControlStatus {
   Owned,
   Claimed,
   Neutral,
-  Hostile
+  Hostile,
+  Unknown,
 }
 
 declare global {
@@ -21,6 +22,12 @@ declare global {
     towerAttackRange: number,
     disableEvents?: boolean,
     recentEvents: EventSummary[],
+    eventReportingFrequencyTicks?: number;
+    maxEventLogPerRoom?: number;
+    towerAttackRangeTiles?: number;
+    towerCriticalSupplyRatio?: number;
+    hostileReportFrequency?: number;
+    hostileNotificationThreshold?: number;
   }
 }
 
@@ -40,17 +47,6 @@ interface HostileInfo {
 }
 
 export class RoomExtra {
-
-  readonly room: Room;
-
-  get name(): string { return this.room.name; }
-  get controller(): StructureController | undefined { return this.room.controller; }
-  get memory(): RoomMemory { return this.room.memory; }
-  get energyAvailable(): number { return this.room.energyAvailable; }
-  get energyCapacityAvailable(): number { return this.room.energyCapacityAvailable; }
-
-  toString(): string { return this.room.toString(); }
-
   static StatusOf(room: Room): RoomControlStatus {
     if (room.controller?.my)
       return RoomControlStatus.Owned;
@@ -65,16 +61,27 @@ export class RoomExtra {
     return RoomControlStatus.Hostile;
   }
 
-  EventReportingFrequencyTicks = 500;
-  MaxEventLogPerRoom = 1500;
 
-  TowerAttackRangeTiles: number = 15;
-  TowerCriticalSupplyRatio: number = 0.75;
+  readonly room: Room;
+  constructor(room: Room) {
+    this.room = room;
+  }
 
-  HostileReportFrequency = 10;
-  HostileNotificationThreshold = 4;
+  get Status(): RoomControlStatus { return this.room.memory.status ?? RoomExtra.StatusOf(this.room); }
+  get EnableVisuals(): boolean { return this.room.memory.enableVisuals ?? true; }
+  get AttackHostiles(): boolean { return this.room.memory.attackHostiles ?? true; }
+  get DisableWarriors(): boolean { return this.room.memory.disableWarriors ?? false; }
+  get TowerAttackRange(): number { return this.room.memory.towerAttackRange ?? 20; }
+  get TowerCriticalSupplyRatio(): number { return this.room.memory.towerCriticalSupplyRatio ?? 0.75; }
+  get DisableEvents(): boolean { return this.room.memory.disableEvents ?? false; }
+  get RecentEvents(): EventSummary[] { return this.room.memory.recentEvents ?? []; }
+  get EventReportingFrequencyTicks(): number { return this.room.memory.eventReportingFrequencyTicks ?? 500; }
+  get MaxEventLogPerRoom(): number { return this.room.memory.maxEventLogPerRoom ?? 1500; }
+  get HostileReportFrequency(): number { return this.room.memory.hostileReportFrequency ?? 10; }
+  get HostileNotificationThreshold(): number { return this.room.memory.hostileNotificationThreshold ?? 4; }
 
-  constructor(room: Room) { this.room = room; }
+  LastSpawnTick(roleName: string): number { return (this.room.memory.lastSpawnTick ?? {})[roleName] ?? 0; }
+  Quota(roleName: string) { return (this.room.memory.quotas ?? {})[roleName] ?? -1; }
 
   // Search the spaces around each source, and return
   // the number of free spaces which a Miner creep could fill.
@@ -122,7 +129,7 @@ export class RoomExtra {
         creeps.push(c);
         map.set(c.memory.role, creeps);
       } else {
-        console.log(`[${this.name}]${c}: Is assigned to unknown role: ${c.memory.role}`);
+        console.log(`[${this.room}]${c}: Is assigned to unknown role: ${c.memory.role}`);
       }
     return map;
   }
@@ -143,8 +150,8 @@ export class RoomExtra {
       role.TickRole(); // Run it
     }
 
-    if (RoomExtra.StatusOf(this.room) !== RoomControlStatus.Owned) {
-      console.log(`[${this.name}]: Not owned: ${this.memory.status}.`);
+    if (this.Status !== RoomControlStatus.Owned) {
+      console.log(`[${this.room}]: Not owned: ${this.Status}.`);
       return;
     }
 
@@ -153,7 +160,7 @@ export class RoomExtra {
     this.CallOutHostiles();
 
     // Handle events, if not disabled
-    if (!(this.room.memory.disableEvents ?? false)) {
+    if (!this.DisableEvents) {
       this.ProcessEventsLastTick();
 
       if (Game.cpu.bucket === 10000) {
@@ -241,7 +248,7 @@ export class RoomExtra {
           return counts;
         }, {} as Record<string, number>),
       }));
-      const msg = `[${this.name}] !!! ${hostiles.length} hostiles spotted: ${JSON.stringify(hostileDetails)}`;
+      const msg = `[${this.room}] !!! ${hostiles.length} hostiles spotted: ${JSON.stringify(hostileDetails)}`;
       console.log(msg);
       if (hostiles.length > this.HostileNotificationThreshold) {
         Game.notify(`${Game.time}: More than ${this.HostileNotificationThreshold} hostiles spotted in ${this.room.name}:\n\n${msg}!`);
@@ -263,13 +270,18 @@ export class RoomExtra {
   }
 
   ProcessEventsLastTick() {
+    // Get events from last tick
     const events = this.room.getEventLog();
-    this.room.memory.recentEvents = (this.room.memory.recentEvents ?? []).concat(events.map(e => ({
+    const newEvents = events.map((e => ({
       time: Game.time - 1,
       event: this.EventConstantToName(e.event),
       summary: this.EventItemToSummary(e),
       value: this.EventDataToValue(e),
-    }))).slice(-this.MaxEventLogPerRoom);
+    })));
+
+    // Take the last `this.MaxEventLogPerRoom` and assign to
+    // recentEvents room memory.
+    this.room.memory.recentEvents = this.RecentEvents.concat(newEvents).slice(-this.MaxEventLogPerRoom);
 
     const myCreepsIdsInRoom = this.AssignedCreeps.map(c => c.id);
     const newAttacksOnMyCreeps = events
@@ -279,7 +291,7 @@ export class RoomExtra {
         victim: (a as { data: { targetId: string; }; }).data.targetId,
       }));
     if (newAttacksOnMyCreeps.length > 0) {
-      console.log(`ATTACKS PERFORMED IN [${this.name}] AGAINST MY CREEPS: `);
+      console.log(`ATTACKS PERFORMED IN [${this.room}] AGAINST MY CREEPS: `);
       for (const att of newAttacksOnMyCreeps)
         console.log(JSON.stringify(att));
     }
@@ -349,14 +361,13 @@ export class RoomExtra {
     // Critical Tasks - Always performed regardless of ener
 
     // Find lowest health hostile in range
-    if (this.memory.attackHostiles ?? false) {
-      const range = (this.memory.towerAttackRange ?? this.TowerAttackRangeTiles);
+    if (this.AttackHostiles) {
       const weakestHostile = t.pos
-        .findInRange(this.room.find(FIND_HOSTILE_CREEPS), range)
+        .findInRange(this.room.find(FIND_HOSTILE_CREEPS), this.TowerAttackRange)
         .sort((b, a) => (a.hits / a.hitsMax) - (b.hits / b.hitsMax))
         .pop();
       if (weakestHostile) {
-        this.room.visual.circle(t.pos, { radius: range, stroke: Colours.ATTACK_RANGE });
+        this.room.visual.circle(t.pos, { radius: this.TowerAttackRange, stroke: Colours.ATTACK_RANGE });
         const res = t.attack(weakestHostile);
         console.log(`!!! Tower Attacked ${weakestHostile.name} from $${weakestHostile.owner.username} (${weakestHostile.hits}/${weakestHostile.hits}) with result ${res}!`);
         return;
@@ -366,7 +377,7 @@ export class RoomExtra {
     // My creeps in need of healing, weakest first
     const weakestFriendly = this.room.find(FIND_MY_CREEPS)
       .filter(c => c.hits < c.hitsMax)
-      .sort((a, b) => (a.hits / a.hitsMax) - (b.hits / b.hitsMax))
+      .sort((b, a) => (a.hits / a.hitsMax) - (b.hits / b.hitsMax))
       .pop();
     if (weakestFriendly) {
       const res = t.heal(weakestFriendly);
