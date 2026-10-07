@@ -279,7 +279,6 @@ export class WorkerI extends RoomRole<WorkerTask> {
       .filter(s => s.transferCount < this.MaxSupplyPerTarget)
       .map(s => s.store);
 
-    console.log(`needsSupply: ${JSON.stringify(needsSupply.map(s => s.id))}    supplyTargetsByCount: ${JSON.stringify([...supplyTargetsByCount])}`)
     return supplier.pos.findClosestByPath(needsSupply, { ignoreCreeps: true });
   }
 
