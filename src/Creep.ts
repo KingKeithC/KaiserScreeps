@@ -33,6 +33,18 @@ export class CreepExtra extends Creep {
       .map(c => new CreepExtra(c.id));
   }
 
+  static FindWithRoom(roomName: string): CreepExtra[] {
+    return Object.values(Game.creeps)
+      .filter(c => c.my && !c.spawning && c.memory.room == roomName)
+      .map(c => new CreepExtra(c.id));
+  }
+
+  static FindWithRoomAndRole(roomName: string, roleName: string): CreepExtra[] {
+    return Object.values(Game.creeps)
+      .filter(c => c.my && !c.spawning && c.memory.role == roleName && c.memory.room == roomName)
+      .map(c => new CreepExtra(c.id));
+  }
+
   MoveLong(dest: RoomPosition | { pos: RoomPosition; }, opts?: MoveToOpts): number {
     return this.moveTo(dest, {
       ...opts,

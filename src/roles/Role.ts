@@ -9,41 +9,23 @@ export type RoomRoleType = {
 
 export abstract class RoomRole<MemoryShape extends Object> {
   static readonly Registry = new Map<string, RoomRoleType>();
-
   static Register<T extends RoomRoleType>(roleType: T): T {
     RoomRole.Registry.set(roleType.RoleName, roleType);
     return roleType;
   }
 
-  get RoleName(): string {
-    return (this.constructor as RoomRoleType).RoleName;
-  }
+  get RoleName(): string { return (this.constructor as RoomRoleType).RoleName; }
 
   abstract BodyParts: BodyPartConstant[];
   abstract InitialJobMemory: MemoryShape;
   abstract CountPerRoom: number;
 
-  readonly manager: RoomExtra;
-  constructor(manager: RoomExtra) { this.manager = manager; }
-
-  // Cached fields generated on first access.
-  private _CreepsInRole?: CreepExtra[];
-  get CreepsInRole(): CreepExtra[] {
-    if (!this._CreepsInRole) this._CreepsInRole = CreepExtra.FindWithRole(this.RoleName);
-    return this._CreepsInRole;
-  }
-
-  get CreepsInRoomAndRole(): CreepExtra[] {
-    return this.manager.CreepsByRole.get(this.RoleName) ?? [];
-  }
+  readonly room: RoomExtra;
+  constructor(room: RoomExtra) { this.room = room; }
 
   private _GlobalCount: number = -1; // -1 for unlimited
-  public get GlobalCount(): number {
-    return this._GlobalCount;
-  }
-  public set GlobalCount(value: number) {
-    this._GlobalCount = value;
-  }
+  public get GlobalCount(): number { return this._GlobalCount; }
+  public set GlobalCount(value: number) { this._GlobalCount = value; }
 
   // RCL Ranges to constrain role spawns
   StartSpawnAtRCL: number = 1;
@@ -67,22 +49,21 @@ export abstract class RoomRole<MemoryShape extends Object> {
     this.TickStart();
 
     // Check to do spawns every `this.SpawnRate` ticks.
-    const timeSinceLastSpawn = Game.time - (this.manager.memory.lastSpawnTick[this.RoleName] ?? 0) - this.SpawnTickOffet;
-    if (timeSinceLastSpawn > this.SpawnRate || this.manager.MyCreepsInRoom.length === 0) {
+    const timeSinceLastSpawn = Game.time - (this.room.memory.lastSpawnTick[this.RoleName] ?? 0) - this.SpawnTickOffet;
+    if (timeSinceLastSpawn > this.SpawnRate || this.room.find(FIND_MY_CREEPS).length === 0) {
       this.DoSpawns();
-      this.manager.memory.lastSpawnTick[this.RoleName] = Game.time; // Reset
+      this.room.memory.lastSpawnTick[this.RoleName] = Game.time; // Reset
     }
 
-    for (const creep of this.CreepsInRoomAndRole) {
+    for (const creep of CreepExtra.FindWithRoomAndRole(this.room.name, this.RoleName)) {
       var task = creep.memory.jobMemory as MemoryShape;
       if (task == null || task == undefined) {
-        console.log(`${this.manager}${creep} TickRole: CreepExtra has invalid memory. Wiping...`);
+        console.log(`${this.room}${creep} TickRole: CreepExtra has invalid memory. Wiping...`);
         task = this.InitialJobMemory;
         creep.memory.jobMemory = task;
       }
 
-      if (!creep.spawning)
-        this.TickCreep(creep, task);
+      if (!creep.spawning) this.TickCreep(creep, task);
 
       const ttl = creep.ticksToLive ?? 100;
       if (ttl === 2)
@@ -108,10 +89,6 @@ export abstract class RoomRole<MemoryShape extends Object> {
     return [adj1, adj2, noun].join("-");
   }
 
-  FindSpawns(): StructureSpawn[] {
-    return this.manager.room.find(FIND_MY_SPAWNS, { filter: (spawn) => !spawn.spawning });
-  }
-
   DoSpawns(): void {
     // Delete memory of missing creeps before doing spawns
     for (const name in Memory.creeps) {
@@ -122,15 +99,15 @@ export abstract class RoomRole<MemoryShape extends Object> {
     }
 
     // Cannot spawn if RCL is wrong
-    const rcl = this.manager.controller?.level;
+    const rcl = this.room.controller?.level;
     if (!rcl || rcl < this.StartSpawnAtRCL || rcl >= this.StopSpawnAtRCL) {
-      console.log(`${this.manager}[${this.RoleName}]: RCL (${rcl}) is outside spawn requirements (${this.StartSpawnAtRCL} <= RCL < ${this.StopSpawnAtRCL})`);
+      console.log(`${this.room}[${this.RoleName}]: RCL (${rcl}) is outside spawn requirements (${this.StartSpawnAtRCL} <= RCL < ${this.StopSpawnAtRCL})`);
       return;
     };
 
     // or global quota met if there is one
     if (this.GlobalCount >= 0) {
-      const globalCount = this.CreepsInRole.length;
+      const globalCount = CreepExtra.FindWithRole(this.RoleName).length;
       if (globalCount >= this.GlobalCount) {
         console.log(`[${this.RoleName}]: Global Quota Met ${globalCount}/${this.GlobalCount}`);
         return;
@@ -139,32 +116,32 @@ export abstract class RoomRole<MemoryShape extends Object> {
 
     // determine room quota, from class by default, or memory if set there
     var roomQuota = this.CountPerRoom;
-    if (this.manager.memory.quotas && this.manager.memory.quotas[this.RoleName])
-      roomQuota = this.manager.memory.quotas[this.RoleName];
+    if (this.room.memory.quotas && this.room.memory.quotas[this.RoleName])
+      roomQuota = this.room.memory.quotas[this.RoleName];
 
     // or room quota met
-    const roomCount = this.CreepsInRoomAndRole.length;
+    const roomCount = CreepExtra.FindWithRoomAndRole(this.room.name, this.RoleName).length;
     if (roomCount >= roomQuota) {
-      console.log(`${this.manager}[${this.RoleName}]: Room Quota Met ${roomCount}/${roomQuota}`);
+      console.log(`${this.room}[${this.RoleName}]: Room Quota Met ${roomCount}/${roomQuota}`);
       return;
     }
 
     // or there isn't enough energy
-    if (this.manager.energyAvailable < this.RoleBodyCost()) {
-      console.log(`${this.manager}[${this.RoleName}]: Need to spawn (${roomCount}/${roomQuota}), but lack the energy (costs ${this.RoleBodyCost()}, have ${this.manager.energyAvailable}/${this.manager.energyCapacityAvailable})...`);
+    if (this.room.energyAvailable < this.RoleBodyCost()) {
+      console.log(`${this.room}[${this.RoleName}]: Need to spawn (${roomCount}/${roomQuota}), but lack the energy (costs ${this.RoleBodyCost()}, have ${this.room.energyAvailable}/${this.room.energyCapacityAvailable})...`);
       return;
     }
 
     // or the subclass decides not to
     if (!this.CanSpawn()) {
-      console.log(`${this.manager}[${this.RoleName}]: Need to spawn (${roomCount}/${roomQuota}), but CanSpawn() said no...`);
+      console.log(`${this.room}[${this.RoleName}]: Need to spawn (${roomCount}/${roomQuota}), but CanSpawn() said no...`);
       return;
     }
 
     // Find a suitable spawn point
-    const possibleSpawns = this.FindSpawns();
+    const possibleSpawns = this.room.find(FIND_MY_SPAWNS, { filter: s => !s.spawning });
     if (possibleSpawns.length === 0) {
-      console.log(`${this.manager}[${this.RoleName}]: Need to spawn (${roomCount}/${roomQuota}), but no points could be found.`);
+      console.log(`${this.room}[${this.RoleName}]: Need to spawn (${roomCount}/${roomQuota}), but no points could be found.`);
       return;
     }
 
@@ -176,7 +153,7 @@ export abstract class RoomRole<MemoryShape extends Object> {
         newName,
         {
           memory: {
-            room: this.manager.name,
+            room: this.room.name,
             role: this.RoleName,
             stuckTicks: 0,
             lastPos: { x: spawnPoint.pos.x, y: spawnPoint.pos.y },
@@ -188,12 +165,12 @@ export abstract class RoomRole<MemoryShape extends Object> {
       // Log the result
 
       if (result === OK) {
-        console.log(`${this.manager}[creep ${newName}]: (${roomCount}+1/${roomQuota}) Spawning @ ${spawnPoint.name}...`);
+        console.log(`${this.room}[creep ${newName}]: (${roomCount}+1/${roomQuota}) Spawning @ ${spawnPoint.name}...`);
         return; // Successful, no need to proceed.
       }
-      console.log(`${this.manager}[creep ${newName}]: (${roomCount}/${roomQuota}) Unable to spawn at ${spawnPoint} due to: ${result}...`);
+      console.log(`${this.room}[creep ${newName}]: (${roomCount}/${roomQuota}) Unable to spawn at ${spawnPoint} due to: ${result}...`);
     }
-    console.log(`${this.manager}[creep ${newName}]: All spawn attempts failed... woe is me for I did not experience life :(`);
+    console.log(`${this.room}[creep ${newName}]: All spawn attempts failed... woe is me for I did not experience life :(`);
   }
 
   // Can be overridden to provide an opportunity to intercept spawns.

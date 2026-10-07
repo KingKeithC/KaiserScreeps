@@ -13,8 +13,8 @@ export class Warrior extends RoomRole<WarriorMemory> {
 
   // 1 Per Invader
   get CountPerRoom() {
-    if ((this.manager.memory.attackHostiles ?? false) || (this.manager.memory.disableWarriors ?? false))
-      return this.manager.HostileCreeps.length;
+    if ((this.room.memory.attackHostiles ?? false) || (this.room.memory.disableWarriors ?? false))
+      return this.room.HostileCreeps.length;
     else
       return 0;
   }
