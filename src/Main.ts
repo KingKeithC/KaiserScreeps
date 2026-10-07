@@ -16,7 +16,7 @@ const MainLoop = () => {
 
   // Instantiate a RoomManager for, and tick each room.
   const Rooms: RoomExtra[] = [];
-  for (const [room, myCreepsInRoom] of MyCreepsByRoom.entries()) Rooms.push(new RoomExtra(new Room(room), myCreepsInRoom));
+  for (const [room, myCreepsInRoom] of MyCreepsByRoom.entries()) Rooms.push(new RoomExtra(Game.rooms[room], myCreepsInRoom));
 
   // Since the managers above are based on spawned creeps,
   // it can miss rooms we have access to after respawning
