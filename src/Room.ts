@@ -75,6 +75,8 @@ export class RoomExtra {
 
   constructor(room: Room) { this.room = room; }
 
+  // Search the spaces around each source, and return
+  // the number of free spaces which a Miner creep could fill.
   GetMaxMiners(): number {
     const sources = this.room.find(FIND_SOURCES);
     const terrain = this.room.getTerrain();
