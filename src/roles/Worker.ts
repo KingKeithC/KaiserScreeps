@@ -49,11 +49,9 @@ export class WorkerI extends RoomRole<WorkerTask> {
     return max - T2 <= 0 ? 0 : max - T2;
   }
 
-  MaxMaintenanceWorkers = 2;
   ControllerMaintenanceThreshold = 1000; // Start upgrading when ticksToDowngrade is less than this.
   ControllerMaintenanceBuffer = 2000;    // Stop upgrading when ticksToDowngrade is greater than `ControllerMaintenanceThreshold+ControllerMaintenanceBuffer`.
 
-  MaxSupplyWorkers = 3;
   MaxSupplyPerTarget = 1;
   SupplyPriorities: ((s: AnyStoreStructure) => boolean)[] = [
     (s => s instanceof StructureExtension || s instanceof StructureSpawn),
@@ -61,7 +59,6 @@ export class WorkerI extends RoomRole<WorkerTask> {
     (_ => true),
   ];
 
-  MaxRepairWorkers = 4;
   MaxRepairPerTarget = 1;
   RepairPriorities: ((s: AnyStructure) => boolean)[] = [
     (s => s instanceof StructureWall || s instanceof StructureRampart),
@@ -191,7 +188,6 @@ export class WorkerI extends RoomRole<WorkerTask> {
     // Controller at risk of downgrade
     if (
       this.ControllerMaintenanceTask
-      && this.WorkerActionCount(WorkerAction.MaintainController) < this.MaxMaintenanceWorkers
       && this.manager.controller!.ticksToDowngrade < this.ControllerMaintenanceThreshold
     ) return this.ControllerMaintenanceTask;
 
@@ -265,7 +261,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
 
   // Return the closest Spawn/Extension/Tower with room for energy
   // and the least number of other assigned suppliers
-  FindUnsuppliedSupplyTarget(supplier: CreepExtra, candidates: AnyStoreStructure[]): AnyStoreStructure | undefined {
+  FindUnsuppliedSupplyTarget(supplier: CreepExtra, candidates: AnyStoreStructure[]): AnyStoreStructure | null {
     // Get all transfers in progress
     const inProgressSupplyTasks = this.CurrentlyAssignedTasks.filter(t => t.action === WorkerAction.Supply);
 
@@ -280,12 +276,11 @@ export class WorkerI extends RoomRole<WorkerTask> {
     const needsSupply = candidates
       .filter(s => s.store.getFreeCapacity(RESOURCE_ENERGY))
       .map(s => ({ store: s, transferCount: supplyTargetsByCount.get(s.id) ?? 0 }))
-      .filter((_, count) => count < this.MaxSupplyPerTarget)
-      .sort((b, a) => a.transferCount - b.transferCount)
-      .map(c => c.store);
+      .filter(s => s.transferCount < this.MaxSupplyPerTarget)
+      .map(s => s.store);
 
-    // if (needsSupply.length === 0) console.log("No unsupplied candidates found.");
-    return supplier.pos.findClosestByPath(needsSupply, { ignoreCreeps: true }) ?? undefined;
+    console.log(`needsSupply: ${JSON.stringify(needsSupply.map(s => s.id))}    supplyTargetsByCount: ${JSON.stringify([...supplyTargetsByCount])}`)
+    return supplier.pos.findClosestByPath(needsSupply, { ignoreCreeps: true });
   }
 
   FindUnsuppliedRepair(supplier: CreepExtra): AnyStructure | undefined {
