@@ -385,7 +385,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
       }
       case (WorkerAction.CollectEnergy): {
         result = this.WithdrawFromEnergySources(creep);
-        if (result === OK) console.log(`[${this.manager.name}]${creep}: Act: Collected Energy from nearby source.`);
+        // if (result === OK) console.log(`[${this.manager.name}]${creep}: Act: Collected Energy from nearby source.`);
         break;
       }
       case (WorkerAction.UpgradeController):
