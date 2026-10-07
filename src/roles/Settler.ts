@@ -7,7 +7,7 @@ class SettlerMemory extends Object {
   reserve?: boolean;
   claimedRoom?: string;
   pathToClaim?: { exit: ExitConstant; room: string; }[];
-  currentTarget?: RoomPosition;
+  currentTarget?: RoomPosition | DirectionConstant;
 }
 
 export class Settler extends RoomRole<SettlerMemory> {
@@ -84,16 +84,19 @@ export class Settler extends RoomRole<SettlerMemory> {
         }
         task.currentTarget = exitPos;
         creep.memory.jobMemory = task;
-      }
-
-      const pos = task.currentTarget as RoomPosition;
-      const moveRes = creep.MoveCreep(pos, { range: 0 });
-      if (moveRes === ERR_INVALID_TARGET) {
-        delete task.currentTarget;
-        creep.memory.jobMemory = task;
-        return;
-      } else if (moveRes !== 1) {
-        console.log(`[${this.manager.room.name}][${creep.name}]: To Target ${JSON.stringify(pos)}: ${moveRes}`);
+      } else if (task.currentTarget as RoomPosition) {
+        const pos = task.currentTarget as RoomPosition;
+        const moveRes = creep.MoveCreep(pos, { range: 0 });
+        if (moveRes === ERR_INVALID_TARGET) {
+          delete task.currentTarget;
+          creep.memory.jobMemory = task;
+          return;
+        } else if (moveRes !== 1) {
+          console.log(`[${this.manager.room.name}][${creep.name}]: To Target ${JSON.stringify(pos)}: ${moveRes}`);
+        }
+      } else if (task.currentTarget as DirectionConstant) {
+        console.log("Nudging...");
+        creep.move(task.currentTarget as DirectionConstant);
       }
     }
   }
