@@ -250,14 +250,11 @@ export class WorkerI extends RoomRole<WorkerTask> {
 
   FindClosestConstructionByPriority(pos: RoomPosition): ConstructionSite | null {
     const constructions = this.manager.room.find(FIND_MY_CONSTRUCTION_SITES);
-    const constructionsByPriority = [];
-
-    for (const p of this.ConstructionPriorities)
-      constructionsByPriority.push(constructions.filter(p));
-
-    for (const p of constructionsByPriority)
-      if (p.length) return pos.findClosestByPath(p, { ignoreCreeps: true });
-
+    for (const p of this.ConstructionPriorities) {
+      const group = constructions.filter(p);
+      if (group.length) return pos.findClosestByPath(group, { ignoreCreeps: true });
+    }
+    // console.log("No constructions needing supply.");
     return null;
   }
 
@@ -279,14 +276,19 @@ export class WorkerI extends RoomRole<WorkerTask> {
       supplyTargetsByCount.set(t.target!, existing + 1);
     }
 
-    // Get candidates and group by number of suppliers
-    const needsSupply = candidates
-      .filter(s => s.store.getFreeCapacity(RESOURCE_ENERGY))
-      .map(s => ({ store: s, transferCount: supplyTargetsByCount.get(s.id) ?? 0 }))
-      .filter(s => s.transferCount < this.MaxSupplyPerTarget)
-      .map(s => s.store);
+    for (const p of this.SupplyPriorities) {
+      // Get candidates and group by number of suppliers
+      const needsSupply = candidates
+        .filter(s => p(s) && s.store.getFreeCapacity(RESOURCE_ENERGY))
+        .map(s => ({ store: s, transferCount: supplyTargetsByCount.get(s.id) ?? 0 }))
+        .filter(s => s.transferCount < this.MaxSupplyPerTarget)
+        .map(s => s.store);
 
-    return supplier.pos.findClosestByPath(needsSupply, { ignoreCreeps: true });
+      if (needsSupply.length) return supplier.pos.findClosestByPath(needsSupply, { ignoreCreeps: true });
+    }
+
+    // console.log("No targets needing supply.");
+    return null;
   }
 
   FindUnsuppliedRepair(supplier: CreepExtra): AnyStructure | undefined | null {
