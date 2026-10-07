@@ -49,37 +49,43 @@ export class Settler extends RoomRole<SettlerMemory> {
       creep.memory.jobMemory = task;
     }
 
-    if (creep.room.name === task.claimedRoom) {
-      const claimed = Game.rooms[task.claimedRoom];
-      if (!claimed) {
-        console.log(`[${this.manager.room.name}][${creep.name}]: We still don't have access to the claimed room.`);
-        return;
-      }
-
-      if (!claimed.controller) {
-        console.log(`[${this.manager.room.name}][${creep.name}]: Claimed room has no controller.`);
-        return;
-      }
-
-      const moveRes = creep.MoveCreep(claimed.controller, { range: 1 });
-      if (moveRes !== 1) {
-        console.log(`[${this.manager.room.name}][${creep.name}]: Failed to move to room controller: ${moveRes}`);
-        return;
-      }
-
-      if (task.reserve != undefined && task.reserve) {
-        console.log(`[${this.manager.room.name}][${creep.name}]: Reserving controller in ${claimed.name} (${claimed.controller.reservation?.ticksToEnd}).`);
-        creep.reserveController(claimed.controller);
-      } else {
-        console.log(`[${this.manager.room.name}][${creep.name}]: Claiming controller in ${claimed.name} (${claimed.controller.progress} / ${claimed.controller.progressTotal}).`);
-        creep.claimController(claimed.controller);
-      }
-
-    } else {
+    // Move until we are in the claimed room
+    if (creep.room.name !== task.claimedRoom) {
       // Construct a dummy position in the centre of the room and move there
       const pos = new RoomPosition(25, 25, task.claimedRoom);
       const moveRes = creep.MoveCreep(pos, { range: 20 });
       if (moveRes !== OK) console.log(`Moving to ${JSON.stringify(pos)} resulted in ${moveRes}`);
+    }
+
+    // We should be in the claimed room by now, get a reference to it
+    const claimed = Game.rooms[task.claimedRoom];
+    if (!claimed) {
+      console.log(`[${this.manager.room.name}][${creep.name}]: We still don't have access to the claimed room.`);
+      return;
+    }
+
+    // Get a reference to the controller in the room
+    if (!claimed.controller) {
+      console.log(`[${this.manager.room.name}][${creep.name}]: Claimed room has no controller.`);
+      return;
+    }
+
+    // Move to the controller
+    const moveRes = creep.MoveCreep(claimed.controller, { range: 1 });
+    if (moveRes === 0)
+      return; // Moving
+    else if (moveRes < 0) { // Error
+      console.log(`[${this.manager.room.name}][${creep.name}]: Failed to move to room controller: ${moveRes}`);
+      return;
+    }
+
+    // Act on the controller
+    if (task.reserve != undefined && task.reserve) {
+      console.log(`[${this.manager.room.name}][${creep.name}]: Reserving controller in ${claimed.name} (${claimed.controller.reservation?.ticksToEnd}).`);
+      creep.reserveController(claimed.controller);
+    } else {
+      console.log(`[${this.manager.room.name}][${creep.name}]: Claiming controller in ${claimed.name} (${claimed.controller.progress} / ${claimed.controller.progressTotal}).`);
+      creep.claimController(claimed.controller);
     }
   }
 }
