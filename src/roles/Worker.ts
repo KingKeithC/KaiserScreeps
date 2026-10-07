@@ -76,9 +76,9 @@ export class WorkerI extends RoomRole<WorkerTask> {
     return max < min ? min : max;
   };
   ConstructionPriorities: ((c: ConstructionSite) => boolean)[] = [
+    (c => c.structureType === STRUCTURE_ROAD),
     (c => c.structureType === STRUCTURE_EXTENSION || c.structureType === STRUCTURE_SPAWN),
     (c => c.structureType === STRUCTURE_STORAGE || c.structureType === STRUCTURE_CONTAINER),
-    (c => c.structureType === STRUCTURE_ROAD),
     (c => c.structureType === STRUCTURE_RAMPART || c.structureType === STRUCTURE_WALL),
     (_ => true),
   ];
