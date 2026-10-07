@@ -473,6 +473,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
 
     switch (task.action) {
       case (WorkerAction.Mine): {
+        if (this.manager.room.find(FIND_MY_CREEPS, { filter: c => c.memory.role.startsWith("Miner") }).length > 0) return true; // We are done mining if a miner lives
         if (creep.store.getFreeCapacity(RESOURCE_ENERGY) === 0) return true;
         return (targetObject as Source).energy === 0;
       }
