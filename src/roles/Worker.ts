@@ -49,7 +49,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
     return max - T2 <= 0 ? 0 : max - T2;
   }
 
-  ControllerMaintenanceThreshold = 1000; // Start upgrading when ticksToDowngrade is less than this.
+  ControllerMaintenanceThreshold = 3500; // Start upgrading when ticksToDowngrade is less than this.
   ControllerMaintenanceBuffer = 2000;    // Stop upgrading when ticksToDowngrade is greater than `ControllerMaintenanceThreshold+ControllerMaintenanceBuffer`.
 
   MaxSupplyPerTarget = 1;
