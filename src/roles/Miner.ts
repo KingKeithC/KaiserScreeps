@@ -13,16 +13,16 @@ export class Miner extends RoomRole<MinerMemory> {
   DropoffRange = 4;
 
   // 2 miners per source
-  get CountPerRoom() { return this.room.Sources.length; }
+  get CountPerRoom() { return this.room.find(FIND_SOURCES).length; }
 
   LocateSource(creep: CreepExtra): Id<Source> | undefined {
     const minersBySource = new Map<Id<Source>, number>();
-    for (const c of this.CreepsInRole) {
+    for (const c of CreepExtra.FindWithRoomAndRole(this.room.name, this.RoleName)) {
       const mem = c.memory.jobMemory as MinerMemory;
       if (!mem.sourceId) continue;
       minersBySource.set(mem.sourceId, (minersBySource.get(mem.sourceId) ?? 0) + 1)
     }
-    return this.room.Sources
+    return this.room.find(FIND_SOURCES)
       .map(source => ({ source, count: minersBySource.get(source.id) ?? 0 }))
       .sort((b, a) => a.count - b.count)
       .pop()?.source.id;
@@ -30,10 +30,10 @@ export class Miner extends RoomRole<MinerMemory> {
 
   TransferToNeighbours(creep: CreepExtra): void {
     const closeNeedsEnergy = creep.pos.findInRange([
-      ...this.room.CreepsByRole.get("WorkerI") ?? [],
-      ...this.room.CreepsByRole.get("WorkerII") ?? [],
-      ...this.room.CreepsByRole.get("Settler") ?? [],
-      ...this.room.Containers,
+      ...CreepExtra.FindWithRoomAndRole(this.room.name, "WorkerI"),
+      ...CreepExtra.FindWithRoomAndRole(this.room.name, "WorkerII"),
+      ...CreepExtra.FindWithRoomAndRole(this.room.name, "Settler"),
+      ...this.room.find(FIND_STRUCTURES, { filter: s => s.structureType === STRUCTURE_CONTAINER }) as StructureContainer[],
     ], 1, { filter: c => c.store.getFreeCapacity(RESOURCE_ENERGY) })
       .sort((a, b) => (a.store.getUsedCapacity(RESOURCE_ENERGY) / a.store.getCapacity(RESOURCE_ENERGY)) - (b.store.getUsedCapacity(RESOURCE_ENERGY) / b.store.getCapacity(RESOURCE_ENERGY)))
       .pop();
