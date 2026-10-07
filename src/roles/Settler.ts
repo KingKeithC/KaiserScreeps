@@ -14,7 +14,7 @@ export class Settler extends RoomRole<SettlerMemory> {
   static readonly RoleName: string = "Settler";
   BodyParts = [MOVE, MOVE, WORK, CLAIM];
 
-  CountPerRoom = 1;
+  CountPerRoom = 0;
   override get GlobalCount(): number { return this.FindClaimedRooms().length; }
 
   get InitialJobMemory(): SettlerMemory {
