@@ -60,7 +60,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
   ];
 
   MaxRepairPerTarget = 1;
-  MaxRepairPerRoom = 5;
+  MaxRepairPerRoom = 3;
   RepairStartRatio = 0.5
   RepairPriorities: ((s: AnyStructure) => boolean)[] = [
     (s => s instanceof StructureContainer || s instanceof StructurePortal),
@@ -536,6 +536,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
 export class WorkerII extends WorkerI {
   static override readonly RoleName: string = "WorkerII";
 
+  override SpawnRate: number = super.SpawnRate / 2;
   StartSpawnAtRCL = 2;
   StopSpawnAtRCL = 100;
   BodyParts = [MOVE, MOVE, WORK, WORK, CARRY, CARRY, CARRY, CARRY, CARRY];
