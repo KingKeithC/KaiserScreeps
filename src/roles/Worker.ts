@@ -59,9 +59,11 @@ export class WorkerI extends RoomRole<WorkerTask> {
     (_ => true),
   ];
 
-  RepairDamageRatio = 0.5
   MaxRepairPerTarget = 1;
+  RepairStartRatio = 0.5
   RepairPriorities: ((s: AnyStructure) => boolean)[] = [
+    (s => s instanceof StructureContainer || s instanceof StructurePortal),
+    (s => !(s instanceof StructureContainer || s instanceof StructurePortal || s instanceof StructureRoad || s instanceof StructureWall) && s.my),
     (s => s instanceof StructureWall || s instanceof StructureRampart),
     (_ => true),
   ];
@@ -284,7 +286,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
     return supplier.pos.findClosestByPath(needsSupply, { ignoreCreeps: true });
   }
 
-  FindUnsuppliedRepair(supplier: CreepExtra): AnyStructure | undefined {
+  FindUnsuppliedRepair(supplier: CreepExtra): AnyStructure | undefined | null {
     const inProgressRepairTasks = this.CurrentlyAssignedTasks.filter(t => t.action === WorkerAction.Repair);
 
     // Group by target and return count of group
@@ -294,15 +296,23 @@ export class WorkerI extends RoomRole<WorkerTask> {
       targetsByCount.set(t.target!, existing + 1);
     }
 
-    // Get candidates and group by number of suppliers
-    const needsRepair = this.manager.room.find(FIND_STRUCTURES, { filter: s => (s.hits / s.hitsMax) < this.RepairDamageRatio })
-      .map(s => ({ site: s, count: targetsByCount.get(s.id) ?? 0 }))
-      .filter(s => s.count < this.MaxRepairPerTarget)
-      .sort((b, a) => a.count - b.count)
-      .map(c => c.site);
+    const repairs = this.manager.room.find(FIND_STRUCTURES, { filter: s => (s.hits / s.hitsMax) < this.RepairStartRatio });
+    const repairPriorities = [];
+    for (const p of this.RepairPriorities) repairPriorities.push(repairs.filter(p));
+    for (const group of repairPriorities) {
+      // Get candidates and group by number of suppliers
+      const needsRepair = group
+        .map(s => ({ site: s, count: targetsByCount.get(s.id) ?? 0 }))
+        .filter(s => s.count < this.MaxRepairPerTarget)
+        .sort((b, a) => a.count - b.count)
+        .map(c => c.site);
 
-    if (needsRepair.length === 0) console.log("No unsupplied repairs found.");
-    return supplier.pos.findClosestByPath(needsRepair, { ignoreCreeps: true }) ?? undefined;
+      if (needsRepair.length === 0) continue;
+      return supplier.pos.findClosestByPath(needsRepair, { ignoreCreeps: true });
+    }
+
+    console.log("No unsupplied repairs found.");
+    return null;
   }
 
   FindLeastAssignedSource(): Source | undefined {
