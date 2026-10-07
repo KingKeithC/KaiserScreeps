@@ -325,6 +325,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
     for (const c of [
       ...this.manager.CreepsByRole.get("WorkerI") ?? [],
       ...this.manager.CreepsByRole.get("WorkerII") ?? [],
+      ...this.manager.CreepsByRole.get("WorkerIII") ?? [],
     ]) {
       const mem = c.memory.jobMemory as WorkerTask;
       if (!mem.target) continue;
@@ -553,13 +554,13 @@ export class WorkerII extends WorkerI {
     if ((this.manager.CreepsByRole.get("Miner")?.length ?? 0) > 0)
       return true;
 
-    console.log("Not enough miners to spawn WorkerII");
+    console.log("Not enough miners to spawn a worker > I.");
     return false;
   }
 }
 
 export class WorkerIII extends WorkerII {
-  static override readonly RoleName: string = "WorkerII";
+  static override readonly RoleName: string = "WorkerIII";
   StartSpawnAtRCL = 2;
   StopSpawnAtRCL = 100;
   BodyParts = [MOVE, MOVE, MOVE, MOVE, WORK, WORK, WORK, WORK, CARRY, CARRY, CARRY, CARRY];

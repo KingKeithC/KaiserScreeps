@@ -31,6 +31,7 @@ export class Miner extends RoomRole<MinerMemory> {
     const closeNeedsEnergy = creep.pos.findInRange([
       ...this.manager.CreepsByRole.get("WorkerI") ?? [],
       ...this.manager.CreepsByRole.get("WorkerII") ?? [],
+      ...this.manager.CreepsByRole.get("WorkerIII") ?? [],
       ...this.manager.CreepsByRole.get("Settler") ?? [],
       ...this.manager.room.find(FIND_STRUCTURES, { filter: s => s.structureType === STRUCTURE_CONTAINER }) as StructureContainer[],
     ], 1, { filter: c => c.store.getFreeCapacity(RESOURCE_ENERGY) })
