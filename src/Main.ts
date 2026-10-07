@@ -9,8 +9,10 @@ const MainLoop = () => {
 
   const roomNames = unique([...Object.keys(Memory.rooms), ...Object.keys(Game.rooms)]);
   const rooms = roomNames.map(name => new RoomExtra(name));
-  for (const room of rooms)
+  for (const room of rooms) {
+    if (room.controller == undefined || !room.controller.my) continue;
     room.TickRoom(rooms);
+  }
 }
 
 // When compiling TS to JS and bundling with rollup, the line numbers and file names in error messages change

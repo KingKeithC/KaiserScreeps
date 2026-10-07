@@ -7,7 +7,7 @@ class SettlerMemory extends Object {
   reserve?: boolean;
   claimedRoom?: string;
   pathToClaim?: { exit: ExitConstant; room: string; }[];
-  currentTarget?: RoomPosition | DirectionConstant;
+  currentTarget?: RoomPosition;
 }
 
 export class Settler extends RoomRole<SettlerMemory> {
@@ -51,10 +51,25 @@ export class Settler extends RoomRole<SettlerMemory> {
 
     // Move until we are in the claimed room
     if (creep.room.name !== task.claimedRoom) {
-      // Construct a dummy position in the centre of the room and move there
-      const pos = new RoomPosition(25, 25, task.claimedRoom);
-      const moveRes = creep.MoveCreep(pos, { range: 20 });
-      if (moveRes !== OK) console.log(`Moving to ${JSON.stringify(pos)} resulted in ${moveRes}`);
+
+      if (!task.currentTarget) {
+        const tgt = creep.pos.findClosestByPath(task.pathToClaim[0].exit);
+        if (!tgt) {
+          console.log("Unable to find path to room edge...")
+          return;
+        }
+        task.currentTarget = tgt;
+        creep.memory.jobMemory = task;
+      }
+
+      const edgeMove = creep.MoveCreep(task.currentTarget as RoomPosition, { range: 1 });
+      if (edgeMove !== 1) {
+        console.log(`Moving to room edge ${JSON.stringify(task.currentTarget)} ${edgeMove}...`)
+        return;
+      }
+
+      console.log("Sitting at room edge...")
+      return;
     }
 
     // We should be in the claimed room by now, get a reference to it

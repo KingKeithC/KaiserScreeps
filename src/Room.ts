@@ -61,6 +61,11 @@ export class RoomExtra extends Room {
       role.TickRole(); // Run it
     }
 
+    if (!this.controller || !this.controller.my) {
+      // Not owned
+      return;
+    }
+
     // Owned room
 
     this.CallOutHostiles();
