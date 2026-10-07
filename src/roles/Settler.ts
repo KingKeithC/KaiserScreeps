@@ -76,28 +76,10 @@ export class Settler extends RoomRole<SettlerMemory> {
       }
 
     } else {
-      if (!task.currentTarget) {
-        const exitPos = creep.pos.findClosestByPath(task.pathToClaim[0].exit);
-        if (!exitPos) {
-          console.log(`[${this.manager.room.name}][${creep.name}]: Could not find path to ${task.pathToClaim[0].room} exit: ${task.pathToClaim[0].exit}...`);
-          return;
-        }
-        task.currentTarget = exitPos;
-        creep.memory.jobMemory = task;
-      } else if (task.currentTarget as RoomPosition) {
-        const pos = task.currentTarget as RoomPosition;
-        const moveRes = creep.MoveCreep(pos, { range: 0 });
-        if (moveRes === ERR_INVALID_TARGET) {
-          delete task.currentTarget;
-          creep.memory.jobMemory = task;
-          return;
-        } else if (moveRes !== 1) {
-          console.log(`[${this.manager.room.name}][${creep.name}]: To Target ${JSON.stringify(pos)}: ${moveRes}`);
-        }
-      } else if (task.currentTarget as DirectionConstant) {
-        console.log("Nudging...");
-        creep.move(task.currentTarget as DirectionConstant);
-      }
+      // Construct a dummy position in the centre of the room and move there
+      const pos = new RoomPosition(25, 25, task.claimedRoom);
+      const moveRes = creep.MoveCreep(pos, { range: 20 });
+      if (moveRes !== OK) console.log(`Moving to ${JSON.stringify(pos)} resulted in ${moveRes}`);
     }
   }
 }
