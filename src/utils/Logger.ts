@@ -70,7 +70,7 @@ export class Logger<T extends Loggable> {
 
     // If both creep and role are set, then unset role
     if (formatArgs.has("<creep>") && formatArgs.has("<role>"))
-      formatArgs.delete("<role>"); // The creep names contain the role name, so it's redundant
+      formatArgs.set("<role>", ""); // The creep names contain the role name, so it's redundant
 
     // Render the formating arguments into a single log line
     var finalLine = this._fmt;
