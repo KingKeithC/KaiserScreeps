@@ -8,6 +8,12 @@ const MainLoop = () => {
   Memory.rooms ??= {};
   Memory.creeps ??= {};
 
+  // Try to generate a pixel if we can
+  if (Game.cpu.bucket === 10000) {
+    const res = Game.cpu.generatePixel();
+    if (res === OK) console.log(`!!! Generated a pixel :)`);
+  }
+
   // Get all rooms I can access
   const Rooms: RoomExtra[] = Object.values(Game.rooms).map(c => new RoomExtra(c));
   for (const m of Rooms) m.OnTick();

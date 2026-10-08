@@ -167,49 +167,41 @@ export class RoomExtra {
 
   OnTick() {
     // Any Room
-
-    // Run all our roles in the room
-    for (const role of this.RoleInstances.values())
-      role.TickRole(); // Run it
-
-    if (Game.time % this.NotificationFrequency === 0) this.RoomStateReport();
-
     if (this.Status !== RoomControlStatus.Owned) {
-      console.log(`[${this.room}]: Not owned: ${this.Status}.`);
+      if (Game.time % this.NotificationFrequency === 0)
+        console.log(`[${this.room}]: Not owned: ${this.Status}.`);
       return;
     }
 
     // Owned room
 
-    this.CallOutHostiles();
+    // Run each tower in the room
+    if (!this.DisableTowers)
+      for (const tower of this.Towers)
+        this.TickTower(tower as StructureTower);
 
-    // Handle events, if not disabled
+    // Run all our creeps/roles assigned to the room
+    for (const role of this.RoleInstances.values())
+      role.TickRole();
+
+    // Periodically print a status report about the room
+    if (Game.time % this.NotificationFrequency === 0)
+      this.RoomStateReport();
+
+    // Handle events
     if (!this.DisableEvents) {
       this.ProcessEventsLastTick();
 
-      if (Game.cpu.bucket === 10000) {
-        const res = Game.cpu.generatePixel();
-        console.log(`!!! Invoked Game.cpu.generatePixel() resulting in ${res}.`);
-        this.room.memory.recentEvents.push(({
-          event: `Generate Pixel ${res}`,
-          summary: `Generate Pixel ${res}`,
-          time: Game.time,
-          value: null,
-        }));
-      }
-
-      if (Game.time % this.EventReportingFrequencyTicks === 0) this.PrintEventSummary();
+      if (Game.time % this.EventReportingFrequencyTicks === 0)
+        this.PrintEventSummary();
     }
 
     // Build any designated roads
     this.BuildRoads();
 
-    // Run each tower in the room
-    for (const tower of this.Towers)
-      if (!this.DisableTowers)
-        this.TickTower(tower as StructureTower);
-
-    if (this.EnableVisuals && this.EnableRepairOverlay) this.DrawRepairOverlay();
+    // Visuals
+    if (this.EnableVisuals && this.EnableRepairOverlay)
+      this.DrawRepairOverlay();
   }
 
   RoomStateReport(): void {
@@ -224,9 +216,26 @@ export class RoomExtra {
       const globalCount = ` | ${inst.CreepsInRole.length}/${inst.GlobalCount}`;
       msg += ` [${name} ${roomCount}${inst.GlobalCount < 0 ? "" : globalCount}]`;
     }
+
+    const hostiles = this.room.find(FIND_HOSTILE_CREEPS).map(c => ({
+      owner: c.owner.username,
+      name: c.name,
+      bodyCost: CreepExtra.BodyCost(c.body.map(p => p.type)),
+      partCounts: c.body.reduce((counts, part) => {
+        counts[part.type] = (counts[part.type] ?? 0) + 1;
+        return counts;
+      }, {} as Record<string, number>),
+    }));
+
+    if (hostiles.length) {
+      msg += `\nHOSTILES ${hostiles.length} :::`;
+      for (const h of hostiles) msg += `\n\t` + JSON.stringify(h);
+    }
+
     msg += "\nGLOBAL RESOURCES :::";
     for (const name of Array.from(Object.keys(Game.resources)).sort())
       msg += ` [${name}: ${Game.resources[name]}]`;
+
     console.log(msg);
   }
 
@@ -285,26 +294,6 @@ export class RoomExtra {
 
     // Wipe the event log
     this.room.memory.recentEvents = [];
-  }
-
-  CallOutHostiles() {
-    const hostiles = this.room.find(FIND_HOSTILE_CREEPS);
-    if (Game.time % this.NotificationFrequency === 0 && hostiles.length > 0) {
-      const hostileDetails: HostileInfo[] = hostiles.map(c => ({
-        owner: c.owner.username,
-        name: c.name,
-        bodyCost: CreepExtra.BodyCost(c.body.map(p => p.type)),
-        partCounts: c.body.reduce((counts, part) => {
-          counts[part.type] = (counts[part.type] ?? 0) + 1;
-          return counts;
-        }, {} as Record<string, number>),
-      }));
-      const msg = `[${this.room}] !!! ${hostiles.length} hostiles spotted: ${JSON.stringify(hostileDetails)}`;
-      console.log(msg);
-      if (hostiles.length > this.HostileNotificationThreshold) {
-        Game.notify(`${Game.time}: More than ${this.HostileNotificationThreshold} hostiles spotted in ${this.room.name}:\n\n${msg}!`);
-      }
-    }
   }
 
   EventItemToSummary(item: EventItem): string {
