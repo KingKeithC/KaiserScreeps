@@ -204,9 +204,17 @@ export class RoomExtra {
   }
 
   RoomStateReport(): void {
-    var msg = `${this.room.name} REPORT ::: `;
-    const roleNames = sortBy(Object.keys(this.RoleInstances));
-    for (const name of roleNames) msg += `[${name}:${this.RoleInstances.get(name)?.CreepsInRoomAndRole}/${this.RoleInstances.get(name)?.CountPerRoom}|${this.RoleInstances.get(name)?.CreepsInRole}/${this.RoleInstances.get(name)?.GlobalCount}]`;
+    var msg = `T${Game.time} ROOM ${this.room.name} REPORT ::: ${this.RoleInstances.size} Roles`;
+    for (const name of Array.from(this.RoleInstances.keys()).sort()) {
+      const inst = this.RoleInstances.get(name);
+      if (!inst) {
+        console.log(`No instance for ${name}`);
+        continue;
+      }
+      const roomCount = `${inst.CreepsInRoomAndRole.length}/${inst.CountPerRoom}`;
+      const globalCount = ` | ${inst.CreepsInRole.length}/${inst.GlobalCount}`;
+      msg += ` [${name} ${roomCount}${inst.GlobalCount < 0 ? "" : globalCount}]`;
+    }
     console.log(msg);
   }
 
