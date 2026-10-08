@@ -22,6 +22,8 @@ declare global {
     enableRepairOverlay?: boolean,
     attackHostiles: boolean,
     disableWarriors: boolean,
+    disableTowers: boolean,
+    disableTowerAttacks: boolean,
     towerAttackRange: number,
     disableEvents?: boolean,
     recentEvents: EventSummary[],
@@ -75,6 +77,8 @@ export class RoomExtra {
   get EnableRepairOverlay(): boolean { return this.room.memory.enableRepairOverlay ?? false; }
   get AttackHostiles(): boolean { return this.room.memory.attackHostiles ?? true; }
   get DisableWarriors(): boolean { return this.room.memory.disableWarriors ?? false; }
+  get DisableTowers(): boolean { return this.room.memory.disableTowers ?? false; }
+  get DisableTowerAttacks(): boolean { return this.room.memory.disableTowerAttacks ?? false; }
   get TowerAttackRange(): number { return this.room.memory.towerAttackRange ?? 20; }
   get TowerCriticalSupplyRatio(): number { return this.room.memory.towerCriticalSupplyRatio ?? 0.75; }
   get DisableEvents(): boolean { return this.room.memory.disableEvents ?? false; }
@@ -198,7 +202,8 @@ export class RoomExtra {
 
     // Run each tower in the room
     for (const tower of this.Towers)
-      this.TickTower(tower as StructureTower);
+      if (!this.DisableTowers)
+        this.TickTower(tower as StructureTower);
 
     if (this.EnableVisuals && this.EnableRepairOverlay) this.DrawRepairOverlay();
   }
@@ -393,21 +398,24 @@ export class RoomExtra {
     return null;
   }
 
-  TickTower(t: StructureTower) {
-    const supplyRatio = t.store.getUsedCapacity(RESOURCE_ENERGY) / t.store.getCapacity(RESOURCE_ENERGY);
-    if (!t.isActive || !supplyRatio) return; // RCL or Energy too low to work
+  TickTower(tower: StructureTower) {
+    const supplyRatio = tower.store.getUsedCapacity(RESOURCE_ENERGY) / tower.store.getCapacity(RESOURCE_ENERGY);
+    if (!tower.isActive || !supplyRatio) return; // RCL or Energy too low to work
 
     // Critical Tasks - Always performed regardless of ener
 
-    // Find lowest health hostile in range
-    if (this.AttackHostiles) {
-      const weakestHostile = t.pos
-        .findInRange(this.room.find(FIND_HOSTILE_CREEPS), this.TowerAttackRange)
+    // Attacks
+    const hostiles = this.room.find(FIND_HOSTILE_CREEPS);
+    if (hostiles.length && this.AttackHostiles && !this.DisableTowerAttacks) {
+      this.room.visual.circle(tower.pos, { radius: this.TowerAttackRange, stroke: Colours.ATTACK_RANGE, opacity: 0.1, strokeWidth: 0.5 });
+
+      // Find lowest health hostile in range
+      const weakestHostile = tower.pos
+        .findInRange(hostiles, this.TowerAttackRange)
         .sort((b, a) => (a.hits / a.hitsMax) - (b.hits / b.hitsMax))
         .pop();
       if (weakestHostile) {
-        this.room.visual.circle(t.pos, { radius: this.TowerAttackRange, stroke: Colours.ATTACK_RANGE, opacity: 0.1, strokeWidth: 0.5 });
-        const res = t.attack(weakestHostile);
+        const res = tower.attack(weakestHostile);
         console.log(`!!! Tower Attacked ${weakestHostile.name} from $${weakestHostile.owner.username} (${weakestHostile.hits}/${weakestHostile.hits}) with result ${res}!`);
         return;
       }
@@ -419,14 +427,14 @@ export class RoomExtra {
       .sort((b, a) => (a.hits / a.hitsMax) - (b.hits / b.hitsMax))
       .pop();
     if (weakestFriendly) {
-      const res = t.heal(weakestFriendly);
+      const res = tower.heal(weakestFriendly);
       console.log(`Tower Healed ${weakestFriendly.name} (${weakestFriendly.hits}/${weakestFriendly.hitsMax}) with result ${res}!`);
       return;
     }
 
     if (supplyRatio >= this.TowerCriticalSupplyRatio) {
       const needRepair = this.FindRepairByPriority();
-      if (needRepair) t.repair(needRepair);
+      if (needRepair) tower.repair(needRepair);
     }
   }
 
