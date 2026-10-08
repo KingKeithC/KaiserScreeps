@@ -416,7 +416,7 @@ export class RoomExtra {
         .pop();
       if (weakestHostile) {
         const res = tower.attack(weakestHostile);
-        console.log(`!!! Tower Attacked ${weakestHostile.name} from $${weakestHostile.owner.username} (${weakestHostile.hits}/${weakestHostile.hits}) with result ${res}!`);
+        // console.log(`!!! Tower Attacked ${weakestHostile.name} from $${weakestHostile.owner.username} (${weakestHostile.hits}/${weakestHostile.hits}) with result ${res}!`);
         return;
       }
     }
@@ -428,7 +428,7 @@ export class RoomExtra {
       .pop();
     if (weakestFriendly) {
       const res = tower.heal(weakestFriendly);
-      console.log(`Tower Healed ${weakestFriendly.name} (${weakestFriendly.hits}/${weakestFriendly.hitsMax}) with result ${res}!`);
+      // console.log(`Tower Healed ${weakestFriendly.name} (${weakestFriendly.hits}/${weakestFriendly.hitsMax}) with result ${res}!`);
       return;
     }
 
