@@ -54,16 +54,19 @@ interface HostileInfo {
 
 export class RoomExtra {
   static StatusOf(room: Room): RoomControlStatus {
-    if (room.controller?.my)
-      return RoomControlStatus.Owned;
-
-    if (room.controller == undefined)
+    if (room.controller == undefined || room.controller == null)
       return RoomControlStatus.Neutral;
 
-    if ("Claimed" in room.find(FIND_FLAGS).keys())
+    if (room.controller.my)
+      return RoomControlStatus.Owned;
+
+    const claimedRooms = Object.entries(Game.flags)
+      .filter(e => e[0].startsWith("Claim"))
+      .map(e => e[1].pos.roomName);
+    if (room.name in claimedRooms)
       return RoomControlStatus.Claimed;
 
-    // Assume hostile by default
+    // Assume hostile otherwise
     return RoomControlStatus.Hostile;
   }
 
@@ -72,6 +75,8 @@ export class RoomExtra {
   constructor(room: Room) {
     this.room = room;
   }
+
+  get Name(): string { return this.room.name; }
 
   get LastSeen(): number { return this.room.memory.lastSeen ?? 0; }
   get Status(): RoomControlStatus { return this.room.memory.status ?? RoomExtra.StatusOf(this.room); }
@@ -90,7 +95,28 @@ export class RoomExtra {
   get NotificationFrequency(): number { return this.room.memory.notificationFrequency ?? 10; }
   get HostileNotificationThreshold(): number { return this.room.memory.hostileNotificationThreshold ?? 4; }
 
+  set LastSeen(value: number) { this.room.memory.lastSeen = value; }
+  set Status(value: RoomControlStatus) { this.room.memory.status = value; }
+  set EnableVisuals(value: boolean) { this.room.memory.enableVisuals = value; }
+  set EnableRepairOverlay(value: boolean) { this.room.memory.enableRepairOverlay = value; }
+  set AttackHostiles(value: boolean) { this.room.memory.attackHostiles = value; }
+  set DisableWarriors(value: boolean) { this.room.memory.disableWarriors = value; }
+  set DisableTowers(value: boolean) { this.room.memory.disableTowers = value; }
+  set DisableTowerAttacks(value: boolean) { this.room.memory.disableTowerAttacks = value; }
+  set TowerAttackRange(value: number) { this.room.memory.towerAttackRange = value; }
+  set TowerCriticalSupplyRatio(value: number) { this.room.memory.towerCriticalSupplyRatio = value; }
+  set DisableEvents(value: boolean) { this.room.memory.disableEvents = value; }
+  set RecentEvents(value: EventSummary[]) { this.room.memory.recentEvents = value; }
+  set EventReportingFrequencyTicks(value: number) { this.room.memory.eventReportingFrequencyTicks = value; }
+  set MaxEventLogPerRoom(value: number) { this.room.memory.maxEventLogPerRoom = value; }
+  set NotificationFrequency(value: number) { this.room.memory.notificationFrequency = value; }
+  set HostileNotificationThreshold(value: number) { this.room.memory.hostileNotificationThreshold = value; }
+
   LastSpawnTick(roleName: string): number { return (this.room.memory.lastSpawnTick ?? {})[roleName] ?? 0; }
+  SetLastSpawnTick(roleName: string, value: number): void {
+    this.room.memory.lastSpawnTick ??= {};
+    this.room.memory.lastSpawnTick[roleName] = value;
+  }
   Quota(roleName: string) { return (this.room.memory.quotas ?? {})[roleName] ?? -1; }
 
   // Search the spaces around each source, and return
@@ -194,8 +220,8 @@ export class RoomExtra {
     }
 
     // Update Status, and Last seen on unowned rooms
-    this.room.memory.lastSeen = Game.time;
-    this.room.memory.status = RoomExtra.StatusOf(this.room);
+    this.LastSeen = Game.time;
+    this.Status = RoomExtra.StatusOf(this.room);
   }
 
   TickOwnedRoom(): void {
@@ -293,7 +319,7 @@ export class RoomExtra {
     var summary = "";
 
     // Iterate the events to summarize them
-    for (const e of this.room.memory.recentEvents) {
+    for (const e of this.RecentEvents) {
       grandTotalEventCount++;
 
       // Get current & calculate new group entries
@@ -330,7 +356,7 @@ export class RoomExtra {
     // Game.notify(summary, 60 * 6);
 
     // Wipe the event log
-    this.room.memory.recentEvents = [];
+    this.RecentEvents = [];
   }
 
   EventItemToSummary(item: EventItem): string {
@@ -358,7 +384,7 @@ export class RoomExtra {
 
     // Take the last `this.MaxEventLogPerRoom` and assign to
     // recentEvents room memory.
-    this.room.memory.recentEvents = this.RecentEvents.concat(newEvents).slice(-this.MaxEventLogPerRoom);
+    this.RecentEvents = this.RecentEvents.concat(newEvents).slice(-this.MaxEventLogPerRoom);
 
     const myCreepsIdsInRoom = this.AssignedCreeps.map(c => c.id);
     const newAttacksOnMyCreeps = events

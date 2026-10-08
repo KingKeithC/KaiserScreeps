@@ -85,7 +85,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
     if (this.IsTaskComplete(creep, currentTask)) {
       const newTask = this.Reassign(creep);
       console.log(`${this.manager.room} Reassigned ${creep.name.padEnd(30)} ${JSON.stringify(currentTask).padEnd(51)} -> ${JSON.stringify(newTask)}`);
-      this.manager.room.memory.recentEvents?.push({
+      this.manager.RecentEvents = this.manager.RecentEvents.concat({
         time: Game.time,
         event: `Worker Reassign ${currentTask.action} -> ${newTask.action}`,
         summary: `Worker Reassign ${currentTask.action} -> ${newTask.action}`,

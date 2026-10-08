@@ -73,7 +73,7 @@ export abstract class RoomRole<MemoryShape extends Object> {
     const timeSinceLastSpawn = Game.time - lastSpawn - this.SpawnTickOffet;
     if (timeSinceLastSpawn > this.SpawnRate || this.manager.room.find(FIND_MY_CREEPS).length === 0) {
       this.DoSpawns();
-      this.manager.room.memory.lastSpawnTick[this.RoleName] = Game.time; // Reset
+      this.manager.SetLastSpawnTick(this.RoleName, Game.time);
     }
 
     for (const creep of this.CreepsInRoomAndRole) {
