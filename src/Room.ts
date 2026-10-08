@@ -113,11 +113,25 @@ export class RoomExtra {
   set HostileNotificationThreshold(value: number) { this.room.memory.hostileNotificationThreshold = value; }
 
   LastSpawnTick(roleName: string): number { return (this.room.memory.lastSpawnTick ?? {})[roleName] ?? 0; }
+
   SetLastSpawnTick(roleName: string, value: number): void {
     this.room.memory.lastSpawnTick ??= {};
     this.room.memory.lastSpawnTick[roleName] = value;
   }
-  Quota(roleName: string) { return (this.room.memory.quotas ?? {})[roleName] ?? -1; }
+
+  Quota(roleName: string) {
+    // Return the custom quota from room memory if there is one.
+    const overridenQuota = (this.room.memory.quotas ?? {})[roleName];
+    if (overridenQuota) return overridenQuota;
+
+    // Try to get the role instance, and return -1 if we can't
+    const role = this.RoleInstances.get(roleName);
+    if (!role) return -1;
+
+    // Return the quota from the role instance
+    return role.CountPerRoom;
+
+  }
 
   // Search the spaces around each source, and return
   // the number of free spaces which a Miner creep could fill.

@@ -148,11 +148,8 @@ export abstract class RoomRole<MemoryShape extends Object> {
       }
     }
 
-    // determine room quota, from class by default, or memory if set there
-    var roomQuota = this.CountPerRoom;
-    if (this.manager.Quota(this.RoleName) >= 0) roomQuota = this.manager.Quota(this.RoleName);
-
     // or room quota met
+    var roomQuota = this.manager.Quota(this.RoleName);
     const roomCount = this.CreepsInRoomAndRole.length;
     if (roomCount >= roomQuota) {
       console.log(`${this.manager}[${this.RoleName}]: Room Quota Met ${roomCount}/${roomQuota}`);
