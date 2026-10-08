@@ -382,26 +382,27 @@ export class RoomExtra {
     }
   }
 
-  FindRepairByPriority(): AnyStructure | null {
-    // Weakest Walls/Ramparts
-    const wallsRamparts = this.room.find(FIND_STRUCTURES, { filter: s => s.structureType === STRUCTURE_RAMPART || s.structureType === STRUCTURE_WALL });
-    const wallLike = wallsRamparts
-      .filter(w => w.hits < w.hitsMax)
-      .sort((b, a) => (a.hits / a.hitsMax) - (b.hits / b.hitsMax)).pop();
-    if (wallLike) return wallLike;
+  // List of filter callback, health capacity to begin repair, and maxRepairers, descending order.
+  RepairPriorities: [((s: AnyStructure) => boolean), number, number][] = [
+    [(s => s instanceof StructureContainer || s instanceof StructurePortal), 0.9, 2],
+    [(s => !(s instanceof StructureContainer || s instanceof StructurePortal || s instanceof StructureRoad || s instanceof StructureWall || s instanceof StructureRampart) && s.my), 0.9, 2],
+    [(s => s instanceof StructureRoad), 0.75, 1],
+    [(s => s instanceof StructureWall || s instanceof StructureRampart), 0.25, 1],
+    [(_ => true), 0.25, 1],
+  ];
 
-    // Weakest Owned Structure (except ramparts)
-    const allStruct = this.room.find(FIND_MY_STRUCTURES, { filter: s => s.structureType !== STRUCTURE_RAMPART })
-      .filter(s => s.hits < s.hitsMax)
-      .sort((b, a) => (a.hits / a.hitsMax) - (b.hits / b.hitsMax)).pop();
-    if (allStruct) return allStruct;
+  FindRepairByPriorityAndDistance(pos: RoomPosition): AnyStructure | null {
+    const repairs = this.room.find(FIND_STRUCTURES, { filter: s => s.hits < s.hitsMax });
+    var priorityIndex = 0;
+    for (const [p, repairAt, _] of this.RepairPriorities) {
+      // Get candidates and group by number of suppliers
+      const needsRepair = repairs.filter(s => p(s) && (s.hits / s.hitsMax) < repairAt);
 
-    // Weakest roads
-    const road = this.room.find(FIND_STRUCTURES, { filter: s => s.structureType === STRUCTURE_ROAD })
-      .filter(r => r.hits < r.hitsMax)
-      .sort((b, a) => (a.hits / a.hitsMax) - (b.hits / b.hitsMax)).pop();
-    if (road) return road;
+      if (needsRepair.length > 0) return pos.findClosestByPath(needsRepair, { ignoreCreeps: true });
+      priorityIndex++;
+    }
 
+    // console.log(`No repairs found, searched ${priorityIndex} priority groups.`);
     return null;
   }
 
@@ -439,8 +440,9 @@ export class RoomExtra {
       return;
     }
 
+    // If we have enough energy, repair the most damaged structure in the room
     if (supplyRatio >= this.TowerCriticalSupplyRatio) {
-      const needRepair = this.FindRepairByPriority();
+      const needRepair = this.FindRepairByPriorityAndDistance(tower.pos);
       if (needRepair) tower.repair(needRepair);
     }
   }

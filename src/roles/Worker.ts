@@ -62,15 +62,6 @@ export class WorkerI extends RoomRole<WorkerTask> {
 
   MaxRepairPerRoom = 3;
 
-  // List of filter callback, health capacity to begin repair, and maxRepairers, descending order.
-  RepairPriorities: [((s: AnyStructure) => boolean), number, number][] = [
-    [(s => s instanceof StructureContainer || s instanceof StructurePortal), 0.9, 2],
-    [(s => !(s instanceof StructureContainer || s instanceof StructurePortal || s instanceof StructureRoad || s instanceof StructureWall || s instanceof StructureRampart) && s.my), 0.9, 2],
-    [(s => s instanceof StructureRoad), 0.75, 1],
-    [(s => s instanceof StructureWall || s instanceof StructureRampart), 0.25, 1],
-    [(_ => true), 0.25, 1],
-  ];
-
   // At least 2, but no more than 1/4 of the number of sites
   get MaxConstructionWorkers() {
     const max = Math.floor(this.manager.room.find(FIND_MY_CONSTRUCTION_SITES).length / 4);
@@ -182,7 +173,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
     if (towerNeedingEnergy) return new WorkerTask(WorkerAction.Supply, towerNeedingEnergy.id);
 
     // Structures in need of repair
-    const damaged = this.manager.FindRepairByPriority();
+    const damaged = this.FindIdealRepair(creep);
     if (damaged) return new WorkerTask(WorkerAction.Repair, damaged.id);
 
     // Default
@@ -209,7 +200,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
 
     // If not enough repair workers, find nearest repair
     if (this.WorkerActionCount(WorkerAction.Repair) < this.MaxRepairPerRoom) {
-      const repair = this.FindRepairByPriorityAndPath(creep);
+      const repair = this.FindIdealRepair(creep);
       if (repair) return new WorkerTask(WorkerAction.Repair, repair.id);
       else console.log(`[${this.manager.room}]${creep}: No repairs needed!`);
     }
@@ -302,7 +293,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
     return null;
   }
 
-  FindRepairByPriorityAndPath(supplier: CreepExtra): AnyStructure | undefined | null {
+  FindIdealRepair(supplier: CreepExtra): AnyStructure | undefined | null {
     const inProgressRepairTasks = this.CurrentlyAssignedTasks.filter(t => t.action === WorkerAction.Repair);
 
     // Group by target and return count of group
@@ -314,7 +305,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
 
     const repairs = this.manager.room.find(FIND_STRUCTURES, { filter: s => s.hits < s.hitsMax });
     var priorityIndex = 0;
-    for (const [p, repairAt, maxRepairs] of this.RepairPriorities) {
+    for (const [p, repairAt, maxRepairs] of this.manager.RepairPriorities) {
       // Get candidates and group by number of suppliers
       const needsRepair = repairs
         .map(s => ({ site: s, count: targetsByCount.get(s.id) ?? 0 }))
