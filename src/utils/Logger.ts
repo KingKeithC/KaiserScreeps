@@ -39,7 +39,7 @@ export class Logger<T extends Loggable> {
   ) {
     this._wrapped = wrapped;
     this._level = opts?.level ?? LogLevel.INFO;
-    this._fmt = opts?.format ?? "<level><room><role><creep>: <msg>";
+    this._fmt = opts?.format ?? "<level><room><role><creep>%(PadEnd:60): <msg>";
     this._commonArgs = opts?.formatArgs ?? {};
   }
 
@@ -72,9 +72,44 @@ export class Logger<T extends Loggable> {
     if (formatArgs.has("<creep>") && formatArgs.has("<role>"))
       formatArgs.set("<role>", ""); // The creep names contain the role name, so it's redundant
 
-    // Render the formating arguments into a single log line
+    // Render the FormatProperties into the log line.
     var finalLine = this._fmt;
     for (const [key, value] of formatArgs.entries()) finalLine = finalLine.replace(key, value.toString());
+
+    // Handle padding specifiers
+    const maxAttempts = 5;
+    var attempts = 0;
+    while (finalLine.includes('%') && attempts < maxAttempts) {
+      // This shouldn't be needed anymore, but during development
+      // this loop burned out the CPU a few times, so it is left here as a guard.
+      attempts++;
+
+      const starts = finalLine.indexOf('%');
+      const sectionToAction = finalLine.slice(0, starts);
+      const paramEnd = finalLine.indexOf(')', starts);
+      const rest = finalLine.slice(paramEnd + 1);
+      const params = finalLine.slice(starts + 2, paramEnd);
+      const action = params.split(":")[0];
+      const qty = Number.parseInt(params.split(":")[1]);
+
+      // console.log(JSON.stringify({
+      //   attempts: attempts,
+      //   starts: starts,
+      //   sectionToAction: sectionToAction,
+      //   paramEnd: paramEnd,
+      //   rest: rest,
+      //   params: params,
+      //   action: action,
+      //   qty: qty,
+      //   finalLine: finalLine,
+      // }));
+
+      // Pad the line and assign back to the string we will print
+      if (action === "PadStart")
+        finalLine = sectionToAction.padStart(qty) + rest;
+      else if (action === "PadEnd")
+        finalLine = sectionToAction.padEnd(qty) + rest;
+    }
 
     // Log it.
     console.log(finalLine);
