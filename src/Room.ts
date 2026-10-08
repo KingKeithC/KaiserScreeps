@@ -380,14 +380,17 @@ export class RoomExtra {
     [(_ => true), 0.75, 1],
   ];
 
-  FindRepairByPriorityAndDistance(pos: RoomPosition): AnyStructure | null {
+  FindRepairByPriorityAndStrength(pos: RoomPosition): AnyStructure | null {
     const repairs = this.room.find(FIND_STRUCTURES, { filter: s => s.hits < s.hitsMax });
     var priorityIndex = 0;
     for (const [p, repairAt, _] of this.RepairPriorities) {
       // Get candidates and group by number of suppliers
-      const needsRepair = repairs.filter(s => p(s) && (s.hits / s.hitsMax) < repairAt);
+      const needsRepair = repairs
+        .filter(s => p(s) && (s.hits / s.hitsMax) < repairAt)
+        .sort((b, a) => (a.hits / a.hitsMax) - (b.hits / b.hitsMax))
+        .pop();
 
-      if (needsRepair.length > 0) return pos.findClosestByPath(needsRepair, { ignoreCreeps: true });
+      if (needsRepair) return needsRepair;
       priorityIndex++;
     }
 
@@ -431,7 +434,7 @@ export class RoomExtra {
 
     // If we have enough energy, repair the most damaged structure in the room
     if (supplyRatio >= this.TowerCriticalSupplyRatio) {
-      const needRepair = this.FindRepairByPriorityAndDistance(tower.pos);
+      const needRepair = this.FindRepairByPriorityAndStrength(tower.pos);
       if (needRepair) tower.repair(needRepair);
     }
   }
