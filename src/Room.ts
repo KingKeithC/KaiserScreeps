@@ -328,7 +328,7 @@ export class RoomExtra {
     for (const name of Array.from(Object.keys(Game.resources)).sort())
       msg += ` [${name}: ${Game.resources[name]}]`;
 
-    console.log(msg);
+    this.log.info(msg);
   }
 
   DrawRepairOverlay(): void {
@@ -381,7 +381,7 @@ export class RoomExtra {
     summary += `\n================================= ${grandTotalEventCount.toString().padStart(5)} TOTAL EVENTS ==================================`;
 
     // Print it
-    console.log(summary);
+    this.log.info(summary);
     // Game.notify(summary, 60 * 6);
 
     // Wipe the event log
@@ -509,7 +509,7 @@ export class RoomExtra {
         .pop();
       if (weakestHostile) {
         const res = tower.attack(weakestHostile);
-        // console.log(`!!! Tower Attacked ${weakestHostile.name} from $${weakestHostile.owner.username} (${weakestHostile.hits}/${weakestHostile.hits}) with result ${res}!`);
+        this.log.debug(`!!! Tower Attacked ${weakestHostile.name} from $${weakestHostile.owner.username} (${weakestHostile.hits}/${weakestHostile.hits}) with result ${res}!`);
         return;
       }
     }
@@ -521,7 +521,7 @@ export class RoomExtra {
       .pop();
     if (weakestFriendly) {
       const res = tower.heal(weakestFriendly);
-      // console.log(`Tower Healed ${weakestFriendly.name} (${weakestFriendly.hits}/${weakestFriendly.hitsMax}) with result ${res}!`);
+      this.log.debug(`Tower Healed ${weakestFriendly.name} (${weakestFriendly.hits}/${weakestFriendly.hitsMax}) with result ${res}!`);
       return;
     }
 

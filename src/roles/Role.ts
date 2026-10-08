@@ -27,7 +27,7 @@ export abstract class RoomRole<MemoryShape extends Object> {
   readonly manager: RoomExtra;
   constructor(manager: RoomExtra) { this.manager = manager; }
 
-  private readonly log: Logger<RoomRole<MemoryShape>> = new Logger(this);
+  protected readonly log: Logger<RoomRole<MemoryShape>> = new Logger(this);
 
   // Cached fields generated on first access.
   private _CreepsInRole?: CreepExtra[];

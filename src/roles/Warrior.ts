@@ -42,7 +42,7 @@ export class Warrior extends RoomRole<WarriorMemory> {
     if (!mem.targetCreep) {
       const tgt = this.FindLeastTargtedWeakestHostile();
       if (tgt == null || tgt == undefined) {
-        // console.log("No hostiles found...");
+        this.log.debug("No hostiles found...");
         this.Idle(creep);
         return;
       }
@@ -52,7 +52,7 @@ export class Warrior extends RoomRole<WarriorMemory> {
 
     const target = Game.getObjectById(mem.targetCreep);
     if (!target) {
-      console.log(`Target is inaccessible! Resetting...`);
+      this.log.info(`Target is inaccessible! Resetting...`);
       creep.memory.jobMemory = {};
       return;
     }

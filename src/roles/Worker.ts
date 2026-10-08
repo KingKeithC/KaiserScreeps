@@ -84,7 +84,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
   TickCreep(creep: CreepExtra, currentTask: WorkerTask): void {
     if (this.IsTaskComplete(creep, currentTask)) {
       const newTask = this.Reassign(creep);
-      console.log(`${this.manager.room} Reassigned ${creep.name.padEnd(30)} ${JSON.stringify(currentTask).padEnd(51)} -> ${JSON.stringify(newTask)}`);
+      this.log.info(`${this.manager.room} Reassigned ${creep.name.padEnd(30)} ${JSON.stringify(currentTask).padEnd(51)} -> ${JSON.stringify(newTask)}`);
       this.manager.RecentEvents = this.manager.RecentEvents.concat({
         time: Game.time,
         event: `Worker Reassign ${currentTask.action} -> ${newTask.action}`,
@@ -177,7 +177,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
     if (damaged) return new WorkerTask(WorkerAction.Repair, damaged.id);
 
     // Default
-    console.log(`${this.manager.room.name}${creep.name}: FindWartimeSpendingTask no tasks found!`);
+    this.log.info(`${this.manager.room.name}${creep.name}: FindWartimeSpendingTask no tasks found!`);
     return new WorkerTask(WorkerAction.Idle);
   }
 
@@ -202,14 +202,14 @@ export class WorkerI extends RoomRole<WorkerTask> {
     if (this.WorkerActionCount(WorkerAction.Repair) < this.MaxRepairPerRoom) {
       const repair = this.FindIdealRepairByStrength(creep);
       if (repair) return new WorkerTask(WorkerAction.Repair, repair.id);
-      else console.log(`[${this.manager.room}]${creep}: No repairs needed!`);
+      else this.log.info(`[${this.manager.room}]${creep}: No repairs needed!`);
     }
 
     // Nothing else to do so just upgrade forever
     if (this.ControllerUpgradeTask) return this.ControllerUpgradeTask;
 
     // Default
-    console.log(`${this.manager.room.name}${creep.name}: FindSpendingTask no tasks found!`);
+    this.log.info(`${this.manager.room.name}${creep.name}: FindSpendingTask no tasks found!`);
     return new WorkerTask(WorkerAction.Idle);
   }
 
@@ -222,7 +222,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
       const distance = creep.pos.findPathTo(res, { ignoreCreeps: true }).length;
       const approxAmtRemaining = Math.ceil(res.amount / 1000) * distance;
       const collect = approxAmtRemaining > this.IgnoreDroppedResourcesLessThan;
-      // console.log(`${collect ? "Collecting" : "Ignoring"} Dropped ${res} that is ${distance} steps away, currently has ${res.amount} remaining, we expect ${approxAmtRemaining} by the time we get there.`);
+      this.log.debug(`${collect ? "Collecting" : "Ignoring"} Dropped ${res} that is ${distance} steps away, currently has ${res.amount} remaining, we expect ${approxAmtRemaining} by the time we get there.`);
       if (collect) return new WorkerTask(WorkerAction.Pickup, res.id as Id<Resource<RESOURCE_ENERGY>>);
     }
 
@@ -248,7 +248,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
     if (source) return new WorkerTask(WorkerAction.Mine, source.id);
 
     // Nothing to do without energy
-    console.log(`${this.manager.room.name}${creep.name}: FindGatheringTask no tasks found!`);
+    this.log.info(`${this.manager.room.name}${creep.name}: FindGatheringTask no tasks found!`);
     return new WorkerTask(WorkerAction.Idle);
   }
 
@@ -260,7 +260,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
       if (group.length) return pos.findClosestByPath(group, { ignoreCreeps: true });
       priorityIndex++;
     }
-    // console.log(`No constructions found, searched ${priorityIndex} priority groups.`);
+    this.log.debug(`No constructions found, searched ${priorityIndex} priority groups.`);
     return null;
   }
 
@@ -289,7 +289,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
       priorityIndex++;
     }
 
-    // console.log(`No targets needing supply found, searched ${priorityIndex} priority groups.`);
+    this.log.debug(`No targets needing supply found, searched ${priorityIndex} priority groups.`);
     return null;
   }
 
@@ -318,7 +318,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
       priorityIndex++;
     }
 
-    // console.log(`No repairs found, searched ${priorityIndex} priority groups.`);
+    this.log.debug(`No repairs found, searched ${priorityIndex} priority groups.`);
     return null;
   }
 
@@ -345,7 +345,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
       priorityIndex++;
     }
 
-    // console.log(`No repairs found, searched ${priorityIndex} priority groups.`);
+    this.log.debug(`No repairs found, searched ${priorityIndex} priority groups.`);
     return null;
   }
 
@@ -378,7 +378,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
     if (hasEnergy && hasEnergy instanceof Creep) return hasEnergy.transfer(creep, RESOURCE_ENERGY);
     else if (hasEnergy && hasEnergy instanceof StructureContainer) return creep.withdraw(hasEnergy, RESOURCE_ENERGY);
 
-    // console.log(`WithdrawFromEnergySources: Unknown source: ${hasEnergy}`);
+    this.log.debug(`WithdrawFromEnergySources: Unknown source: ${hasEnergy}`);
     return ERR_NOT_IN_RANGE;
   }
 
@@ -388,7 +388,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
       // Target may be null in this one case
       if (task.action === WorkerAction.Idle) return;
 
-      console.log(`[${this.manager.room}]${creep}: Act: ${creep} has null/undefined target in memory: ${task.target}`);
+      this.log.info(`[${this.manager.room}]${creep}: Act: ${creep} has null/undefined target in memory: ${task.target}`);
       return;
     }
 
@@ -402,47 +402,47 @@ export class WorkerI extends RoomRole<WorkerTask> {
       case (WorkerAction.Pickup): {
         const t = targetObject as Resource;
         result = creep.pickup(t);
-        if (result === OK) console.log(`[${this.manager.room}]${creep}: Act: Picked up ${t}.`);
+        if (result === OK) this.log.info(`[${this.manager.room}]${creep}: Act: Picked up ${t}.`);
         break;
       }
       case (WorkerAction.CollectEnergy): {
         result = this.WithdrawFromEnergySources(creep);
-        // if (result === OK) console.log(`[${this.manager.name}]${creep}: Act: Collected Energy from nearby source.`);
+        if (result === OK) this.log.debug(`[${this.manager.name}]${creep}: Act: Collected Energy from nearby source.`);
         break;
       }
       case (WorkerAction.UpgradeController):
       case (WorkerAction.MaintainController): {
         const t = targetObject as StructureController;
         result = creep.upgradeController(t);
-        // if (result === OK) console.log(`${this.room}${creep}: Act: Upgraded ${t} to RCL ${t.level} (${t.progress}/${t.progressTotal}) %${(t.progress / t.progressTotal * 100).toFixed(2)}.`);
+        if (result === OK) this.log.debug(`${this.manager.room}${creep}: Act: Upgraded ${t} to RCL ${t.level} (${t.progress}/${t.progressTotal}) %${(t.progress / t.progressTotal * 100).toFixed(2)}.`);
         break;
       }
       case (WorkerAction.Build): {
         const t = targetObject as ConstructionSite;
         result = creep.build(t);
-        // if (result === OK) console.log(`${this.room}${creep}: Act: Built ${t} (${t.progress}/${t.progressTotal}) %${(t.progress / t.progressTotal * 100).toFixed(2)}.`);
+        if (result === OK) this.log.debug(`${this.manager.room}${creep}: Act: Built ${t} (${t.progress}/${t.progressTotal}) %${(t.progress / t.progressTotal * 100).toFixed(2)}.`);
         break;
       }
       case (WorkerAction.Repair): {
         const t = targetObject as AnyOwnedStructure;
         result = creep.repair(t);
-        // if (result === OK) console.log(`${this.room}${creep}: Act: Repaired ${t} (${t.hits}/${t.hitsMax}) %${(t.hits / t.hitsMax * 100).toFixed(2)}.`);
+        if (result === OK) this.log.debug(`${this.manager.room}${creep}: Act: Repaired ${t} (${t.hits}/${t.hitsMax}) %${(t.hits / t.hitsMax * 100).toFixed(2)}.`);
         break;
       }
       case (WorkerAction.Supply): {
         const t = targetObject as AnyStoreStructure;
         result = creep.transfer(t, RESOURCE_ENERGY);
-        // if (result === OK) console.log(`${this.room}${creep}: Act: Supplied ${t}.`);
+        if (result === OK) this.log.debug(`${this.manager.room}${creep}: Act: Supplied ${t}.`);
         break;
       }
       case (WorkerAction.Mine): {
         const t = targetObject as Source;
         result = creep.harvest(t);
-        // if (result === OK) console.log(`${this.room}${creep}: Act: Mined ${t}.`);
+        if (result === OK) this.log.debug(`${this.manager.room}${creep}: Act: Mined ${t}.`);
         break;
       }
       default: {
-        console.log(`[${this.manager.room}]${creep}: Act: Unknown Action ${JSON.stringify(task)}.`);
+        this.log.info(`[${this.manager.room}]${creep}: Act: Unknown Action ${JSON.stringify(task)}.`);
         break;
       }
     }
@@ -474,7 +474,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
       }
       default: {
         // Generic print all
-        console.log(`[${this.manager.room}]${creep}: Act: Task ${JSON.stringify(task)} was not successful: ${result}`);
+        this.log.info(`[${this.manager.room}]${creep}: Act: Task ${JSON.stringify(task)} was not successful: ${result}`);
         return;
       }
     }
@@ -489,7 +489,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
     if (!targetObject && task.action === WorkerAction.Build)
       return true; // Builders can have stale objects so don't log an error
     else if (!targetObject) {
-      console.log(`[${this.manager.room}]${creep}: IsTaskComplete: Game.getObjectById of ${task.target} is null`);
+      this.log.info(`[${this.manager.room}]${creep}: IsTaskComplete: Game.getObjectById of ${task.target} is null`);
       return true;
     }
 
@@ -505,7 +505,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
         if (targetObject instanceof Creep) return targetObject.store.energy === 0;
         if (targetObject instanceof Resource && targetObject.resourceType === RESOURCE_ENERGY) return targetObject.amount > 0;
 
-        console.log(`[${this.manager.room}]${creep}: Assuming collection is complete: ${targetObject}`);
+        this.log.info(`[${this.manager.room}]${creep}: Assuming collection is complete: ${targetObject}`);
         return true;
       }
       case (WorkerAction.Pickup): {
@@ -536,7 +536,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
         return t.store.getFreeCapacity(RESOURCE_ENERGY) === 0;
       }
       default: {
-        console.log(`[${this.manager.room.name}]${creep}: IsTaskComplete: Unknown Task is complete: ${JSON.stringify(task)}`);
+        this.log.info(`[${this.manager.room.name}]${creep}: IsTaskComplete: Unknown Task is complete: ${JSON.stringify(task)}`);
         return true;
       }
     }
@@ -586,7 +586,7 @@ export class WorkerII extends WorkerI {
     if (allMiners.length)
       return true;
 
-    console.log("Not enough miners to spawn a worker > I.");
+    this.log.info("Not enough miners to spawn a worker > I.");
     return false;
   }
 }

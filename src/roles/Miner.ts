@@ -48,14 +48,14 @@ export class Miner extends RoomRole<MinerMemory> {
   TickCreep(creep: CreepExtra, mem: MinerMemory): void {
     if (!mem.sourceId) {
       mem.sourceId = this.LocateSource(creep);
-      console.log(`${this.manager.room.name}${creep}: Miner assigned to ${mem.sourceId}...`);
+      this.log.info(`${this.manager.room.name}${creep}: Miner assigned to ${mem.sourceId}...`);
       return;
     }
 
     const mineObj = Game.getObjectById(mem.sourceId);
     if (!mineObj) {
       mem.sourceId = this.LocateSource(creep);
-      console.log(`${this.manager.room.name}${creep}: Stored source is stale, refreshed to ${mem.sourceId}...`);
+      this.log.info(`${this.manager.room.name}${creep}: Stored source is stale, refreshed to ${mem.sourceId}...`);
       return;
     }
 
@@ -79,7 +79,7 @@ export class Miner extends RoomRole<MinerMemory> {
     if (selectedTarget instanceof Source) {
       if (mineObj.energy === 0) {
         creep.say("🏜️");
-        if (Game.time % this.NotificationInterval === 0) console.log(`${this.manager.room.name}${creep}: Source is out of energy...`);
+        if (Game.time % this.NotificationInterval === 0) this.log.info(`${this.manager.room.name}${creep}: Source is out of energy...`);
       } else
         creep.harvest(mineObj);
     }

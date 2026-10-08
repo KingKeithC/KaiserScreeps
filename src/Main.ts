@@ -1,8 +1,11 @@
 import { ErrorMapper } from "utils/ErrorMapper";
+import { Logger } from "utils/Logger";
 import { RoomExtra } from "Room";
 import { RoomRole } from "roles/Role";
 import "roles";
 import profiler from "screeps-profiler";
+
+const mainLog = new Logger({ toString: () => "[Main]" });
 
 const MainLoop = () => {
   Memory.rooms ??= {};
@@ -11,7 +14,7 @@ const MainLoop = () => {
   // Try to generate a pixel if we can
   if (Game.cpu.bucket === 10000) {
     const res = Game.cpu.generatePixel();
-    if (res === OK) console.log(`!!! Generated a pixel :)`);
+    if (res === OK) mainLog.info(`!!! Generated a pixel :)`);
   }
 
   // Get all rooms I can access
