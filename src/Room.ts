@@ -164,7 +164,7 @@ export class RoomExtra {
     for (const role of this.RoleInstances.values())
       role.TickRole(); // Run it
 
-    if (Game.time % this.EventReportingFrequencyTicks === 0) this.RoomStateReport();
+    if (Game.time % this.NotificationFrequency === 0) this.RoomStateReport();
 
     if (this.Status !== RoomControlStatus.Owned) {
       console.log(`[${this.room}]: Not owned: ${this.Status}.`);
