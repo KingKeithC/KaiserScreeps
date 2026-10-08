@@ -13,8 +13,8 @@ export class Miner extends RoomRole<MinerMemory> {
   DropoffRange = 4;
 
   get CountPerRoom() {
-    const max = this.manager.GetMinerPositions().length + 1;
-    const T2 = Object.values(Game.creeps).filter(c => c.memory.room === this.manager.room.name && c.memory.role === 'MinerII').length;
+    const max = this.manager.GetMinerPositions().length;
+    const T2 = (this.manager.AssignedCreepsByRole.get("MinerII") ?? []).length;
     return max - T2 <= 0 ? 0 : max - T2;
   }
 
@@ -33,10 +33,10 @@ export class Miner extends RoomRole<MinerMemory> {
 
   TransferToNeighbours(creep: CreepExtra): void {
     const closeNeedsEnergy = creep.pos.findInRange([
-      ...this.manager.CreepsByRole.get("WorkerI") ?? [],
-      ...this.manager.CreepsByRole.get("WorkerII") ?? [],
-      ...this.manager.CreepsByRole.get("WorkerIII") ?? [],
-      ...this.manager.CreepsByRole.get("Settler") ?? [],
+      ...this.manager.AssignedCreepsByRole.get("WorkerI") ?? [],
+      ...this.manager.AssignedCreepsByRole.get("WorkerII") ?? [],
+      ...this.manager.AssignedCreepsByRole.get("WorkerIII") ?? [],
+      ...this.manager.AssignedCreepsByRole.get("Settler") ?? [],
       ...this.manager.room.find(FIND_STRUCTURES, { filter: s => s.structureType === STRUCTURE_CONTAINER }) as StructureContainer[],
     ], 1, { filter: c => c.store.getFreeCapacity(RESOURCE_ENERGY) })
       .sort((b, a) => (a.store.getUsedCapacity(RESOURCE_ENERGY) / a.store.getCapacity(RESOURCE_ENERGY)) - (b.store.getUsedCapacity(RESOURCE_ENERGY) / b.store.getCapacity(RESOURCE_ENERGY)))

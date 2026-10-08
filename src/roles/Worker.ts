@@ -352,9 +352,9 @@ export class WorkerI extends RoomRole<WorkerTask> {
   FindLeastAssignedSource(): Source | undefined {
     const harvestersBySource = new Map<Id<Source>, number>();
     for (const c of [
-      ...this.manager.CreepsByRole.get("WorkerI") ?? [],
-      ...this.manager.CreepsByRole.get("WorkerII") ?? [],
-      ...this.manager.CreepsByRole.get("WorkerIII") ?? [],
+      ...this.manager.AssignedCreepsByRole.get("WorkerI") ?? [],
+      ...this.manager.AssignedCreepsByRole.get("WorkerII") ?? [],
+      ...this.manager.AssignedCreepsByRole.get("WorkerIII") ?? [],
     ]) {
       const mem = c.memory.jobMemory as WorkerTask;
       if (!mem.target) continue;

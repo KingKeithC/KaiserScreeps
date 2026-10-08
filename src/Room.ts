@@ -16,6 +16,7 @@ export enum RoomControlStatus {
 declare global {
   interface RoomMemory {
     status: RoomControlStatus,
+    lastSeen?: number;
     lastSpawnTick: { [roleName: string]: number; };
     quotas?: { [roleName: string]: number; };
     enableVisuals?: boolean,
@@ -72,6 +73,7 @@ export class RoomExtra {
     this.room = room;
   }
 
+  get LastSeen(): number { return this.room.memory.lastSeen ?? 0; }
   get Status(): RoomControlStatus { return this.room.memory.status ?? RoomExtra.StatusOf(this.room); }
   get EnableVisuals(): boolean { return this.room.memory.enableVisuals ?? true; }
   get EnableRepairOverlay(): boolean { return this.room.memory.enableRepairOverlay ?? false; }
@@ -125,14 +127,22 @@ export class RoomExtra {
     }) as AnyStoreStructure[];
   }
 
+  private _AssignedCreeps: CreepExtra[] = [];
   get AssignedCreeps(): CreepExtra[] {
-    return Object.values(Game.creeps)
+    // Return cached
+    if (this._AssignedCreeps.length) return this._AssignedCreeps;
+
+    // Iterate, filter, and map the creeps assigned to the room to
+    // our extension class.
+    this._AssignedCreeps = Object.values(Game.creeps)
       .filter(c => c.my && !c.spawning && c.memory.room === this.room.name)
       .map(c => new CreepExtra(c.id));
+
+    return this._AssignedCreeps;
   }
 
   // Group creeps assigned to this room into lists by role
-  get CreepsByRole(): Map<string, CreepExtra[]> {
+  get AssignedCreepsByRole(): Map<string, CreepExtra[]> {
     const map = new Map();
     for (const c of this.AssignedCreeps)
       if (RoomRole.Registry.has(c.memory.role)) {
@@ -165,14 +175,37 @@ export class RoomExtra {
   }
 
   OnTick() {
-    // Any Room
-    if (this.Status !== RoomControlStatus.Owned) {
-      if (Game.time % this.NotificationFrequency === 0)
-        console.log(`[${this.room}]: Not owned: ${this.Status}.`);
+    // Dispatch to tick function based on room type.
+
+    if (this.Status === RoomControlStatus.Owned) {
+      // If owned, handle it and return early
+      this.TickOwnedRoom();
       return;
     }
 
-    // Owned room
+    this.TickAllUnOwnedRoom();
+
+    switch (this.Status) {
+      case RoomControlStatus.Claimed: this.TickClaimedRoom(); break;
+      case RoomControlStatus.Hostile: this.TickHostileRoom(); break;
+      case RoomControlStatus.Neutral: this.TickNeutralRoom(); break;
+      case RoomControlStatus.Unknown: this.TickUnknownRoom(); break;
+      default: console.log(`${this.room.name} has invalid Status: ${this.Status}`); break;
+    }
+
+    // Update Status, and Last seen on unowned rooms
+    this.room.memory.lastSeen = Game.time;
+    this.room.memory.status = RoomExtra.StatusOf(this.room);
+  }
+
+  TickOwnedRoom(): void {
+    // Handle events
+    if (!this.DisableEvents) {
+      this.ProcessEventsLastTick();
+
+      if (Game.time % this.EventReportingFrequencyTicks === 0)
+        this.PrintEventSummary();
+    }
 
     // Run each tower in the room
     if (!this.DisableTowers)
@@ -187,13 +220,6 @@ export class RoomExtra {
     if (Game.time % this.NotificationFrequency === 0)
       this.RoomStateReport();
 
-    // Handle events
-    if (!this.DisableEvents) {
-      this.ProcessEventsLastTick();
-
-      if (Game.time % this.EventReportingFrequencyTicks === 0)
-        this.PrintEventSummary();
-    }
 
     // Build any designated roads
     this.BuildRoads();
@@ -202,6 +228,15 @@ export class RoomExtra {
     if (this.EnableVisuals && this.EnableRepairOverlay)
       this.DrawRepairOverlay();
   }
+
+  TickAllUnOwnedRoom(): void {
+    if (Game.time % this.NotificationFrequency === 0) console.log(`[${this.room}]: Not owned: ${this.Status}.`);
+  }
+
+  TickUnknownRoom() { }
+  TickNeutralRoom() { }
+  TickHostileRoom() { }
+  TickClaimedRoom() { }
 
   RoomStateReport(): void {
     var msg = `T${Game.time} ROOM ${this.room.name} REPORT ::: ${this.RoleInstances.size} Roles ${this.AssignedCreeps.length} Total Creeps`;

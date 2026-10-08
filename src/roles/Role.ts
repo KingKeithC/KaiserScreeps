@@ -34,7 +34,7 @@ export abstract class RoomRole<MemoryShape extends Object> {
   }
 
   get CreepsInRoomAndRole(): CreepExtra[] {
-    return this.manager.CreepsByRole.get(this.RoleName) ?? [];
+    return this.manager.AssignedCreepsByRole.get(this.RoleName) ?? [];
   }
 
   private _GlobalCount: number = -1; // -1 for unlimited
