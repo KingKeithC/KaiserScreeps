@@ -36,7 +36,7 @@ export class Logger<T extends Object> {
 
   log(level: LogLevel, msg: string): void {
     if (level < this._level) return;
-    var finalLine = "";
+    var finalLine = this._fmt;
     finalLine = finalLine.replace("<date>", Game.time.toString());
     finalLine = finalLine.replace("<wrapped>", this._wrapped.toString());
     finalLine = finalLine.replace("<level>", Logger.LevelToName(level));
