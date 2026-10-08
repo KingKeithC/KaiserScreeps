@@ -78,26 +78,26 @@ export class Scout extends RoomRole<ScoutMemory> {
     ) {
       console.log(`${Game.time} Stuck on an edge (${creep.pos.x}, ${creep.pos.y}) in ${creep.pos.roomName}...`);
       creep.move(task.path[0].exit);
+    } else if (creep.room.name === task.path[0].room) {
+      console.log(`We reached the next room along the path...`);
+      task.path = task.path.slice(1); // Move the path along to the remaining segments
+      creep.memory.jobMemory = task;
+      return;
     } else if (creep.room.name !== task.roomName) {
-      console.log(`There is a path to travel...`);
-      this.TravelAlongPath(creep, task.path);
+      console.log(`Still travelling...`);
+      const nextRoom = task.path[0];
+      const exit = creep.pos.findClosestByPath(nextRoom.exit);
+      if (!exit) {
+        console.log(`No path to exit ${nextRoom.exit} from ${creep.pos.roomName}`);
+        return;
+      }
+      console.log(`Moving to exit of ${creep.pos.roomName} toward ${nextRoom.room}...`);
+      creep.MoveCreep(exit, { range: 0 });
       return;
     }
 
     console.log(`We reached the target room ${task.roomName}.`);
     this.ReachedScoutedRoom(creep, flag);
-  }
-
-  TravelAlongPath(creep: CreepExtra, path: TravelPath): void {
-    const nextRoom = path[0];
-    const exit = creep.pos.findClosestByPath(nextRoom.exit);
-    if (!exit) {
-      console.log(`No path to exit ${nextRoom.exit} from ${creep.pos.roomName}`);
-      return;
-    }
-
-    console.log(`Moving to exit of ${creep.pos.roomName} toward ${nextRoom.room}...`);
-    const exitMove = creep.MoveCreep(exit, { range: 0 });
   }
 
   ReachedScoutedRoom(creep: CreepExtra, flag: Flag): void {
