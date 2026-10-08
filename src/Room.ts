@@ -230,7 +230,10 @@ export class RoomExtra {
   }
 
   TickAllUnOwnedRoom(): void {
-    if (Game.time % this.NotificationFrequency === 0) console.log(`[${this.room}]: Not owned: ${this.Status}.`);
+    const timeSinceLastSeen = Game.time - this.LastSeen;
+    if (timeSinceLastSeen === Game.time) console.log(`[${this.room}]: this is a brand new room to us!`);
+    else if (timeSinceLastSeen > 50) console.log(`[${this.room}]: We haven't seen this room in ${timeSinceLastSeen} ticks...`);
+    else if (Game.time % this.NotificationFrequency === 0) console.log(`[${this.room}]: Not owned: ${this.Status}.`);
   }
 
   TickUnknownRoom() { }
