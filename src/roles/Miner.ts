@@ -13,7 +13,7 @@ export class Miner extends RoomRole<MinerMemory> {
   DropoffRange = 4;
 
   get CountPerRoom() {
-    const max = this.manager.GetMaxMiners() + 1;
+    const max = this.manager.GetMinerPositions().length + 1;
     const T2 = Object.values(Game.creeps).filter(c => c.memory.room === this.manager.room.name && c.memory.role === 'MinerII').length;
     return max - T2 <= 0 ? 0 : max - T2;
   }
@@ -91,5 +91,5 @@ export class Miner extends RoomRole<MinerMemory> {
 export class MinerII extends Miner {
   static readonly RoleName: string = "MinerII";
   BodyParts = [MOVE, CARRY, WORK, WORK, WORK, WORK, WORK, WORK, WORK];
-  get CountPerRoom() { return this.manager.GetMaxMiners() + 1; }
+  get CountPerRoom() { return this.manager.GetMinerPositions().length + 1; }
 }

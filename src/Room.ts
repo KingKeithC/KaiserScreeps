@@ -93,11 +93,11 @@ export class RoomExtra {
 
   // Search the spaces around each source, and return
   // the number of free spaces which a Miner creep could fill.
-  GetMaxMiners(): number {
+  GetMinerPositions(): RoomPosition[] {
     const sources = this.room.find(FIND_SOURCES);
     const terrain = this.room.getTerrain();
     var spaces = 0;
-    var possibleMiners = 0;
+    var possibleMiners = [];
 
     for (const s of sources)
       // Given the source.pos is the centre point
@@ -105,7 +105,11 @@ export class RoomExtra {
       for (var x = s.pos.x - 1; x <= s.pos.x + 1; x++)
         for (var y = s.pos.y - 1; y <= s.pos.y + 1; y++) {
           if (x === s.pos.x && y === s.pos.y) continue; // Skip centre point
-          if (terrain.get(x, y) === 0) possibleMiners++;
+          if (terrain.get(x, y) === 0) {
+            const pos = this.room.getPositionAt(x, y);
+            if (!pos) { console.log(`getPositionAt Possible Miner position ${x} ${y} in ${this.room.name} is null`); continue; }
+            possibleMiners.push(pos);
+          }
           spaces++;
           // this.room.visual.rect(x, y, 1, 1, { fill: Colours.ATTACK_RANGE });
         }
