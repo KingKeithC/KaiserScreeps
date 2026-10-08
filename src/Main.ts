@@ -16,13 +16,14 @@ const MainLoop = () => {
 
 profiler.enable();
 profiler.registerFN(MainLoop, "MainLoop");
-profiler.registerClass(ErrorMapper, "ErrorMapper");
+// profiler.registerClass(ErrorMapper, "ErrorMapper");
 profiler.registerClass(RoomExtra, "RoomExtra");
 profiler.registerClass(RoomRole, "RoomRole");
 for (const roleType of RoomRole.Registry.values()) {
   profiler.registerClass(roleType, roleType.RoleName);
 }
-export const loop = profiler.wrap(ErrorMapper.wrapLoop(MainLoop));
+// export const loop = profiler.wrap(ErrorMapper.wrapLoop(MainLoop));
+export const loop = profiler.wrap(MainLoop);
 
 // Commands to reset memory if it is wiped.
 //

@@ -1,5 +1,6 @@
 import { CreepExtra } from "Creep";
 import { Colours } from "Data";
+import { sortBy } from "lodash";
 import { RoomRole } from "roles/Role";
 import { countGraphemes } from 'unicode-segmenter/grapheme';
 import { LerpColour } from "utils/Collections";
@@ -28,7 +29,7 @@ declare global {
     maxEventLogPerRoom?: number;
     towerAttackRangeTiles?: number;
     towerCriticalSupplyRatio?: number;
-    hostileReportFrequency?: number;
+    notificationFrequency?: number;
     hostileNotificationThreshold?: number;
   }
 }
@@ -80,7 +81,7 @@ export class RoomExtra {
   get RecentEvents(): EventSummary[] { return this.room.memory.recentEvents ?? []; }
   get EventReportingFrequencyTicks(): number { return this.room.memory.eventReportingFrequencyTicks ?? 500; }
   get MaxEventLogPerRoom(): number { return this.room.memory.maxEventLogPerRoom ?? 1500; }
-  get HostileReportFrequency(): number { return this.room.memory.hostileReportFrequency ?? 10; }
+  get NotificationFrequency(): number { return this.room.memory.notificationFrequency ?? 10; }
   get HostileNotificationThreshold(): number { return this.room.memory.hostileNotificationThreshold ?? 4; }
 
   LastSpawnTick(roleName: string): number { return (this.room.memory.lastSpawnTick ?? {})[roleName] ?? 0; }
@@ -141,17 +142,29 @@ export class RoomExtra {
     return this.room.find(FIND_MY_STRUCTURES, { filter: s => s.structureType === STRUCTURE_TOWER });
   }
 
-  OnTick() {
-    // Any Room
+  private _RoleInstances: Map<string, RoomRole<any>> = new Map();
+  get RoleInstances(): Map<string, RoomRole<any>> {
+    if (this._RoleInstances.values.length) return this._RoleInstances;
 
-    // Run all our roles in the room
     var offset = 0;
     for (const roleType of RoomRole.Registry.values()) {
       const role = new roleType(this); // Construct a role instance for the room
       role.SpawnTickOffet = offset;
       offset += 10; // Spawn each role about 10 ticks apart
-      role.TickRole(); // Run it
+      this._RoleInstances.set(role.RoleName, role);
     }
+
+    return this._RoleInstances;
+  }
+
+  OnTick() {
+    // Any Room
+
+    // Run all our roles in the room
+    for (const role of this.RoleInstances.values())
+      role.TickRole(); // Run it
+
+    if (Game.time % this.EventReportingFrequencyTicks === 0) this.RoomStateReport();
 
     if (this.Status !== RoomControlStatus.Owned) {
       console.log(`[${this.room}]: Not owned: ${this.Status}.`);
@@ -188,6 +201,13 @@ export class RoomExtra {
       this.TickTower(tower as StructureTower);
 
     if (this.EnableVisuals && this.EnableRepairOverlay) this.DrawRepairOverlay();
+  }
+
+  RoomStateReport(): void {
+    var msg = `${this.room.name} REPORT ::: `;
+    const roleNames = sortBy(Object.keys(this.RoleInstances));
+    for (const name of roleNames) msg += `[${name}:${this.RoleInstances.get(name)?.CreepsInRoomAndRole}/${this.RoleInstances.get(name)?.CountPerRoom}|${this.RoleInstances.get(name)?.CreepsInRole}/${this.RoleInstances.get(name)?.GlobalCount}]`;
+    console.log(msg);
   }
 
   DrawRepairOverlay(): void {
@@ -249,7 +269,7 @@ export class RoomExtra {
 
   CallOutHostiles() {
     const hostiles = this.room.find(FIND_HOSTILE_CREEPS);
-    if (Game.time % this.HostileReportFrequency === 0 && hostiles.length > 0) {
+    if (Game.time % this.NotificationFrequency === 0 && hostiles.length > 0) {
       const hostileDetails: HostileInfo[] = hostiles.map(c => ({
         owner: c.owner.username,
         name: c.name,
