@@ -22,14 +22,18 @@ export class Logger<T extends Loggable> {
   private _level: LogLevel;
   private _commonArgs: LogArg;
 
+  // Return 4 chars for the INFO and lower levels
+  // Return longer for the higher levels (not by much though)
+  // I like my logs lined up, so having the higher levels be longer
+  // will break that consistency for longer lines and make problems more obvious.
   static LevelToName(level: LogLevel): string {
     switch (level) {
-      case LogLevel.DEBUG: return "DEBUG";
-      case LogLevel.VERBOSE: return "VERBOSE";
+      case LogLevel.DEBUG: return "DBUG";
+      case LogLevel.VERBOSE: return "VERB";
       case LogLevel.INFO: return "INFO";
       case LogLevel.WARNING: return "WARNING";
       case LogLevel.CRITICAL: return "CRITICAL";
-      default: return "!UNK";
+      default: return `UNKNOWN ${level}`;
     }
   }
 
@@ -39,7 +43,7 @@ export class Logger<T extends Loggable> {
   ) {
     this._wrapped = wrapped;
     this._level = opts?.level ?? LogLevel.INFO;
-    this._fmt = opts?.format ?? "<level><room><role><creep>%(PadEnd:60): <msg>";
+    this._fmt = opts?.format ?? "<level> <room><role><creep>%(PadEnd:55): <msg>";
     this._commonArgs = opts?.formatArgs ?? {};
   }
 
