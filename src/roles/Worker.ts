@@ -52,22 +52,22 @@ export class WorkerI extends RoomRole<WorkerTask> {
   ControllerMaintenanceThreshold = 3500; // Start upgrading when ticksToDowngrade is less than this.
   ControllerMaintenanceBuffer = 2000;    // Stop upgrading when ticksToDowngrade is greater than `ControllerMaintenanceThreshold+ControllerMaintenanceBuffer`.
 
-  MaxSupplyPerTarget = 2;
-  SupplyPriorities: ((s: AnyStoreStructure) => boolean)[] = [
-    (s => s instanceof StructureExtension || s instanceof StructureSpawn),
-    (s => s instanceof StructureTower),
-    (_ => true),
+  // List of filter callback and minSuppliers per priority group, descending order.
+  SupplyPriorities: [((s: AnyStoreStructure) => boolean), number][] = [
+    [(s => s instanceof StructureExtension || s instanceof StructureSpawn), 2],
+    [(s => s instanceof StructureTower), 3],
+    [(_ => true), 1],
   ];
 
-  MaxRepairPerTarget = 1;
   MaxRepairPerRoom = 3;
-  RepairStartRatio = 0.5;
-  RepairPriorities: ((s: AnyStructure) => boolean)[] = [
-    (s => s instanceof StructureContainer || s instanceof StructurePortal),
-    (s => s instanceof StructureRoad),
-    (s => !(s instanceof StructureContainer || s instanceof StructurePortal || s instanceof StructureRoad || s instanceof StructureWall || s instanceof StructureRampart) && s.my),
-    (s => s instanceof StructureWall || s instanceof StructureRampart),
-    (_ => true),
+
+  // List of filter callback, health capacity to begin repair, and maxRepairers, descending order.
+  RepairPriorities: [((s: AnyStructure) => boolean), number, number][] = [
+    [(s => s instanceof StructureContainer || s instanceof StructurePortal), 0.5, 1],
+    [(s => s instanceof StructureRoad), 0.5, 1],
+    [(s => !(s instanceof StructureContainer || s instanceof StructurePortal || s instanceof StructureRoad || s instanceof StructureWall || s instanceof StructureRampart) && s.my), 0.5, 1],
+    [(s => s instanceof StructureWall || s instanceof StructureRampart), 0.5, 1],
+    [(_ => true), 0.5, 1],
   ];
 
   // At least 2, but no more than 1/4 of the number of sites
@@ -290,11 +290,11 @@ export class WorkerI extends RoomRole<WorkerTask> {
     }
 
     var priorityIndex = 0;
-    for (const p of this.SupplyPriorities) {
+    for (const [p, maxSuppliers] of this.SupplyPriorities) {
       // Get candidates and group by number of suppliers
       const needsSupply = candidates
         .map(s => ({ structure: s, suppliers: supplyTargetsByCount.get(s.id) ?? 0 }))
-        .filter(s => s.structure.store.getFreeCapacity(RESOURCE_ENERGY) && p(s.structure) && s.suppliers < this.MaxSupplyPerTarget)
+        .filter(s => s.structure.store.getFreeCapacity(RESOURCE_ENERGY) && p(s.structure) && s.suppliers < maxSuppliers)
         .map(s => s.structure);
 
       if (needsSupply.length) return supplier.pos.findClosestByPath(needsSupply, { ignoreCreeps: true });
@@ -317,11 +317,11 @@ export class WorkerI extends RoomRole<WorkerTask> {
 
     const repairs = this.manager.room.find(FIND_STRUCTURES, { filter: s => s.hits < s.hitsMax });
     var priorityIndex = 0;
-    for (const p of this.RepairPriorities) {
+    for (const [p, repairAt, maxRepairs] of this.RepairPriorities) {
       // Get candidates and group by number of suppliers
       const needsRepair = repairs
         .map(s => ({ site: s, count: targetsByCount.get(s.id) ?? 0 }))
-        .filter(s => p(s.site) && s.count < this.MaxRepairPerTarget)
+        .filter(s => p(s.site) && (s.site.hits / s.site.hitsMax) < repairAt && s.count < maxRepairs)
         .map(c => c.site);
 
       if (needsRepair.length > 0) return supplier.pos.findClosestByPath(needsRepair, { ignoreCreeps: true });
