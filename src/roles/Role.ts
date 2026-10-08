@@ -28,7 +28,7 @@ export abstract class RoomRole<MemoryShape extends Object> {
   protected readonly manager: RoomExtra;
   constructor(manager: RoomExtra) {
     this.manager = manager;
-    this.log = new Logger(this, { formatArgs: { "<room>": manager } });
+    this.log = new Logger(this, { format: "<level><room><wrapped><creep>: <msg>", formatArgs: { "<room>": manager } });
   }
 
   toString(): string { return `[${this.RoleName}]`; }
