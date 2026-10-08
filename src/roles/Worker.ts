@@ -374,14 +374,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
 
     // Load object the target references
     const targetObject = Game.getObjectById(task.target);
-    if (targetObject == null || targetObject == undefined) {
-
-      // Finished a construction
-      if (task.action === WorkerAction.Build) return;
-
-      console.log(`[${this.manager.room}]${creep}: Act: ${creep} Game.getObjectById returned null`);
-      return;
-    }
+    if (targetObject == null || targetObject == undefined) return;
 
     // Actually act on the target
     var result: number = OK;
