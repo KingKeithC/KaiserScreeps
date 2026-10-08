@@ -596,5 +596,14 @@ export class WorkerIII extends WorkerII {
   StartSpawnAtRCL = 2;
   StopSpawnAtRCL = 100;
   BodyParts = [MOVE, MOVE, MOVE, MOVE, WORK, WORK, WORK, WORK, CARRY, CARRY, CARRY, CARRY];
-  override get CountPerRoom() { return 6; }
+
+  // The lesser of `max` / `number of MinerIIs`.
+  override get CountPerRoom() {
+    const max = 10;
+    // There should be a corresponding MinerII before we try spawning a WorkerIII.
+    const role = this.manager.RoleInstances.get("MinerII");
+    if (!role) return 0;
+    const livingMinerII = role.CreepsInRoomAndRole.length;
+    return livingMinerII < max ? livingMinerII : max;
+  }
 }
