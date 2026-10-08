@@ -10,14 +10,20 @@ export enum LogLevel {
 }
 
 type FormatProperty = "<date>" | "<wrapped>" | "<level>" | "<msg>" | "<room>" | "<creep>";
-type Loggable = string | { toString(): string; };
-type LogArg = [FormatProperty, Loggable];
+type Loggable = string | number | { toString(): string; };
+type LogArg = Partial<Record<FormatProperty, Loggable>>;
+
+export interface LoggerOptions {
+  format?: string,
+  level?: LogLevel,
+  formatArgs?: LogArg;
+}
 
 export class Logger<T extends Loggable> {
   private readonly _wrapped: T;
   private readonly _fmt: string;
   private _level: LogLevel;
-  private _extraArgs: LogArg[];
+  private _commonArgs: LogArg;
 
   static LevelToName(level: LogLevel): string {
     switch (level) {
@@ -32,35 +38,35 @@ export class Logger<T extends Loggable> {
 
   constructor(
     wrapped: T,
-    logLevel: LogLevel = LogLevel.INFO,
-    fmt: string = "<level><wrapped><creep>: <msg>",
-    ...args: LogArg[]
+    opts?: LoggerOptions,
   ) {
     this._wrapped = wrapped;
-    this._level = logLevel;
-    this._fmt = fmt;
-    this._extraArgs = args;
+    this._level = opts?.level ?? LogLevel.INFO;
+    this._fmt = opts?.format ?? "<level><wrapped><creep>: <msg>";
+    this._commonArgs = opts?.formatArgs ?? {};
   }
 
   log(level: LogLevel, msg: string, ...args: LogArg[]): void {
     if (level < this._level) return;
 
-    // Create a map of default formatting arguments for the log message
-    const formatArgs = new Map<FormatProperty, Loggable>();
+    // Create a map of default values for arguments for the log message
+    const formatArgs = new Map<string, Loggable>();
     formatArgs.set("<date>", Game.time);
     formatArgs.set("<wrapped>", this._wrapped);
-    formatArgs.set("<level>", level);
+    formatArgs.set("<level>", Logger.LevelToName(level));
     formatArgs.set("<msg>", msg);
     formatArgs.set("<room>", "");
     formatArgs.set("<creep>", "");
 
-    for (const [key, value] of args)
-      formatArgs.set(key, value);
+    // Overwrite with common and provided args
+    for (const [key, value] of Object.entries(this._commonArgs)) formatArgs.set(key, value);
+    for (const arg of args) {
+      for (const [key, value] of Object.entries(arg)) formatArgs.set(key, value);
+    }
 
     // Render the formating arguments into a single log line
     var finalLine = this._fmt;
-    for (const [key, value] of formatArgs.entries())
-      finalLine = finalLine.replace(key, value.toString());
+    for (const [key, value] of formatArgs.entries()) finalLine = finalLine.replace(key, value.toString());
 
     // Log it.
     console.log(finalLine);

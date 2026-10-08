@@ -1,7 +1,7 @@
 import { CreepExtra } from "Creep";
 import { Nouns, Adjectives } from "Data";
 import { RoomExtra } from "Room";
-import { Logger } from "utils/Logger";
+import { Logger, LogLevel } from "utils/Logger";
 
 export type RoomRoleType = {
   readonly RoleName: string;
@@ -24,10 +24,13 @@ export abstract class RoomRole<MemoryShape extends Object> {
   abstract InitialJobMemory: MemoryShape;
   abstract CountPerRoom: number;
 
-  readonly manager: RoomExtra;
-  constructor(manager: RoomExtra) { this.manager = manager; }
+  protected readonly log: Logger<RoomRole<MemoryShape>>;
+  protected readonly manager: RoomExtra;
+  constructor(manager: RoomExtra) {
+    this.manager = manager;
+    this.log = new Logger(this, { formatArgs: { "<room>": manager } });
+  }
 
-  protected readonly log: Logger<RoomRole<MemoryShape>> = new Logger(this);
   toString(): string { return `[${this.RoleName}]`; }
 
   // Cached fields generated on first access.
