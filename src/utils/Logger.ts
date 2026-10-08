@@ -69,7 +69,7 @@ export class Logger<T extends Loggable> {
     formatArgs.set("<msg>", msg);
 
     // If both creep and role are set, then unset role
-    if (formatArgs.has("<creep>") && formatArgs.has("<role>"))
+    if (formatArgs.get("<creep>") && formatArgs.get("<role>"))
       formatArgs.set("<role>", ""); // The creep names contain the role name, so it's redundant
 
     // Render the FormatProperties into the log line.
