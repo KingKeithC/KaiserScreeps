@@ -198,17 +198,13 @@ export class WorkerI extends RoomRole<WorkerTask> {
       && this.manager.room.controller!.ticksToDowngrade < this.ControllerMaintenanceThreshold
     ) return this.ControllerMaintenanceTask;
 
-    // Find nearest unsupplied Spawn/Extension, regardless of worker count
-    const spawn = this.FindSupplyByPriorityAndPath(creep, this.manager.SpawnsOrExtensions);
+    // Find nearest unsupplied supply
+    const spawn = this.FindSupplyByPriorityAndPath(creep, [...this.manager.SpawnsOrExtensions, ...this.manager.Towers]);
     if (spawn) return new WorkerTask(WorkerAction.Supply, spawn.id);
 
     // If not enough construction workers, find closest site
     const cons = this.FindConstructionByPriorityAndPath(creep.pos);
     if (cons) return new WorkerTask(WorkerAction.Build, cons.id);
-
-    // If not enough suppliers, find nearest unsupplied Tower
-    const tower = this.FindSupplyByPriorityAndPath(creep, this.manager.Towers);
-    if (tower) return new WorkerTask(WorkerAction.Supply, tower.id);
 
     // If not enough repair workers, find nearest repair
     if (this.WorkerActionCount(WorkerAction.Repair) < this.MaxRepairPerRoom) {
