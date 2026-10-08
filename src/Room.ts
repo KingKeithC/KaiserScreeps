@@ -1,6 +1,6 @@
 import { CreepExtra } from "Creep";
 import { Colours } from "Data";
-import { sortBy } from "lodash";
+import { sortBy, sum } from "lodash";
 import { RoomRole } from "roles/Role";
 import { countGraphemes } from 'unicode-segmenter/grapheme';
 import { LerpColour } from "utils/Collections";
@@ -213,7 +213,8 @@ export class RoomExtra {
   }
 
   RoomStateReport(): void {
-    var msg = `T${Game.time} ROOM ${this.room.name} REPORT ::: ${this.RoleInstances.size} Roles`;
+
+    var msg = `T${Game.time} ROOM ${this.room.name} REPORT ::: ${this.RoleInstances.size} Roles ${this.AssignedCreeps.length} Total Creeps`;
     for (const name of Array.from(this.RoleInstances.keys()).sort()) {
       const inst = this.RoleInstances.get(name);
       if (!inst) {
