@@ -96,6 +96,7 @@ export class RoomExtra {
 
   get LastSeen(): number { return this.room.memory.lastSeen ?? 0; }
   get Status(): RoomControlStatus { return this.room.memory.status ?? RoomExtra.StatusOf(this.room); }
+  get Owned(): boolean { return (this.room.memory.status ?? RoomExtra.StatusOf(this.room)) === RoomControlStatus.Owned; }
   get EnableVisuals(): boolean { return this.room.memory.enableVisuals ?? true; }
   get EnableRepairOverlay(): boolean { return this.room.memory.enableRepairOverlay ?? false; }
   get AttackHostiles(): boolean { return this.room.memory.attackHostiles ?? true; }

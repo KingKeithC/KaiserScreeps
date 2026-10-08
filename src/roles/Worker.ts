@@ -84,7 +84,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
   TickCreep(creep: CreepExtra, currentTask: WorkerTask): void {
     if (this.IsTaskComplete(creep, currentTask)) {
       const newTask = this.Reassign(creep);
-      this.log.info(`${this.manager.room} Reassigned ${creep.name.padEnd(30)} ${JSON.stringify(currentTask).padEnd(51)} -> ${JSON.stringify(newTask)}`);
+      this.log.info(`Reassigned ${JSON.stringify(currentTask).padEnd(51)} -> ${JSON.stringify(newTask)}`, { "<creep>": creep });
       this.manager.RecentEvents = this.manager.RecentEvents.concat({
         time: Game.time,
         event: `Worker Reassign ${currentTask.action} -> ${newTask.action}`,
@@ -106,12 +106,12 @@ export class WorkerI extends RoomRole<WorkerTask> {
       return this.FindSpendingTask(creep);
   }
 
-  ControllerMaintenanceTask?: WorkerTask = this.manager.room.controller?.my == true
-    ? new WorkerTask(WorkerAction.MaintainController, this.manager.room.controller.id)
+  ControllerMaintenanceTask?: WorkerTask = this.manager.Owned
+    ? new WorkerTask(WorkerAction.MaintainController, this.manager.room.controller?.id)
     : undefined;
 
-  ControllerUpgradeTask?: WorkerTask = this.manager.room.controller?.my == true
-    ? new WorkerTask(WorkerAction.UpgradeController, this.manager.room.controller.id)
+  ControllerUpgradeTask?: WorkerTask = this.manager.Owned
+    ? new WorkerTask(WorkerAction.UpgradeController, this.manager.room.controller?.id)
     : undefined;
 
   get CurrentlyAssignedTasks(): WorkerTask[] {
@@ -177,7 +177,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
     if (damaged) return new WorkerTask(WorkerAction.Repair, damaged.id);
 
     // Default
-    this.log.info(`${this.manager.room.name}${creep.name}: FindWartimeSpendingTask no tasks found!`);
+    this.log.warn(`No wartime spending tasks!`);
     return new WorkerTask(WorkerAction.Idle);
   }
 
@@ -209,7 +209,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
     if (this.ControllerUpgradeTask) return this.ControllerUpgradeTask;
 
     // Default
-    this.log.info(`${this.manager.room.name}${creep.name}: FindSpendingTask no tasks found!`);
+    this.log.warn(`No spending tasks found!`);
     return new WorkerTask(WorkerAction.Idle);
   }
 
@@ -248,7 +248,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
     if (source) return new WorkerTask(WorkerAction.Mine, source.id);
 
     // Nothing to do without energy
-    this.log.info(`${this.manager.room.name}${creep.name}: FindGatheringTask no tasks found!`);
+    this.log.info(`FindGatheringTask no tasks found!`, { "<creep>": creep });
     return new WorkerTask(WorkerAction.Idle);
   }
 
@@ -388,7 +388,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
       // Target may be null in this one case
       if (task.action === WorkerAction.Idle) return;
 
-      this.log.info(`[${this.manager.room}]${creep}: Act: ${creep} has null/undefined target in memory: ${task.target}`);
+      this.log.info(`Act: ${creep} has null/undefined target in memory: ${task.target}`, { "<creep>": creep });
       return;
     }
 
@@ -402,47 +402,47 @@ export class WorkerI extends RoomRole<WorkerTask> {
       case (WorkerAction.Pickup): {
         const t = targetObject as Resource;
         result = creep.pickup(t);
-        if (result === OK) this.log.info(`[${this.manager.room}]${creep}: Act: Picked up ${t}.`);
+        if (result === OK) this.log.info(`Act: Picked up ${t}.`, { "<creep>": creep });
         break;
       }
       case (WorkerAction.CollectEnergy): {
         result = this.WithdrawFromEnergySources(creep);
-        if (result === OK) this.log.debug(`[${this.manager.Name}]${creep}: Act: Collected Energy from nearby source.`);
+        if (result === OK) this.log.debug(`Act: Collected Energy from nearby source.`, { "<creep>": creep });
         break;
       }
       case (WorkerAction.UpgradeController):
       case (WorkerAction.MaintainController): {
         const t = targetObject as StructureController;
         result = creep.upgradeController(t);
-        if (result === OK) this.log.debug(`${this.manager.room}${creep}: Act: Upgraded ${t} to RCL ${t.level} (${t.progress}/${t.progressTotal}) %${(t.progress / t.progressTotal * 100).toFixed(2)}.`);
+        if (result === OK) this.log.debug(`Act: Upgraded ${t} to RCL ${t.level} (${t.progress}/${t.progressTotal}) %${(t.progress / t.progressTotal * 100).toFixed(2)}.`, { "<creep>": creep });
         break;
       }
       case (WorkerAction.Build): {
         const t = targetObject as ConstructionSite;
         result = creep.build(t);
-        if (result === OK) this.log.debug(`${this.manager.room}${creep}: Act: Built ${t} (${t.progress}/${t.progressTotal}) %${(t.progress / t.progressTotal * 100).toFixed(2)}.`);
+        if (result === OK) this.log.debug(`Act: Built ${t} (${t.progress}/${t.progressTotal}) %${(t.progress / t.progressTotal * 100).toFixed(2)}.`, { "<creep>": creep });
         break;
       }
       case (WorkerAction.Repair): {
         const t = targetObject as AnyOwnedStructure;
         result = creep.repair(t);
-        if (result === OK) this.log.debug(`${this.manager.room}${creep}: Act: Repaired ${t} (${t.hits}/${t.hitsMax}) %${(t.hits / t.hitsMax * 100).toFixed(2)}.`);
+        if (result === OK) this.log.debug(`Act: Repaired ${t} (${t.hits}/${t.hitsMax}) %${(t.hits / t.hitsMax * 100).toFixed(2)}.`, { "<creep>": creep });
         break;
       }
       case (WorkerAction.Supply): {
         const t = targetObject as AnyStoreStructure;
         result = creep.transfer(t, RESOURCE_ENERGY);
-        if (result === OK) this.log.debug(`${this.manager.room}${creep}: Act: Supplied ${t}.`);
+        if (result === OK) this.log.debug(`Act: Supplied ${t}.`, { "<creep>": creep });
         break;
       }
       case (WorkerAction.Mine): {
         const t = targetObject as Source;
         result = creep.harvest(t);
-        if (result === OK) this.log.debug(`${this.manager.room}${creep}: Act: Mined ${t}.`);
+        if (result === OK) this.log.debug(`Act: Mined ${t}.`, { "<creep>": creep });
         break;
       }
       default: {
-        this.log.info(`[${this.manager.room}]${creep}: Act: Unknown Action ${JSON.stringify(task)}.`);
+        this.log.warn(`Act: Unknown Action ${JSON.stringify(task)}.`, { "<creep>": creep });
         break;
       }
     }
@@ -474,7 +474,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
       }
       default: {
         // Generic print all
-        this.log.info(`[${this.manager.room}]${creep}: Act: Task ${JSON.stringify(task)} was not successful: ${result}`);
+        this.log.info(`Act: Task ${JSON.stringify(task)} was not successful: ${result}`, { "<creep>": creep });
         return;
       }
     }
@@ -489,7 +489,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
     if (!targetObject && task.action === WorkerAction.Build)
       return true; // Builders can have stale objects so don't log an error
     else if (!targetObject) {
-      this.log.info(`[${this.manager.room}]${creep}: IsTaskComplete: Game.getObjectById of ${task.target} is null`);
+      this.log.info(`IsTaskComplete: Game.getObjectById of ${task.target} is null`, { "<creep>": creep });
       return true;
     }
 
@@ -505,7 +505,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
         if (targetObject instanceof Creep) return targetObject.store.energy === 0;
         if (targetObject instanceof Resource && targetObject.resourceType === RESOURCE_ENERGY) return targetObject.amount > 0;
 
-        this.log.info(`[${this.manager.room}]${creep}: Assuming collection is complete: ${targetObject}`);
+        this.log.warn(`Assuming collection is complete: ${targetObject}`, { "<creep>": creep });
         return true;
       }
       case (WorkerAction.Pickup): {
@@ -536,7 +536,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
         return t.store.getFreeCapacity(RESOURCE_ENERGY) === 0;
       }
       default: {
-        this.log.info(`[${this.manager.room.name}]${creep}: IsTaskComplete: Unknown Task is complete: ${JSON.stringify(task)}`);
+        this.log.info(`IsTaskComplete: Unknown Task is complete: ${JSON.stringify(task)}`, { "<creep>": creep });
         return true;
       }
     }

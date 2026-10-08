@@ -1,6 +1,3 @@
-import { all } from "lodash";
-
-
 export enum LogLevel {
   DEBUG,
   VERBOSE,
@@ -42,7 +39,7 @@ export class Logger<T extends Loggable> {
   ) {
     this._wrapped = wrapped;
     this._level = opts?.level ?? LogLevel.INFO;
-    this._fmt = opts?.format ?? "<level><wrapped><creep>: <msg>";
+    this._fmt = opts?.format ?? "<level><room><creep>: <msg>";
     this._commonArgs = opts?.formatArgs ?? {};
   }
 
