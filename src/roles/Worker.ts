@@ -200,7 +200,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
 
     // If not enough repair workers, find nearest repair
     if (this.WorkerActionCount(WorkerAction.Repair) < this.MaxRepairPerRoom) {
-      const repair = this.FindIdealRepair(creep);
+      const repair = this.FindIdealRepairByStrength(creep);
       if (repair) return new WorkerTask(WorkerAction.Repair, repair.id);
       else console.log(`[${this.manager.room}]${creep}: No repairs needed!`);
     }
@@ -290,6 +290,35 @@ export class WorkerI extends RoomRole<WorkerTask> {
     }
 
     // console.log(`No targets needing supply found, searched ${priorityIndex} priority groups.`);
+    return null;
+  }
+
+  FindIdealRepairByStrength(supplier: CreepExtra): AnyStructure | undefined | null {
+    const inProgressRepairTasks = this.CurrentlyAssignedTasks.filter(t => t.action === WorkerAction.Repair);
+
+    // Group by target and return count of group
+    const targetsByCount = new Map();
+    for (const t of inProgressRepairTasks) {
+      const existing = targetsByCount.get(t.target!) ?? 0;
+      targetsByCount.set(t.target!, existing + 1);
+    }
+
+    const repairs = this.manager.room.find(FIND_STRUCTURES, { filter: s => s.hits < s.hitsMax });
+    var priorityIndex = 0;
+    for (const [p, repairAt, maxRepairs] of this.manager.RepairPriorities) {
+      // Get candidates and group by number of suppliers
+      const needsRepair = repairs
+        .map(s => ({ site: s, count: targetsByCount.get(s.id) ?? 0 }))
+        .filter(s => p(s.site) && (s.site.hits / s.site.hitsMax) < repairAt && s.count < maxRepairs)
+        .map(c => c.site)
+        .sort((b, a) => (a.hits / a.hitsMax) - (b.hits / b.hitsMax))
+        .pop();
+
+      if (needsRepair) return needsRepair;
+      priorityIndex++;
+    }
+
+    // console.log(`No repairs found, searched ${priorityIndex} priority groups.`);
     return null;
   }
 
