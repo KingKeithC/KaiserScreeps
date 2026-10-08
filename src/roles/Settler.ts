@@ -1,6 +1,5 @@
 import { CreepExtra } from "Creep";
 import { unique } from "lodash";
-import { RoomExtra } from "Room";
 import { RoomRole } from "./Role";
 
 class SettlerMemory extends Object {
