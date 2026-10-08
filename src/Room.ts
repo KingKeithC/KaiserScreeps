@@ -70,6 +70,17 @@ export class RoomExtra {
     return RoomControlStatus.Hostile;
   }
 
+  static StatusName(status: RoomControlStatus): string {
+    switch (status) {
+      case RoomControlStatus.Owned: return "Owned";
+      case RoomControlStatus.Claimed: return "Claimed";
+      case RoomControlStatus.Neutral: return "Neutral";
+      case RoomControlStatus.Hostile: return "Hostile";
+      case RoomControlStatus.Unknown: return "Unknown";
+      default: return "!Invalid";
+    }
+  }
+
 
   readonly room: Room;
   constructor(room: Room) {
@@ -77,6 +88,8 @@ export class RoomExtra {
   }
 
   get Name(): string { return this.room.name; }
+
+  toString(): string { return `[${RoomExtra.StatusName(this.Status).padEnd(8)} ${this.Name}]`; }
 
   get LastSeen(): number { return this.room.memory.lastSeen ?? 0; }
   get Status(): RoomControlStatus { return this.room.memory.status ?? RoomExtra.StatusOf(this.room); }
