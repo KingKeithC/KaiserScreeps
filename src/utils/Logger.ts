@@ -27,7 +27,7 @@ export class Logger<T extends Object> {
   constructor(
     wrapped: T,
     logLevel: LogLevel = LogLevel.INFO,
-    fmt: string = "<wrapped> <level> <msg>",
+    fmt: string = "<level> <wrapped> <msg>",
   ) {
     this._wrapped = wrapped;
     this._level = logLevel;
