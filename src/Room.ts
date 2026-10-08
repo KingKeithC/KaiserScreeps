@@ -84,7 +84,7 @@ export class RoomExtra {
 
 
   readonly room: Room;
-  readonly log: Logger<RoomExtra> = new Logger(this);
+  readonly log: Logger<RoomExtra> = new Logger(this, { formatArgs: { "<room>": this } });
 
   constructor(room: Room) {
     this.room = room;

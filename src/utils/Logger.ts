@@ -6,7 +6,7 @@ export enum LogLevel {
   CRITICAL,
 }
 
-type FormatProperty = "<date>" | "<wrapped>" | "<level>" | "<msg>" | "<room>" | "<creep>";
+type FormatProperty = "<date>" | "<wrapped>" | "<level>" | "<msg>" | "<room>" | "<role>" | "<creep>";
 type Loggable = string | number | { toString(): string; };
 type LogArg = Partial<Record<FormatProperty, Loggable>>;
 
@@ -39,7 +39,7 @@ export class Logger<T extends Loggable> {
   ) {
     this._wrapped = wrapped;
     this._level = opts?.level ?? LogLevel.INFO;
-    this._fmt = opts?.format ?? "<level><room><creep>: <msg>";
+    this._fmt = opts?.format ?? "<level><room><role><creep>: <msg>";
     this._commonArgs = opts?.formatArgs ?? {};
   }
 
@@ -49,6 +49,7 @@ export class Logger<T extends Loggable> {
     formatArgs.set("<wrapped>", this._wrapped);
     formatArgs.set("<room>", "");
     formatArgs.set("<creep>", "");
+    formatArgs.set("<role>", "");
 
     // Overwrite with common and provided args
     for (const [key, value] of Object.entries(this._commonArgs)) formatArgs.set(key, value);
@@ -66,6 +67,10 @@ export class Logger<T extends Loggable> {
     const formatArgs = this.GetFormatArgs(args);
     formatArgs.set("<level>", Logger.LevelToName(level));
     formatArgs.set("<msg>", msg);
+
+    // If both creep and role are set, then unset role
+    if (formatArgs.has("<creep>") && formatArgs.has("<role>"))
+      formatArgs.delete("<role>"); // The creep names contain the role name, so it's redundant
 
     // Render the formating arguments into a single log line
     var finalLine = this._fmt;
