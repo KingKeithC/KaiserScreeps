@@ -42,14 +42,15 @@ export class Warrior extends RoomRole<WarriorMemory> {
     if (!mem.targetCreep) {
       const tgt = this.FindLeastTargtedWeakestHostile();
       if (tgt == null || tgt == undefined) {
-        console.log("No hostiles found...");
+        // console.log("No hostiles found...");
+        this.Idle(creep);
         return;
       }
       mem.targetCreep = tgt.id;
       creep.memory.jobMemory = mem;
     }
 
-    const target = new CreepExtra(mem.targetCreep);
+    const target = Game.creeps[mem.targetCreep] as CreepExtra;
     if (!target) {
       console.log(`Target is inaccessible! Resetting...`);
       creep.memory.jobMemory = {};
@@ -57,11 +58,18 @@ export class Warrior extends RoomRole<WarriorMemory> {
     }
 
     if (creep.MoveCreep(target, { range: 1 }) !== 1) {
-      console.log(`Moving...`);
+      this.Charging(creep);
       return;
     }
 
-    const res = creep.attack(target);
-    if (res !== OK) console.log(`Attacking ${target.name} resulted in ${res}!`);
+    creep.attack(target);
   }
+
+  Idle(creep: CreepExtra): void {
+    const rampart = creep.pos.findClosestByPath(FIND_MY_STRUCTURES, { filter: s => s.structureType === STRUCTURE_RAMPART });
+    if (!rampart) return;
+    creep.moveTo(rampart, { range: 0 });
+  }
+
+  Charging(creep: CreepExtra): void { }
 }
