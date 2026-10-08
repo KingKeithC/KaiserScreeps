@@ -372,11 +372,12 @@ export class RoomExtra {
 
   // List of filter callback, health capacity to begin repair, and maxRepairers, descending order.
   RepairPriorities: [((s: AnyStructure) => boolean), number, number][] = [
+    [(s => s instanceof StructureWall || s instanceof StructureRampart), 0.01, 2],
     [(s => s instanceof StructureContainer || s instanceof StructurePortal), 0.9, 2],
     [(s => !(s instanceof StructureContainer || s instanceof StructurePortal || s instanceof StructureRoad || s instanceof StructureWall || s instanceof StructureRampart) && s.my), 0.9, 2],
     [(s => s instanceof StructureRoad), 0.75, 1],
-    [(s => s instanceof StructureWall || s instanceof StructureRampart), 0.25, 1],
-    [(_ => true), 0.25, 1],
+    [(s => s instanceof StructureWall || s instanceof StructureRampart), 0.9, 1],
+    [(_ => true), 0.75, 1],
   ];
 
   FindRepairByPriorityAndDistance(pos: RoomPosition): AnyStructure | null {
