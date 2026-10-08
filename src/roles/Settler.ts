@@ -33,7 +33,7 @@ export class Settler extends RoomRole<SettlerMemory> {
   TickCreep(creep: CreepExtra, task: SettlerMemory): void {
     // Do nothing if no claim
     if (!task.claimedRoom) {
-      if (Game.time % 20 === 0) console.log(`[${this.manager.room.name}][${creep.name}]: I have no claim!`);
+      if (Game.time % this.NotificationInterval === 0) console.log(`[${this.manager.room.name}][${creep.name}]: I have no claim!`);
       return;
     }
 

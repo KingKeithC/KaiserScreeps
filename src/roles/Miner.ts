@@ -79,7 +79,7 @@ export class Miner extends RoomRole<MinerMemory> {
     if (selectedTarget instanceof Source) {
       if (mineObj.energy === 0) {
         creep.say("🏜️");
-        console.log(`${this.manager.room.name}${creep}: Source is out of energy...`);
+        if (Game.time % this.NotificationInterval === 0) console.log(`${this.manager.room.name}${creep}: Source is out of energy...`);
       } else
         creep.harvest(mineObj);
     }

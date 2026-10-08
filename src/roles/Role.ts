@@ -45,6 +45,8 @@ export abstract class RoomRole<MemoryShape extends Object> {
     this._GlobalCount = value;
   }
 
+  NotificationInterval: number = 20;
+
   // RCL Ranges to constrain role spawns
   StartSpawnAtRCL: number = 1;
   StopSpawnAtRCL: number = 100;
