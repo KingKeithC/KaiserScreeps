@@ -166,6 +166,9 @@ importers:
 
   .:
     dependencies:
+      screeps-profiler:
+        specifier: ^3.1.0
+        version: 3.1.0
       source-map:
         specifier: ~0.6.1
         version: 0.6.1
@@ -1715,6 +1718,10 @@ packages:
   screeps-api@1.16.1:
     resolution: {integrity: sha512-VwgibYPCFXaRlNdFrC188s6juKdAbMIeLy6oRa030IRSUuIZFpe7m4NHzMxLC30qq3cZejdlOedXXthOnNkggA==}
     hasBin: true
+
+  screeps-profiler@3.1.0:
+    resolution: {integrity: sha512-SHhhWrhZUR4VNaf/oE92ENxFYCle718riAjcBwFyVRT1K2JpAzQmGEmoWYecakQsCEcQj76ymfUdQyjdrGC7fw==}
+    engines: {node: '>=24'}
 
   semver@6.3.1:
     resolution: {integrity: sha512-BR7VvDCVHO+q2xBEWskxS6DJE1qRnb7DxzUrogb71CWoSficBxYsiAGd+Kl0mmq/MprG9yArRkyrQxTO6XjMzA==}
@@ -3633,6 +3640,8 @@ snapshots:
       utf-8-validate: 5.0.10
     transitivePeerDependencies:
       - supports-color
+
+  screeps-profiler@3.1.0: {}
 
   semver@6.3.1: {}
 

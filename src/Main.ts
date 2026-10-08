@@ -1,7 +1,7 @@
 import { ErrorMapper } from "utils/ErrorMapper";
-import { CreepExtra } from "Creep";
 import { RoomExtra } from "Room";
-import "roles";
+import { RoomRole } from "roles/Role";
+import profiler from "screeps-profiler";
 
 const MainLoop = () => {
   Memory.rooms ??= {};
@@ -12,9 +12,11 @@ const MainLoop = () => {
   for (const m of Rooms) m.OnTick();
 };
 
-// When compiling TS to JS and bundling with rollup, the line numbers and file names in error messages change
-// This utility uses source maps to get the line numbers and file names of the original, TS source code
-export const loop = ErrorMapper.wrapLoop(MainLoop);
+
+profiler.enable();
+profiler.registerClass(RoomExtra, "RoomExtra");
+profiler.registerClass(RoomRole, 'RoomRole');
+export const loop = profiler.wrap(ErrorMapper.wrapLoop(MainLoop));
 
 // Commands to reset memory if it is wiped.
 //
