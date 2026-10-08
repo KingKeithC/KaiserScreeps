@@ -50,7 +50,7 @@ export class Warrior extends RoomRole<WarriorMemory> {
       creep.memory.jobMemory = mem;
     }
 
-    const target = Game.creeps[mem.targetCreep] as CreepExtra;
+    const target = Game.getObjectById(mem.targetCreep);
     if (!target) {
       console.log(`Target is inaccessible! Resetting...`);
       creep.memory.jobMemory = {};

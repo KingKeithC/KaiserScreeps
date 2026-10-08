@@ -126,10 +126,9 @@ export class RoomExtra {
   }
 
   get AssignedCreeps(): CreepExtra[] {
-    return this.room.find(FIND_MY_CREEPS, {
-      filter: c =>
-        c.my && !c.spawning && c.memory.room === this.room.name
-    }).map(c => new CreepExtra(c.id));
+    return Object.values(Game.creeps)
+      .filter(c => c.my && !c.spawning && c.memory.room === this.room.name)
+      .map(c => new CreepExtra(c.id));
   }
 
   // Group creeps assigned to this room into lists by role
