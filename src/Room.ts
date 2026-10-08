@@ -406,7 +406,7 @@ export class RoomExtra {
         .sort((b, a) => (a.hits / a.hitsMax) - (b.hits / b.hitsMax))
         .pop();
       if (weakestHostile) {
-        this.room.visual.circle(t.pos, { radius: this.TowerAttackRange, stroke: Colours.ATTACK_RANGE });
+        this.room.visual.circle(t.pos, { radius: this.TowerAttackRange, stroke: Colours.ATTACK_RANGE, opacity: 0.1, strokeWidth: 0.5 });
         const res = t.attack(weakestHostile);
         console.log(`!!! Tower Attacked ${weakestHostile.name} from $${weakestHostile.owner.username} (${weakestHostile.hits}/${weakestHostile.hits}) with result ${res}!`);
         return;
