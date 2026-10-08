@@ -43,23 +43,29 @@ export class Logger<T extends Loggable> {
     this._commonArgs = opts?.formatArgs ?? {};
   }
 
-  log(level: LogLevel, msg: string, ...args: LogArg[]): void {
-    if (level < this._level) return;
-
-    // Create a map of default values for arguments for the log message
+  private GetFormatArgs(args: LogArg[]): Map<string, Loggable> {
     const formatArgs = new Map<string, Loggable>();
     formatArgs.set("<date>", Game.time);
     formatArgs.set("<wrapped>", this._wrapped);
-    formatArgs.set("<level>", Logger.LevelToName(level));
-    formatArgs.set("<msg>", msg);
     formatArgs.set("<room>", "");
     formatArgs.set("<creep>", "");
 
     // Overwrite with common and provided args
     for (const [key, value] of Object.entries(this._commonArgs)) formatArgs.set(key, value);
-    for (const arg of args) {
+    for (const arg of args)
       for (const [key, value] of Object.entries(arg)) formatArgs.set(key, value);
-    }
+
+    return formatArgs;
+  }
+
+
+  log(level: LogLevel, msg: string, ...args: LogArg[]): void {
+    if (level < this._level) return;
+
+    // Get the format args for this instance, and populate with immediate log level and message params.
+    const formatArgs = this.GetFormatArgs(args);
+    formatArgs.set("<level>", Logger.LevelToName(level));
+    formatArgs.set("<msg>", msg);
 
     // Render the formating arguments into a single log line
     var finalLine = this._fmt;
