@@ -76,8 +76,13 @@ export class Miner extends RoomRole<MinerMemory> {
     if (creep.MoveCreep(selectedTarget.pos, { range: 1 }) != 1) return;
 
     // Act
-    if (selectedTarget instanceof Source)
-      creep.harvest(mineObj);
+    if (selectedTarget instanceof Source) {
+      if (mineObj.energy === 0) {
+        creep.say("🏜️");
+        console.log(`${this.manager.room.name}${creep}: Source is out of energy...`);
+      } else
+        creep.harvest(mineObj);
+    }
     else
       creep.transfer(selectedTarget, RESOURCE_ENERGY);
   }
