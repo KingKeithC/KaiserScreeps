@@ -4,6 +4,7 @@ import { sortBy, sum } from "lodash";
 import { RoomRole } from "roles/Role";
 import { countGraphemes } from 'unicode-segmenter/grapheme';
 import { LerpColour } from "utils/Collections";
+import { Logger } from "utils/Logger";
 
 export enum RoomControlStatus {
   Owned,
@@ -83,6 +84,8 @@ export class RoomExtra {
 
 
   readonly room: Room;
+  readonly log: Logger<RoomExtra> = new Logger(this);
+
   constructor(room: Room) {
     this.room = room;
   }
@@ -143,7 +146,6 @@ export class RoomExtra {
 
     // Return the quota from the role instance
     return role.CountPerRoom;
-
   }
 
   // Search the spaces around each source, and return
@@ -162,14 +164,14 @@ export class RoomExtra {
           if (x === s.pos.x && y === s.pos.y) continue; // Skip centre point
           if (terrain.get(x, y) === 0) {
             const pos = this.room.getPositionAt(x, y);
-            if (!pos) { console.log(`getPositionAt Possible Miner position ${x} ${y} in ${this.room.name} is null`); continue; }
+            if (!pos) { this.log.debug(`getPositionAt Possible Miner position ${x} ${y} in ${this.room.name} is null`); continue; }
             possibleMiners.push(pos);
           }
           spaces++;
           // this.room.visual.rect(x, y, 1, 1, { fill: Colours.ATTACK_RANGE });
         }
 
-    // console.log(`Searched ${spaces} spaces and found ${possibleMiners} possible positions for miners.`);
+    this.log.debug(`Searched ${spaces} spaces and found ${possibleMiners} possible positions for miners.`);
     return possibleMiners;
   }
 
@@ -203,7 +205,7 @@ export class RoomExtra {
         creeps.push(c);
         map.set(c.memory.role, creeps);
       } else {
-        console.log(`[${this.room}]${c}: Is assigned to unknown role: ${c.memory.role}`);
+        this.log.crit(`[${this.room}]${c}: Is assigned to unknown role: ${c.memory.role}`);
       }
     return map;
   }
@@ -243,7 +245,7 @@ export class RoomExtra {
       case RoomControlStatus.Hostile: this.TickHostileRoom(); break;
       case RoomControlStatus.Neutral: this.TickNeutralRoom(); break;
       case RoomControlStatus.Unknown: this.TickUnknownRoom(); break;
-      default: console.log(`${this.room.name} has invalid Status: ${this.Status}`); break;
+      default: this.log.crit(`${this.room.name} has invalid Status: ${this.Status}`); break;
     }
 
     // Update Status, and Last seen on unowned rooms
@@ -284,9 +286,9 @@ export class RoomExtra {
 
   TickAllUnOwnedRoom(): void {
     const timeSinceLastSeen = Game.time - this.LastSeen;
-    if (timeSinceLastSeen === Game.time) console.log(`[${this.room}]: this is a brand new room to us!`);
-    else if (timeSinceLastSeen > 50) console.log(`[${this.room}]: We haven't seen this room in ${timeSinceLastSeen} ticks...`);
-    else if (Game.time % this.NotificationFrequency === 0) console.log(`[${this.room}]: Not owned: ${this.Status}.`);
+    if (timeSinceLastSeen === Game.time) this.log.warn(`[${this.room}]: this is a brand new room to us!`);
+    else if (timeSinceLastSeen > 50) this.log.warn(`[${this.room}]: We haven't seen this room in ${timeSinceLastSeen} ticks...`);
+    else if (Game.time % this.NotificationFrequency === 0) this.log.warn(`[${this.room}]: Not owned: ${this.Status}.`);
   }
 
   TickUnknownRoom() { }
@@ -299,7 +301,7 @@ export class RoomExtra {
     for (const name of Array.from(this.RoleInstances.keys()).sort()) {
       const inst = this.RoleInstances.get(name);
       if (!inst) {
-        console.log(`No instance for ${name}`);
+        this.log.crit(`No instance for ${name}`);
         continue;
       }
       const roomCount = `${inst.CreepsInRoomAndRole.length}/${inst.CountPerRoom}`;
@@ -421,9 +423,9 @@ export class RoomExtra {
         victim: (a as { data: { targetId: string; }; }).data.targetId,
       }));
     if (newAttacksOnMyCreeps.length > 0) {
-      console.log(`ATTACKS PERFORMED IN [${this.room}] AGAINST MY CREEPS: `);
+      this.log.crit(`ATTACKS PERFORMED IN [${this.room}] AGAINST MY CREEPS: `);
       for (const att of newAttacksOnMyCreeps)
-        console.log(JSON.stringify(att));
+        this.log.crit(JSON.stringify(att));
     }
   }
 
@@ -485,7 +487,7 @@ export class RoomExtra {
       priorityIndex++;
     }
 
-    // console.log(`No repairs found, searched ${priorityIndex} priority groups.`);
+    this.log.debug(`No repairs found, searched ${priorityIndex} priority groups.`);
     return null;
   }
 
