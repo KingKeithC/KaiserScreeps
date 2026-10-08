@@ -66,6 +66,7 @@ export class Warrior extends RoomRole<WarriorMemory> {
   }
 
   Idle(creep: CreepExtra): void {
+    if (Game.time % this.NotificationInterval === 3) creep.say('zzz');
     const rampart = creep.pos.findClosestByPath(FIND_MY_STRUCTURES, { filter: s => s.structureType === STRUCTURE_RAMPART });
     if (!rampart) return;
     creep.moveTo(rampart, { range: 0 });
