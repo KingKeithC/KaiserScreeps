@@ -92,7 +92,7 @@ export class RoomExtra {
 
   get Name(): string { return this.room.name; }
 
-  toString(): string { return `[${RoomExtra.StatusName(this.Status).padEnd(8)} ${this.Name}]`; }
+  toString(): string { return `[${RoomExtra.StatusName(this.Status).padStart(6).padEnd(8)} ${this.Name}]`; }
 
   get LastSeen(): number { return this.room.memory.lastSeen ?? 0; }
   get Status(): RoomControlStatus { return this.room.memory.status ?? RoomExtra.StatusOf(this.room); }

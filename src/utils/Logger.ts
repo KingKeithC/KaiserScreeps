@@ -8,7 +8,7 @@ export enum LogLevel {
   CRITICAL,
 }
 
-export class Logger<T extends Object> {
+export class Logger<T extends { toString(): string; }> {
   private readonly _wrapped: T;
   private readonly _fmt: string;
   private _level: LogLevel;
