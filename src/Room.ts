@@ -213,7 +213,6 @@ export class RoomExtra {
   }
 
   RoomStateReport(): void {
-
     var msg = `T${Game.time} ROOM ${this.room.name} REPORT ::: ${this.RoleInstances.size} Roles ${this.AssignedCreeps.length} Total Creeps`;
     for (const name of Array.from(this.RoleInstances.keys()).sort()) {
       const inst = this.RoleInstances.get(name);
@@ -225,6 +224,9 @@ export class RoomExtra {
       const globalCount = ` | ${inst.CreepsInRole.length}/${inst.GlobalCount}`;
       msg += ` [${name} ${roomCount}${inst.GlobalCount < 0 ? "" : globalCount}]`;
     }
+    msg += "\nGLOBAL RESOURCES :::";
+    for (const name of Array.from(Object.keys(Game.resources)).sort())
+      msg += ` [${name}: ${Game.resources[name]}]`;
     console.log(msg);
   }
 
