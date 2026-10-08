@@ -15,6 +15,8 @@ const MainLoop = () => {
 
 
 profiler.enable();
+profiler.registerFN(MainLoop, "MainLoop");
+profiler.registerClass(ErrorMapper, "ErrorMapper");
 profiler.registerClass(RoomExtra, "RoomExtra");
 profiler.registerClass(RoomRole, "RoomRole");
 for (const roleType of RoomRole.Registry.values()) {
