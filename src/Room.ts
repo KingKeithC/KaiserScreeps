@@ -2,6 +2,7 @@ import { CreepExtra } from "Creep";
 import { Colours } from "Data";
 import { RoomRole } from "roles/Role";
 import { countGraphemes } from 'unicode-segmenter/grapheme';
+import { LerpColour } from "utils/Collections";
 
 export enum RoomControlStatus {
   Owned,
@@ -191,15 +192,8 @@ export class RoomExtra {
 
   DrawRepairOverlay(): void {
     const damaged = this.room.find(FIND_STRUCTURES, { filter: s => s.hits < s.hitsMax });
-    const emptyHealth = [255, 0, 0];
-    const fullHealth = [0, 255, 0];
-    for (const d of damaged) {
-      // lerp between fullHealth and emptyHealth based on damageRatio.
-      const damageRatio = 1 - (d.hits / d.hitsMax);
-      const healthColour = fullHealth.map((channel, index) => Math.round(channel + (emptyHealth[index] - channel) * damageRatio));
-      const colourCode = "#" + healthColour.map(value => Math.max(0, Math.min(255, value)).toString(16).padStart(2, "0")).join("");
-      this.room.visual.rect(d.pos.x - 0.5, d.pos.y - 0.5, 1, 1, { fill: colourCode });
-    }
+    for (const d of damaged)
+      this.room.visual.rect(d.pos.x - 0.5, d.pos.y - 0.5, 1, 1, { fill: LerpColour("#ff0000", "#00ff00", d.hits / d.hitsMax) });
   }
 
   PrintEventSummary() {
