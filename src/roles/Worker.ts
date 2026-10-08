@@ -63,11 +63,11 @@ export class WorkerI extends RoomRole<WorkerTask> {
 
   // List of filter callback, health capacity to begin repair, and maxRepairers, descending order.
   RepairPriorities: [((s: AnyStructure) => boolean), number, number][] = [
-    [(s => s instanceof StructureContainer || s instanceof StructurePortal), 0.5, 1],
-    [(s => s instanceof StructureRoad), 0.5, 1],
-    [(s => !(s instanceof StructureContainer || s instanceof StructurePortal || s instanceof StructureRoad || s instanceof StructureWall || s instanceof StructureRampart) && s.my), 0.5, 1],
-    [(s => s instanceof StructureWall || s instanceof StructureRampart), 0.5, 1],
-    [(_ => true), 0.5, 1],
+    [(s => s instanceof StructureContainer || s instanceof StructurePortal), 0.9, 2],
+    [(s => !(s instanceof StructureContainer || s instanceof StructurePortal || s instanceof StructureRoad || s instanceof StructureWall || s instanceof StructureRampart) && s.my), 0.9, 2],
+    [(s => s instanceof StructureRoad), 0.75, 1],
+    [(s => s instanceof StructureWall || s instanceof StructureRampart), 0.25, 1],
+    [(_ => true), 0.25, 1],
   ];
 
   // At least 2, but no more than 1/4 of the number of sites
