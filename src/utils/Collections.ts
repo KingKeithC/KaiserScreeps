@@ -8,17 +8,21 @@ export function Strongest<E>(container: Array<E>, currGetter: (e: E) => number, 
     return sorted.pop();
 }
 
+export function UnpackColour(colour: string): [number, number, number] {
+  return [
+    Number.parseInt(colour.slice(1, 3), 16),
+    Number.parseInt(colour.slice(3, 5), 16),
+    Number.parseInt(colour.slice(5, 7), 16),
+  ];
+}
+
+export function PackColour(r: number, g: number, b: number): string {
+  return "#" + [r, g, b].map(value => Math.max(0, Math.min(255, value)).toString(16).padStart(2, "0")).join("");
+}
+
 export function LerpColour(from: string, to: string, ratio: number): string {
-  const fromColour = [
-    Number.parseInt(from.slice(1, 3), 16),
-    Number.parseInt(from.slice(3, 5), 16),
-    Number.parseInt(from.slice(5, 7), 16),
-  ];
-  const toColour = [
-    Number.parseInt(to.slice(1, 3), 16),
-    Number.parseInt(to.slice(3, 5), 16),
-    Number.parseInt(to.slice(5, 7), 16),
-  ];
+  const fromColour = UnpackColour(from);
+  const toColour = UnpackColour(to);
   const newColour = toColour.map((channel, index) => Math.round(channel + (fromColour[index] - channel) * (1 - ratio)));
-  return "#" + newColour.map(value => Math.max(0, Math.min(255, value)).toString(16).padStart(2, "0")).join("");
+  return PackColour(newColour[0], newColour[1], newColour[2]);
 }
