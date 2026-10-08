@@ -225,7 +225,7 @@ export class WorkerI extends RoomRole<WorkerTask> {
     return new WorkerTask(WorkerAction.Idle);
   }
 
-  FindGatheringTask(creep: CreepExtra): WorkerTask {
+  FindDroppedEnergy(creep: CreepExtra): WorkerTask | null {
     // Dropped Energy with reasonable amount remaining
     const droppedResources = this.manager.room.find(FIND_DROPPED_RESOURCES, { filter: r => r.resourceType === RESOURCE_ENERGY });
     for (const res of droppedResources) {
@@ -237,6 +237,14 @@ export class WorkerI extends RoomRole<WorkerTask> {
       // console.log(`${collect ? "Collecting" : "Ignoring"} Dropped ${res} that is ${distance} steps away, currently has ${res.amount} remaining, we expect ${approxAmtRemaining} by the time we get there.`);
       if (collect) return new WorkerTask(WorkerAction.Pickup, res.id as Id<Resource<RESOURCE_ENERGY>>);
     }
+
+    return null;
+  }
+
+  FindGatheringTask(creep: CreepExtra): WorkerTask {
+    // Dropped Energy with reasonable amount remaining
+    const dropped = this.FindDroppedEnergy(creep);
+    if (dropped) return dropped;
 
     // Collect from container that has energy
     const container = creep.pos.findClosestByPath(FIND_STRUCTURES, { ignoreCreeps: true, filter: s => s.structureType === STRUCTURE_CONTAINER && s.store.getUsedCapacity(RESOURCE_ENERGY) });
