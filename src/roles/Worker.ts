@@ -54,7 +54,8 @@ export class WorkerI extends RoomRole<WorkerTask> {
 
   // List of filter callback and minSuppliers per priority group, descending order.
   SupplyPriorities: [((s: AnyStoreStructure) => boolean), number][] = [
-    [(s => s instanceof StructureExtension || s instanceof StructureSpawn), 2],
+    [(s => s instanceof StructureExtension), 1],
+    [(s => s instanceof StructureSpawn), 2],
     [(s => s instanceof StructureTower), 3],
     [(_ => true), 1],
   ];
