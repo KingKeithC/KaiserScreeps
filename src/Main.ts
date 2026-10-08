@@ -1,6 +1,7 @@
 import { ErrorMapper } from "utils/ErrorMapper";
 import { RoomExtra } from "Room";
 import { RoomRole } from "roles/Role";
+import "roles";
 import profiler from "screeps-profiler";
 
 const MainLoop = () => {
@@ -15,7 +16,10 @@ const MainLoop = () => {
 
 profiler.enable();
 profiler.registerClass(RoomExtra, "RoomExtra");
-profiler.registerClass(RoomRole, 'RoomRole');
+profiler.registerClass(RoomRole, "RoomRole");
+for (const roleType of RoomRole.Registry.values()) {
+  profiler.registerClass(roleType, roleType.RoleName);
+}
 export const loop = profiler.wrap(ErrorMapper.wrapLoop(MainLoop));
 
 // Commands to reset memory if it is wiped.
