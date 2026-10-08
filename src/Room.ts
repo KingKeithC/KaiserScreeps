@@ -298,7 +298,7 @@ export class RoomExtra {
   TickClaimedRoom() { }
 
   RoomStateReport(): void {
-    var msg = `T${Game.time} ROOM ${this.room.name} REPORT ::: ${this.RoleInstances.size} Roles ${this.AssignedCreeps.length} Total Creeps`;
+    var msg = `\nT${Game.time} ROOM ${this.room.name} REPORT ::: ${this.RoleInstances.size} Roles ${this.AssignedCreeps.length} Total Creeps`;
     for (const name of Array.from(this.RoleInstances.keys()).sort()) {
       const inst = this.RoleInstances.get(name);
       if (!inst) {
