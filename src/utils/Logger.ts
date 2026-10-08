@@ -9,7 +9,7 @@ export enum LogLevel {
   CRITICAL,
 }
 
-type FormatProperty = "<date>" | "<wrapped>" | "<level>" | "<msg>";
+type FormatProperty = "<date>" | "<wrapped>" | "<level>" | "<msg>" | "<room>" | "<creep>";
 type Loggable = string | { toString(): string; };
 type LogArg = [FormatProperty, Loggable];
 
@@ -33,7 +33,7 @@ export class Logger<T extends Loggable> {
   constructor(
     wrapped: T,
     logLevel: LogLevel = LogLevel.INFO,
-    fmt: string = "<level> <wrapped> <msg>",
+    fmt: string = "<level><wrapped><creep>: <msg>",
     ...args: LogArg[]
   ) {
     this._wrapped = wrapped;
@@ -45,12 +45,15 @@ export class Logger<T extends Loggable> {
   log(level: LogLevel, msg: string, ...args: LogArg[]): void {
     if (level < this._level) return;
 
-    // Create a map of formatting arguments for the log message
+    // Create a map of default formatting arguments for the log message
     const formatArgs = new Map<FormatProperty, Loggable>();
-    formatArgs.set("<level>", level);
     formatArgs.set("<date>", Game.time);
     formatArgs.set("<wrapped>", this._wrapped);
+    formatArgs.set("<level>", level);
     formatArgs.set("<msg>", msg);
+    formatArgs.set("<room>", "");
+    formatArgs.set("<creep>", "");
+
     for (const [key, value] of args)
       formatArgs.set(key, value);
 
