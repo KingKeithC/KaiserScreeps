@@ -42,12 +42,16 @@ export class Colony {
     return ErrorMapper.wrapLoop(lambda);
   }
 
-  GetMainLoop(): () => void { return this.WrapWithProfiling(this.WrapWithErrorMapper(this.MainLoop.bind(this))); }
-
-  MainLoop(): void {
+  // This function is rarely, when globals reset or code is uploaded.
+  GetMainLoop(): () => void {
     Memory.rooms ??= {};
     Memory.creeps ??= {};
+    this.log.crit("GLOBALS RESET");
+    return this.WrapWithProfiling(this.WrapWithErrorMapper(this.MainLoop.bind(this)));
+  }
 
+  // This is the effective loop function invoked each tick.
+  MainLoop(): void {
     // Try to generate a pixel if we can
     if (Game.cpu.bucket >= 10000) {
       const res = Game.cpu.generatePixel();
