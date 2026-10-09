@@ -13,12 +13,15 @@ declare global {
   }
 }
 
+declare const global: {
+  Colony: Colony;
+};
 
 export class Colony {
 
   private readonly log = new Logger(this);
 
-  WrapWithProfiling(lambda: (() => void)): () => void {
+  private WrapWithProfiling(lambda: (() => void)): () => void {
     Memory.globalEnableProfiling ??= true;
     if (!Memory.globalEnableProfiling) return lambda;
 
@@ -36,22 +39,26 @@ export class Colony {
     return () => profiler.wrap(lambda);
   }
 
-  WrapWithErrorMapper(lambda: (() => void)): () => void {
+  private WrapWithErrorMapper(lambda: (() => void)): () => void {
     Memory.globalEnableErrorMapper ??= true;
     if (!Memory.globalEnableErrorMapper) return lambda;
     return ErrorMapper.wrapLoop(lambda);
   }
 
   // This function is rarely, when globals reset or code is uploaded.
-  GetMainLoop(): () => void {
+  public GetMainLoop(): () => void {
     Memory.rooms ??= {};
     Memory.creeps ??= {};
+
+    // Register this class as a property on the game so it can be access from the console.
+    global.Colony = this;
+
     this.log.crit("GLOBALS RESET");
     return this.WrapWithProfiling(this.WrapWithErrorMapper(this.MainLoop.bind(this)));
   }
 
   // This is the effective loop function invoked each tick.
-  MainLoop(): void {
+  private MainLoop(): void {
     // Try to generate a pixel if we can
     if (Game.cpu.bucket >= 10000) {
       const res = Game.cpu.generatePixel();
@@ -63,4 +70,5 @@ export class Colony {
     for (const m of Rooms) m.OnTick();
   };
 
+  SaySomething(): void { this.log.crit("Something"); }
 }
