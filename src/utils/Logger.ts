@@ -15,7 +15,7 @@ export enum LogLevel {
   CRITICAL,
 }
 
-type FormatProperty = "<date>" | "<wrapped>" | "<level>" | "<msg>" | "<room>" | "<role>" | "<creep>";
+type FormatProperty = "<date>" | "<time>" | "<wrapped>" | "<level>" | "<msg>" | "<room>" | "<role>" | "<creep>";
 type Loggable = string | number | { toString(): string; };
 type LogArg = Partial<Record<FormatProperty, Loggable>>;
 
@@ -63,13 +63,14 @@ export class Logger<T extends Loggable> {
   ) {
     this._wrapped = wrapped;
     this._level = opts?.level ?? Logger.NameToLevel(Memory.logLevelName) ?? LogLevel.INFO;
-    this._fmt = opts?.format ?? Memory.logFormat ?? "<level> <room><role><creep>%(PadEnd:55): <msg>";
+    this._fmt = opts?.format ?? Memory.logFormat ?? "<level> <room><role><creep>%(PadEnd:63): <msg>";
     this._commonArgs = opts?.formatArgs ?? {};
   }
 
   private GetFormatArgs(args: LogArg[]): Map<string, Loggable> {
     const formatArgs = new Map<string, Loggable>();
     formatArgs.set("<date>", Game.time);
+    formatArgs.set("<time>", Game.time);
     formatArgs.set("<wrapped>", this._wrapped);
     formatArgs.set("<room>", "");
     formatArgs.set("<creep>", "");
