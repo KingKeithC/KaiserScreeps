@@ -59,6 +59,7 @@ export class Colony {
   public GetMainLoop(): () => void {
     this.log.crit(`GLOBALS RESET | Profiling Configured: ${this.GlobalEnableProfiling}, ErrorMapper: ${this.GlobalEnableErrorMapper}`);
     global.Colony = this; // Accessible as `Colony.whatever()` in the console.
+    this.CleanupMissingCreeps();
     return this.WrapWithProfiling(this.WrapWithErrorMapper(this.MainLoop.bind(this)));
   }
 
@@ -74,6 +75,15 @@ export class Colony {
     const Rooms: RoomExtra[] = Object.values(Game.rooms).map(c => new RoomExtra(c));
     for (const m of Rooms) m.OnTick();
   };
+
+  CleanupMissingCreeps() {
+    for (const name in Memory.creeps) {
+      if (!(name in Game.creeps)) {
+        this.log.info(`Cleanup memory for ${name}`);
+        delete Memory.creeps[name];
+      }
+    }
+  }
 
   SaySomething(): void { this.log.crit("Something"); }
 }

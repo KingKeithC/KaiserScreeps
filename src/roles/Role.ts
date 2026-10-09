@@ -78,7 +78,7 @@ export abstract class RoomRole<MemoryShape extends Object> {
     // Check to do spawns every `this.SpawnRate` ticks.
     const lastSpawn = this.manager.LastSpawnTick(this.RoleName);
     const timeSinceLastSpawn = Game.time - lastSpawn - this.SpawnTickOffet;
-    if (timeSinceLastSpawn > this.SpawnRate || this.manager.room.find(FIND_MY_CREEPS).length === 0) {
+    if (timeSinceLastSpawn > this.SpawnRate) {
       this.DoSpawns();
       this.manager.SetLastSpawnTick(this.RoleName, Game.time);
     }
@@ -123,14 +123,6 @@ export abstract class RoomRole<MemoryShape extends Object> {
   }
 
   DoSpawns(): void {
-    // Delete memory of missing creeps before doing spawns
-    for (const name in Memory.creeps) {
-      if (!(name in Game.creeps)) {
-        this.log.info(`Cleanup memory for ${name}`);
-        delete Memory.creeps[name];
-      }
-    }
-
     // Cannot spawn if we don't own the controller
     const mine = this.manager.room.controller?.my ?? false;
     if (!mine) {
