@@ -2,6 +2,7 @@ export enum LogLevel {
   DEBUG,
   VERBOSE,
   INFO,
+  REPORT, // Like info, but without the header
   WARNING,
   CRITICAL,
 }
@@ -65,7 +66,16 @@ export class Logger<T extends Loggable> {
 
 
   log(level: LogLevel, msg: string, ...args: LogArg[]): void {
-    if (level < this._level) return;
+    if (level < this._level) {
+      // Provided log level is too low for us to handle
+      return;
+    } else if (level === LogLevel.REPORT) {
+      // REPORT messages are filtered by level, but not formatted, so log it directly.
+      console.log(msg);
+      return;
+    }
+
+    // Needs to be formatted
 
     // Get the format args for this instance, and populate with immediate log level and message params.
     const formatArgs = this.GetFormatArgs(args);
@@ -81,14 +91,16 @@ export class Logger<T extends Loggable> {
     for (const [key, value] of formatArgs.entries()) finalLine = finalLine.replace(key, value.toString());
 
     // Handle padding specifiers
+    const paddingMatch = "%(";
     const maxAttempts = 5;
     var attempts = 0;
-    while (finalLine.includes('%') && attempts < maxAttempts) {
+    var paddingInfo = [];
+    while (finalLine.includes(paddingMatch) && attempts < maxAttempts) {
       // This shouldn't be needed anymore, but during development
       // this loop burned out the CPU a few times, so it is left here as a guard.
       attempts++;
 
-      const starts = finalLine.indexOf('%');
+      const starts = finalLine.indexOf(paddingMatch);
       const sectionToAction = finalLine.slice(0, starts);
       const paramEnd = finalLine.indexOf(')', starts);
       const rest = finalLine.slice(paramEnd + 1);
@@ -96,17 +108,17 @@ export class Logger<T extends Loggable> {
       const action = params.split(":")[0];
       const qty = Number.parseInt(params.split(":")[1]);
 
-      // console.log(JSON.stringify({
-      //   attempts: attempts,
-      //   starts: starts,
-      //   sectionToAction: sectionToAction,
-      //   paramEnd: paramEnd,
-      //   rest: rest,
-      //   params: params,
-      //   action: action,
-      //   qty: qty,
-      //   finalLine: finalLine,
-      // }));
+      paddingInfo.push({
+        attempts: attempts,
+        starts: starts,
+        sectionToAction: sectionToAction,
+        paramEnd: paramEnd,
+        rest: rest,
+        params: params,
+        action: action,
+        qty: qty,
+        finalLine: finalLine,
+      });
 
       // Pad the line and assign back to the string we will print
       if (action === "PadStart")
@@ -115,13 +127,18 @@ export class Logger<T extends Loggable> {
         finalLine = sectionToAction.padEnd(qty) + rest;
     }
 
+    // Attach error info if we had problems padding the message
+    // This may also break if a message has more than `paddingInfo` sections, or stray `paddingMatch` spans.
+    if (attempts >= maxAttempts) finalLine += `\n +++ The following info may help debug a padding error: ${JSON.stringify(paddingInfo)}`;
+
     // Log it.
     console.log(finalLine);
   }
 
   debug(msg: string, ...args: LogArg[]): void { this.log(LogLevel.DEBUG, msg, ...args); }
-  info(msg: string, ...args: LogArg[]): void { this.log(LogLevel.INFO, msg, ...args); }
   verbose(msg: string, ...args: LogArg[]): void { this.log(LogLevel.VERBOSE, msg, ...args); }
+  info(msg: string, ...args: LogArg[]): void { this.log(LogLevel.INFO, msg, ...args); }
+  report(msg: string, ...args: LogArg[]): void { this.log(LogLevel.REPORT, msg, ...args); }
   warn(msg: string, ...args: LogArg[]): void { this.log(LogLevel.WARNING, msg, ...args); }
   crit(msg: string, ...args: LogArg[]): void { this.log(LogLevel.CRITICAL, msg, ...args); }
 }
