@@ -329,7 +329,7 @@ export class RoomExtra {
     for (const name of Array.from(Object.keys(Game.resources)).sort())
       msg += ` [${name}: ${Game.resources[name]}]`;
 
-    this.log.info(msg);
+    this.log.report(msg);
   }
 
   DrawRepairOverlay(): void {
@@ -382,7 +382,7 @@ export class RoomExtra {
     summary += `\n================================= ${grandTotalEventCount.toString().padStart(5)} TOTAL EVENTS ==================================`;
 
     // Print it
-    this.log.info(summary);
+    this.log.report(summary);
     // Game.notify(summary, 60 * 6);
 
     // Wipe the event log
