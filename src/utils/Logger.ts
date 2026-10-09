@@ -1,3 +1,11 @@
+
+declare global {
+  interface Memory {
+    logLevelName?: string,
+    logFormat?: string,
+  }
+}
+
 export enum LogLevel {
   DEBUG,
   VERBOSE,
@@ -38,13 +46,24 @@ export class Logger<T extends Loggable> {
     }
   }
 
+  static NameToLevel(name?: string): LogLevel | null {
+    switch (name) {
+      case "DBUG": return LogLevel.DEBUG;
+      case "VERB": return LogLevel.VERBOSE;
+      case "INFO": return LogLevel.INFO;
+      case "WARNING": return LogLevel.WARNING;
+      case "CRITICAL": return LogLevel.CRITICAL;
+      default: return null;
+    }
+  }
+
   constructor(
     wrapped: T,
     opts?: LoggerOptions,
   ) {
     this._wrapped = wrapped;
-    this._level = opts?.level ?? LogLevel.INFO;
-    this._fmt = opts?.format ?? "<level> <room><role><creep>%(PadEnd:55): <msg>";
+    this._level = opts?.level ?? Logger.NameToLevel(Memory.logLevelName) ?? LogLevel.INFO;
+    this._fmt = opts?.format ?? Memory.logFormat ?? "<level> <room><role><creep>%(PadEnd:55): <msg>";
     this._commonArgs = opts?.formatArgs ?? {};
   }
 
