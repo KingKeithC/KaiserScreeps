@@ -26,6 +26,9 @@ export interface LoggerOptions {
 }
 
 export class Logger<T extends Loggable> {
+  static DefaultLogFormat: string = "<level> <room><role><creep>%(PadEnd:63): <msg>";
+  static DefaultLogLevelName: string = Logger.LevelToName(LogLevel.INFO);
+
   private readonly _wrapped: T;
   private readonly _fmt: string;
   private _level: LogLevel;
@@ -63,7 +66,7 @@ export class Logger<T extends Loggable> {
   ) {
     this._wrapped = wrapped;
     this._level = opts?.level ?? Logger.NameToLevel(Memory.logLevelName) ?? LogLevel.INFO;
-    this._fmt = opts?.format ?? Memory.logFormat ?? "<level> <room><role><creep>%(PadEnd:63): <msg>";
+    this._fmt = opts?.format ?? Memory.logFormat ?? Logger.DefaultLogFormat;
     this._commonArgs = opts?.formatArgs ?? {};
   }
 
