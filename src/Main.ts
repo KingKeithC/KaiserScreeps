@@ -1,38 +1,6 @@
-import { ErrorMapper } from "utils/ErrorMapper";
-import { Logger } from "utils/Logger";
-import { RoomExtra } from "Room";
-import { RoomRole } from "roles/Role";
-import "roles";
-import profiler from "screeps-profiler";
+import { Colony } from "Colony";
 
-const mainLog = new Logger({ toString: () => "[Main]" });
-
-const MainLoop = () => {
-  Memory.rooms ??= {};
-  Memory.creeps ??= {};
-
-  // Try to generate a pixel if we can
-  if (Game.cpu.bucket === 10000) {
-    const res = Game.cpu.generatePixel();
-    if (res === OK) mainLog.info(`!!! Generated a pixel :)`);
-  }
-
-  // Get all rooms I can access
-  const Rooms: RoomExtra[] = Object.values(Game.rooms).map(c => new RoomExtra(c));
-  for (const m of Rooms) m.OnTick();
-};
-
-
-profiler.enable();
-profiler.registerFN(MainLoop, "MainLoop");
-// profiler.registerClass(ErrorMapper, "ErrorMapper");
-profiler.registerClass(RoomExtra, "RoomExtra");
-profiler.registerClass(RoomRole, "RoomRole");
-for (const roleType of RoomRole.Registry.values()) {
-  profiler.registerClass(roleType, roleType.RoleName);
-}
-// export const loop = profiler.wrap(ErrorMapper.wrapLoop(MainLoop));
-export const loop = profiler.wrap(MainLoop);
+export const loop = (new Colony()).GetMainLoop();
 
 // Commands to reset memory if it is wiped.
 //

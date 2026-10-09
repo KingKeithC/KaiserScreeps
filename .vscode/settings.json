@@ -4,4 +4,10 @@
   "js/ts.format.semicolons": "insert",
   "js/ts.tsserver.experimental.enableProjectDiagnostics": true,
   "js/ts.implicitProjectConfig.target": "ES2018",
+  "chat.tools.terminal.autoApprove": {
+    "/^pnpm exec tsc --noEmit$/": {
+      "approve": true,
+      "matchCommandLine": true
+    }
+  },
 }
