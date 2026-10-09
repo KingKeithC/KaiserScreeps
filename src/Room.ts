@@ -298,7 +298,7 @@ export class RoomExtra {
   TickClaimedRoom() { }
 
   RoomStateReport(): void {
-    var msg = `\nT${Game.time} ROOM ${this.room.name} REPORT ::: ${this.RoleInstances.size} Roles ${this.AssignedCreeps.length} Total Creeps`;
+    var msg = `T${Game.time} ROOM ${this.room.name} REPORT ::: ${this.RoleInstances.size} Roles ${this.AssignedCreeps.length} Total Creeps`;
     for (const name of Array.from(this.RoleInstances.keys()).sort()) {
       const inst = this.RoleInstances.get(name);
       if (!inst) {
@@ -372,7 +372,7 @@ export class RoomExtra {
     widths = widths.map(w => w + extraPadding);
 
     // Construct the actual message
-    summary += `\n============= ${this.room.name} EVENT SUMMARY FROM ${start} to ${end} (~${this.EventReportingFrequencyTicks} Ticks) =============`;
+    summary += `============= ${this.room.name} EVENT SUMMARY FROM ${start} to ${end} (~${this.EventReportingFrequencyTicks} Ticks) =============`;
     summary += `\n   ${headers[0].padEnd(widths[0])} ${headers[1].padStart(widths[1])} ${headers[2].padStart(widths[2])}`;
     summary += `\n   ${"-".repeat(headers[0].length).padEnd(widths[0])} ${"-".repeat(headers[1].length).padStart(widths[1])} ${"-".repeat(headers[2].length).padStart(widths[2])}`;
     for (const c of printorder) {
