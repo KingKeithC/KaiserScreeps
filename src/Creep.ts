@@ -85,13 +85,13 @@ export class CreepExtra extends Creep {
 
     // Increment counters
     if (this.memory.moveMode === "avoidCreeps" && movedBetweenTicks) {
-      this.log.debug("Moved successfully in avoid mode!");
+      this.log.debug(`avoidCreeps && movedBetweenTicks; ${this.memory.successfulAvoidMoves} (+1)`);
       this.memory.successfulAvoidMoves++;
     } else if (this.memory.moveMode === "long" && !movedBetweenTicks && this.fatigue === 0) {
-      this.log.debug("Stuck >:(");
+      this.log.debug(`long && !movedBetweenTicks && this.fatigue === 0; ${this.memory.stuckTicks} (+1)`);
       this.memory.stuckTicks++;
     } else if (this.memory.moveMode === "long" && movedBetweenTicks) {
-      this.log.debug("Not stuck.");
+      this.log.debug(`long && movedBetweenTicks; Was stuck ${this.memory.stuckTicks}, now 0.`);
       this.memory.stuckTicks = 0;
     }
 
