@@ -1,5 +1,6 @@
 /* eslint-disable max-classes-per-file */
 import type { CreepExtra } from "Creep";
+import { Logger } from "utils/Logger";
 
 export interface TaskActionResult {
   target: RoomObject;
@@ -95,13 +96,14 @@ export class Mine extends TargetTask<typeof TaskAction.Mine, Id<Source>> {
 
   public override isComplete(creep: CreepExtra): boolean {
     const isAMiner = creep.role?.groupName === "Miners";
+    if (isAMiner) return false;
 
     // Done if we have no space left for energy (unless we are a miner)
-    if (!isAMiner && creep.store.getFreeCapacity(RESOURCE_ENERGY) === 0)
+    if (creep.store.getFreeCapacity(RESOURCE_ENERGY) === 0)
       return true;
 
     // Done if we are not a miner, and there is a miner nearby
-    if (!isAMiner && creep.pos.findInRange(FIND_MY_CREEPS, 4, { filter: c => c.memory.role.startsWith("Miner") }).length > 0)
+    if (creep.pos.findInRange(FIND_MY_CREEPS, 4, { filter: c => c.memory.role.startsWith("Miner") }).length > 0)
       return true;
 
     // Done if the target isn't a source or is out of energy
@@ -113,13 +115,17 @@ export class Mine extends TargetTask<typeof TaskAction.Mine, Id<Source>> {
 
 export interface CollectEnergyOptions {
   maxAttempts?: number;
+  lastInventory?: number;
 }
 
 export class CollectEnergy extends BaseTask<typeof TaskAction.CollectEnergy> {
   public readonly kind = "collectEnergy" as const;
   public readonly source: EnergySource;
   public attempts = 0;
+  public lastInventory?: number;
   public readonly maxAttempts?: number;
+
+  SmallPickupThreshold = 50;
 
   public constructor(source: string | EnergySource, options: CollectEnergyOptions = {}) {
     super(TaskAction.CollectEnergy);
@@ -127,6 +133,7 @@ export class CollectEnergy extends BaseTask<typeof TaskAction.CollectEnergy> {
       ? { kind: "creep", name: source }
       : source;
     this.maxAttempts = options.maxAttempts;
+    this.lastInventory = options.lastInventory;
   }
 
   public toString(): string {
@@ -143,10 +150,18 @@ export class CollectEnergy extends BaseTask<typeof TaskAction.CollectEnergy> {
       : Game.getObjectById(this.source.id);
     if (!(source instanceof Creep) && !(source instanceof StructureContainer)) return null;
 
+    const lastInventory = this.lastInventory ?? 0;
+    const currentInventory = creep.store.getUsedCapacity(RESOURCE_ENERGY);
     const result = source instanceof Creep
       ? source.transfer(creep, RESOURCE_ENERGY)
       : creep.withdraw(source, RESOURCE_ENERGY);
-    if (result !== OK && result !== ERR_NOT_IN_RANGE) this.attempts++;
+    this.lastInventory = currentInventory;
+
+    if (result === OK && currentInventory - lastInventory <= this.SmallPickupThreshold)
+      this.attempts++; // If the last pickup was too small, even if successful it counts as an attempt
+    else if (result !== OK && result !== ERR_NOT_IN_RANGE)
+      this.attempts++; // If the pickup failed for a reason other than range, it counts at an attempt
+
     return { target: source, range: 1, result };
   }
 

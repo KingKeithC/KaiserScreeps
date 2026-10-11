@@ -140,7 +140,7 @@ export class WorkerI extends CreepRoleBase implements CreepRole {
       ignoreCreeps: true,
       filter: s => s.structureType === STRUCTURE_CONTAINER && s.store.getUsedCapacity(RESOURCE_ENERGY) > 0,
     });
-    if (container) return new CollectEnergy({ kind: "container", id: container.id as Id<StructureContainer> }, { maxAttempts: 50 });
+    if (container) return new CollectEnergy({ kind: "container", id: container.id as Id<StructureContainer> }, { maxAttempts: 3 });
 
     const miners = room.AssignedCreepsByRoleGroup.get("Miners") ?? [];
     if (miners.length === 0) {
@@ -148,7 +148,7 @@ export class WorkerI extends CreepRoleBase implements CreepRole {
       if (source) return new Mine(source.id);
     } else {
       const bestMiner = miners.filter(m => m.store.getUsedCapacity(RESOURCE_ENERGY)).sort((a, b) => a.store.getUsedCapacity(RESOURCE_ENERGY) - b.store.getUsedCapacity(RESOURCE_ENERGY)).pop();
-      if (bestMiner) return new CollectEnergy(bestMiner.name, { maxAttempts: 10 });
+      if (bestMiner) return new CollectEnergy(bestMiner.name, { maxAttempts: 5 });
     }
 
     this.log.info(`FindGatheringTask no tasks found!`, { "<creep>": creep });

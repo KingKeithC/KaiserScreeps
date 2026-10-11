@@ -126,6 +126,8 @@ export abstract class CreepRoleBase implements CreepRole {
 
   // Attempt to spawn at any point in a room
   AttemptSpawn(room: RoomExtra, body: BodyPartConstant[], initialTask?: CreepTask, newName?: string): boolean {
+    if (room.energyAvailable < CreepExtra.BodyCost(body)) return false; // No point proceeding
+
     for (const sp of room.AvailableSpawns)
       if (this.AttemptSpawnAt(room, sp, body, initialTask, newName)) return true;
     return false;
@@ -151,6 +153,8 @@ export abstract class CreepRoleBase implements CreepRole {
     if (result === OK) {
       this.log.info(`Spawning ${name} @ ${spawn}...`);
       return true; // Successful, no need to proceed.
+      // } else if (result === ERR_NOT_ENOUGH_ENERGY) {
+      //   return false; // Just ignore
     } else {
       this.log.info(`Attempt to spawn ${name} at ${spawn} resulted in: ${result}...`);
       return false;
