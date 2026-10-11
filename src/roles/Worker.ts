@@ -147,7 +147,7 @@ export class WorkerI extends CreepRoleBase implements CreepRole {
       const source = this.FindLeastAssignedSource(room);
       if (source) return new Mine(source.id);
     } else {
-      const bestMiner = miners.sort((a, b) => a.store.getUsedCapacity(RESOURCE_ENERGY) - b.store.getUsedCapacity(RESOURCE_ENERGY)).pop();
+      const bestMiner = miners.filter(m => m.store.getUsedCapacity(RESOURCE_ENERGY)).sort((a, b) => a.store.getUsedCapacity(RESOURCE_ENERGY) - b.store.getUsedCapacity(RESOURCE_ENERGY)).pop();
       if (bestMiner) return new CollectEnergy(bestMiner.name, { maxAttempts: 10 });
     }
 
