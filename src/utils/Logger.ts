@@ -4,6 +4,10 @@ declare global {
     logLevelName?: string,
     logFormat?: string,
   }
+
+  interface Console {
+    logUnsafe(message: string): void,
+  }
 }
 
 export enum LogLevel {
@@ -12,6 +16,7 @@ export enum LogLevel {
   INFO,
   REPORT, // Like info, but without the header
   WARNING,
+  ERROR,
   CRITICAL,
 }
 
@@ -26,7 +31,7 @@ export interface LoggerOptions {
 }
 
 export class Logger<T extends Loggable> {
-  static DefaultLogFormat: string = "<level> <room><role><creep>%(PadEnd:63): <msg>";
+  static DefaultLogFormat = "<level> <room><role><creep>%(PadEnd:63): <msg>";
   static DefaultLogLevelName: string = Logger.LevelToName(LogLevel.INFO);
 
   private readonly _wrapped: T;
@@ -44,6 +49,7 @@ export class Logger<T extends Loggable> {
       case LogLevel.VERBOSE: return "VERB";
       case LogLevel.INFO: return "INFO";
       case LogLevel.WARNING: return "WARNING";
+      case LogLevel.ERROR: return "ERROR";
       case LogLevel.CRITICAL: return "CRITICAL";
       default: return `UNKNOWN ${level}`;
     }
@@ -55,6 +61,7 @@ export class Logger<T extends Loggable> {
       case "VERB": return LogLevel.VERBOSE;
       case "INFO": return LogLevel.INFO;
       case "WARNING": return LogLevel.WARNING;
+      case "ERROR": return LogLevel.ERROR;
       case "CRITICAL": return LogLevel.CRITICAL;
       default: return null;
     }
@@ -93,8 +100,8 @@ export class Logger<T extends Loggable> {
       // Provided log level is too low for us to handle
       return;
     } else if (level === LogLevel.REPORT) {
-      // REPORT messages are filtered by level, but not formatted, so log it directly.
-      console.log(msg);
+      // REPORT messages are filtered by level, but not formatted aside from colour, so log it directly.
+      console.logUnsafe(`<span style="color: DodgerBlue">${msg}</span>`);
       return;
     }
 
@@ -110,14 +117,14 @@ export class Logger<T extends Loggable> {
       formatArgs.set("<role>", ""); // The creep names contain the role name, so it's redundant
 
     // Render the FormatProperties into the log line.
-    var finalLine = this._fmt;
+    let finalLine = this._fmt;
     for (const [key, value] of formatArgs.entries()) finalLine = finalLine.replace(key, value.toString());
 
     // Handle padding specifiers
     const paddingMatch = "%(";
     const maxAttempts = 5;
-    var attempts = 0;
-    var paddingInfo = [];
+    let attempts = 0;
+    const paddingInfo = [];
     while (finalLine.includes(paddingMatch) && attempts < maxAttempts) {
       // This shouldn't be needed anymore, but during development
       // this loop burned out the CPU a few times, so it is left here as a guard.
@@ -129,18 +136,18 @@ export class Logger<T extends Loggable> {
       const rest = finalLine.slice(paramEnd + 1);
       const params = finalLine.slice(starts + 2, paramEnd);
       const action = params.split(":")[0];
-      const qty = Number.parseInt(params.split(":")[1]);
+      const qty = Number.parseInt(params.split(":")[1], 10);
 
       paddingInfo.push({
-        attempts: attempts,
-        starts: starts,
-        sectionToAction: sectionToAction,
-        paramEnd: paramEnd,
-        rest: rest,
-        params: params,
-        action: action,
-        qty: qty,
-        finalLine: finalLine,
+        attempts,
+        starts,
+        sectionToAction,
+        paramEnd,
+        rest,
+        params,
+        action,
+        qty,
+        finalLine,
       });
 
       // Pad the line and assign back to the string we will print
@@ -155,7 +162,10 @@ export class Logger<T extends Loggable> {
     if (attempts >= maxAttempts) finalLine += `\n +++ The following info may help debug a padding error: ${JSON.stringify(paddingInfo)}`;
 
     // Log it.
-    console.log(finalLine);
+    if (level !== LogLevel.ERROR)
+      console.log(finalLine);
+    else
+      console.logUnsafe(`<span style="color: red">${finalLine}</span>`);
   }
 
   debug(msg: string, ...args: LogArg[]): void { this.log(LogLevel.DEBUG, msg, ...args); }
@@ -163,5 +173,6 @@ export class Logger<T extends Loggable> {
   info(msg: string, ...args: LogArg[]): void { this.log(LogLevel.INFO, msg, ...args); }
   report(msg: string, ...args: LogArg[]): void { this.log(LogLevel.REPORT, msg, ...args); }
   warn(msg: string, ...args: LogArg[]): void { this.log(LogLevel.WARNING, msg, ...args); }
+  error(error: Error, ...args: LogArg[]): void { this.log(LogLevel.ERROR, error.stack ?? error.toString(), ...args); }
   crit(msg: string, ...args: LogArg[]): void { this.log(LogLevel.CRITICAL, msg, ...args); }
 }

@@ -23,3 +23,10 @@ export const Colours = {
   PATH_STUCK: "#fff700",
   ATTACK_RANGE: "#ac5f5f",
 };
+
+export function GetRandomSuffix() {
+  const adj1 = Adjectives[Math.floor(Math.random() * Adjectives.length)];
+  const adj2 = Adjectives[Math.floor(Math.random() * Adjectives.length)];
+  const noun = Nouns[Math.floor(Math.random() * Nouns.length)];
+  return [adj1, adj2, noun].join("-");
+}

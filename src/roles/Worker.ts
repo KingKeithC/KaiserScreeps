@@ -1,73 +1,165 @@
 import { CreepExtra } from "Creep";
-import { RoomRole } from "./Role";
+import { RoomExtra } from "Room";
+import { Build, CollectEnergy, CreepTask, Idle, MaintainController, Mine, Pickup, Repair, Supply, UpdateController } from "Tasks";
+import { MakeBody } from "utils/Collections";
+import { CreepRoleBase, CreepRole } from "./Role";
 
-enum WorkerAction {
-  Idle = '💤',
-  Mine = '⛏️',
-  CollectEnergy = '🔌',
-  MaintainController = '🦸‍♀️',
-  Build = '🏗️',
-  Repair = '🛠️',
-  Supply = '🫴',
-  UpgradeController = '🔼',
-  Pickup = "🧹"
-}
-
-type WorkerTarget = Id<ConstructionSite<BuildableStructureConstant> | AnyStructure | Source | Creep | Resource<RESOURCE_ENERGY> | StructureContainer>;
-
-class WorkerTask extends Object {
-  readonly action: WorkerAction;
-  readonly target: WorkerTarget | null;
-
-  constructor(action: WorkerAction, id?: WorkerTarget) {
-    super();
-
-    this.action = action;
-    this.target = id ? id : null;
-    if ((!id) && action !== WorkerAction.Idle) {
-      throw new Error(`Id was ${id} with a non idle action: ${action}`);
-    }
-  }
-
-  equals(other: WorkerTask) {
-    return this.action === other.action && this.target == other.target;
-  }
-}
-
-export class WorkerI extends RoomRole<WorkerTask> {
-  static readonly RoleName: string = "WorkerI";
-  InitialJobMemory = new WorkerTask(WorkerAction.Idle);
+export class WorkerI extends CreepRoleBase implements CreepRole {
+  readonly groupName = "Workers";
+  readonly name: string = "WorkerI";
+  readonly tier: number = 1;
 
   StartSpawnAtRCL = 0;
-  StopSpawnAtRCL = 4;
-  BodyParts = [WORK, CARRY, MOVE];
+  StopSpawnAtRCL = 8;
 
-  // Up to 6, less one for each WorkerII that is spawned.
-  get CountPerRoom() {
-    const max = 6;
-    const T2 = Object.values(Game.creeps).filter(c => c.memory.room === this.manager.room.name && c.memory.role === 'WorkerII').length;
-    return max - T2 <= 0 ? 0 : max - T2;
+  GetNewCreepBody(_room: RoomExtra): BodyPartConstant[] {
+    return MakeBody(
+      [MOVE, 1],
+      [WORK, 1],
+      [CARRY, 1],
+    );
   }
 
-  ControllerMaintenanceThreshold = 3500; // Start upgrading when ticksToDowngrade is less than this.
-  ControllerMaintenanceBuffer = 2000;    // Stop upgrading when ticksToDowngrade is greater than `ControllerMaintenanceThreshold+ControllerMaintenanceBuffer`.
+  // Up to 6, less one for each higher level worker.
+  private readonly maxCount = 6;
+  override GetRoomQuota(room: RoomExtra) {
+    const higherTierWorkers = room.AssignedCreeps.filter(
+      c => c.memory.role.startsWith("Worker") && c.role && c.role.tier > this.tier,
+    ).length;
+    return Math.max(0, this.maxCount - higherTierWorkers);
+  }
 
-  // List of filter callback and minSuppliers per priority group, descending order.
-  SupplyPriorities: [((s: AnyStoreStructure) => boolean), number][] = [
-    [(s => s instanceof StructureExtension), 1],
-    [(s => s instanceof StructureSpawn), 2],
-    [(s => s instanceof StructureTower), 3],
-    [(_ => true), 1],
-  ];
+  SelectNextTask(creep: CreepExtra, room: RoomExtra): CreepTask {
+    if (creep.store.getUsedCapacity(RESOURCE_ENERGY) === 0)
+      return this.FindGatheringTask(creep, room);
+    else if (room.find(FIND_HOSTILE_CREEPS).length > 0)
+      return this.FindWartimeSpendingTask(creep, room);
+    else
+      return this.FindSpendingTask(creep, room);
+  }
+
+  ControllerMaintenanceTask(room: RoomExtra): CreepTask | undefined {
+    return room.controller && room.controller.my ? new MaintainController(room.controller.id) : undefined;
+  }
+
+  ControllerUpgradeTask(room: RoomExtra): CreepTask | undefined {
+    return room.controller && room.controller.my ? new UpdateController(room.controller.id) : undefined;
+  }
+
+  CurrentAssignedTasks(room: RoomExtra): CreepTask[] {
+    return room.AssignedCreeps
+      .filter(c => c.memory.role.startsWith("Worker"))
+      .map(c => c.currentTask ?? new Idle());
+  }
+
+  WorkerActionCount(action: string, room: RoomExtra): number {
+    return room.AssignedCreeps.filter(
+      c => c.memory.role.startsWith("Worker") && c.currentTask?.kind === action,
+    ).length;
+  }
+
+  FindWartimeSpendingTask(creep: CreepExtra, room: RoomExtra): CreepTask {
+    const spawnNeedingEnergy = this.FindSupplyByPriorityAndPath(creep, room.SpawnsOrExtensions, room);
+    if (spawnNeedingEnergy) return new Supply(spawnNeedingEnergy.id as Id<AnyStoreStructure>);
+
+    const site = this.FindConstructionByPriorityAndPath(creep.pos, room);
+    if (site) return new Build(site.id as Id<ConstructionSite<BuildableStructureConstant>>);
+
+    const towerNeedingEnergy = this.FindSupplyByPriorityAndPath(creep, room.Towers, room);
+    if (towerNeedingEnergy) return new Supply(towerNeedingEnergy.id as Id<AnyStoreStructure>);
+
+    const damaged = this.FindIdealRepair(creep, room);
+    if (damaged) return new Repair(damaged.id as Id<AnyStructure>);
+
+    this.log.warn("No wartime spending tasks!");
+    return new Idle();
+  }
+
+  FindSpendingTask(creep: CreepExtra, room: RoomExtra): CreepTask {
+    if (
+      this.ControllerMaintenanceTask(room)
+      && room.controller?.ticksToDowngrade !== undefined
+      && room.controller.ticksToDowngrade < UpdateController.MaintenanceThreshold
+    ) return this.ControllerMaintenanceTask(room)!;
+
+    const spawn = this.FindSupplyByPriorityAndPath(creep, [...room.SpawnsOrExtensions, ...room.Towers], room);
+    if (spawn) return new Supply(spawn.id as Id<AnyStoreStructure>);
+
+    const cons = this.FindConstructionByPriorityAndPath(creep.pos, room);
+    if (cons) return new Build(cons.id as Id<ConstructionSite<BuildableStructureConstant>>);
+
+    if (this.WorkerActionCount("repair", room) < this.MaxRepairPerRoom) {
+      const repair = this.FindIdealRepairByStrength(room);
+      if (repair) return new Repair(repair.id as Id<AnyStructure>);
+      else this.log.info(`[${room.name}]${creep}: No repairs needed!`);
+    }
+
+    const totalContainerCapacity = room.Containers.reduce(
+      (sum, c) => sum + c.store.getCapacity(RESOURCE_ENERGY),
+      0,
+    );
+    if (room.storage && totalContainerCapacity > 0) {
+      const totalContainerEnergy = room.Containers.reduce(
+        (sum, c) => sum + c.store.getUsedCapacity(RESOURCE_ENERGY),
+        0,
+      );
+      const totalFillRatio = totalContainerEnergy / totalContainerCapacity;
+      if (totalFillRatio > 0.5) return new Supply(room.storage.id as Id<AnyStoreStructure>);
+    }
+
+    const upgradeTask = this.ControllerUpgradeTask(room);
+    if (upgradeTask) return upgradeTask;
+
+    this.log.warn("No spending tasks found!");
+    return new Idle();
+  }
+
+  FindDroppedEnergy(creep: CreepExtra, room: RoomExtra): CreepTask | null {
+    const droppedResources = room.find(FIND_DROPPED_RESOURCES, { filter: r => r.resourceType === RESOURCE_ENERGY });
+    for (const res of droppedResources) {
+      const countPickingUpSameRes = this.CurrentAssignedTasks(room).filter(
+        t => t.kind === "pickup" && "target" in t && t.target === res.id,
+      ).length;
+      if (countPickingUpSameRes) continue;
+      const path = creep.pos.findPathTo(res, { ignoreCreeps: true });
+      const distance = path.length;
+      const approxAmtRemaining = Math.ceil(res.amount / 1000) * distance;
+      const collect = approxAmtRemaining > this.IgnoreDroppedResourcesLessThan;
+      this.log.debug(`${collect ? "Collecting" : "Ignoring"} Dropped ${res} that is ${distance} steps away, currently has ${res.amount} remaining, we expect ${approxAmtRemaining} by the time we get there.`);
+      if (collect) return new Pickup(res.id as Id<Resource<RESOURCE_ENERGY>>);
+    }
+
+    return null;
+  }
+
+  FindGatheringTask(creep: CreepExtra, room: RoomExtra): CreepTask {
+    const dropped = this.FindDroppedEnergy(creep, room);
+    if (dropped) return dropped;
+
+    const container = creep.pos.findClosestByPath(FIND_STRUCTURES, {
+      ignoreCreeps: true,
+      filter: s => s.structureType === STRUCTURE_CONTAINER && s.store.getUsedCapacity(RESOURCE_ENERGY) > 0,
+    });
+    if (container) return new CollectEnergy({ kind: "container", id: container.id as Id<StructureContainer> }, { maxAttempts: 50 });
+
+    const miners = room.AssignedCreepsByRoleGroup.get("Miners") ?? [];
+    if (miners.length === 0) {
+      const source = this.FindLeastAssignedSource(room);
+      if (source) return new Mine(source.id);
+    } else {
+      const bestMiner = miners.sort((a, b) => a.store.getUsedCapacity(RESOURCE_ENERGY) - b.store.getUsedCapacity(RESOURCE_ENERGY)).pop();
+      if (bestMiner) return new CollectEnergy(bestMiner.name, { maxAttempts: 10 });
+    }
+
+    this.log.info(`FindGatheringTask no tasks found!`, { "<creep>": creep });
+    return new Idle();
+  }
 
   MaxRepairPerRoom = 3;
+  IgnoreDroppedResourcesLessThan = 30;
+  MediumSearchRange = 20;
+  ShortSearchRange = 5;
 
-  // At least 2, but no more than 1/4 of the number of sites
-  get MaxConstructionWorkers() {
-    const max = Math.floor(this.manager.room.find(FIND_MY_CONSTRUCTION_SITES).length / 4);
-    const min = 2;
-    return max < min ? min : max;
-  };
   ConstructionPriorities: ((c: ConstructionSite) => boolean)[] = [
     (c => c.structureType === STRUCTURE_ROAD),
     (c => c.structureType === STRUCTURE_EXTENSION || c.structureType === STRUCTURE_SPAWN),
@@ -76,237 +168,56 @@ export class WorkerI extends RoomRole<WorkerTask> {
     (_ => true),
   ];
 
-  IgnoreDroppedResourcesLessThan = 30;
+  SupplyPriorities: [((s: AnyStoreStructure) => boolean), number][] = [
+    [(s => s instanceof StructureExtension), 1],
+    [(s => s instanceof StructureSpawn), 2],
+    [(s => s instanceof StructureTower), 3],
+    [(_ => true), 1],
+  ];
 
-  MediumSearchRange = 20;
-  ShortSearchRange = 5;
-
-  TickCreep(creep: CreepExtra, currentTask: WorkerTask): void {
-    if (this.IsTaskComplete(creep, currentTask)) {
-      const newTask = this.Reassign(creep);
-      this.log.info(`Reassigned ${JSON.stringify(currentTask).padEnd(51)} -> ${JSON.stringify(newTask)}`, { "<creep>": creep });
-      this.manager.RecentEvents = this.manager.RecentEvents.concat({
-        time: Game.time,
-        event: `Worker Reassign ${currentTask.action} -> ${newTask.action}`,
-        summary: `Worker Reassign ${currentTask.action} -> ${newTask.action}`,
-        value: null,
-      });
-      creep.say(newTask.action);
-      creep.memory.jobMemory = newTask;
-    }
-    this.Act(creep, currentTask);
-  }
-
-  Reassign(creep: CreepExtra): WorkerTask {
-    if (creep.store.getUsedCapacity(RESOURCE_ENERGY) === 0)
-      return this.FindGatheringTask(creep);
-    else if (this.manager.room.find(FIND_HOSTILE_CREEPS).length > 0)
-      return this.FindWartimeSpendingTask(creep);
-    else
-      return this.FindSpendingTask(creep);
-  }
-
-  ControllerMaintenanceTask?: WorkerTask = this.manager.Owned
-    ? new WorkerTask(WorkerAction.MaintainController, this.manager.room.controller?.id)
-    : undefined;
-
-  ControllerUpgradeTask?: WorkerTask = this.manager.Owned
-    ? new WorkerTask(WorkerAction.UpgradeController, this.manager.room.controller?.id)
-    : undefined;
-
-  get CurrentlyAssignedTasks(): WorkerTask[] {
-    return this.manager.room.find(FIND_MY_CREEPS, {
-      filter: c => c.memory.role.startsWith("Worker")
-    }).map(c => c.memory.jobMemory as WorkerTask);
-  }
-
-  private _WorkersByActionAndTarget?: Map<WorkerAction, Map<WorkerTarget, CreepExtra[]>>;
-  get WorkersByActionAndTarget(): Map<WorkerAction, Map<WorkerTarget, CreepExtra[]>> {
-    // Return cached
-    if (this._WorkersByActionAndTarget != undefined) return this._WorkersByActionAndTarget;
-
-    // Generate cache and return
-    const res = new Map<WorkerAction, Map<WorkerTarget, CreepExtra[]>>();
-    for (const worker of this.manager.room.find(FIND_MY_CREEPS, {
-      filter: c => c.memory.role.startsWith("Worker")
-    })) {
-      const task = worker.memory.jobMemory as WorkerTask;
-      if (task.action === WorkerAction.Idle) continue;
-      const actionGroup = res.get(task.action) ?? new Map();
-      const targetWorkers = [...(actionGroup.get(task.target) ?? []), worker];
-      actionGroup.set(task.target, targetWorkers);
-      res.set(task.action, actionGroup);
-    }
-
-    this._WorkersByActionAndTarget = res;
-    return this._WorkersByActionAndTarget;
-  }
-
-  private _WorkersByAction?: Map<WorkerAction, CreepExtra[]>;
-  get WorkersByAction(): Map<WorkerAction, CreepExtra[]> {
-    // Return cached
-    if (this._WorkersByAction != undefined) return this._WorkersByAction;
-
-    // Generate cache and return
-    const res = new Map();
-    for (const [action, workersBytarget] of this.WorkersByActionAndTarget.entries())
-      for (const [target, workers] of workersBytarget.entries())
-        res.set(action, [...res.get(action) ?? [], ...workers]);
-
-    this._WorkersByAction = res;
-    return this._WorkersByAction;
-  }
-
-  WorkerActionCount(action: WorkerAction): number { return (this.WorkersByAction.get(action) ?? []).length; }
-
-  FindWartimeSpendingTask(creep: CreepExtra): WorkerTask {
-    // Spawns/Extensions needing energy
-    const spawnNeedingEnergy = this.FindSupplyByPriorityAndPath(creep, this.manager.SpawnsOrExtensions);
-    if (spawnNeedingEnergy) return new WorkerTask(WorkerAction.Supply, spawnNeedingEnergy.id);
-
-    // Ongoing Construction
-    const site = this.FindConstructionByPriorityAndPath(creep.pos);
-    if (site) return new WorkerTask(WorkerAction.Build, site.id);
-
-    // Tower needing energy
-    const towerNeedingEnergy = this.FindSupplyByPriorityAndPath(creep, this.manager.Towers);
-    if (towerNeedingEnergy) return new WorkerTask(WorkerAction.Supply, towerNeedingEnergy.id);
-
-    // Structures in need of repair
-    const damaged = this.FindIdealRepair(creep);
-    if (damaged) return new WorkerTask(WorkerAction.Repair, damaged.id);
-
-    // Default
-    this.log.warn(`No wartime spending tasks!`);
-    return new WorkerTask(WorkerAction.Idle);
-  }
-
-  FindSpendingTask(creep: CreepExtra): WorkerTask {
-    // Select target in order of priority
-
-    // Controller at risk of downgrade
-    if (
-      this.ControllerMaintenanceTask
-      && this.manager.room.controller!.ticksToDowngrade < this.ControllerMaintenanceThreshold
-    ) return this.ControllerMaintenanceTask;
-
-    // Find nearest unsupplied supply
-    const spawn = this.FindSupplyByPriorityAndPath(creep, [...this.manager.SpawnsOrExtensions, ...this.manager.Towers]);
-    if (spawn) return new WorkerTask(WorkerAction.Supply, spawn.id);
-
-    // If not enough construction workers, find closest site
-    const cons = this.FindConstructionByPriorityAndPath(creep.pos);
-    if (cons) return new WorkerTask(WorkerAction.Build, cons.id);
-
-    // If not enough repair workers, find nearest repair
-    if (this.WorkerActionCount(WorkerAction.Repair) < this.MaxRepairPerRoom) {
-      const repair = this.FindIdealRepairByStrength(creep);
-      if (repair) return new WorkerTask(WorkerAction.Repair, repair.id);
-      else this.log.info(`[${this.manager.room}]${creep}: No repairs needed!`);
-    }
-
-    // Nothing else to do so just upgrade forever
-    if (this.ControllerUpgradeTask) return this.ControllerUpgradeTask;
-
-    // Default
-    this.log.warn(`No spending tasks found!`);
-    return new WorkerTask(WorkerAction.Idle);
-  }
-
-  FindDroppedEnergy(creep: CreepExtra): WorkerTask | null {
-    // Dropped Energy with reasonable amount remaining
-    const droppedResources = this.manager.room.find(FIND_DROPPED_RESOURCES, { filter: r => r.resourceType === RESOURCE_ENERGY });
-    for (const res of droppedResources) {
-      const countPickingUpSameRes = this.CurrentlyAssignedTasks.filter(t => t.action === WorkerAction.Pickup && t.target == res.id).length;
-      if (countPickingUpSameRes) continue;
-      const distance = creep.pos.findPathTo(res, { ignoreCreeps: true }).length;
-      const approxAmtRemaining = Math.ceil(res.amount / 1000) * distance;
-      const collect = approxAmtRemaining > this.IgnoreDroppedResourcesLessThan;
-      this.log.debug(`${collect ? "Collecting" : "Ignoring"} Dropped ${res} that is ${distance} steps away, currently has ${res.amount} remaining, we expect ${approxAmtRemaining} by the time we get there.`);
-      if (collect) return new WorkerTask(WorkerAction.Pickup, res.id as Id<Resource<RESOURCE_ENERGY>>);
-    }
-
-    return null;
-  }
-
-  FindGatheringTask(creep: CreepExtra): WorkerTask {
-    // Dropped Energy with reasonable amount remaining
-    const dropped = this.FindDroppedEnergy(creep);
-    if (dropped) return dropped;
-
-    // Collect from container that has energy
-    const container = creep.pos.findClosestByPath(FIND_STRUCTURES, { ignoreCreeps: true, filter: s => s.structureType === STRUCTURE_CONTAINER && s.store.getUsedCapacity(RESOURCE_ENERGY) });
-    if (container) return new WorkerTask(WorkerAction.CollectEnergy, container.id);
-
-    // Collect from the fullest miner in medium range
-    const allMiners = this.manager.room.find(FIND_MY_CREEPS, { filter: c => c.memory.role.startsWith("Mine") && c.store.getUsedCapacity(RESOURCE_ENERGY) });
-    const bestMiner = creep.pos.findInRange(allMiners, this.MediumSearchRange).sort((a, b) => a.store.energy - b.store.energy).pop();
-    if (bestMiner) return new WorkerTask(WorkerAction.CollectEnergy, bestMiner.id);
-
-    // Do harvesting on our own
-    const source = this.FindLeastAssignedSource();
-    if (source) return new WorkerTask(WorkerAction.Mine, source.id);
-
-    // Nothing to do without energy
-    this.log.info(`FindGatheringTask no tasks found!`, { "<creep>": creep });
-    return new WorkerTask(WorkerAction.Idle);
-  }
-
-  FindConstructionByPriorityAndPath(pos: RoomPosition): ConstructionSite | null {
-    const constructions = this.manager.room.find(FIND_MY_CONSTRUCTION_SITES);
-    var priorityIndex = 0;
+  FindConstructionByPriorityAndPath(pos: RoomPosition, room: RoomExtra): ConstructionSite | null {
+    const constructions = room.find(FIND_MY_CONSTRUCTION_SITES);
     for (const p of this.ConstructionPriorities) {
       const group = constructions.filter(p);
       if (group.length) return pos.findClosestByPath(group, { ignoreCreeps: true });
-      priorityIndex++;
     }
-    this.log.debug(`No constructions found, searched ${priorityIndex} priority groups.`);
     return null;
   }
 
-  // Return the closest Spawn/Extension/Tower with room for energy
-  // and the least number of other assigned suppliers
-  FindSupplyByPriorityAndPath(supplier: CreepExtra, candidates: AnyStoreStructure[]): AnyStoreStructure | null {
-    // Get all transfers in progress
-    const inProgressSupplyTasks = this.CurrentlyAssignedTasks.filter(t => t.action === WorkerAction.Supply);
-
-    // Group by target and return count of group
-    const supplyTargetsByCount = new Map();
+  FindSupplyByPriorityAndPath(supplier: CreepExtra, candidates: AnyStoreStructure[], room: RoomExtra): AnyStoreStructure | null {
+    const inProgressSupplyTasks = this.CurrentAssignedTasks(room).filter(t => t.kind === "supply");
+    const supplyTargetsByCount = new Map<string, number>();
     for (const t of inProgressSupplyTasks) {
-      const existing = supplyTargetsByCount.get(t.target!) ?? 0;
-      supplyTargetsByCount.set(t.target!, existing + 1);
+      const target = "target" in t ? (t.target as string | undefined) : undefined;
+      if (!target) continue;
+      const existing = supplyTargetsByCount.get(target) ?? 0;
+      supplyTargetsByCount.set(target, existing + 1);
     }
 
-    var priorityIndex = 0;
     for (const [p, maxSuppliers] of this.SupplyPriorities) {
-      // Get candidates and group by number of suppliers
       const needsSupply = candidates
         .map(s => ({ structure: s, suppliers: supplyTargetsByCount.get(s.id) ?? 0 }))
-        .filter(s => s.structure.store.getFreeCapacity(RESOURCE_ENERGY) && p(s.structure) && s.suppliers < maxSuppliers)
+        .filter(s => s.structure.store.getFreeCapacity(RESOURCE_ENERGY) > 0 && p(s.structure) && s.suppliers < maxSuppliers)
         .map(s => s.structure);
 
       if (needsSupply.length) return supplier.pos.findClosestByPath(needsSupply, { ignoreCreeps: true });
-      priorityIndex++;
     }
 
-    this.log.debug(`No targets needing supply found, searched ${priorityIndex} priority groups.`);
     return null;
   }
 
-  FindIdealRepairByStrength(supplier: CreepExtra): AnyStructure | undefined | null {
-    const inProgressRepairTasks = this.CurrentlyAssignedTasks.filter(t => t.action === WorkerAction.Repair);
-
-    // Group by target and return count of group
-    const targetsByCount = new Map();
+  FindIdealRepairByStrength(room: RoomExtra): AnyStructure | undefined | null {
+    const inProgressRepairTasks = this.CurrentAssignedTasks(room).filter(t => t.kind === "repair");
+    const targetsByCount = new Map<string, number>();
     for (const t of inProgressRepairTasks) {
-      const existing = targetsByCount.get(t.target!) ?? 0;
-      targetsByCount.set(t.target!, existing + 1);
+      const target = "target" in t ? (t.target as string | undefined) : undefined;
+      if (!target) continue;
+      const existing = targetsByCount.get(target) ?? 0;
+      targetsByCount.set(target, existing + 1);
     }
 
-    const repairs = this.manager.room.find(FIND_STRUCTURES, { filter: s => s.hits < s.hitsMax });
-    var priorityIndex = 0;
-    for (const [p, repairAt, maxRepairs] of this.manager.RepairPriorities) {
-      // Get candidates and group by number of suppliers
+    const repairs = room.find(FIND_STRUCTURES, { filter: s => s.hits < s.hitsMax });
+    for (const [p, repairAt, maxRepairs] of room.RepairPriorities) {
       const needsRepair = repairs
         .map(s => ({ site: s, count: targetsByCount.get(s.id) ?? 0 }))
         .filter(s => p(s.site) && (s.site.hits / s.site.hitsMax) < repairAt && s.count < maxRepairs)
@@ -315,295 +226,85 @@ export class WorkerI extends RoomRole<WorkerTask> {
         .pop();
 
       if (needsRepair) return needsRepair;
-      priorityIndex++;
     }
 
-    this.log.debug(`No repairs found, searched ${priorityIndex} priority groups.`);
     return null;
   }
 
-  FindIdealRepair(supplier: CreepExtra): AnyStructure | undefined | null {
-    const inProgressRepairTasks = this.CurrentlyAssignedTasks.filter(t => t.action === WorkerAction.Repair);
-
-    // Group by target and return count of group
-    const targetsByCount = new Map();
+  FindIdealRepair(supplier: CreepExtra, room: RoomExtra): AnyStructure | undefined | null {
+    const inProgressRepairTasks = this.CurrentAssignedTasks(room).filter(t => t.kind === "repair");
+    const targetsByCount = new Map<string, number>();
     for (const t of inProgressRepairTasks) {
-      const existing = targetsByCount.get(t.target!) ?? 0;
-      targetsByCount.set(t.target!, existing + 1);
+      const target = "target" in t ? (t.target as string | undefined) : undefined;
+      if (!target) continue;
+      const existing = targetsByCount.get(target) ?? 0;
+      targetsByCount.set(target, existing + 1);
     }
 
-    const repairs = this.manager.room.find(FIND_STRUCTURES, { filter: s => s.hits < s.hitsMax });
-    var priorityIndex = 0;
-    for (const [p, repairAt, maxRepairs] of this.manager.RepairPriorities) {
-      // Get candidates and group by number of suppliers
+    const repairs = room.find(FIND_STRUCTURES, { filter: s => s.hits < s.hitsMax });
+    for (const [p, repairAt, maxRepairs] of room.RepairPriorities) {
       const needsRepair = repairs
         .map(s => ({ site: s, count: targetsByCount.get(s.id) ?? 0 }))
         .filter(s => p(s.site) && (s.site.hits / s.site.hitsMax) < repairAt && s.count < maxRepairs)
         .map(c => c.site);
 
       if (needsRepair.length > 0) return supplier.pos.findClosestByPath(needsRepair, { ignoreCreeps: true });
-      priorityIndex++;
     }
 
-    this.log.debug(`No repairs found, searched ${priorityIndex} priority groups.`);
     return null;
   }
 
-  FindLeastAssignedSource(): Source | undefined {
-    const harvestersBySource = new Map<Id<Source>, number>();
-    for (const c of [
-      ...this.manager.AssignedCreepsByRole.get("WorkerI") ?? [],
-      ...this.manager.AssignedCreepsByRole.get("WorkerII") ?? [],
-      ...this.manager.AssignedCreepsByRole.get("WorkerIII") ?? [],
-    ]) {
-      const mem = c.memory.jobMemory as WorkerTask;
-      if (!mem.target) continue;
-      const obj = Game.getObjectById(mem.target);
-      if (obj instanceof Source) harvestersBySource.set(obj.id, (harvestersBySource.get(obj.id) ?? 0) + 1);
+  FindLeastAssignedSource(room: RoomExtra): Source | undefined {
+    const sourceToAssigneeCount = new Map<Id<Source>, number>();
+    for (const t of room.GetAssignedTasks().filter(t => t instanceof Mine)) {
+      const sourceId = (t as Mine).target;
+      sourceToAssigneeCount.set(sourceId, (sourceToAssigneeCount.get(sourceId) ?? 0) + 1);
     }
-    return this.manager.room.find(FIND_SOURCES)
-      .map(source => ({ source, count: harvestersBySource.get(source.id) ?? 0 }))
+    return room.Sources
+      .map(source => ({ source, count: sourceToAssigneeCount.get(source.id) ?? 0 }))
       .sort((b, a) => a.count - b.count)
       .pop()?.source;
-  }
-
-  WithdrawFromEnergySources(creep: CreepExtra): ScreepsReturnCode {
-    const hasEnergy = creep.pos.findInRange([
-      ...this.manager.room.find(FIND_MY_CREEPS, { filter: c => c.memory.role.startsWith("Miner") }),
-      ...this.manager.room.find(FIND_STRUCTURES, { filter: s => s.structureType === STRUCTURE_CONTAINER }) as StructureContainer[],
-    ], 1, { filter: c => c.store.getUsedCapacity(RESOURCE_ENERGY) })
-      .sort((a, b) => (a.store.getUsedCapacity(RESOURCE_ENERGY) / a.store.getCapacity(RESOURCE_ENERGY)) - (b.store.getUsedCapacity(RESOURCE_ENERGY) / b.store.getCapacity(RESOURCE_ENERGY)))
-      .pop();
-    // Transer theirs to us
-    if (hasEnergy && hasEnergy instanceof Creep) return hasEnergy.transfer(creep, RESOURCE_ENERGY);
-    else if (hasEnergy && hasEnergy instanceof StructureContainer) return creep.withdraw(hasEnergy, RESOURCE_ENERGY);
-
-    this.log.debug(`WithdrawFromEnergySources: Unknown source: ${hasEnergy}`);
-    return ERR_NOT_IN_RANGE;
-  }
-
-  Act(creep: CreepExtra, task: WorkerTask): void {
-    // Validate Target
-    if (task.target == null || task.target == undefined) {
-      // Target may be null in this one case
-      if (task.action === WorkerAction.Idle) return;
-
-      this.log.info(`Act: ${creep} has null/undefined target in memory: ${task.target}`, { "<creep>": creep });
-      return;
-    }
-
-    // Load object the target references
-    const targetObject = Game.getObjectById(task.target);
-    if (targetObject == null || targetObject == undefined) return;
-
-    // Actually act on the target
-    var result: number = OK;
-    switch (task.action) {
-      case (WorkerAction.Pickup): {
-        const t = targetObject as Resource;
-        result = creep.pickup(t);
-        if (result === OK) this.log.info(`Act: Picked up ${t}.`, { "<creep>": creep });
-        break;
-      }
-      case (WorkerAction.CollectEnergy): {
-        result = this.WithdrawFromEnergySources(creep);
-        if (result === OK) this.log.debug(`Act: Collected Energy from nearby source.`, { "<creep>": creep });
-        break;
-      }
-      case (WorkerAction.UpgradeController):
-      case (WorkerAction.MaintainController): {
-        const t = targetObject as StructureController;
-        result = creep.upgradeController(t);
-        if (result === OK) this.log.debug(`Act: Upgraded ${t} to RCL ${t.level} (${t.progress}/${t.progressTotal}) %${(t.progress / t.progressTotal * 100).toFixed(2)}.`, { "<creep>": creep });
-        break;
-      }
-      case (WorkerAction.Build): {
-        const t = targetObject as ConstructionSite;
-        result = creep.build(t);
-        if (result === OK) this.log.debug(`Act: Built ${t} (${t.progress}/${t.progressTotal}) %${(t.progress / t.progressTotal * 100).toFixed(2)}.`, { "<creep>": creep });
-        break;
-      }
-      case (WorkerAction.Repair): {
-        const t = targetObject as AnyOwnedStructure;
-        result = creep.repair(t);
-        if (result === OK) this.log.debug(`Act: Repaired ${t} (${t.hits}/${t.hitsMax}) %${(t.hits / t.hitsMax * 100).toFixed(2)}.`, { "<creep>": creep });
-        break;
-      }
-      case (WorkerAction.Supply): {
-        const t = targetObject as AnyStoreStructure;
-        result = creep.transfer(t, RESOURCE_ENERGY);
-        if (result === OK) this.log.debug(`Act: Supplied ${t}.`, { "<creep>": creep });
-        break;
-      }
-      case (WorkerAction.Mine): {
-        const t = targetObject as Source;
-        result = creep.harvest(t);
-        if (result === OK) this.log.debug(`Act: Mined ${t}.`, { "<creep>": creep });
-        break;
-      }
-      default: {
-        this.log.warn(`Act: Unknown Action ${JSON.stringify(task)}.`, { "<creep>": creep });
-        break;
-      }
-    }
-
-    // Handle errors
-
-    switch (result) {
-      case OK:
-      case ERR_FULL:
-      case ERR_NOT_ENOUGH_RESOURCES: {
-        // These can be ignored.
-        return;
-      }
-      case ERR_NOT_IN_RANGE: {
-        // Determine how close we need to move to the target
-        var minDistance = 3;
-        if (
-          task.action === WorkerAction.Mine
-          || task.action === WorkerAction.Supply
-          || task.action === WorkerAction.CollectEnergy
-        )
-          minDistance = 1;
-        else if (task.action === WorkerAction.Pickup)
-          minDistance = 0;
-
-        // Move. Since this is our last action, ignore the RC.
-        creep.MoveCreep(targetObject.pos, { range: minDistance });
-        return;
-      }
-      default: {
-        // Generic print all
-        this.log.info(`Act: Task ${JSON.stringify(task)} was not successful: ${result}`, { "<creep>": creep });
-        return;
-      }
-    }
-  }
-
-  IsTaskComplete(creep: CreepExtra, task: WorkerTask): boolean {
-    // Invalid/Idle tasks are always done.
-    if (!task.target || !task.action || task.action === WorkerAction.Idle) return true;
-
-    // Get the object the task references
-    const targetObject = Game.getObjectById(task.target);
-    if (!targetObject && task.action === WorkerAction.Build)
-      return true; // Builders can have stale objects so don't log an error
-    else if (!targetObject) {
-      this.log.info(`IsTaskComplete: Game.getObjectById of ${task.target} is null`, { "<creep>": creep });
-      return true;
-    }
-
-    switch (task.action) {
-      case (WorkerAction.Mine): {
-        if (this.manager.room.find(FIND_MY_CREEPS, { filter: c => c.memory.role.startsWith("Miner") }).length > 0) return true; // We are done mining if a miner lives
-        if (creep.store.getFreeCapacity(RESOURCE_ENERGY) === 0) return true;
-        return (targetObject as Source).energy === 0;
-      }
-      case (WorkerAction.CollectEnergy): {
-        if (creep.store.getFreeCapacity(RESOURCE_ENERGY) === 0) return true;
-        if (targetObject instanceof StructureContainer) return targetObject.store.energy === 0;
-        if (targetObject instanceof Creep) return targetObject.store.energy === 0;
-        if (targetObject instanceof Resource && targetObject.resourceType === RESOURCE_ENERGY) return targetObject.amount > 0;
-
-        this.log.warn(`Assuming collection is complete: ${targetObject}`, { "<creep>": creep });
-        return true;
-      }
-      case (WorkerAction.Pickup): {
-        if (creep.store.getFreeCapacity(RESOURCE_ENERGY) === 0) return true;
-        const t = targetObject as Resource<RESOURCE_ENERGY>;
-        return t.amount === 0;
-      }
-      case (WorkerAction.UpgradeController): {
-        return creep.store.energy === 0;
-      }
-      case (WorkerAction.MaintainController): {
-        if (creep.store.energy === 0) return true;
-        return this.manager.room.controller!.ticksToDowngrade > (this.ControllerMaintenanceThreshold + this.ControllerMaintenanceBuffer);
-      }
-      case (WorkerAction.Build): {
-        if (creep.store.energy === 0) return true;
-        const t = targetObject as ConstructionSite;
-        return t.progress === t.progressTotal;
-      }
-      case (WorkerAction.Repair): {
-        if (creep.store.energy === 0) return true;
-        const t = targetObject as AnyOwnedStructure;
-        return t.hits === t.hitsMax;
-      }
-      case (WorkerAction.Supply): {
-        if (creep.store.energy === 0) return true;
-        const t = targetObject as AnyStoreStructure;
-        return t.store.getFreeCapacity(RESOURCE_ENERGY) === 0;
-      }
-      default: {
-        this.log.info(`IsTaskComplete: Unknown Task is complete: ${JSON.stringify(task)}`, { "<creep>": creep });
-        return true;
-      }
-    }
-  }
-
-  TickEnd(): void {
-    // Draw visuals
-    if (this.manager.EnableVisuals) {
-      for (const t of this.CurrentlyAssignedTasks) {
-        var colour = "#000000";
-        switch (t.action) {
-          case WorkerAction.Build: colour = "#fc0fc0"; break;
-          case WorkerAction.CollectEnergy: colour = "#fff600"; break;
-          case WorkerAction.Idle: colour = "#0000ff"; break;
-          case WorkerAction.MaintainController: colour = "#dc143c"; break;
-          case WorkerAction.Mine: colour = "#ffe4cd"; break;
-          case WorkerAction.Pickup: colour = "#b0c24a"; break;
-          case WorkerAction.Repair: colour = "#808080"; break;
-          case WorkerAction.Supply: colour = "#ff00ff"; break;
-          case WorkerAction.UpgradeController: colour = "#ffd700"; break;
-        }
-        if (!t.target) continue;
-        const obj = Game.getObjectById(t.target);
-        if (!obj) continue;
-        this.manager.room.visual.circle(obj.pos.x, obj.pos.y, { fill: colour, radius: 0.25 });
-      }
-    }
   }
 }
 
 export class WorkerII extends WorkerI {
-  static override readonly RoleName: string = "WorkerII";
+  override readonly name: string = "WorkerII";
+  override readonly tier: number = 2;
 
-  SpawnRate = 45;
   StartSpawnAtRCL = 2;
-  StopSpawnAtRCL = 100;
-  BodyParts = [MOVE, MOVE, WORK, WORK, CARRY, CARRY, CARRY, CARRY, CARRY];
-  override get CountPerRoom() {
-    const max = 12;
-    const T3 = Object.values(Game.creeps).filter(c => c.memory.room === this.manager.room.name && c.memory.role === 'WorkerIII').length;
-    return max - T3 <= 0 ? 0 : max - T3;
+  StopSpawnAtRCL = 5;
+
+  override GetNewCreepBody(_room: RoomExtra): BodyPartConstant[] {
+    return MakeBody(
+      [MOVE, 3],
+      [WORK, 2],
+      [CARRY, 4],
+    );
   }
 
-  override CanSpawn(): boolean {
-    // There must be at least 1 miner before we spawn WorkerII
-    const allMiners = this.manager.room.find(FIND_MY_CREEPS, { filter: c => c.memory.role.startsWith("Mine") });
-    if (allMiners.length)
-      return true;
-
-    this.log.info("Not enough miners to spawn a worker > I.");
-    return false;
+  override IsEnabledFor(room: RoomExtra): boolean {
+    const higherTierMiners = (room.AssignedCreepsByRoleName.get("MinerII") ?? []).length;
+    return higherTierMiners > 0;
   }
 }
 
 export class WorkerIII extends WorkerII {
-  static override readonly RoleName: string = "WorkerIII";
-  StartSpawnAtRCL = 2;
-  StopSpawnAtRCL = 100;
-  BodyParts = [MOVE, MOVE, MOVE, MOVE, WORK, WORK, WORK, WORK, CARRY, CARRY, CARRY, CARRY];
+  override readonly name: string = "WorkerIII";
+  override readonly tier: number = 3;
 
-  // The lesser of `max` / `number of MinerIIs`.
-  override get CountPerRoom() {
-    const max = 10;
-    // There should be a corresponding MinerII before we try spawning a WorkerIII.
-    const role = this.manager.RoleInstances.get("MinerII");
-    if (!role) return 0;
-    const livingMinerII = role.CreepsInRoomAndRole.length;
-    return livingMinerII < max ? livingMinerII : max;
+  StartSpawnAtRCL = 4;
+  StopSpawnAtRCL = 100;
+
+  override GetNewCreepBody(_room: RoomExtra): BodyPartConstant[] {
+    return MakeBody(
+      [MOVE, 7],
+      [WORK, 6],
+      [CARRY, 7],
+    );
+  }
+
+  override GetRoomQuota(room: RoomExtra) {
+    const minerII = room.AssignedCreeps.filter(c => c.memory.role === "MinerII").length;
+    return minerII > 0 ? 8 : 0;
   }
 }

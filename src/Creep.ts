@@ -1,6 +1,11 @@
 import { Colours } from "Data";
 import { sum } from "lodash";
+import type { RoomExtra } from "Room";
 import { Logger } from "utils/Logger";
+import { Colony } from "Colony";
+import { countGraphemes } from "unicode-segmenter";
+import { CreepRole } from "roles/Role";
+import { CreepTask } from "Tasks";
 
 declare global {
   interface CreepMemory {
@@ -22,19 +27,39 @@ declare global {
 
 export class CreepExtra extends Creep {
 
-  MaxStuckTicks: number = 2;
-  MaxAvoidTicks: number = 3;
-  MaxPathfindingOps: number = 200;
+  MaxStuckTicks = 2;
+  MaxAvoidTicks = 3;
+  MaxPathfindingOps = 200;
+
+  private readonly log = new Logger(this, { formatArgs: { "<creep>": this } });
+  private readonly colony: Colony;
+  constructor(id: Id<Creep>, colony: Colony) {
+    super(id);
+    this.colony = colony;
+  }
 
   static BodyCost(body: BodyPartConstant[]): number { return sum(body.map(p => BODYPART_COST[p])); }
 
-  static FindWithRole(roleName: string): CreepExtra[] {
-    return Object.values(Game.creeps)
-      .filter(c => c.my && !c.spawning && c.memory.role == roleName)
-      .map(c => new CreepExtra(c.id));
+  get role(): CreepRole | undefined {
+    return this.colony.RoleRegistry.get(this.memory.role);
   }
 
-  private readonly log = new Logger(this, { formatArgs: { "<creep>": this } });
+  get currentTask(): CreepTask | undefined {
+    const task = this.memory.jobMemory;
+    if (!task || typeof task !== "object") return undefined;
+    const record = task as Record<string, unknown>;
+    const kind = record.kind;
+    if (typeof kind !== "string") return undefined;
+    const taskPrototype = this.colony.TaskRegistry.get(kind);
+    if (!taskPrototype) return undefined;
+    return Object.assign(Object.create(taskPrototype), record) as CreepTask;
+  }
+
+  set currentTask(value: CreepTask | undefined) {
+    const cast = value as CreepTask;
+    if (cast == null || cast == undefined) return;
+    this.memory.jobMemory = cast;
+  }
 
   MoveLong(dest: RoomPosition | { pos: RoomPosition; }, opts?: MoveToOpts): number {
     this.log.debug("Invoking MoveLong...");
@@ -112,5 +137,80 @@ export class CreepExtra extends Creep {
     return this.memory.moveMode === "long"
       ? this.MoveLong(target, opts)
       : this.MoveAvoidCreeps(target, opts);
+  }
+
+  TickFriendlyCreep(room: RoomExtra): void {
+    if (this.spawning) return;
+    this.Lifecycle();
+    if (this.role) this.PerformRole(room, this.role);
+  }
+
+  Lifecycle(): void {
+    if (this.ticksToLive === 15)
+      this.say("😨", true);
+    else if (this.ticksToLive === 10)
+      this.say("😰", true);
+    else if (this.ticksToLive === 5)
+      this.say("😭🙏", true);
+    else if (this.ticksToLive === 4)
+      this.say("🫲☹️🫱💔🫂", true);
+    else if (this.ticksToLive === 3)
+      this.say("🤡", true);
+    else if (this.ticksToLive === 2) {
+      this.say("☠️", true);
+    } else if (this.ticksToLive === 1) {
+      this.say("☠️☠️☠️", true);
+    }
+  }
+
+  OnTaskChanged(room: RoomExtra, role: CreepRole, oldTask: CreepTask, newTask: CreepTask): void {
+    const taskstringLen = countGraphemes(oldTask.toString());
+    const pad = " ".repeat(56 - taskstringLen < 0 ? 0 : 56 - taskstringLen);
+    this.log.info(`Reassigned ${oldTask}${pad} -> ${newTask}`, { "<room>": room, "<role>": role });
+    this.say(newTask.action);
+  }
+
+  PerformRole(room: RoomExtra, role: CreepRole): void {
+    role.TickCreep(this, room);
+
+    // Get the current task from memory, or a default task from the role.
+    var task = this.currentTask ?? role.GetInitialTask(room);
+
+    // If it's complete, get the next task.
+    if (task.isComplete(this)) {
+      const nextTask = role.SelectNextTask(this, room);
+      this.OnTaskChanged(room, role, task, nextTask);
+      task = nextTask;
+    }
+
+    // Act on the task
+    const outcome = task.act(this);
+    this.log.debug(`Task.act: ${JSON.stringify(task)} Outcome [target.pos: ${outcome?.target.pos} result: ${outcome?.result}, range: ${outcome?.range}]`, { "<role>": role, "<room>": room });
+
+    // Update memory
+    this.currentTask = task;
+
+    // Handle no result
+    if (outcome == null || outcome == undefined) return;
+
+    // Handle ScreepsReturnCode
+    switch (outcome.result) {
+      case OK:
+      case ERR_FULL:
+      case ERR_NOT_ENOUGH_RESOURCES: {
+        // These can be ignored.
+        return;
+      }
+      case ERR_NOT_IN_RANGE: {
+        // Move. Since this is our last action, ignore the RC.
+        this.MoveCreep(outcome.target.pos, { range: outcome.range });
+        return;
+      }
+      default: {
+        // Generic print all
+        this.log.warn(`Act: Task ${task} was not successful: ${JSON.stringify(outcome)}`, { "<room>": room, "<role>": role });
+        return;
+      }
+    }
   }
 }

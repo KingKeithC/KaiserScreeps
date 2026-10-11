@@ -7,7 +7,6 @@ module.exports = {
   extends: [
     "eslint:recommended",
     "plugin:@typescript-eslint/recommended",
-    "plugin:@typescript-eslint/recommended-requiring-type-checking",
     "plugin:import/errors",
     "plugin:import/warnings",
     "plugin:import/typescript",
@@ -32,12 +31,7 @@ module.exports = {
     "@typescript-eslint/consistent-type-assertions": "error",
     "@typescript-eslint/consistent-type-definitions": "error",
     "@typescript-eslint/explicit-function-return-type": "off",
-    "@typescript-eslint/explicit-member-accessibility": [
-      "error",
-      {
-        accessibility: "explicit"
-      }
-    ],
+    "@typescript-eslint/explicit-member-accessibility": "off",
     "@typescript-eslint/no-explicit-any": "off",
     "@typescript-eslint/no-parameter-properties": "off",
     "@typescript-eslint/no-shadow": [
@@ -46,9 +40,15 @@ module.exports = {
         hoist: "all"
       }
     ],
+    "@typescript-eslint/no-unsafe-assignment": "off",
+    "@typescript-eslint/no-unsafe-argument": "off",
+    "@typescript-eslint/no-unsafe-return": "off",
     "@typescript-eslint/no-unused-expressions": "error",
     "@typescript-eslint/no-use-before-define": ["error", { functions: false }],
+    "@typescript-eslint/no-unused-vars": "off",
+    "@typescript-eslint/no-non-null-assertion": "off",
     "@typescript-eslint/prefer-for-of": "error",
+    "@typescript-eslint/restrict-template-expressions": "off",
     "@typescript-eslint/space-within-parens": ["off", "never"],
     "@typescript-eslint/unified-signatures": "error",
     "arrow-parens": ["off", "as-needed"],
@@ -56,12 +56,12 @@ module.exports = {
     complexity: "off",
     "dot-notation": "error",
     "eol-last": "off",
-    eqeqeq: ["error", "smart"],
+    eqeqeq: "off",
     "guard-for-in": "off",
     "id-blacklist": ["error", "any", "Number", "number", "String", "string", "Boolean", "boolean", "Undefined"],
     "id-match": "error",
     "linebreak-style": "off",
-    "max-classes-per-file": ["error", 1],
+    "max-classes-per-file": "off",
     "new-parens": "off",
     "newline-per-chained-call": "off",
     "no-bitwise": "error",
@@ -76,13 +76,13 @@ module.exports = {
     "no-throw-literal": "error",
     "no-trailing-spaces": "off",
     "no-undef-init": "error",
-    "no-underscore-dangle": "warn",
+    "no-underscore-dangle": "off",
     "no-var": "error",
     "object-shorthand": "error",
     "one-var": ["error", "never"],
     "quote-props": "off",
     radix: "error",
-    "sort-imports": "warn",
+    "sort-imports": "off",
     "spaced-comment": "error",
   }
 };

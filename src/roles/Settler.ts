@@ -1,94 +1,92 @@
 import { CreepExtra } from "Creep";
-import { unique } from "lodash";
-import { RoomRole } from "./Role";
+import type { RoomExtra } from "Room";
+import { CreepTask, Idle } from "Tasks";
+import { ClaimRoomTask } from "Tasks";
+import { CreepRole, CreepRoleBase } from "./Role";
 
-class SettlerMemory extends Object {
-  reserve?: boolean;
-  claimedRoom?: string;
-  pathToClaim?: { exit: ExitConstant; room: string; }[];
-  currentTarget?: RoomPosition | DirectionConstant;
-}
+export class Settler extends CreepRoleBase implements CreepRole {
+  readonly groupName = "Settlers";
+  readonly name = "Settler";
+  readonly tier = 1;
 
-export class Settler extends RoomRole<SettlerMemory> {
-  static readonly RoleName: string = "Settler";
-  BodyParts = [MOVE, MOVE, WORK, CLAIM];
+  GetNewCreepBody(_room: RoomExtra): BodyPartConstant[] {
+    return [MOVE, MOVE, WORK, CLAIM];
+  }
 
-  CountPerRoom = 0;
-  override get GlobalCount(): number { return this.FindClaimedRooms().length; }
+  override GetInitialTask(_room: RoomExtra): CreepTask {
+    const roomName = this.FindClaimedRooms().pop();
+    return roomName ? new ClaimRoomTask(roomName) : new Idle();
+  }
 
-  get InitialJobMemory(): SettlerMemory {
-    return ({
-      claimedRoom: this.FindClaimedRooms().pop(),
-    });
-  };
+  override GetRoomQuota(_room: RoomExtra): number { return 0; }
+
+  SelectNextTask(creep: CreepExtra, room: RoomExtra): CreepTask {
+    const targetRoom = this.FindNextClaimTarget(room);
+    return targetRoom ? new ClaimRoomTask(targetRoom) : new Idle();
+  }
+
+  public TaskAct(creep: CreepExtra, task: CreepTask, room: RoomExtra): void {
+    if (task.kind !== "claim" && task.kind !== "reserve") return;
+    if (!("roomName" in task) || typeof task.roomName !== "string") return;
+    if (!task.roomName) return;
+
+    if (creep.room.name !== task.roomName) {
+      const pos = new RoomPosition(25, 25, task.roomName);
+      const moveResult = creep.MoveCreep(pos, { range: 20 });
+      if (moveResult !== OK) this.log.info(`Moving to ${JSON.stringify(pos)} resulted in ${moveResult}`);
+      return;
+    }
+
+    const claimed = Game.rooms[task.roomName];
+    if (!claimed) {
+      this.log.info(`[${room.name}][${creep.name}]: We still don't have access to the claimed room.`);
+      return;
+    }
+
+    if (!claimed.controller) {
+      this.log.info(`[${room.name}][${creep.name}]: Claimed room has no controller.`);
+      return;
+    }
+
+    const moveRes = creep.MoveCreep(claimed.controller, { range: 1 });
+    if (moveRes === 0) return;
+    if (moveRes < 0) {
+      this.log.info(`[${room.name}][${creep.name}]: Failed to move to room controller: ${moveRes}`);
+      return;
+    }
+
+    if (task.kind === "reserve") {
+      const result = creep.reserveController(claimed.controller);
+      this.log.info(`[${room.name}][${creep.name}]: Reserving controller in ${claimed.name} (${claimed.controller.reservation?.ticksToEnd}), result ${result}.`);
+    } else {
+      const result = creep.claimController(claimed.controller);
+      this.log.info(`[${room.name}][${creep.name}]: Claiming controller in ${claimed.name} (${claimed.controller.progress} / ${claimed.controller.progressTotal}), result ${result}.`);
+    }
+  }
 
   FindClaimedRooms(): string[] {
     const claimedRooms = Object.values(Game.flags)
       .filter(f => f.name.startsWith("Claim"))
       .map(f => f.pos.roomName);
-    return unique(claimedRooms);
+    return [...new Set(claimedRooms)];
   }
 
-  TickCreep(creep: CreepExtra, task: SettlerMemory): void {
-    // Do nothing if no claim
-    if (!task.claimedRoom) {
-      if (Game.time % this.NotificationInterval === 0) this.log.info(`[${this.manager.room.name}][${creep.name}]: I have no claim!`);
-      return;
-    }
-
-    // Find an path from our current room to the claimed room
-    if (!task.pathToClaim) {
-      const route = Game.map.findRoute(creep.room.name, task.claimedRoom);
-      if (route === -2) {
-        this.log.info(`[${this.manager.room.name}][${creep.name}]: Could not find route to claimed room.`);
-        return;
+  FindNextClaimTarget(room: RoomExtra): string | null {
+    const assignedRooms = new Set<string>();
+    for (const creep of room.find(FIND_MY_CREEPS, { filter: candidate => candidate.memory.role === this.name }) as CreepExtra[]) {
+      const task = creep.currentTask;
+      if (task?.kind === "claim" || task?.kind === "reserve") {
+        const roomName = (task as { roomName?: string; }).roomName;
+        if (roomName) assignedRooms.add(roomName);
       }
-      this.log.info(`[${this.manager.room.name}][${creep.name}]: Found path to claim: ${JSON.stringify(route)}`);
-      task.pathToClaim = route;
-      creep.memory.jobMemory = task;
     }
 
-    // Move until we are in the claimed room
-    if (creep.room.name !== task.claimedRoom) {
-      // Construct a dummy position in the centre of the room and move there
-      const pos = new RoomPosition(25, 25, task.claimedRoom);
-      const moveRes = creep.MoveCreep(pos, { range: 20 });
-      if (moveRes !== OK) this.log.info(`Moving to ${JSON.stringify(pos)} resulted in ${moveRes}`);
+    for (const roomName of [...this.FindClaimedRooms()].reverse()) {
+      if (assignedRooms.has(roomName)) continue;
+      const targetRoom = Game.rooms[roomName];
+      if (targetRoom?.controller?.my) continue;
+      return roomName;
     }
-
-    // We should be in the claimed room by now, get a reference to it
-    const claimed = Game.rooms[task.claimedRoom];
-    if (!claimed) {
-      this.log.info(`[${this.manager.room.name}][${creep.name}]: We still don't have access to the claimed room.`);
-      return;
-    } else {
-      this.log.info(`[${this.manager.room.name}][${creep.name}]: Can access room, trying to access controller...`);
-    }
-
-    // Get a reference to the controller in the room
-    if (!claimed.controller) {
-      this.log.info(`[${this.manager.room.name}][${creep.name}]: Claimed room has no controller.`);
-      return;
-    } else {
-      this.log.info(`[${this.manager.room.name}][${creep.name}]: Proceeding to controller...`);
-    }
-
-    // Move to the controller
-    const moveRes = creep.MoveCreep(claimed.controller, { range: 1 });
-    if (moveRes === 0)
-      return; // Moving
-    else if (moveRes < 0) { // Error
-      this.log.info(`[${this.manager.room.name}][${creep.name}]: Failed to move to room controller: ${moveRes}`);
-      return;
-    }
-
-    // Act on the controller
-    if (task.reserve != undefined && task.reserve) {
-      const res = creep.reserveController(claimed.controller);
-      this.log.info(`[${this.manager.room.name}][${creep.name}]: Reserving controller in ${claimed.name} (${claimed.controller.reservation?.ticksToEnd}), result ${res}.`);
-    } else {
-      const res = creep.claimController(claimed.controller);
-      this.log.info(`[${this.manager.room.name}][${creep.name}]: Claiming controller in ${claimed.name} (${claimed.controller.progress} / ${claimed.controller.progressTotal}), result ${res}.`);
-    }
+    return null;
   }
 }

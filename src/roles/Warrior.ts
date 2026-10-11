@@ -1,61 +1,42 @@
 import { CreepExtra } from "Creep";
-import { RoomRole } from "./Role";
+import type { RoomExtra } from "Room";
+import { CreepTask, Idle } from "Tasks";
+import { AttackTargetTask, GuardTask } from "Tasks";
+import { CreepRole, CreepRoleBase } from "./Role";
 
+export class Warrior extends CreepRoleBase implements CreepRole {
+  readonly groupName = "Warriors";
+  readonly name = "Warrior";
+  readonly tier = 1;
 
-class WarriorMemory extends Object {
-  targetCreep?: Id<CreepExtra>;
-}
-
-export class Warrior extends RoomRole<WarriorMemory> {
-  static readonly RoleName: string = "Warrior";
-  InitialJobMemory: WarriorMemory = new WarriorMemory();
-  BodyParts = [MOVE, MOVE, MOVE, TOUGH, TOUGH, ATTACK, ATTACK];
   SpawnRate = 20;
 
-  // 1 Per Invader
-  get CountPerRoom() {
-    if (this.manager.AttackHostiles && !this.manager.DisableWarriors)
-      return this.manager.room.find(FIND_HOSTILE_CREEPS).length;
-    else
-      return 0;
+  GetNewCreepBody(_room: RoomExtra): BodyPartConstant[] {
+    return [MOVE, MOVE, MOVE, TOUGH, TOUGH, ATTACK, ATTACK];
   }
 
-  FindHostiles(): CreepExtra[] { return this.manager.room.find(FIND_HOSTILE_CREEPS); }
+  override GetInitialTask(_room: RoomExtra): CreepTask { return new Idle(); }
 
-  HostileIdsByWarrior(): Map<CreepExtra, CreepExtra[]> {
-    const res = new Map();
-    for (const h of this.FindHostiles())
-      res.set(h, []);
-    for (const t of this.CreepsInRole.filter(c => (c.memory.jobMemory as WarriorMemory).targetCreep))
-      res.set((t.memory.jobMemory as WarriorMemory).targetCreep, [...(res.get((t.memory.jobMemory as WarriorMemory).targetCreep) ?? []), t]);
-    return res;
+  override GetRoomQuota(room: RoomExtra): number {
+    if (room.AttackHostiles && !room.DisableWarriors)
+      return room.find(FIND_HOSTILE_CREEPS).length;
+    return 0;
   }
 
-  FindLeastTargtedWeakestHostile(): CreepExtra | null {
-    const groups = this.HostileIdsByWarrior();
-    for (const [tgt, comrades] of groups.entries())
-      if (comrades.length === 0) return tgt;
-    return null;
+  public SelectNextTask(creep: CreepExtra, room: RoomExtra): CreepTask {
+    const hostile = this.FindLeastTargetedHostile(room);
+    return hostile ? new AttackTargetTask(hostile.id as Id<Creep>) : new GuardTask();
   }
 
-  TickCreep(creep: CreepExtra, mem: WarriorMemory): void {
-    if (!mem.targetCreep) {
-      const tgt = this.FindLeastTargtedWeakestHostile();
-      if (tgt == null || tgt == undefined) {
-        this.log.debug("No hostiles found...");
-        this.Idle(creep);
-        return;
-      }
-      mem.targetCreep = tgt.id;
-      creep.memory.jobMemory = mem;
-    }
-
-    const target = Game.getObjectById(mem.targetCreep);
-    if (!target) {
-      this.log.info(`Target is inaccessible! Resetting...`);
-      creep.memory.jobMemory = {};
+  public TaskAct(creep: CreepExtra, task: CreepTask, _room: RoomExtra): void {
+    if (task.kind === "idle" || task.kind === "guard") {
+      this.Idle(creep);
       return;
     }
+    if (task.kind !== "attack" || !("targetId" in task)) return;
+
+    const target = Game.getObjectById(task.targetId as Id<Creep>);
+    if (!(target instanceof Creep)) return;
 
     if (creep.MoveCreep(target, { range: 1 }) !== 1) {
       this.Charging(creep);
@@ -65,12 +46,34 @@ export class Warrior extends RoomRole<WarriorMemory> {
     creep.attack(target);
   }
 
-  Idle(creep: CreepExtra): void {
-    if (Game.time % this.NotificationInterval === 3) creep.say('zzz');
-    const rampart = creep.pos.findClosestByPath(FIND_MY_STRUCTURES, { filter: s => s.structureType === STRUCTURE_RAMPART });
-    if (!rampart) return;
-    creep.moveTo(rampart, { range: 0 });
+  FindHostiles(room: RoomExtra): Creep[] { return room.find(FIND_HOSTILE_CREEPS); }
+
+  HostileIdsByWarrior(room: RoomExtra): Map<Creep, CreepExtra[]> {
+    const res = new Map<Creep, CreepExtra[]>();
+    for (const hostile of this.FindHostiles(room)) res.set(hostile, []);
+    for (const creep of this.GetGlobalCreepsInRole()) {
+      const task = creep.currentTask;
+      if (task?.kind !== "attack" || !("targetId" in task)) continue;
+      const target = Game.getObjectById(task.targetId as Id<Creep>);
+      if (!(target instanceof Creep)) continue;
+      res.set(target, [...(res.get(target) ?? []), creep]);
+    }
+    return res;
   }
 
-  Charging(creep: CreepExtra): void { }
+  FindLeastTargetedHostile(room: RoomExtra): Creep | null {
+    const groups = this.HostileIdsByWarrior(room);
+    for (const [target, comrades] of groups.entries())
+      if (comrades.length === 0) return target;
+    return null;
+  }
+
+  Idle(creep: CreepExtra): void {
+    if (Game.time % 25 === 3) creep.say("zzz");
+    const rampart = creep.pos.findClosestByPath(FIND_MY_STRUCTURES, { filter: s => s.structureType === STRUCTURE_RAMPART });
+    if (!rampart) return;
+    creep.MoveCreep(rampart, { range: 0 });
+  }
+
+  Charging(_creep: CreepExtra): void { return; }
 }

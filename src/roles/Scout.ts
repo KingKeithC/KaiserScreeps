@@ -1,75 +1,47 @@
 import { CreepExtra } from "Creep";
-import { unique } from "lodash";
-import { RoomRole } from "./Role";
+import type { RoomExtra } from "Room";
+import type { CreepTask } from "Tasks";
+import { Idle, ScoutMissionTask } from "Tasks";
+import { CreepRole, CreepRoleBase } from "./Role";
 
-type TravelPath = { exit: ExitConstant; room: string; }[];
+export class Scout extends CreepRoleBase implements CreepRole {
+  readonly groupName = "Scouts";
+  readonly name = "Scout";
+  readonly tier = 1;
 
-class ScoutMemory extends Object {
-  roomName?: string;
-  path?: TravelPath;
-  flag?: string;
-}
+  GetNewCreepBody(_room: RoomExtra): BodyPartConstant[] {
+    return [MOVE, MOVE, MOVE, MOVE];
+  }
 
-export class Scout extends RoomRole<ScoutMemory> {
-  static readonly RoleName: string = "Scout";
-  BodyParts = [MOVE, MOVE, MOVE, MOVE];
-
-  override get CountPerRoom(): number { return this.GlobalCount; }
-  override get GlobalCount(): number { return this.FindScoutFlags().length; }
-
-  get InitialJobMemory() {
-    const mem = new ScoutMemory();
+  override GetInitialTask(_room: RoomExtra): CreepTask {
     const flag = this.FindLeastScoutedRoom();
-    if (!flag) throw new Error("No unassigned scout flags found!");
-    mem.flag = flag.name;
-    return mem;
+    return flag ? new ScoutMissionTask(flag.name) : new Idle();
   }
 
-  FindScoutFlags(): Flag[] { return Object.values(Game.flags).filter(f => f.name.startsWith("Scout")); }
-  GroupScoutsByFlag(): Map<Flag, CreepExtra[]> {
-    const res = new Map();
-    for (const f of this.FindScoutFlags())
-      res.set(f, []);
-    for (const c of this.CreepsInRole.filter(c => (c.memory.jobMemory as ScoutMemory).flag))
-      res.set((c.memory.jobMemory as ScoutMemory).flag, [...(res.get((c.memory.jobMemory as ScoutMemory).flag) ?? []), c]);
-    return res;
-  }
-  FindLeastScoutedRoom(): Flag | null {
-    for (const [flag, scouts] of this.GroupScoutsByFlag().entries())
-      if (!scouts.length) return flag;
-    return null;
+  override GetRoomQuota(_room: RoomExtra): number {
+    return this.FindScoutFlags().length;
   }
 
-  TickCreep(creep: CreepExtra, task: ScoutMemory): void {
-    // Find a room to scout
-    if (!task.flag) {
-      const flag = this.FindLeastScoutedRoom();
-      if (!flag) {
-        this.log.info(`Unable to find a scouting flag.`);
-        return;
-      }
-      task.flag = flag.name;
-      creep.memory.jobMemory = task;
-    }
+  public SelectNextTask(_creep: CreepExtra, _room: RoomExtra): CreepTask {
+    const nextFlag = this.FindLeastScoutedRoom();
+    return nextFlag ? new ScoutMissionTask(nextFlag.name) : new Idle();
+  }
 
-    // Lookup the flag we are following
-    const flag = Game.flags[task.flag] as Flag;
-    if (!flag || flag == undefined || flag.pos.roomName == undefined) {
-      this.log.info(`Scouting flag appears to be invalid or deleted or in non visible room.`);
+  public TaskAct(creep: CreepExtra, task: CreepTask, _room: RoomExtra): void {
+    if (task.kind !== "scout" || !("flag" in task) || !("path" in task)) return;
+
+    const flagName = task.flag as string;
+    const path = task.path as { exit: ExitConstant; room: string; }[];
+    const currentFlag = Game.flags[flagName];
+    if (!currentFlag || currentFlag.pos.roomName === undefined) return;
+
+    if (!path || path.length === 0) {
+      const route = Game.map.findRoute(creep.room.name, currentFlag.pos.roomName);
+      if (route === ERR_NO_PATH) return;
+      task.path = route;
       return;
     }
 
-    if (!task.path || task.path.length === 0) {
-      const path = Game.map.findRoute(creep.room.name, flag.pos.roomName);
-      if (path === ERR_NO_PATH) {
-        this.log.info(`Unable to find a path to ${flag.pos.roomName}.`);
-        return;
-      }
-      task.path = path;
-      creep.memory.jobMemory = task;
-    }
-
-    // Are we on the edge?
     if (
       creep.pos.x === 0
       || creep.pos.x === 49
@@ -77,15 +49,22 @@ export class Scout extends RoomRole<ScoutMemory> {
       || creep.pos.y === 49
     ) {
       this.log.info(`${Game.time} Stuck on an edge (${creep.pos.x}, ${creep.pos.y}) in ${creep.pos.roomName}...`);
-      creep.move(task.path[0].exit);
-    } else if (creep.room.name === task.path[0].room) {
-      this.log.info(`We reached the next room along the path...`);
-      task.path = task.path.slice(1); // Move the path along to the remaining segments
-      creep.memory.jobMemory = task;
+      if (path[0]) creep.move(path[0].exit);
       return;
-    } else if (creep.room.name !== task.roomName) {
-      this.log.info(`Still travelling...`);
-      const nextRoom = task.path[0];
+    }
+
+    if (creep.room.name === path[0]?.room) {
+      this.log.info(`We reached the next room along the path...`);
+      task.path = path.slice(1);
+      return;
+    }
+
+    if (creep.room.name !== currentFlag.pos.roomName) {
+      const nextRoom = path[0];
+      if (!nextRoom) {
+        this.ReachedScoutedRoom(creep, currentFlag);
+        return;
+      }
       const exit = creep.pos.findClosestByPath(nextRoom.exit);
       if (!exit) {
         this.log.info(`No path to exit ${nextRoom.exit} from ${creep.pos.roomName}`);
@@ -96,12 +75,32 @@ export class Scout extends RoomRole<ScoutMemory> {
       return;
     }
 
-    this.log.info(`We reached the target room ${task.roomName}.`);
-    this.ReachedScoutedRoom(creep, flag);
+    this.ReachedScoutedRoom(creep, currentFlag);
+  }
+
+  FindScoutFlags(): Flag[] { return Object.values(Game.flags).filter(f => f.name.startsWith("Scout")); }
+
+  GroupScoutsByFlag(): Map<Flag, CreepExtra[]> {
+    const res = new Map<Flag, CreepExtra[]>();
+    for (const flag of this.FindScoutFlags()) res.set(flag, []);
+    for (const creep of this.GetGlobalCreepsInRole()) {
+      const task = creep.currentTask;
+      if (task?.kind !== "scout" || !("flag" in task)) continue;
+      const flag = Game.flags[task.flag as string];
+      if (!flag) continue;
+      res.set(flag, [...(res.get(flag) ?? []), creep]);
+    }
+    return res;
+  }
+
+  FindLeastScoutedRoom(): Flag | null {
+    for (const [flag, scouts] of this.GroupScoutsByFlag().entries())
+      if (!scouts.length) return flag;
+    return null;
   }
 
   ReachedScoutedRoom(creep: CreepExtra, flag: Flag): void {
     if (creep.MoveCreep(flag.pos, { range: 5 }) !== 1) return;
-    if (Game.time % this.NotificationInterval === 0) this.log.info("We're here!");
+    if (Game.time % 100 === 0) this.log.info("We're here!");
   }
 }
