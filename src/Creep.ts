@@ -164,9 +164,7 @@ export class CreepExtra extends Creep {
   }
 
   OnTaskChanged(room: RoomExtra, role: CreepRole, oldTask: CreepTask, newTask: CreepTask): void {
-    const taskstringLen = countGraphemes(oldTask.toString());
-    const pad = " ".repeat(56 - taskstringLen < 0 ? 0 : 56 - taskstringLen);
-    this.log.info(`Reassigned ${oldTask}${pad} -> ${newTask}`, { "<room>": room, "<role>": role });
+    this.log.info(`Reassigned ${oldTask} -> ${newTask}`, { "<room>": room, "<role>": role });
     this.say(newTask.action);
   }
 
