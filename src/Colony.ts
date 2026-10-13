@@ -11,6 +11,7 @@ import { ErrorMapper } from "utils/ErrorMapper";
 import { Logger } from "utils/Logger";
 import { Attacker } from "roles/Attacker";
 import { Dictionary } from "lodash";
+import { Claimer } from "roles/Claimer";
 
 
 
@@ -70,6 +71,7 @@ export class Colony {
       new Defender(this),
       new Scout(this),
       new Attacker(this),
+      new Claimer(this),
     ].forEach(r => this.RoleRegistry.set(r.name, r));
 
     const taskPrototypes: [string, CreepTask][] = [
