@@ -89,7 +89,7 @@ export class Attacker extends CreepRoleBase implements CreepRole {
       }
     } else if (step.memory.attackType === "NearestStructure") {
       // NearestStructure is complete when
-      const nearby = step.pos.findClosestByRange(FIND_STRUCTURES);
+      const nearby = step.pos.lookFor(LOOK_STRUCTURES).pop();
       if (!nearby) {
         this.log.warn(`Attack ${step.memory.attackIndex}: ${step.memory.attackType} completed.`);
         step.memory.done = true;
