@@ -17,7 +17,7 @@ export class Claimer extends CreepRoleBase implements CreepRole {
     );
   }
 
-  override GetGlobalQuota(): number { return this.GetFlags.length; }
+  override GetGlobalQuota(): number { return this.GetFlags().length; }
   override GetRoomQuota(room: RoomExtra): number { return -1; }
   IsSpawnNeeded(room: RoomExtra): boolean { return this.GetGlobalCreepsInRole().length < this.GetFlags().length; }
   SelectNextTask(creep: CreepExtra, room: RoomExtra, lastTask: CreepTask | null): CreepTask | null { return this.GetInitialTask(room); }
