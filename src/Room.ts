@@ -275,32 +275,37 @@ export class RoomExtra extends Room {
   RoomStateReport(): string {
     let msg = "";
     let totalRoles = 0;
-    let enabledRoles = 0;
+    let spawned = 0;
 
     // Build a string of role populations
     for (const name of Array.from(this.colony.RoleRegistry.keys()).sort()) {
       totalRoles++;
-      const inst = this.colony.RoleRegistry.get(name);
-      if (!inst) {
+      const role = this.colony.RoleRegistry.get(name);
+      if (!role) {
         this.log.crit(`No instance for ${name}`);
         continue;
       }
-      const roomQuota = this.Quota(name);
-      const globalQuota = inst.GetGlobalQuota();
-      const roomCount = inst.GetRoomCreepsInRole(this).length;
 
-      // Skip roles that are disabled, unless there are some creeps spawned in that role
-      if (roomCount === 0 && (globalQuota === 0 || roomQuota === 0)) continue;
-      const globalCount = inst.GetGlobalCreepsInRole().length;
-      const globalCountStr = ` | ${globalCount}/${globalQuota}`;
-      msg += ` [${name} ${roomCount}/${roomQuota}${globalCount !== roomCount ? globalCountStr : ""}]`;
-      enabledRoles++;
+      const spawnNeeded = role.IsSpawnNeeded(this);
+      const spawnAble = this.IsRoleSpawnable(role);
+      const spawnableStr = spawnAble ? '+' : '';
+      const spawnNeededStr = spawnNeeded ? '*' : '';
+      const roomQuota = this.Quota(name);
+      const globalQuota = role.GetGlobalQuota();
+      const roomCount = role.GetRoomCreepsInRole(this).length;
+      const globalCount = role.GetGlobalCreepsInRole().length;
+      const globalCountStr = globalQuota > -1 && (globalCount !== roomCount || roomQuota === -1) ? ` | ${globalCount}/${globalQuota}` : "";
+
+      // Skip roles that have no creeps spawned in the room
+      if (roomCount === 0) continue;
+      msg += ` [${name}${spawnNeededStr}${spawnableStr} ${roomCount}/${roomQuota}${globalCountStr}]`;
+      spawned++;
     }
 
     const ownedStatus = this.parent ? `Claimed by ${this.parent.name}` : `HQ`;
 
     // Prepend a leader to the populations string.
-    msg = `${this.name} (${ownedStatus}) ::: ${enabledRoles} Roles (${totalRoles - enabledRoles} disabled) ${this.AssignedCreeps.length} Assigned Creeps` + msg;
+    msg = `${this.name} (${ownedStatus}) ::: ${spawned}/${totalRoles} Roles, ${this.AssignedCreeps.length} Assigned Creeps` + msg;
 
     // Get info about hostiles
     const hostileInfo = this.Hostiles.map(c => ({
