@@ -26,6 +26,7 @@ declare global {
     towerCriticalSupplyRatio?: number;
     notificationFrequency?: number;
     hostileNotificationThreshold?: number;
+    claimedNearby?: string[],
   }
 }
 
@@ -104,6 +105,10 @@ export class RoomExtra extends Room {
   set NotificationFrequency(value: number) { this.memory.notificationFrequency = value; }
   get HostileNotificationThreshold(): number { return this.memory.hostileNotificationThreshold ?? 4; }
   set HostileNotificationThreshold(value: number) { this.memory.hostileNotificationThreshold = value; }
+  get ClaimedNearbyRooms(): string[] { return this.memory.claimedNearby ?? []; }
+  set ClaimedNearbyRooms(value: string[]) { this.memory.claimedNearby = value; }
+
+
 
   LastSpawnTick(roleName: string): number { return (this.memory.lastSpawnTick ?? {})[roleName] ?? 0; }
 

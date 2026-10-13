@@ -32,6 +32,7 @@ export class Colony {
   readonly RoleRegistry = new Map<string, CreepRole>();
   readonly TaskRegistry = new Map<string, CreepTask>();
 
+  username: string;
 
   private _MyCreeps: CreepExtra[] = [];
   get MyCreeps(): CreepExtra[] {
@@ -90,6 +91,9 @@ export class Colony {
       ["dismantle", Dismantle.prototype],
     ];
     taskPrototypes.forEach(([kind, task]) => this.TaskRegistry.set(kind, task));
+
+    // Set my username
+    this.username = Game.spawns[Object.keys(Game.spawns)[0]].owner.username;
   }
 
   private WrapWithProfiling(lambda: (() => void)): () => void {

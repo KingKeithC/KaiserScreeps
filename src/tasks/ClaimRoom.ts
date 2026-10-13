@@ -22,11 +22,19 @@ export class ClaimRoomTask extends TargetTask<typeof TaskAction.Claim, string> {
       return { range: 25, target: { pos: new RoomPosition(25, 25, this.roomName) }, result: ERR_NOT_IN_RANGE };
 
     const cont = creep.room.controller;
-    if (!cont) return null;
+    // If no controller, or not-neutral, we can't act.
+    if (!cont || cont.owner != null && cont.owner.username !== creep.owner.username) return null;
 
+    var outcome;
     if (this.reserve)
-      return this.perform(cont, 1, contr => creep.reserveController(cont));
+      outcome = this.perform(cont, 1, contr => creep.reserveController(cont));
     else
-      return this.perform(cont, 1, contr => creep.claimController(cont));
+      outcome = this.perform(cont, 1, contr => creep.claimController(cont));
+
+    // Ensure this room is added to the claim list for our assigned room
+    if (outcome != null && outcome.result === OK && !(creep.room.name in creep.AssignedRoom.ClaimedNearbyRooms))
+      creep.AssignedRoom.ClaimedNearbyRooms = creep.AssignedRoom.ClaimedNearbyRooms.concat(creep.room.name);
+
+    return outcome;
   }
 }

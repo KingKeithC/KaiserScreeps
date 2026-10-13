@@ -64,6 +64,10 @@ export class CreepExtra extends Creep {
     return Object.assign(Object.create(taskPrototype), record) as CreepTask;
   }
 
+  get AssignedRoom(): RoomExtra {
+    return this.colony.MyRooms.filter(r => r.name === this.memory.room).pop()!;
+  }
+
   set currentTask(value: CreepTask | undefined) {
     const cast = value as CreepTask;
     if (cast == null || cast == undefined) return;
