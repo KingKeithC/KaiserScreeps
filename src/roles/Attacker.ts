@@ -1,6 +1,6 @@
 import { CreepExtra } from "Creep";
 import type { RoomExtra } from "Room";
-import { CreepTask, Dismantle, Idle, Move, TaskAction } from "Tasks";
+import { CreepTask, Dismantle, Idle, Move, TaskAction } from "tasks";
 import { FormatStructureHits, MakeBody } from "utils/Collections";
 import { CreepRole, CreepRoleBase } from "./Role";
 

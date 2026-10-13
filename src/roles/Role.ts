@@ -1,7 +1,7 @@
 import { CreepExtra } from "Creep";
 import { GetRandomName } from "Data";
 import { RoomExtra } from "Room";
-import { CreepTask, Idle } from "Tasks";
+import { CreepTask, Idle } from "tasks";
 import { Logger } from "utils/Logger";
 import { Colony } from "Colony";
 

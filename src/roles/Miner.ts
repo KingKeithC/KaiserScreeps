@@ -1,5 +1,5 @@
 import { CreepExtra } from "Creep";
-import { CreepTask, Idle, Mine, TaskAction } from "Tasks";
+import { CreepTask, Idle, Mine, TaskAction } from "tasks";
 import type { RoomExtra } from "Room";
 import { CreepRole, CreepRoleBase } from "./Role";
 import { Dictionary, groupBy, mapValues, min } from "lodash";

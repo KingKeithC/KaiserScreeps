@@ -6,7 +6,7 @@ import { Defender } from "roles/Defender";
 import { Worker } from "roles/Worker";
 import { RoomExtra } from "Room";
 import profiler from "screeps-profiler";
-import { AttackTargetTask, Build, ClaimRoomTask, CollectEnergy, CreepTask, Dismantle, GuardTask, Idle, Mine, Move, Pickup, Repair, Supply, UpdateController } from "Tasks";
+import { AttackTargetTask, Build, ClaimRoomTask, CollectEnergy, CreepTask, Dismantle, GuardTask, Idle, Mine, Move, Pickup, Repair, Supply, UpdateController } from "tasks";
 import { ErrorMapper } from "utils/ErrorMapper";
 import { Logger } from "utils/Logger";
 import { Attacker } from "roles/Attacker";

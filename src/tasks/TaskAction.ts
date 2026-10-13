@@ -1,0 +1,18 @@
+export const TaskAction = {
+    Idle: '💤',
+    Mine: '⛏️',
+    CollectEnergy: '🔌',
+    MaintainController: '🦸‍♀️',
+    Build: '🏗️',
+    Repair: '🛠️',
+    Supply: '🫴',
+    UpgradeController: '🔼',
+    Pickup: "🧹",
+    Attack: "⚔️",
+    Guard: "🛡️",
+    Scout: "👀",
+    Claim: "🏁",
+    Move: "👣",
+    ExitRoom: "🚪",
+    Dismantle: "🔱",
+} as const;

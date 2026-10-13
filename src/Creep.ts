@@ -5,7 +5,7 @@ import { Logger } from "utils/Logger";
 import { Colony } from "Colony";
 import { countGraphemes } from "unicode-segmenter";
 import { CreepRole } from "roles/Role";
-import { CreepTask, TaskAction } from "Tasks";
+import { CreepTask, TaskAction } from "tasks";
 
 declare global {
   interface CreepMemory {

@@ -1,8 +1,8 @@
 import { CreepExtra } from "Creep";
 import { countBy, groupBy, some } from "lodash";
 import { RoomExtra } from "Room";
-import { CreepTask, Move } from "Tasks";
-import { Idle } from "Tasks";
+import { CreepTask, Move } from "tasks";
+import { Idle } from "tasks";
 import { GetMinerPositions, MakeBody, SerializeRoomPosition } from "utils/Collections";
 import { CreepRole, CreepRoleBase } from "./Role";
 

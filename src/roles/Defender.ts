@@ -1,8 +1,8 @@
 import { CreepExtra } from "Creep";
 import { groupBy } from "lodash";
 import type { RoomExtra } from "Room";
-import { CreepTask, Idle, TaskAction } from "Tasks";
-import { AttackTargetTask, GuardTask } from "Tasks";
+import { CreepTask, Idle, TaskAction } from "tasks";
+import { AttackTargetTask, GuardTask } from "tasks";
 import { MakeBody } from "utils/Collections";
 import { CreepRole, CreepRoleBase } from "./Role";
 

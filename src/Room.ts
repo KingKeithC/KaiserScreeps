@@ -4,7 +4,7 @@ import type { Colony } from "Colony";
 import { countGraphemes } from 'unicode-segmenter/grapheme';
 import { LerpColour } from "utils/Collections";
 import { Logger } from "utils/Logger";
-import { CreepTask } from "Tasks";
+import { CreepTask } from "tasks";
 import { CreepRole } from "roles/Role";
 
 declare global {
