@@ -80,7 +80,7 @@ export class Scout extends CreepRoleBase implements CreepRole {
 
   NewScoutingReport(creep: CreepExtra): ScoutingReport {
     const dist = Game.map.getRoomLinearDistance(creep.room.name, creep.memory.room);
-    const reportMsg = `${creep.room.name} (~${dist} Rooms from My Home)`;
+    const reportMsg = `${creep.room.name} (~${dist} Rooms from ${creep.memory.room})`;
     if (creep.room.name in Memory.scoutingReports && "lastSeen" in Memory.scoutingReports[creep.room.name])
       this.log.info(`Updating Scouting Reporting for ${reportMsg}. Last Seen ${Game.time - Memory.scoutingReports[creep.room.name].lastSeen} Ticks Ago.`, { "<creep>": creep, "<room>": creep.room });
     else
