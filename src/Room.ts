@@ -5,6 +5,7 @@ import { countGraphemes } from 'unicode-segmenter/grapheme';
 import { LerpColour } from "utils/Collections";
 import { Logger } from "utils/Logger";
 import { CreepTask } from "Tasks";
+import { CreepRole } from "roles/Role";
 
 declare global {
   interface RoomMemory {
@@ -69,8 +70,10 @@ export class RoomExtra extends Room {
     }
   }
 
-  GetAssignedTasks(): CreepTask[] {
-    return this.AssignedCreeps.map(c => c.memory.jobMemory as CreepTask);
+  GetAssignedTasks(taskAction?: string): CreepTask[] {
+    const tasks = this.AssignedCreeps.map(c => c.memory.jobMemory as CreepTask);
+    if (!taskAction) return tasks;
+    return tasks.filter(t => t.action === taskAction);
   }
 
   get LastSeen(): number { return this.memory.lastSeen ?? 0; }
@@ -122,32 +125,7 @@ export class RoomExtra extends Room {
     return role.GetRoomQuota(this);
   }
 
-  // Search the spaces around each source, and return
-  // the number of free spaces which a Miner creep could fill.
-  GetMinerPositions(): RoomPosition[] {
-    const sources = this.Sources;
-    const terrain = this.getTerrain();
-    let spaces = 0;
-    const possibleMiners = [];
 
-    for (const s of sources)
-      // Given the source.pos is the centre point
-      // get the positions of all the surrounding spaces
-      for (let x = s.pos.x - 1; x <= s.pos.x + 1; x++)
-        for (let y = s.pos.y - 1; y <= s.pos.y + 1; y++) {
-          if (x === s.pos.x && y === s.pos.y) continue; // Skip centre point
-          if (terrain.get(x, y) === 0) {
-            const pos = this.getPositionAt(x, y);
-            if (!pos) { this.log.debug(`getPositionAt Possible Miner position ${x} ${y} in ${this.name} is null`); continue; }
-            possibleMiners.push(pos);
-          }
-          spaces++;
-          // this.room.visual.rect(x, y, 1, 1, { fill: Colours.ATTACK_RANGE });
-        }
-
-    this.log.debug(`Searched ${spaces} spaces and found ${possibleMiners} possible positions for miners.`);
-    return possibleMiners;
-  }
 
   get SpawnsOrExtensions(): (StructureExtension | StructureSpawn)[] {
     return this.find(FIND_MY_STRUCTURES, {
@@ -179,7 +157,33 @@ export class RoomExtra extends Room {
     return this.find(FIND_STRUCTURES, { filter: s => s.hits < s.hitsMax });
   }
 
+  get Ramparts(): StructureRampart[] {
+    return this.find(FIND_MY_STRUCTURES, { filter: s => s.structureType === STRUCTURE_RAMPART });
+  }
+
+  get Roads(): StructureRoad[] {
+    return this.find(FIND_STRUCTURES, { filter: s => s.structureType === STRUCTURE_ROAD });
+  }
+
+  CleanupDeadCreeps(): void {
+    for (const name in Memory.creeps) {
+      // If the creep is dead and was assigned to this room
+      if (!(name in Game.creeps) && Memory.creeps[name].room === this.name) {
+        this.log.info(`Generic Cleanup memory for ${name}`);
+        const oldMem = Memory.creeps[name];
+        delete Memory.creeps[name];
+
+        // Invoke the role cleanup if they had a role
+        const role = this.colony.RoleRegistry.get(oldMem.role);
+        if (role) role.OnCleanup(this, name, oldMem);
+      }
+    }
+  }
+
   Tick(): void {
+    // Cleanup Dead creeps
+    this.CleanupDeadCreeps();
+
     // Run each tower in the room
     if (!this.DisableTowers)
       for (const tower of this.Towers)
@@ -201,24 +205,60 @@ export class RoomExtra extends Room {
   }
 
   CheckSpawns(): void {
+    const maxSpawns = this.AvailableSpawns.length;
+    if (maxSpawns === 0) {
+      this.log.debug(`Room has no available spawn points.`);
+      return;
+    }
+
+    var completedSpawns = 0;
+
     for (const r of this.colony.RoleRegistry.values()) {
       this.log.debug(`Checking Spawns for ${r.name}`);
-      if (!r.IsEnabledFor(this)) continue;
+      if (!this.IsRoleSpawnable(r)) continue;
       if (!r.IsSpawnNeeded(this)) continue;
-      if (!r.AttemptSpawn(this, r.GetNewCreepBody(this))) continue;
 
-      // Spawn was successful
+      const name = `${r.GetNewCreepName(this)}, ${r.name}`;
+      const spawnSuccessful = r.AttemptSpawn(this, r.GetNewCreepBody(this), r.GetInitialTask(this), name);
+      if (!spawnSuccessful) continue;
+
       this.SetLastSpawnTick(r.name, Game.time);
-      return;
+      r.OnSpawnScheduled(this, name);
+
+      // If we used up all the spawn points, then return early.
+      if (++completedSpawns >= maxSpawns) return;
     }
   }
 
-  // TickAllUnOwnedRoom(): void {
-  //   const timeSinceLastSeen = Game.time - this.LastSeen;
-  //   if (timeSinceLastSeen === Game.time) this.log.warn(`[${this.room}]: this is a brand new room to us!`);
-  //   else if (timeSinceLastSeen > 50) this.log.warn(`[${this.room}]: We haven't seen this room in ${timeSinceLastSeen} ticks...`);
-  //   else if (Game.time % this.NotificationFrequency === 0) this.log.warn(`[${this.room}]: Not owned: ${this.Status}.`);
-  // }
+  IsRoleSpawnable(role: CreepRole): boolean {
+    const globalQuota = role.GetGlobalQuota();
+    if (globalQuota >= 0) {
+      const globalCount = role.GetGlobalCreepsInRole().length;
+      if (globalQuota === 0 || (globalQuota !== -1 && globalCount >= globalQuota)) {
+        this.log.debug(`Global quota satisfied: ${globalCount}/${globalQuota}`, { "<role>": role });
+        return false;
+      } else {
+        this.log.debug(`Global quota allows spawn: ${globalCount}/${globalQuota}`, { "<role>": role });
+      }
+    } else {
+      this.log.debug(`Global quota not configured.`, { "<role>": role });
+    }
+
+    const roomQuota = this.Quota(role.name);
+    if (roomQuota >= 0) {
+      const roomCount = role.GetRoomCreepsInRole(this).length;
+      if (roomQuota === 0 || (roomQuota !== -1 && roomCount >= roomQuota)) {
+        this.log.debug(`Room quota satisfied: ${roomCount}/${roomQuota}`, { "<role>": role });
+        return false;
+      } else {
+        this.log.debug(`Room quota allows spawn: ${roomCount}/${roomQuota}`, { "<role>": role });
+      }
+    } else {
+      this.log.debug(`Room quota not configured.`, { "<role>": role });
+    }
+
+    return true;
+  }
 
   RoomStateReport(): void {
     let msg = "";
@@ -252,10 +292,7 @@ export class RoomExtra extends Room {
       owner: c.owner.username,
       name: c.name,
       bodyCost: CreepExtra.BodyCost(c.body.map(p => p.type)),
-      partCounts: c.body.reduce((counts, part) => {
-        counts[part.type] = (counts[part.type] ?? 0) + 1;
-        return counts;
-      }, {} as Record<string, number>),
+      partCounts: CreepExtra.PartCounts(c.body),
     }));
 
     // Append hostile details

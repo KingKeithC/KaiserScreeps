@@ -1,33 +1,52 @@
 import { CreepExtra } from "Creep";
 import { RoomExtra } from "Room";
-import { Build, CollectEnergy, CreepTask, Idle, MaintainController, Mine, Pickup, Repair, Supply, UpdateController } from "Tasks";
+import { Build, CollectEnergy, CreepTask, Idle, MaintainController, Mine, Pickup, Repair, Supply, TaskAction, UpdateController } from "Tasks";
 import { MakeBody } from "utils/Collections";
 import { CreepRoleBase, CreepRole } from "./Role";
 
-export class WorkerI extends CreepRoleBase implements CreepRole {
+export class Worker extends CreepRoleBase implements CreepRole {
   readonly groupName = "Workers";
-  readonly name: string = "WorkerI";
+  readonly name: string = "Worker";
   readonly tier: number = 1;
 
   StartSpawnAtRCL = 0;
   StopSpawnAtRCL = 8;
 
-  GetNewCreepBody(_room: RoomExtra): BodyPartConstant[] {
-    return MakeBody(
-      [MOVE, 1],
-      [WORK, 1],
-      [CARRY, 1],
-    );
+  GetNewCreepBody(room: RoomExtra): BodyPartConstant[] {
+    const tiers = [
+      MakeBody(
+        [MOVE, 1],
+        [WORK, 1],
+        [CARRY, 1],
+      ),
+      MakeBody(
+        [MOVE, 3],
+        [WORK, 2],
+        [CARRY, 4],
+      ),
+      MakeBody(
+        [MOVE, 7],
+        [WORK, 6],
+        [CARRY, 7],
+      ),
+    ];
+
+    var costs = [];
+    for (const body of tiers.reverse()) {
+      const cost = CreepExtra.BodyCost(body);
+      costs.push(cost);
+      if (room.energyCapacityAvailable >= cost) {
+        return body;
+      }
+    }
+
+    this.log.crit(`Room lacks energy capacity for all types of body! Tried: ${costs}`);
+    return [];
   }
 
-  // Up to 6, less one for each higher level worker.
-  private readonly maxCount = 6;
-  override GetRoomQuota(room: RoomExtra) {
-    const higherTierWorkers = room.AssignedCreeps.filter(
-      c => c.memory.role.startsWith("Worker") && c.role && c.role.tier > this.tier,
-    ).length;
-    return Math.max(0, this.maxCount - higherTierWorkers);
-  }
+  GetGlobalQuota(): number { return -1; }
+  override GetRoomQuota(room: RoomExtra) { return 8; }
+  IsSpawnNeeded(_room: RoomExtra) { return true; }
 
   SelectNextTask(creep: CreepExtra, room: RoomExtra): CreepTask {
     if (creep.store.getUsedCapacity(RESOURCE_ENERGY) === 0)
@@ -50,12 +69,6 @@ export class WorkerI extends CreepRoleBase implements CreepRole {
     return room.AssignedCreeps
       .filter(c => c.memory.role.startsWith("Worker"))
       .map(c => c.currentTask ?? new Idle());
-  }
-
-  WorkerActionCount(action: string, room: RoomExtra): number {
-    return room.AssignedCreeps.filter(
-      c => c.memory.role.startsWith("Worker") && c.currentTask?.kind === action,
-    ).length;
   }
 
   FindWartimeSpendingTask(creep: CreepExtra, room: RoomExtra): CreepTask {
@@ -88,7 +101,8 @@ export class WorkerI extends CreepRoleBase implements CreepRole {
     const cons = this.FindConstructionByPriorityAndPath(creep.pos, room);
     if (cons) return new Build(cons.id as Id<ConstructionSite<BuildableStructureConstant>>);
 
-    if (this.WorkerActionCount("repair", room) < this.MaxRepairPerRoom) {
+    const currentRepairCount = room.GetAssignedTasks(TaskAction.Repair).length;
+    if (currentRepairCount < this.MaxRepairPerRoom) {
       const repair = this.FindIdealRepairByStrength(room);
       if (repair) return new Repair(repair.id as Id<AnyStructure>);
       else this.log.info(`[${room.name}]${creep}: No repairs needed!`);
@@ -118,7 +132,7 @@ export class WorkerI extends CreepRoleBase implements CreepRole {
     const droppedResources = room.find(FIND_DROPPED_RESOURCES, { filter: r => r.resourceType === RESOURCE_ENERGY });
     for (const res of droppedResources) {
       const countPickingUpSameRes = this.CurrentAssignedTasks(room).filter(
-        t => t.kind === "pickup" && "target" in t && t.target === res.id,
+        t => t.action === TaskAction.Pickup && "target" in t && t.target === res.id,
       ).length;
       if (countPickingUpSameRes) continue;
       const path = creep.pos.findPathTo(res, { ignoreCreeps: true });
@@ -151,11 +165,11 @@ export class WorkerI extends CreepRoleBase implements CreepRole {
       if (bestMiner) return new CollectEnergy(bestMiner.name, { maxAttempts: 5 });
     }
 
-    this.log.info(`FindGatheringTask no tasks found!`, { "<creep>": creep });
+    // this.log.info(`FindGatheringTask no tasks found!`, { "<creep>": creep });
     return new Idle();
   }
 
-  MaxRepairPerRoom = 3;
+  MaxRepairPerRoom = 1;
   IgnoreDroppedResourcesLessThan = 30;
   MediumSearchRange = 20;
   ShortSearchRange = 5;
@@ -185,7 +199,7 @@ export class WorkerI extends CreepRoleBase implements CreepRole {
   }
 
   FindSupplyByPriorityAndPath(supplier: CreepExtra, candidates: AnyStoreStructure[], room: RoomExtra): AnyStoreStructure | null {
-    const inProgressSupplyTasks = this.CurrentAssignedTasks(room).filter(t => t.kind === "supply");
+    const inProgressSupplyTasks = this.CurrentAssignedTasks(room).filter(t => t.action === TaskAction.Supply);
     const supplyTargetsByCount = new Map<string, number>();
     for (const t of inProgressSupplyTasks) {
       const target = "target" in t ? (t.target as string | undefined) : undefined;
@@ -207,7 +221,7 @@ export class WorkerI extends CreepRoleBase implements CreepRole {
   }
 
   FindIdealRepairByStrength(room: RoomExtra): AnyStructure | undefined | null {
-    const inProgressRepairTasks = this.CurrentAssignedTasks(room).filter(t => t.kind === "repair");
+    const inProgressRepairTasks = this.CurrentAssignedTasks(room).filter(t => t.action === TaskAction.Repair);
     const targetsByCount = new Map<string, number>();
     for (const t of inProgressRepairTasks) {
       const target = "target" in t ? (t.target as string | undefined) : undefined;
@@ -232,7 +246,7 @@ export class WorkerI extends CreepRoleBase implements CreepRole {
   }
 
   FindIdealRepair(supplier: CreepExtra, room: RoomExtra): AnyStructure | undefined | null {
-    const inProgressRepairTasks = this.CurrentAssignedTasks(room).filter(t => t.kind === "repair");
+    const inProgressRepairTasks = this.CurrentAssignedTasks(room).filter(t => t.action === TaskAction.Repair);
     const targetsByCount = new Map<string, number>();
     for (const t of inProgressRepairTasks) {
       const target = "target" in t ? (t.target as string | undefined) : undefined;
@@ -264,47 +278,5 @@ export class WorkerI extends CreepRoleBase implements CreepRole {
       .map(source => ({ source, count: sourceToAssigneeCount.get(source.id) ?? 0 }))
       .sort((b, a) => a.count - b.count)
       .pop()?.source;
-  }
-}
-
-export class WorkerII extends WorkerI {
-  override readonly name: string = "WorkerII";
-  override readonly tier: number = 2;
-
-  StartSpawnAtRCL = 2;
-  StopSpawnAtRCL = 5;
-
-  override GetNewCreepBody(_room: RoomExtra): BodyPartConstant[] {
-    return MakeBody(
-      [MOVE, 3],
-      [WORK, 2],
-      [CARRY, 4],
-    );
-  }
-
-  override IsEnabledFor(room: RoomExtra): boolean {
-    const higherTierMiners = (room.AssignedCreepsByRoleName.get("MinerII") ?? []).length;
-    return higherTierMiners > 0;
-  }
-}
-
-export class WorkerIII extends WorkerII {
-  override readonly name: string = "WorkerIII";
-  override readonly tier: number = 3;
-
-  StartSpawnAtRCL = 4;
-  StopSpawnAtRCL = 100;
-
-  override GetNewCreepBody(_room: RoomExtra): BodyPartConstant[] {
-    return MakeBody(
-      [MOVE, 7],
-      [WORK, 6],
-      [CARRY, 7],
-    );
-  }
-
-  override GetRoomQuota(room: RoomExtra) {
-    const minerII = room.AssignedCreeps.filter(c => c.memory.role === "MinerII").length;
-    return minerII > 0 ? 8 : 0;
   }
 }

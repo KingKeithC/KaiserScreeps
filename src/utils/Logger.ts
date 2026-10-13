@@ -175,4 +175,12 @@ export class Logger<T extends Loggable> {
   warn(msg: string, ...args: LogArg[]): void { this.log(LogLevel.WARNING, msg, ...args); }
   error(error: Error, ...args: LogArg[]): void { this.log(LogLevel.ERROR, error.stack ?? error.toString(), ...args); }
   crit(msg: string, ...args: LogArg[]): void { this.log(LogLevel.CRITICAL, msg, ...args); }
+
+  static debug(msg: string, ...args: LogArg[]): void { new Logger(new Object()).debug(msg, ...args); }
+  static verbose(msg: string, ...args: LogArg[]): void { new Logger(new Object()).verbose(msg, ...args); }
+  static info(msg: string, ...args: LogArg[]): void { new Logger(new Object()).info(msg, ...args); }
+  static report(msg: string, ...args: LogArg[]): void { new Logger(new Object()).report(msg, ...args); }
+  static warn(msg: string, ...args: LogArg[]): void { new Logger(new Object()).warn(msg, ...args); }
+  static error(error: Error, ...args: LogArg[]): void { new Logger(new Object()).error(error, ...args); }
+  static crit(msg: string, ...args: LogArg[]): void { new Logger(new Object()).crit(msg, ...args); }
 }

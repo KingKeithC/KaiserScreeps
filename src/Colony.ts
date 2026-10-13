@@ -1,15 +1,16 @@
 import { CreepExtra } from "Creep";
-import { Miner, MinerII } from "roles/Miner";
+import { Miner } from "roles/Miner";
 import { CreepRole } from "roles/Role";
-import { Scout } from "roles/Scout";
-import { Settler } from "roles/Settler";
-import { Warrior } from "roles/Warrior";
-import { WorkerI, WorkerII, WorkerIII } from "roles/Worker";
+import { Scout, ScoutingReport } from "roles/Scout";
+import { Defender } from "roles/Defender";
+import { Worker } from "roles/Worker";
 import { RoomExtra } from "Room";
 import profiler from "screeps-profiler";
-import { AttackTargetTask, Build, ClaimRoomTask, CollectEnergy, CreepTask, GuardTask, Idle, Mine, Pickup, Repair, ScoutMissionTask, Supply, UpdateController } from "Tasks";
+import { AttackTargetTask, Build, ClaimRoomTask, CollectEnergy, CreepTask, Dismantle, GuardTask, Idle, Mine, Move, Pickup, Repair, Supply, UpdateController } from "Tasks";
 import { ErrorMapper } from "utils/ErrorMapper";
 import { Logger } from "utils/Logger";
+import { Attacker } from "roles/Attacker";
+import { Dictionary } from "lodash";
 
 
 
@@ -17,6 +18,8 @@ declare global {
   interface Memory {
     globalEnableProfiling: boolean,
     globalEnableErrorMapper: boolean,
+    scoutingReports: Dictionary<ScoutingReport>;
+    scoutInterval: number;
   }
 }
 
@@ -61,21 +64,13 @@ export class Colony {
   private readonly log = new Logger(this);
 
   constructor() {
-    var offset: number = 0;
     [
-      new WorkerI(this),
-      new WorkerII(this),
-      new WorkerIII(this),
       new Miner(this),
-      new MinerII(this),
-      new Settler(this),
+      new Worker(this),
+      new Defender(this),
       new Scout(this),
-      new Warrior(this),
-    ].forEach(r => {
-      r.SpawnTickOffet = offset;
-      this.RoleRegistry.set(r.name, r);
-      offset += 3;
-    });
+      new Attacker(this),
+    ].forEach(r => this.RoleRegistry.set(r.name, r));
 
     const taskPrototypes: [string, CreepTask][] = [
       ["idle", Idle.prototype],
@@ -88,8 +83,9 @@ export class Colony {
       ["pickup", Pickup.prototype],
       ["attack", AttackTargetTask.prototype],
       ["guard", GuardTask.prototype],
-      ["scout", ScoutMissionTask.prototype],
+      ["move", Move.prototype],
       ["claim", ClaimRoomTask.prototype],
+      ["dismantle", Dismantle.prototype],
     ];
     taskPrototypes.forEach(([kind, task]) => this.TaskRegistry.set(kind, task));
   }
@@ -124,13 +120,21 @@ export class Colony {
   get GlobalEnableErrorMapper() { return Memory.globalEnableErrorMapper ?? true; }
   set GlobalEnableErrorMapper(value) { Memory.globalEnableErrorMapper = value; }
 
+  OnGlobalReset(): void {
+    Memory.creeps ??= {};
+    Memory.rooms ??= {};
+    Memory.scoutingReports ??= {};
+    Memory.scoutInterval ??= CREEP_LIFE_TIME * 2;
+
+    global.Colony = this; // Accessible as `Colony.whatever()` in the console.
+    this.log.crit(`GLOBALS RESET | Profiling Configured: ${this.GlobalEnableProfiling}, ErrorMapper: ${this.GlobalEnableErrorMapper}`);
+  }
+
   // This function is rarely invoked (hundreds of ticks between); when globals reset or code is uploaded.
   // What is returned from this is cached, but is subject to periodic refreshes.
   // Also if too much data is cached, it may cause GC to run more frequently.
   public GetMainLoop(): () => void {
-    this.log.crit(`GLOBALS RESET | Profiling Configured: ${this.GlobalEnableProfiling}, ErrorMapper: ${this.GlobalEnableErrorMapper}`);
-    global.Colony = this; // Accessible as `Colony.whatever()` in the console.
-    this.CleanupMissingCreeps();
+    this.OnGlobalReset();
     return this.WrapWithProfiling(this.WrapWithErrorMapper(this.MainLoop.bind(this)));
   }
 
@@ -147,6 +151,9 @@ export class Colony {
 
     // Try to generate a pixel if we can
     this.TryGeneratingPixel();
+
+    // Ensure all creeps have a non-null job memory before doing anything else
+    this.MyCreeps.forEach(c => c.memory.jobMemory ??= {});
 
     // Run TickStart on each role, so they can do optional bookkeeping.
     for (const role of this.RoleRegistry.values()) role.TickStart();
@@ -168,14 +175,11 @@ export class Colony {
     }
   }
 
-  CleanupMissingCreeps(): void {
-    for (const name in Memory.creeps) {
-      if (!(name in Game.creeps)) {
-        this.log.info(`Cleanup memory for ${name}`);
-        delete Memory.creeps[name];
-      }
+  SaySomething(): void { this.log.crit("Something"); }
+  ResetAllRoles(newRole: string = "Worker"): void {
+    for (const c of this.MyCreeps) {
+      c.memory.role = newRole;
+      this.log.report(`Reset ${c} to "${newRole}"`);
     }
   }
-
-  SaySomething(): void { this.log.crit("Something"); }
 }

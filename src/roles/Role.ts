@@ -1,5 +1,5 @@
 import { CreepExtra } from "Creep";
-import { Adjectives, GetRandomSuffix, Nouns } from "Data";
+import { GetRandomName } from "Data";
 import { RoomExtra } from "Room";
 import { CreepTask, Idle } from "Tasks";
 import { Logger } from "utils/Logger";
@@ -11,9 +11,6 @@ export interface CreepRole {
   readonly groupName: string;
   readonly tier: number;
 
-  SpawnRate: number;
-  SpawnTickOffet: number;
-
   toString(): string;
   TickCreep(creep: CreepExtra, room: RoomExtra): void;
 
@@ -24,8 +21,8 @@ export interface CreepRole {
 
   GetNewCreepName(room: RoomExtra): string; // Return a new name for a newly spawned creep.
   GetNewCreepBody(room: RoomExtra): BodyPartConstant[]; // Return a new body for creeps of this role.
-  GetInitialTask(room: RoomExtra): CreepTask; // Return the initial task to put in the memory of a to-be-spawned creep. Given creep is not accessible yet.
-  SelectNextTask(creep: CreepExtra, room: RoomExtra): CreepTask; // Given a creep who just finished a task, find a new task for them.
+  GetInitialTask(room: RoomExtra): CreepTask | null; // Return the initial task to put in the memory of a to-be-spawned creep. Given creep is not accessible yet.
+  SelectNextTask(creep: CreepExtra, room: RoomExtra, lastTask: CreepTask | null): CreepTask | null; // Given a creep who just finished a task, find a new task for them.
 
   GetGlobalQuota(): number;
   GetRoomQuota(room: RoomExtra): number;
@@ -33,130 +30,94 @@ export interface CreepRole {
   GetGlobalCreepsInRole(): CreepExtra[];  // Get all creeps assigned to this role in the colony
   GetRoomCreepsInRole(room: RoomExtra): CreepExtra[]; // Get all creeps  assigned to this role in the room
 
-  IsEnabledFor(room: RoomExtra): boolean; // Decide if a role should even be spawned.
   IsSpawnNeeded(room: RoomExtra): boolean;      // Decide if a spawn is needed for a room.
-  AttemptSpawn(room: RoomExtra, body: BodyPartConstant[], initialTask?: CreepTask): boolean;       // Attempt to spawn at any spawn in a room. Return true if succeeded.
-  AttemptSpawnAt(room: RoomExtra, spawn: StructureSpawn, body: BodyPartConstant[], initialTask?: CreepTask): boolean; // Attempt to spawn at a specific spawn point.  Return true if succeeded.
+  AttemptSpawn(room: RoomExtra, body: BodyPartConstant[], initialTask: CreepTask | null, newName: string): boolean;       // Attempt to spawn at any spawn in a room. Return true if succeeded.
+  AttemptSpawnAt(room: RoomExtra, spawn: StructureSpawn, body: BodyPartConstant[], initialTask: CreepTask, newName: string): boolean; // Attempt to spawn at a specific spawn point.  Return true if succeeded.
+  OnSpawnScheduled(room: RoomExtra, name: string): void; // Run after a creep is started spawning.
+  OnSpawn(room: RoomExtra, creep: CreepExtra): void; // Run on the first tick after a creep is spawned.
+  OnCleanup(room: RoomExtra, creepName: string, creepMemory: CreepMemory): void;
 }
 
 export abstract class CreepRoleBase implements CreepRole {
+  // Must be supplied by derived roles.
   readonly abstract name: string;
   readonly abstract groupName: string;
   readonly abstract tier: number;
-
   abstract GetNewCreepBody(_room: RoomExtra): BodyPartConstant[];
-  abstract SelectNextTask(creep: CreepExtra, room: RoomExtra): CreepTask;
+  abstract GetGlobalQuota(): number;
+  abstract GetRoomQuota(_room: RoomExtra): number;
+  abstract IsSpawnNeeded(room: RoomExtra): boolean;
 
+  // Init
   protected readonly log: Logger<CreepRoleBase> = new Logger(this, { formatArgs: { "<role>": this } });
-
   constructor(private readonly colony: Colony) { }
 
-  toString(): string { return `[role ${this.name}]`; }
-  TickStart(): void { }
-  RoomTickStart(room: RoomExtra): void { }
-  RoomTickEnd(room: RoomExtra): void { }
-  TickEnd(): void { }
-  GetInitialTask(_room: RoomExtra): CreepTask { return new Idle(); }
-  GetNewCreepName(_room: RoomExtra): string { return GetRandomSuffix(); }
-  GetGlobalQuota(): number { return -1; }
-  GetRoomQuota(_room: RoomExtra): number { return 0; }
+  // Default Implementations
   GetGlobalCreepsInRole(): CreepExtra[] { return this.colony.MyCreeps.filter(c => c.memory.role === this.name); }
+  GetInitialTask(_room: RoomExtra): CreepTask | null { return null; }
+  GetNewCreepName(_room: RoomExtra): string { return GetRandomName(); }
   GetRoomCreepsInRole(room: RoomExtra): CreepExtra[] { return room.AssignedCreeps.filter(c => c.memory.role === this.name); }
+  OnCleanup(room: RoomExtra, creepName: string, creepMemory: CreepMemory): void { }
+  OnSpawn(room: RoomExtra, creep: CreepExtra): void { }
+  OnSpawnScheduled(room: RoomExtra, name: string): void { }
+  RoomTickEnd(room: RoomExtra): void { }
+  RoomTickStart(room: RoomExtra): void { }
+  SelectNextTask(_creep: CreepExtra, _room: RoomExtra, _lastTask: CreepTask): CreepTask | null { return null; }
   TickCreep(creep: CreepExtra, room: RoomExtra): void { }
+  TickEnd(): void { }
+  TickStart(): void { }
+  toString(): string { return `[role ${this.name}]`; }
 
-  IsEnabledFor(room: RoomExtra): boolean {
-    // room.controller
-    const controller = room.controller;
-    if (!controller) {
-      this.log.warn(`The room has no accessible controller.`, { "<room>": room });
-      return false;
-    };
-
-    // Cannot spawn if we don't own the controller
-    if (!controller.my) {
-      this.log.warn(`We don't control the room.`, { "<room>": room });
-      return false;
-    };
-
-    // Cannot spawn if RCL is wrong
-    if (!controller.level || controller.level < this.StartSpawnAtRCL || controller.level >= this.StopSpawnAtRCL) {
-      this.log.verbose(`RCL (${controller.level}) is outside spawn requirements (${this.StartSpawnAtRCL} <= RCL < ${this.StopSpawnAtRCL})`, { "<room>": room });
-      return false;
-    };
-
-    // Or room has no spawns
-    if (room.AvailableSpawns.length === 0) {
-      this.log.debug(`Room has no available spawn points.`);
-      return false;
+  AttemptSpawn(
+    room: RoomExtra,
+    body: BodyPartConstant[],
+    initialTask: CreepTask,
+    newName: string,
+  ): boolean {
+    const cost = CreepExtra.BodyCost(body);
+    if (room.energyAvailable < cost) {
+      if (Game.time % 10 === 0) this.log.info(`Room lacks the energy to spawn need ${cost} have ${room.energyAvailable}/${room.energyCapacityAvailable}`);
+      return false; // No point proceeding
     }
-
-    this.log.debug(`Role is enabled for spawns.`);
-    return true;
-  }
-
-  StartSpawnAtRCL: number = 1; // Min for owned room is 1
-  StopSpawnAtRCL: number = 9; // Max for owned room is 8
-  SpawnRate: number = 100;
-  SpawnTickOffet: number = 0;
-  IsSpawnNeeded(room: RoomExtra): boolean {
-    const globalCount = this.GetGlobalCreepsInRole().length;
-    const globalQuota = this.GetGlobalQuota();
-    if (globalQuota === 0 || (globalQuota !== -1 && globalCount >= globalQuota)) {
-      this.log.debug(`Global quota satisfied: ${globalCount}/${globalQuota}`, { "<room>": room });
-      return false;
-    } else {
-      this.log.debug(`Global quota is unmet: ${globalCount}/${globalQuota}`, { "<room>": room });
-    }
-
-    const roomCount = this.GetRoomCreepsInRole(room).length;
-    const roomQuota = room.Quota(this.name);
-    if (roomQuota === 0 || (roomQuota !== -1 && roomCount >= roomQuota)) {
-      this.log.debug(`Room quota satisfied: ${roomCount}/${roomQuota}`, { "<room>": room });
-      return false;
-    } else {
-      this.log.debug(`Room quota is unmet: ${roomCount}/${roomQuota}`, { "<room>": room });
-    }
-
-    // Spawn is needed if it's been too long.
-    const lastSpawn = room.LastSpawnTick(this.name);
-    const timeSinceLastSpawn = Game.time - lastSpawn - this.SpawnTickOffet;
-    this.log.debug(`TimeSinceLastSpawn is: ${timeSinceLastSpawn}, warrants spawn: ${timeSinceLastSpawn > this.SpawnRate}`, { "<room>": room });
-    return timeSinceLastSpawn > this.SpawnRate;
-  }
-
-  // Attempt to spawn at any point in a room
-  AttemptSpawn(room: RoomExtra, body: BodyPartConstant[], initialTask?: CreepTask, newName?: string): boolean {
-    if (room.energyAvailable < CreepExtra.BodyCost(body)) return false; // No point proceeding
 
     for (const sp of room.AvailableSpawns)
       if (this.AttemptSpawnAt(room, sp, body, initialTask, newName)) return true;
     return false;
   }
 
-  // Attempt to spawn at a specific spawn point
-  AttemptSpawnAt(room: RoomExtra, spawn: StructureSpawn, body: BodyPartConstant[], initialTask?: CreepTask, newName?: string): boolean {
-    const name = newName ?? `${this.name}-${this.GetNewCreepName(room)}`;
-    const task = initialTask ?? this.GetInitialTask(room);
+  AttemptSpawnAt(
+    room: RoomExtra,
+    spawn: StructureSpawn,
+    body: BodyPartConstant[],
+    initialTask: CreepTask,
+    name: string
+  ): boolean {
+    // Get direction to nearest road
+    var dir: DirectionConstant[] | undefined = undefined;
+    const nearestRoad = spawn.pos.findClosestByPath(room.Roads);
+    if (nearestRoad) dir = [spawn.pos.getDirectionTo(nearestRoad.pos.x, nearestRoad?.pos.y)];
 
     // Try to do the spawn
     const result = spawn.spawnCreep(body, name, {
+      directions: dir,
       memory: {
         room: room.name,
         role: this.name,
         stuckTicks: 0,
-        lastPos: { x: spawn.pos.x, y: spawn.pos.y },
-        jobMemory: task,
+        lastPos: { x: spawn.pos.x, y: spawn.pos.y, room: room.name },
+        jobMemory: initialTask,
+        _spawning: true,
       },
     });
 
+    const cost = CreepExtra.BodyCost(body);
+
     // Log the result
     if (result === OK) {
-      this.log.info(`Spawning ${name} @ ${spawn}...`);
-      return true; // Successful, no need to proceed.
-      // } else if (result === ERR_NOT_ENOUGH_ENERGY) {
-      //   return false; // Just ignore
+      this.log.info(`Spawning ${name} ${cost} @ ${spawn}...`);
+      return true;
     } else {
-      this.log.info(`Attempt to spawn ${name} at ${spawn} resulted in: ${result}...`);
+      this.log.info(`Attempt to spawn ${name} ${cost} at ${spawn} resulted in: ${result}...`);
       return false;
     }
   }

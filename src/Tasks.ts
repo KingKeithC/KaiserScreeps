@@ -1,15 +1,15 @@
 /* eslint-disable max-classes-per-file */
 import type { CreepExtra } from "Creep";
+import { DeserializeRoomPosition, RoomPositionString } from "utils/Collections";
 import { Logger } from "utils/Logger";
 
 export interface TaskActionResult {
-  target: RoomObject;
+  target: { pos: RoomPosition; };
   result: number;
   range: number;
 }
 
 export interface CreepTask<Action extends string = string> {
-  readonly kind: string;
   readonly action: Action;
   toString(): string;
   isComplete(creep: CreepExtra): boolean;
@@ -35,10 +35,12 @@ export const TaskAction = {
   Guard: "🛡️",
   Scout: "👀",
   Claim: "🏁",
+  Move: "👣",
+  ExitRoom: "🚪",
+  Dismantle: "🔱",
 } as const;
 
 export abstract class BaseTask<Action extends string> implements CreepTask<Action> {
-  public abstract readonly kind: string;
   public constructor(public readonly action: Action) { }
 
   public toString(): string { return this.action; }
@@ -79,9 +81,17 @@ export abstract class TargetTask<Action extends string, Target> extends BaseTask
 export class Idle extends BaseTask<typeof TaskAction.Idle> {
   public readonly kind = "idle" as const;
 
-  public constructor() { super(TaskAction.Idle); }
+  public constructor(
+    public speak: string = "",
+    public sayPublicly: boolean = false
+  ) { super(TaskAction.Idle); }
 
   public override isComplete(_creep: CreepExtra): boolean { return true; }
+  public override act(creep: CreepExtra): TaskActionResult | null {
+    // Speak if we were given something to say
+    if (this.speak.length > 0) creep.say(this.speak, this.sayPublicly);
+    return null;
+  }
 }
 
 export class Mine extends TargetTask<typeof TaskAction.Mine, Id<Source>> {
@@ -238,6 +248,54 @@ export class Build extends TargetTask<typeof TaskAction.Build, Id<ConstructionSi
   }
 }
 
+export class Dismantle extends TargetTask<typeof TaskAction.Dismantle, Id<AnyStructure>> {
+  public readonly kind = "dismantle" as const;
+
+  public constructor(target: Id<AnyStructure>) { super(TaskAction.Dismantle, target, "structure"); }
+
+  public override act(creep: CreepExtra): TaskActionResult | null {
+    const target = Game.getObjectById(this.target);
+    if (!target) return null;
+    return { range: 1, result: creep.dismantle(target), target: target };
+  }
+
+  public override isComplete(creep: CreepExtra): boolean {
+    const target = Game.getObjectById(this.target);
+    return !target;
+  }
+}
+
+
+export class Move extends TargetTask<typeof TaskAction.Move, RoomPosition> {
+  public readonly kind = "move" as const;
+
+  public constructor(
+    public readonly targetPos: RoomPosition,
+    public minDistance: number = 5,
+  ) {
+    super(TaskAction.Move, targetPos, "roomPosition");
+  }
+
+  public toString(): string {
+    return `${this.action} on ${this.GetTargetPosition()} (minDistance: ${this.minDistance})`;
+  }
+
+  private GetTargetPosition(): RoomPosition {
+    return new RoomPosition(this.targetPos.x, this.targetPos.y, this.targetPos.roomName);
+  }
+
+  public override act(creep: CreepExtra): TaskActionResult | null {
+    const target = this.GetTargetPosition();
+    return { range: this.minDistance, result: ERR_NOT_IN_RANGE, target: { pos: target } };
+  }
+
+  public override isComplete(creep: CreepExtra): boolean {
+    const target = this.GetTargetPosition();
+    if (creep.room.name !== target.roomName) return false;
+    return creep.pos.inRangeTo(target, this.minDistance);
+  }
+}
+
 export class Repair extends TargetTask<typeof TaskAction.Repair, Id<AnyStructure>> {
   public readonly kind = "repair" as const;
 
@@ -303,28 +361,25 @@ export class AttackTargetTask extends BaseTask<typeof TaskAction.Attack> {
   }
 }
 
-export class GuardTask extends BaseTask<typeof TaskAction.Guard> {
+export class GuardTask extends TargetTask<typeof TaskAction.Guard, Id<StructureRampart> | undefined> {
   public readonly kind = "guard" as const;
 
-  public constructor() { super(TaskAction.Guard); }
+  public constructor(
+    public rampartId?: Id<StructureRampart>,
+  ) {
+    super(TaskAction.Guard, rampartId, rampartId ? "rampart" : "nothing");
+  }
 
   public override isComplete(creep: CreepExtra): boolean {
     return creep.room.find(FIND_HOSTILE_CREEPS).length > 0;
   }
-}
 
-export class ScoutMissionTask extends BaseTask<typeof TaskAction.Scout> {
-  public readonly kind = "scout" as const;
-
-  public constructor(
-    public readonly flag: string,
-    public path: TravelPath = [],
-  ) { super(TaskAction.Scout); }
-
-  public toString(): string { return `${this.action} to ${this.flag}`; }
-
-  public override isComplete(_creep: CreepExtra): boolean {
-    return !this.flag || !Game.flags[this.flag];
+  public act(creep: CreepExtra): TaskActionResult | null {
+    if (!this.rampartId) return null;
+    const rampart = Game.getObjectById(this.rampartId);
+    if (!rampart) return null;
+    if (creep.pos === rampart.pos) return null;
+    return { range: 0, result: ERR_NOT_IN_RANGE, target: rampart };
   }
 }
 
