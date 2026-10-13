@@ -205,10 +205,6 @@ export class RoomExtra extends Room {
       for (const tower of this.Towers)
         this.TickTower(tower);
 
-    // Periodically print a status report about the room
-    if (Game.time % this.NotificationFrequency === 0)
-      this.RoomStateReport();
-
     // Build any designated roads
     this.BuildRoads();
 
@@ -276,7 +272,7 @@ export class RoomExtra extends Room {
     return true;
   }
 
-  RoomStateReport(): void {
+  RoomStateReport(): string {
     let msg = "";
     let totalRoles = 0;
     let enabledRoles = 0;
@@ -300,8 +296,11 @@ export class RoomExtra extends Room {
       msg += ` [${name} ${roomCount}/${roomQuota}${globalCount !== roomCount ? globalCountStr : ""}]`;
       enabledRoles++;
     }
+
+    const ownedStatus = this.parent ? `Claimed by ${this.parent.name}` : `HQ`;
+
     // Prepend a leader to the populations string.
-    msg = `T${Game.time} ROOM ${this.name} REPORT ::: ${enabledRoles} Roles (${totalRoles - enabledRoles} disabled) ${this.AssignedCreeps.length} Assigned Creeps` + msg;
+    msg = `${this.name} (${ownedStatus}) ::: ${enabledRoles} Roles (${totalRoles - enabledRoles} disabled) ${this.AssignedCreeps.length} Assigned Creeps` + msg;
 
     // Get info about hostiles
     const hostileInfo = this.Hostiles.map(c => ({
@@ -317,8 +316,14 @@ export class RoomExtra extends Room {
       for (const h of hostileInfo) msg += `\n\t` + JSON.stringify(h);
     }
 
-    // Print
-    this.log.report(msg);
+    // Get info about claimed rooms
+    const claimed = this.GetVisibleClaimedRooms();
+    if (claimed.length) {
+      msg += `\nCLAIMED ${claimed.length} :::`;
+      for (const claim of claimed) msg += `\n  ${claim.RoomStateReport()}`;
+    }
+
+    return msg;
   }
 
   DrawRepairOverlay(): void {

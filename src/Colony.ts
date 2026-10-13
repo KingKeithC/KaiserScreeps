@@ -21,6 +21,7 @@ declare global {
     globalEnableErrorMapper: boolean,
     scoutingReports: Dictionary<ScoutingReport>;
     scoutInterval: number;
+    colonyStateReportFrequency: number;
   }
 }
 
@@ -125,6 +126,7 @@ export class Colony {
   set GlobalEnableProfiling(value) { Memory.globalEnableProfiling = value; }
   get GlobalEnableErrorMapper() { return Memory.globalEnableErrorMapper ?? true; }
   set GlobalEnableErrorMapper(value) { Memory.globalEnableErrorMapper = value; }
+  get ColonyStateReportFrequency(): number { return Memory.colonyStateReportFrequency ?? 100; }
 
   OnGlobalReset(): void {
     Memory.creeps ??= {};
@@ -172,6 +174,9 @@ export class Colony {
 
     // Run TickEnd on each role, for bookkeeping.
     for (const role of this.RoleRegistry.values()) role.TickEnd();
+
+    if (Game.time % this.ColonyStateReportFrequency === 0)
+      this.ColonyStateReport();
   };
 
   TryGeneratingPixel(): void {
@@ -187,5 +192,15 @@ export class Colony {
       c.memory.role = newRole;
       this.log.report(`Reset ${c} to "${newRole}"`);
     }
+  }
+
+  ColonyStateReport(): void {
+    let msg = `\t Tick ${Game.time} ::: COLONY REPORT for ${this.username} ::: ${this.MyRooms.length} Owned Rooms, ${this.MyCreeps.length} Creeps`;
+
+    for (const myRoom of this.MyRooms)
+      msg = msg.concat(`\n  ${myRoom.RoomStateReport()}`);
+
+    // Print
+    this.log.report(msg);
   }
 }
