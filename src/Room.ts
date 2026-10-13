@@ -2,7 +2,7 @@ import { CreepExtra } from "Creep";
 import { Colours } from "Data";
 import type { Colony } from "Colony";
 import { countGraphemes } from 'unicode-segmenter/grapheme';
-import { LerpColour } from "utils/Collections";
+import { GetMinerPositions, LerpColour } from "utils/Collections";
 import { Logger } from "utils/Logger";
 import { CreepTask } from "tasks";
 import { CreepRole } from "roles/Role";
@@ -27,6 +27,7 @@ declare global {
     notificationFrequency?: number;
     hostileNotificationThreshold?: number;
     claimedNearby?: string[],
+    minerPositions?: RoomPosition[],
   }
 }
 
@@ -52,7 +53,9 @@ export class RoomExtra extends Room {
   readonly AssignedCreepsByRoleName: Map<string, CreepExtra[]>;
   readonly AssignedCreepsByRoleGroup: Map<string, CreepExtra[]>;
 
-  constructor(room: Room, colony: Colony) {
+  parent?: RoomExtra;
+
+  constructor(room: Room, colony: Colony, parent?: RoomExtra) {
     super(room.name);
     this.colony = colony;
     this.controller = room.controller;
@@ -69,6 +72,8 @@ export class RoomExtra extends Room {
       this.AssignedCreepsByRoleName.set(c.role.name, [...this.AssignedCreepsByRoleName.get(c.role.name) ?? [], c]);
       this.AssignedCreepsByRoleGroup.set(c.role.groupName, [...this.AssignedCreepsByRoleGroup.get(c.role.groupName) ?? [], c]);
     }
+
+    this.memory.minerPositions ??= GetMinerPositions(this);
   }
 
   GetAssignedTasks(taskAction?: string): CreepTask[] {
@@ -107,8 +112,8 @@ export class RoomExtra extends Room {
   set HostileNotificationThreshold(value: number) { this.memory.hostileNotificationThreshold = value; }
   get ClaimedNearbyRooms(): string[] { return this.memory.claimedNearby ?? []; }
   set ClaimedNearbyRooms(value: string[]) { this.memory.claimedNearby = value; }
-
-
+  get MinerPositions(): RoomPosition[] { return this.memory.minerPositions ?? []; }
+  set MinerPositions(value: RoomPosition[]) { this.memory.minerPositions = value; }
 
   LastSpawnTick(roleName: string): number { return (this.memory.lastSpawnTick ?? {})[roleName] ?? 0; }
 
@@ -129,8 +134,6 @@ export class RoomExtra extends Room {
     // Return the quota from the role instance
     return role.GetRoomQuota(this);
   }
-
-
 
   get SpawnsOrExtensions(): (StructureExtension | StructureSpawn)[] {
     return this.find(FIND_MY_STRUCTURES, {
@@ -168,6 +171,14 @@ export class RoomExtra extends Room {
 
   get Roads(): StructureRoad[] {
     return this.find(FIND_STRUCTURES, { filter: s => s.structureType === STRUCTURE_ROAD });
+  }
+
+  GetVisibleClaimedRooms(): RoomExtra[] {
+    const ret = [];
+    for (const name of this.ClaimedNearbyRooms)
+      if (name in Game.rooms)
+        ret.push(new RoomExtra(Game.rooms[name], this.colony, this));
+    return ret;
   }
 
   CleanupDeadCreeps(): void {

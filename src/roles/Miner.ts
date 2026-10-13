@@ -30,7 +30,7 @@ export class Miner extends CreepRoleBase implements CreepRole {
     return t1;
   }
 
-  override GetRoomQuota(room: RoomExtra) { return GetMinerPositions(room).length + 1; }
+  override GetRoomQuota(room: RoomExtra) { return room.MinerPositions.length + 1; }
   GetGlobalQuota(): number { return -1; }
 
   SelectNextTask(creep: CreepExtra, room: RoomExtra): CreepTask {
