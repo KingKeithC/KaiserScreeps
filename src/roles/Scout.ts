@@ -11,7 +11,7 @@ export interface ScoutingReport {
   lastSeen: number;
   owner?: string;
   scoutedFromOutpost: string,
-  distFromOutput: number,
+  distFromOutpost: number,
   hasController: boolean;
   numberOfSources: number;
   spacesForMiners: number;
@@ -94,7 +94,7 @@ export class Scout extends CreepRoleBase implements CreepRole {
       status: Game.map.getRoomStatus(creep.room.name),
       describeExits: Game.map.describeExits(creep.room.name),
       scoutedFromOutpost: creep.memory.room,
-      distFromOutput: dist,
+      distFromOutpost: dist,
     };
   }
 
