@@ -4,6 +4,7 @@ import { RoomExtra } from "Room";
 import { CreepTask, Move } from "tasks";
 import { Idle } from "tasks";
 import { GetMinerPositions, MakeBody, SerializeRoomPosition } from "utils/Collections";
+import { Miner } from "./Miner";
 import { CreepRole, CreepRoleBase } from "./Role";
 
 export interface ScoutingReport {
@@ -18,6 +19,8 @@ export interface ScoutingReport {
   status: RoomStatus;
   reservation?: ReservationDefinition;
   describeExits: Partial<Record<ExitKey, string>> | null;
+  mineralType?: MineralConstant;
+  mineralDensity?: DensityConstant;
 }
 
 
@@ -83,6 +86,7 @@ export class Scout extends CreepRoleBase implements CreepRole {
     else
       this.log.info(`Creating Scouting Reporting for ${reportMsg}`, { "<creep>": creep, "<room>": creep.room });
 
+    const mineral: Mineral | undefined = creep.room.find(FIND_MINERALS).pop();
     return {
       roomName: creep.room.name,
       lastSeen: Game.time,
@@ -95,6 +99,8 @@ export class Scout extends CreepRoleBase implements CreepRole {
       describeExits: Game.map.describeExits(creep.room.name),
       scoutedFromOutpost: creep.memory.room,
       distFromOutpost: dist,
+      mineralType: mineral?.mineralType,
+      mineralDensity: mineral?.density,
     };
   }
 
