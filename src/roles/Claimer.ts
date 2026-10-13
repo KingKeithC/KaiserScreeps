@@ -30,7 +30,7 @@ export class Claimer extends CreepRoleBase implements CreepRole {
 
     for (const c of allClaimedRooms)
       if (!(c.pos.roomName in claimedRoomsInProgress))
-        return new ClaimRoomTask(c.pos.roomName);
+        return new ClaimRoomTask(c.pos.roomName, c.name.includes(":Reserve"));
 
     return null;
   }
