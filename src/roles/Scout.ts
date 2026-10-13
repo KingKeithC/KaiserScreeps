@@ -99,6 +99,9 @@ export class Scout extends CreepRoleBase implements CreepRole {
   }
 
   TickCreep(creep: CreepExtra, room: RoomExtra): void {
+    if (creep.hits < creep.hits)
+      this.log.warn(`I'm being attacked in ${creep.room}, Health: %${((creep.hits / creep.hitsMax) * 100).toPrecision(4)} (${creep.hits}/${creep.hitsMax})!`);
+
     // Create a new scouting report for old or new rooms.
     if (!(creep.room.name in Memory.scoutingReports) || Game.time - (Memory.scoutingReports[creep.room.name].lastSeen ?? 0) > this.ScoutReportTTL)
       Memory.scoutingReports[creep.room.name] = this.NewScoutingReport(creep);
