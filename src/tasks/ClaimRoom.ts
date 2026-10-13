@@ -23,7 +23,7 @@ export class ClaimRoomTask extends TargetTask<typeof TaskAction.Claim, string> {
 
     const cont = creep.room.controller;
     // If no controller, or not-neutral, we can't act.
-    if (!cont || cont.owner != null && cont.owner.username !== creep.owner.username) return null;
+    if (!cont) return null;
 
     var outcome;
     if (this.reserve)
@@ -34,6 +34,9 @@ export class ClaimRoomTask extends TargetTask<typeof TaskAction.Claim, string> {
     // Ensure this room is added to the claim list for our assigned room
     if (outcome != null && outcome.result === OK && !(creep.room.name in creep.AssignedRoom.ClaimedNearbyRooms))
       creep.AssignedRoom.ClaimedNearbyRooms = creep.AssignedRoom.ClaimedNearbyRooms.concat(creep.room.name);
+
+    if (outcome != null && outcome.result === ERR_INVALID_TARGET && cont.owner != null && cont.owner.username !== creep.owner.username)
+      outcome.result = OK; // Ignore ERR_INVALID_TARGET, which occurs when the room is not neutral
 
     return outcome;
   }
