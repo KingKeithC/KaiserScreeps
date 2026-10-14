@@ -40,6 +40,9 @@ export class CollectEnergy extends BaseTask<typeof TaskAction.CollectEnergy> {
       : Game.getObjectById(this.source.id);
     if (!(source instanceof Creep) && !(source instanceof StructureContainer) && !(source instanceof StructureStorage)) return null;
 
+    const droppedResources = creep.pos.findInRange(FIND_DROPPED_RESOURCES, 1, { filter: d => d.resourceType === RESOURCE_ENERGY });
+    if (droppedResources.length) creep.pickup(droppedResources.pop()!);
+
     const lastInventory = this.lastInventory ?? 0;
     const currentInventory = creep.store.getUsedCapacity(RESOURCE_ENERGY);
     const result = source instanceof Creep
