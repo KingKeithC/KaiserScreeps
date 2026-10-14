@@ -21,7 +21,7 @@ export class Defender extends CreepRoleBase implements CreepRole {
 
   override GetInitialTask(room: RoomExtra): CreepTask {
     const hostile = this.FindLeastTargetedHostile(room);
-    return hostile ? new AttackTargetTask(hostile) : new GuardTask();
+    return hostile ? new AttackTargetTask(hostile) : new GuardTask(room.name);
   }
 
   // 1 For each hostile
@@ -33,11 +33,7 @@ export class Defender extends CreepRoleBase implements CreepRole {
 
   public SelectNextTask(creep: CreepExtra, room: RoomExtra): CreepTask {
     const hostile = this.FindLeastTargetedHostile(room);
-    if (!hostile) {
-      // Guard the nearest rampart that has no other creeps on it
-      return new GuardTask(creep.pos.findClosestByPath(room.Ramparts, { filter: r => r.pos.lookFor("creep").length === 0 })?.id);
-    }
-
+    if (!hostile) { return new GuardTask(room.name); }
     return new AttackTargetTask(hostile);
   }
 

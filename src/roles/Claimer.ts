@@ -1,4 +1,5 @@
 import { CreepExtra } from "Creep";
+import { unique } from "lodash";
 import type { RoomExtra } from "Room";
 import { ClaimRoomTask, CreepTask, Dismantle, Idle, Move, TaskAction } from "tasks";
 import { FormatStructureHits, MakeBody } from "utils/Collections";
@@ -17,22 +18,29 @@ export class Claimer extends CreepRoleBase implements CreepRole {
     );
   }
 
-  override GetGlobalQuota(): number { return this.GetFlags().length; }
-  override GetRoomQuota(room: RoomExtra): number { return -1; }
-  IsSpawnNeeded(room: RoomExtra): boolean { return this.GetGlobalCreepsInRole().length < this.GetFlags().length; }
+  override GetGlobalQuota(): number { return this.AllClaims().length; }
+  override GetRoomQuota(room: RoomExtra): number { return this.UnworkedClaims(room).length; }
+  IsSpawnNeeded(room: RoomExtra): boolean { return this.AllClaims.length > 0; }
   SelectNextTask(creep: CreepExtra, room: RoomExtra, lastTask: CreepTask | null): CreepTask | null { return this.GetInitialTask(room); }
 
-  GetFlags(): Flag[] { return Object.values(Game.flags).filter(f => f.name.startsWith("Claim")); }
+  AllClaims(): Flag[] { return Object.values(Game.flags).filter(f => f.name.startsWith("Claim")); }
 
-  override GetInitialTask(room: RoomExtra): CreepTask | null {
-    const allClaimedRooms = this.GetFlags().filter(f => f.pos.roomName);
-    const claimedRoomsInProgress = this.GetGlobalCreepsInRole().filter(c => c.currentTask?.action === TaskAction.Claim).map(c => (c.currentTask as ClaimRoomTask).roomName);
-
-    for (const c of allClaimedRooms)
-      if (!(c.pos.roomName in claimedRoomsInProgress))
-        return new ClaimRoomTask(c.pos.roomName, c.name.includes(":Reserve"));
-
-    return null;
+  WorkedClaims(room: RoomExtra): string[] {
+    return unique(room.GetAssignedTasks(TaskAction.Claim).map(p => (p as ClaimRoomTask).roomName));
   }
 
+  UnworkedClaims(room: RoomExtra): Flag[] {
+    const worked = this.WorkedClaims(room);
+    const ret = [];
+    for (const claim of this.AllClaims())
+      if (claim.pos.roomName in worked) continue;
+      else ret.push(claim);
+    return ret;
+  }
+
+  override GetInitialTask(room: RoomExtra): CreepTask | null {
+    for (const c of this.UnworkedClaims(room))
+      return new ClaimRoomTask(c.pos.roomName, c.name.includes("!CLAIM"));
+    return null;
+  }
 }

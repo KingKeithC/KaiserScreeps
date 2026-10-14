@@ -2,10 +2,11 @@ import { CreepExtra } from "Creep";
 import { Colours } from "Data";
 import type { Colony } from "Colony";
 import { countGraphemes } from 'unicode-segmenter/grapheme';
-import { GetMinerPositions, LerpColour } from "utils/Collections";
+import { GetMinerPositions, LerpColour, MiningPosition } from "utils/Collections";
 import { Logger } from "utils/Logger";
-import { CreepTask } from "tasks";
+import { CreepTask, MaintainController, Mine, TaskAction } from "tasks";
 import { CreepRole } from "roles/Role";
+import { unique } from "lodash";
 
 declare global {
   interface RoomMemory {
@@ -27,7 +28,8 @@ declare global {
     notificationFrequency?: number;
     hostileNotificationThreshold?: number;
     claimedNearby?: string[],
-    minerPositions?: RoomPosition[],
+    minerPositions?: MiningPosition[],
+    storageWartimeEnergyBuffer: number,
   }
 }
 
@@ -46,6 +48,8 @@ interface HostileInfo {
   partCounts: { [part: string]: number; };
 }
 
+
+
 export class RoomExtra extends Room {
   readonly colony: Colony;
   readonly log: Logger<RoomExtra> = new Logger(this, { formatArgs: { "<room>": this } });
@@ -56,14 +60,17 @@ export class RoomExtra extends Room {
   parent?: RoomExtra;
 
   constructor(room: Room, colony: Colony, parent?: RoomExtra) {
+    // Superclass Init
     super(room.name);
-    this.colony = colony;
     this.controller = room.controller;
     this.storage = room.storage;
     this.terminal = room.terminal;
     this.energyAvailable = room.energyAvailable;
     this.energyCapacityAvailable = room.energyCapacityAvailable;
 
+    // This class init
+    this.parent = parent;
+    this.colony = colony;
     this.AssignedCreeps = colony.MyCreeps.filter(c => c.memory.room === this.name);
     this.AssignedCreepsByRoleName = new Map();
     this.AssignedCreepsByRoleGroup = new Map();
@@ -72,12 +79,14 @@ export class RoomExtra extends Room {
       this.AssignedCreepsByRoleName.set(c.role.name, [...this.AssignedCreepsByRoleName.get(c.role.name) ?? [], c]);
       this.AssignedCreepsByRoleGroup.set(c.role.groupName, [...this.AssignedCreepsByRoleGroup.get(c.role.groupName) ?? [], c]);
     }
-
     this.memory.minerPositions ??= GetMinerPositions(this);
   }
 
   GetAssignedTasks(taskAction?: string): CreepTask[] {
-    const tasks = this.AssignedCreeps.map(c => c.memory.jobMemory as CreepTask);
+    const tasks = this.AssignedCreeps
+      .filter(c => c.memory.jobMemory != null && c.memory.jobMemory != undefined)
+      .map(c => c.memory.jobMemory as CreepTask);
+
     if (!taskAction) return tasks;
     return tasks.filter(t => t.action === taskAction);
   }
@@ -111,9 +120,18 @@ export class RoomExtra extends Room {
   get HostileNotificationThreshold(): number { return this.memory.hostileNotificationThreshold ?? 4; }
   set HostileNotificationThreshold(value: number) { this.memory.hostileNotificationThreshold = value; }
   get ClaimedNearbyRooms(): string[] { return this.memory.claimedNearby ?? []; }
-  set ClaimedNearbyRooms(value: string[]) { this.memory.claimedNearby = value; }
-  get MinerPositions(): RoomPosition[] { return this.memory.minerPositions ?? []; }
-  set MinerPositions(value: RoomPosition[]) { this.memory.minerPositions = value; }
+  set ClaimedNearbyRooms(value: string[]) { this.memory.claimedNearby = unique([...this.memory.claimedNearby ?? [], ...value]); }
+  get StorageWartimeEnergyBuffer(): number { return this.memory.storageWartimeEnergyBuffer ?? 5000; }
+
+  set MinerPositions(value: MiningPosition[]) { this.memory.minerPositions = value; }
+  get MinerPositions(): MiningPosition[] {
+    const eixsting: MiningPosition[] = this.memory.minerPositions ?? [];
+    const mapped = [];
+    for (const mp of eixsting)
+      mapped.push({ position: new RoomPosition(mp.position.x, mp.position.y, mp.position.roomName), sourceId: mp.sourceId });
+    return mapped;
+  }
+
 
   LastSpawnTick(roleName: string): number { return (this.memory.lastSpawnTick ?? {})[roleName] ?? 0; }
 
@@ -173,6 +191,27 @@ export class RoomExtra extends Room {
     return this.find(FIND_STRUCTURES, { filter: s => s.structureType === STRUCTURE_ROAD });
   }
 
+  GetUnfilledMiningPositions(): MiningPosition[] {
+    const ret = [];
+    for (const mp of this.MinerPositions)
+      if (new RoomPosition(mp.position.x, mp.position.y, mp.position.roomName).lookFor(LOOK_CREEPS).length === 0)
+        ret.push(mp);
+    return ret;
+  }
+
+  GetUnfilledUnassignedMiningPositions(): MiningPosition[] {
+    const assignedMiningPositions = this.GetAssignedTasks(TaskAction.Mine).map(p => (p as Mine).target.position);
+    var ret: MiningPosition[] = [];
+    for (const unfilled of this.GetUnfilledMiningPositions())
+      if (assignedMiningPositions.some(pos =>
+        pos.x === unfilled.position.x
+        && pos.y === unfilled.position.y
+        && pos.roomName === unfilled.position.roomName
+      )) continue;
+      else ret = ret.concat(unfilled);
+    return ret;
+  }
+
   GetVisibleClaimedRooms(): RoomExtra[] {
     const ret = [];
     for (const name of this.ClaimedNearbyRooms)
@@ -211,9 +250,6 @@ export class RoomExtra extends Room {
     // Visuals
     if (this.EnableVisuals && this.EnableRepairOverlay)
       this.DrawRepairOverlay();
-
-    // Check Spawns
-    this.CheckSpawns();
   }
 
   CheckSpawns(): void {
@@ -302,10 +338,15 @@ export class RoomExtra extends Room {
       spawned++;
     }
 
-    const ownedStatus = this.parent ? `Claimed by ${this.parent.name}` : `HQ`;
+    const ownedStatus = this.parent != undefined ? `Claimed by ${this.parent.name}` : `HQ`;
 
     // Prepend a leader to the populations string.
     msg = `${this.name} (${ownedStatus}) ::: ${spawned}/${totalRoles} Roles, ${this.AssignedCreeps.length} Assigned Creeps` + msg;
+
+    if (this.storage) {
+      const ratio = 100 * (this.storage.store.getUsedCapacity(RESOURCE_ENERGY) / this.storage.store.getCapacity(RESOURCE_ENERGY));
+      msg += ` ENERGY IN STORAGE: ${ratio} (${this.storage.store.getUsedCapacity(RESOURCE_ENERGY)}/${this.storage.store.getCapacity(RESOURCE_ENERGY)})`;
+    }
 
     // Get info about hostiles
     const hostileInfo = this.Hostiles.map(c => ({
@@ -318,15 +359,13 @@ export class RoomExtra extends Room {
     // Append hostile details
     if (hostileInfo.length) {
       msg += `\nHOSTILES ${hostileInfo.length} :::`;
-      for (const h of hostileInfo) msg += `\n\t` + JSON.stringify(h);
+      for (const h of hostileInfo) msg += `\n\t${JSON.stringify(h)}`;
     }
 
     // Get info about claimed rooms
     const claimed = this.GetVisibleClaimedRooms();
-    if (claimed.length) {
-      msg += `\nCLAIMED ${claimed.length} :::`;
-      for (const claim of claimed) msg += `\n  ${claim.RoomStateReport()}`;
-    }
+    if (claimed.length)
+      for (const claim of claimed) msg += `\n\t${claim.RoomStateReport()}`;
 
     return msg;
   }
@@ -341,7 +380,8 @@ export class RoomExtra extends Room {
     [(s => s instanceof StructureContainer || s instanceof StructurePortal), 0.9, 2],
     [(s => !(s instanceof StructureContainer || s instanceof StructurePortal || s instanceof StructureRoad || s instanceof StructureWall || s instanceof StructureRampart) && s.my), 0.9, 2],
     [(s => s instanceof StructureRoad), 0.75, 1],
-    [(s => s instanceof StructureWall || s instanceof StructureRampart), 0.9, 1],
+    [(s => s instanceof StructureRampart), 1, 1],
+    [(s => s instanceof StructureWall), 0.1, 1],
     [(_ => true), 0.75, 1],
   ];
 
@@ -379,7 +419,7 @@ export class RoomExtra extends Room {
         .pop();
       if (weakestHostile) {
         const res = tower.attack(weakestHostile);
-        this.log.debug(`!!! Tower Attacked ${weakestHostile.name} from $${weakestHostile.owner.username} (${weakestHostile.hits}/${weakestHostile.hits}) with result ${res}!`);
+        this.log.debug(`!!! Tower Attacked ${weakestHostile.name} from ${weakestHostile.owner.username} (${weakestHostile.hits}/${weakestHostile.hits}) with result ${res}!`);
         return;
       }
     }

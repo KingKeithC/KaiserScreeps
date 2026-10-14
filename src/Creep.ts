@@ -64,8 +64,19 @@ export class CreepExtra extends Creep {
     return Object.assign(Object.create(taskPrototype), record) as CreepTask;
   }
 
+  private _AssignedRoom?: RoomExtra;
   get AssignedRoom(): RoomExtra {
-    return this.colony.MyRooms.filter(r => r.name === this.memory.room).pop()!;
+    // Return memoized.
+    if (this._AssignedRoom) return this._AssignedRoom;
+
+    // Fetch and memoize our assigned room.
+    if (!this.memory.room) throw new Error(`Creep ${this.name} has no assigned room!`);
+    const room = this.colony.MyRooms.filter(r => r.name === this.memory.room).pop();
+    if (!room) throw new Error(`Assigned Room ${this.memory.room} not in colony.MyRooms!`);
+    this._AssignedRoom = room;
+
+    // Return fetched.
+    return this._AssignedRoom;
   }
 
   set currentTask(value: CreepTask | undefined) {
@@ -80,7 +91,7 @@ export class CreepExtra extends Creep {
       ...opts,
       visualizePathStyle: { stroke: Colours.PATH_LONG, lineStyle: "solid" },
       ignoreCreeps: true,
-      maxOps: this.MaxPathfindingOps * 4,
+      // maxOps: this.MaxPathfindingOps * 4,
       plainCost: 3
     });
   }
@@ -91,7 +102,7 @@ export class CreepExtra extends Creep {
       ...opts,
       visualizePathStyle: { stroke: Colours.PATH_STUCK, lineStyle: "dotted" },
       ignoreCreeps: false,
-      maxOps: this.MaxPathfindingOps,
+      // maxOps: this.MaxPathfindingOps,
       ignoreRoads: true,
     });
   }
@@ -172,33 +183,19 @@ export class CreepExtra extends Creep {
     if (this.role) this.role.OnSpawn(room, this);
   }
 
-  TickFriendlyCreep(room: RoomExtra): void {
+  Tick(room: RoomExtra): void {
     // If Creep is spawning, don't proceed.
     this.memory._spawning ??= false; // If null, default to not spawning.
     if (this.spawning) return; // Do not tick spawning creeps
     else if (!this.spawning && (this.memory._spawning ?? false))
       this.JustFinishedSpawning(room);
-
-    this.Lifecycle();
-    if (this.role) this.PerformRole(room, this.role);
+    else if (this.ticksToLive === 1)
+      this.OnLastTickOfLife();
   }
 
-  Lifecycle(): void {
-    if (this.ticksToLive === 15)
-      this.say("😨", true);
-    else if (this.ticksToLive === 10)
-      this.say("😰", true);
-    else if (this.ticksToLive === 5)
-      this.say("😭🙏", true);
-    else if (this.ticksToLive === 4)
-      this.say("🫲☹️🫱💔🫂", true);
-    else if (this.ticksToLive === 3)
-      this.say("🤡", true);
-    else if (this.ticksToLive === 2) {
-      this.say("☠️", true);
-    } else if (this.ticksToLive === 1) {
-      this.say("☠️☠️☠️", true);
-    }
+  OnLastTickOfLife(): void {
+    this.log.info("Goodbye cruel world :(");
+    this.say('☠️☠️☠️', true);
   }
 
   OnTaskChanged(room: RoomExtra, role: CreepRole, oldTask: CreepTask | null, newTask: CreepTask): void {
@@ -206,19 +203,23 @@ export class CreepExtra extends Creep {
 
     // Log the transition as long as it's not Idle -> Idle.
     if (oldTask == null || oldTask == undefined)
-      this.log.info(`  Assigned ${newTask}`, { "<room>": room, "<role>": role });
+      this.log.verbose(`  Assigned ${newTask}`, { "<room>": room, "<role>": role });
     else if (!(oldTask.action === TaskAction.Idle && newTask.action === TaskAction.Idle))
-      this.log.info(`Reassigned ${oldTask} -> ${newTask}`, { "<room>": room, "<role>": role });
+      this.log.verbose(`Reassigned ${oldTask} -> ${newTask}`, { "<room>": room, "<role>": role });
   }
 
-  PerformRole(room: RoomExtra, role: CreepRole): void {
+  PerformRole(): void {
+    if (!this.role) return;
+    const role = this.role;
+    const room = this.AssignedRoom;
+
     role.TickCreep(this, room);
 
     // Get the current task from memory, or a default task from the role.
     var task = this.currentTask ?? null;
 
     // If it's complete, get the next task.
-    if (!task || task.isComplete(this)) {
+    if (task == null || task == undefined || task.isComplete(this)) {
       const nextTask = role.SelectNextTask(this, room, task);
       if (nextTask != null) {
         this.OnTaskChanged(room, role, task, nextTask);
@@ -252,7 +253,10 @@ export class CreepExtra extends Creep {
       case ERR_NOT_IN_RANGE: {
         const res = this.MoveCreep(outcome.target.pos, { range: outcome.range });
         // if (res !== OK) this.log.info(`Move to ${outcome.target.pos} resulted in ${res}`, { "<room>": room, "<role>": role });
-        if (res === ERR_NO_PATH) delete this.memory["_move"]; // Clear out stale path
+        if (res === ERR_NO_PATH) {
+          this.log.warn(`Pathfinding from ${this.pos} to ${outcome.target.pos} failed.`, { "<role>": this.role });
+          delete this.memory["_move"]; // Clear out stale path
+        }
         return;
       }
       default: {

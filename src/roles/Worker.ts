@@ -45,24 +45,16 @@ export class Worker extends CreepRoleBase implements CreepRole {
   }
 
   GetGlobalQuota(): number { return -1; }
-  override GetRoomQuota(room: RoomExtra) { return 8; }
+  override GetRoomQuota(room: RoomExtra) { return 12; }
   IsSpawnNeeded(_room: RoomExtra) { return true; }
 
-  SelectNextTask(creep: CreepExtra, room: RoomExtra): CreepTask {
+  SelectNextTask(creep: CreepExtra, room: RoomExtra): CreepTask | null {
     if (creep.store.getUsedCapacity(RESOURCE_ENERGY) === 0)
       return this.FindGatheringTask(creep, room);
     else if (room.find(FIND_HOSTILE_CREEPS).length > 0)
       return this.FindWartimeSpendingTask(creep, room);
     else
       return this.FindSpendingTask(creep, room);
-  }
-
-  ControllerMaintenanceTask(room: RoomExtra): CreepTask | undefined {
-    return room.controller && room.controller.my ? new MaintainController(room.controller.id) : undefined;
-  }
-
-  ControllerUpgradeTask(room: RoomExtra): CreepTask | undefined {
-    return room.controller && room.controller.my ? new UpdateController(room.controller.id) : undefined;
   }
 
   CurrentAssignedTasks(room: RoomExtra): CreepTask[] {
@@ -88,12 +80,12 @@ export class Worker extends CreepRoleBase implements CreepRole {
     return new Idle();
   }
 
-  FindSpendingTask(creep: CreepExtra, room: RoomExtra): CreepTask {
-    if (
-      this.ControllerMaintenanceTask(room)
-      && room.controller?.ticksToDowngrade !== undefined
-      && room.controller.ticksToDowngrade < UpdateController.MaintenanceThreshold
-    ) return this.ControllerMaintenanceTask(room)!;
+  public FindSpendingTask(creep: CreepExtra, room: RoomExtra): CreepTask {
+    if (room.controller) {
+      const downgradeMaintenanceThreshold = CONTROLLER_DOWNGRADE[room.controller.level] * UpdateController.DowngradeMaintenanceRatio;
+      if (room.controller.ticksToDowngrade < downgradeMaintenanceThreshold)
+        return new MaintainController(room.controller);
+    }
 
     const spawn = this.FindSupplyByPriorityAndPath(creep, [...room.SpawnsOrExtensions, ...room.Towers], room);
     if (spawn) return new Supply(spawn.id as Id<AnyStoreStructure>);
@@ -101,28 +93,18 @@ export class Worker extends CreepRoleBase implements CreepRole {
     const cons = this.FindConstructionByPriorityAndPath(creep.pos, room);
     if (cons) return new Build(cons.id as Id<ConstructionSite<BuildableStructureConstant>>);
 
-    const currentRepairCount = room.GetAssignedTasks(TaskAction.Repair).length;
-    if (currentRepairCount < this.MaxRepairPerRoom) {
-      const repair = this.FindIdealRepairByStrength(room);
-      if (repair) return new Repair(repair.id as Id<AnyStructure>);
-      else this.log.info(`[${room.name}]${creep}: No repairs needed!`);
+    if (room.Towers.length === 0) {
+      const currentRepairCount = room.GetAssignedTasks(TaskAction.Repair).length;
+      if (currentRepairCount < this.MaxRepairPerRoom) {
+        const repair = this.FindIdealRepairByStrength(room);
+        if (repair) return new Repair(repair.id as Id<AnyStructure>);
+        else this.log.info(`[${room.name}]${creep}: No repairs needed!`);
+      }
     }
 
-    const totalContainerCapacity = room.Containers.reduce(
-      (sum, c) => sum + c.store.getCapacity(RESOURCE_ENERGY),
-      0,
-    );
-    if (room.storage && totalContainerCapacity > 0) {
-      const totalContainerEnergy = room.Containers.reduce(
-        (sum, c) => sum + c.store.getUsedCapacity(RESOURCE_ENERGY),
-        0,
-      );
-      const totalFillRatio = totalContainerEnergy / totalContainerCapacity;
-      if (totalFillRatio > 0.5) return new Supply(room.storage.id as Id<AnyStoreStructure>);
-    }
-
-    const upgradeTask = this.ControllerUpgradeTask(room);
-    if (upgradeTask) return upgradeTask;
+    // If room has storage with room, put it there
+    if (room.storage && room.storage.store.getFreeCapacity(RESOURCE_ENERGY))
+      return new Supply(room.storage.id as Id<AnyStoreStructure>);
 
     this.log.warn("No spending tasks found!");
     return new Idle();
@@ -146,7 +128,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
     return null;
   }
 
-  FindGatheringTask(creep: CreepExtra, room: RoomExtra): CreepTask {
+  FindGatheringTask(creep: CreepExtra, room: RoomExtra): CreepTask | null {
     const dropped = this.FindDroppedEnergy(creep, room);
     if (dropped) return dropped;
 
@@ -158,18 +140,21 @@ export class Worker extends CreepRoleBase implements CreepRole {
 
     const miners = room.AssignedCreepsByRoleGroup.get("Miners") ?? [];
     if (miners.length === 0) {
-      const source = this.FindLeastAssignedSource(room);
-      if (source) return new Mine(source.id);
+      const source = room.GetUnfilledUnassignedMiningPositions().pop();
+      if (source) return new Mine(source);
     } else {
       const bestMiner = miners.filter(m => m.store.getUsedCapacity(RESOURCE_ENERGY)).sort((a, b) => a.store.getUsedCapacity(RESOURCE_ENERGY) - b.store.getUsedCapacity(RESOURCE_ENERGY)).pop();
       if (bestMiner) return new CollectEnergy(bestMiner.name, { maxAttempts: 5 });
     }
 
-    // this.log.info(`FindGatheringTask no tasks found!`, { "<creep>": creep });
-    return new Idle();
+    if (room.storage && room.storage.store.getUsedCapacity(RESOURCE_ENERGY) > room.StorageWartimeEnergyBuffer)
+      return new CollectEnergy({ kind: "storage", id: room.storage.id });
+
+    this.log.info(`FindGatheringTask no tasks found!`, { "<creep>": creep });
+    return null;
   }
 
-  MaxRepairPerRoom = 1;
+  MaxRepairPerRoom = 4;
   IgnoreDroppedResourcesLessThan = 30;
   MediumSearchRange = 20;
   ShortSearchRange = 5;
@@ -266,17 +251,5 @@ export class Worker extends CreepRoleBase implements CreepRole {
     }
 
     return null;
-  }
-
-  FindLeastAssignedSource(room: RoomExtra): Source | undefined {
-    const sourceToAssigneeCount = new Map<Id<Source>, number>();
-    for (const t of room.GetAssignedTasks().filter(t => t instanceof Mine)) {
-      const sourceId = (t as Mine).target;
-      sourceToAssigneeCount.set(sourceId, (sourceToAssigneeCount.get(sourceId) ?? 0) + 1);
-    }
-    return room.Sources
-      .map(source => ({ source, count: sourceToAssigneeCount.get(source.id) ?? 0 }))
-      .sort((b, a) => a.count - b.count)
-      .pop()?.source;
   }
 }

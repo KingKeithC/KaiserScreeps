@@ -12,6 +12,7 @@ import { Logger } from "utils/Logger";
 import { Attacker } from "roles/Attacker";
 import { Dictionary } from "lodash";
 import { Claimer } from "roles/Claimer";
+import { RemoteMiner } from "roles/RemoteMiner";
 
 
 
@@ -74,6 +75,7 @@ export class Colony {
       new Scout(this),
       new Attacker(this),
       new Claimer(this),
+      new RemoteMiner(this),
     ].forEach(r => this.RoleRegistry.set(r.name, r));
 
     const taskPrototypes: [string, CreepTask][] = [
@@ -105,7 +107,7 @@ export class Colony {
     profiler.registerClass(CreepExtra, "CreepExtra");
     profiler.registerClass(RoomExtra, "RoomExtra");
     for (const [name, roleType] of this.RoleRegistry.entries())
-      profiler.registerClass(roleType, name);
+      profiler.registerClass(roleType.constructor, name);
     for (const [name, taskType] of this.TaskRegistry.entries())
       profiler.registerClass(taskType, name);
     profiler.registerClass(Colony, "Colony");
@@ -153,15 +155,12 @@ export class Colony {
     this._CreepsByRoom = new Map();
   }
 
-  // This is the effective loop function invoked each tick.
+  // This is the effectively the loop function invoked each tick.
   private MainLoop(): void {
     this.ClearCaches();
 
     // Try to generate a pixel if we can
     this.TryGeneratingPixel();
-
-    // Ensure all creeps have a non-null job memory before doing anything else
-    this.MyCreeps.forEach(c => c.memory.jobMemory ??= {});
 
     // Run TickStart on each role, so they can do optional bookkeeping.
     for (const role of this.RoleRegistry.values()) role.TickStart();
@@ -169,15 +168,25 @@ export class Colony {
     // Tick each room, and then each creep in the room
     for (const room of this.MyRooms) {
       room.Tick();
-      for (const c of this.CreepsByRoom.get(room.name) ?? []) c.TickFriendlyCreep(room);
+      for (const c of this.CreepsByRoom.get(room.name) ?? []) {
+        c.Tick(room);
+
+        if (!c.spawning) c.PerformRole();
+      }
+      room.CheckSpawns();
     }
 
     // Run TickEnd on each role, for bookkeeping.
     for (const role of this.RoleRegistry.values()) role.TickEnd();
 
+    // Periodically print a report with the state of the colony.
     if (Game.time % this.ColonyStateReportFrequency === 0)
       this.ColonyStateReport();
   };
+
+  OnRoomSuccessfullyClaimed(newRoom: Room) {
+    this.log.crit(`!!!! WE CLAIMED A ROOM ${newRoom} !!!!`);
+  }
 
   TryGeneratingPixel(): void {
     if (Game.cpu.bucket >= 10000) {

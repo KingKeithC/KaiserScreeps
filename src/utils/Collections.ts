@@ -52,13 +52,18 @@ export function FormatStructureHits(s: AnyStructure, precision: number = 3, incl
   return `Hits: %${health}${includeUnits ? ` (${s.hits}/${s.hitsMax})` : ""}`;
 }
 
+export interface MiningPosition {
+  position: RoomPosition,
+  sourceId: Id<Source>,
+};
+
 // Search the spaces around each source, and return
 // the number of free spaces which a Miner creep could fill.
-export function GetMinerPositions(room: Room): RoomPosition[] {
+export function GetMinerPositions(room: Room): MiningPosition[] {
   const sources = room.find(FIND_SOURCES);
   const terrain = room.getTerrain();
   let spaces = 0;
-  const possibleMiners = [];
+  const positions: MiningPosition[] = [];
 
   for (const s of sources)
     // Given the source.pos is the centre point
@@ -69,9 +74,9 @@ export function GetMinerPositions(room: Room): RoomPosition[] {
         if (terrain.get(x, y) !== TERRAIN_MASK_WALL) {
           const pos = room.getPositionAt(x, y);
           if (!pos) continue;
-          possibleMiners.push(pos);
+          positions.push({ position: pos, sourceId: s.id });
         }
         spaces++;
       }
-  return possibleMiners;
+  return positions;
 }

@@ -10,7 +10,7 @@ export class Miner extends CreepRoleBase implements CreepRole {
   override readonly name: string = "Miner";
   override readonly tier: number = 1;
 
-  IsSpawnNeeded(_room: RoomExtra): boolean { return true; }
+  IsSpawnNeeded(room: RoomExtra): boolean { return room.GetUnfilledMiningPositions().length > 0; }
 
   GetNewCreepBody(room: RoomExtra): BodyPartConstant[] {
     const t1 = MakeBody(
@@ -30,47 +30,17 @@ export class Miner extends CreepRoleBase implements CreepRole {
     return t1;
   }
 
-  override GetRoomQuota(room: RoomExtra) { return room.MinerPositions.length + 1; }
+  override GetRoomQuota(room: RoomExtra) { return room.MinerPositions.length; }
   GetGlobalQuota(): number { return -1; }
 
-  SelectNextTask(creep: CreepExtra, room: RoomExtra): CreepTask {
-    const sourceId = this.LocateSource(creep, room);
-    return sourceId ? new Mine(sourceId) : new Idle();
-  }
-
-  CountAssignedPerSource(room: RoomExtra): Dictionary<number> {
-    const miningTasks = room.GetAssignedTasks().filter(t => t.action === TaskAction.Mine);
-    return mapValues(groupBy(miningTasks, t => (t as Mine).target), c => c.length);
-  }
-
-  LocateSource(creep: CreepExtra, room: RoomExtra): Id<Source> | undefined {
-    const groups = this.CountAssignedPerSource(room);
-    // this.log.info(`minersBySource: ${JSON.stringify(groups)}`, { "<creep>": creep, "<room>": room });
-    return room.Sources
-      .map(source => ({ source, count: groups[source.id] ?? 0 }))
-      .sort((a, b) => b.count - a.count)
-      .pop()?.source.id;
-  }
-
-  OnSpawnScheduled(room: RoomExtra, name: string): void {
-    const sourcesByTaskCount = this.CountAssignedPerSource(room);
-    var mostAssigned = "";
-    var mostAssignedNumber = 0;
-    for (const t in sourcesByTaskCount) {
-      if (sourcesByTaskCount[t] > mostAssignedNumber) {
-        mostAssignedNumber = sourcesByTaskCount[t];
-        mostAssigned = t as Id<Source>;
-      }
+  SelectNextTask(creep: CreepExtra, room: RoomExtra): CreepTask | null {
+    const unfilled = room.GetUnfilledUnassignedMiningPositions().pop();
+    if (unfilled) {
+      this.log.info(`Filling Miner Position: ${unfilled}`, { "<creep>": creep, "<room>": room });
+      return new Mine(unfilled);
     }
-    if (mostAssigned.length > 0) {
-      // Pick the oldest miner from the most assigned source
-      const miner = this.GetRoomCreepsInRole(room)
-        .filter(c => c.currentTask instanceof Mine && (c.currentTask as Mine).target === mostAssigned)
-        .sort((b, a) => (a.ticksToLive ?? CREEP_LIFE_TIME) - (b.ticksToLive ?? CREEP_LIFE_TIME))
-        .pop();
-      // Unassign them
-      if (miner) miner.memory.jobMemory = {};
-    }
+    this.log.info("No unfilled mining position found!", { "<creep>": creep, "<room>": room });
+    return null;
   }
 
   TickCreep(creep: CreepExtra, room: RoomExtra): void {

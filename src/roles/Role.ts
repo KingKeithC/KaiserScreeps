@@ -50,7 +50,7 @@ export abstract class CreepRoleBase implements CreepRole {
 
   // Init
   protected readonly log: Logger<CreepRoleBase> = new Logger(this, { formatArgs: { "<role>": this } });
-  constructor(private readonly colony: Colony) { }
+  constructor(protected readonly colony: Colony) { }
 
   // Default Implementations
   GetGlobalCreepsInRole(): CreepExtra[] { return this.colony.MyCreeps.filter(c => c.memory.role === this.name); }
@@ -92,14 +92,13 @@ export abstract class CreepRoleBase implements CreepRole {
     initialTask: CreepTask,
     name: string
   ): boolean {
-    // Get direction to nearest road
-    var dir: DirectionConstant[] | undefined = undefined;
-    const nearestRoad = spawn.pos.findClosestByPath(room.Roads);
-    if (nearestRoad) dir = [spawn.pos.getDirectionTo(nearestRoad.pos.x, nearestRoad?.pos.y)];
+    // Get directions to surrounding roads
+    const nearbyRoads = spawn.pos.findInRange(room.Roads, 1)
+      .map(nr => spawn.pos.getDirectionTo(nr.pos.x, nr.pos.y));
 
     // Try to do the spawn
     const result = spawn.spawnCreep(body, name, {
-      directions: dir,
+      directions: nearbyRoads.length > 0 ? nearbyRoads : undefined,
       memory: {
         room: room.name,
         role: this.name,
@@ -114,10 +113,10 @@ export abstract class CreepRoleBase implements CreepRole {
 
     // Log the result
     if (result === OK) {
-      this.log.info(`Spawning ${name} ${cost} @ ${spawn}...`);
+      this.log.info(`Spawning ${name} ${cost} @ ${spawn}...`, { "<room>": room });
       return true;
     } else {
-      this.log.info(`Attempt to spawn ${name} ${cost} at ${spawn} resulted in: ${result}...`);
+      this.log.info(`Attempt to spawn ${name} ${cost} at ${spawn} resulted in: ${result}...`, { "<room>": room });
       return false;
     }
   }

@@ -7,16 +7,25 @@ export interface UpdateControllerOptions {
 }
 
 export class UpdateController extends BaseTask<typeof TaskAction.MaintainController | typeof TaskAction.UpgradeController> {
-  static readonly MaintenanceThreshold = 3500;
+  static readonly DowngradeMaintenanceRatio = 1 / 4; // Start repairs when ticksToDowngrade drop below this.
   static readonly MaintenanceBuffer = 2000;
 
   public readonly kind = "updateController" as const;
   public readonly mode: "upgrade" | "maintain";
+  public readonly startingProgress: number = 0;
 
-  public constructor(public readonly controllerId?: Id<StructureController>, options: UpdateControllerOptions = {}) {
+  ExpectedFinalProgress(controller: StructureController): number {
+    return Math.min(this.startingProgress + UpdateController.MaintenanceBuffer, controller.progressTotal);
+  }
+
+  public readonly controllerId: Id<StructureController>;
+
+  public constructor(public readonly controller: StructureController, options: UpdateControllerOptions = {}) {
     const mode = options.mode ?? "upgrade";
     super(mode === "maintain" ? TaskAction.MaintainController : TaskAction.UpgradeController);
     this.mode = mode;
+    this.controllerId = controller.id;
+    this.startingProgress = controller.progress;
   }
 
   public toString(): string {
@@ -33,16 +42,15 @@ export class UpdateController extends BaseTask<typeof TaskAction.MaintainControl
   }
 
   public override isComplete(creep: CreepExtra): boolean {
-    const target = this.controllerId ? Game.getObjectById(this.controllerId) : creep.room.controller;
-    if (!(target instanceof StructureController)) return true;
+    const controller = Game.getObjectById(this.controllerId);
+    if (!(controller instanceof StructureController)) return true;
     if (creep.store.energy === 0) return true;
-    return this.mode === "maintain"
-      && target.ticksToDowngrade > UpdateController.MaintenanceThreshold + UpdateController.MaintenanceBuffer;
+    return this.mode === "maintain" && controller.progress >= this.ExpectedFinalProgress(controller);
   }
 }
 
 export class MaintainController extends UpdateController {
-  public constructor(controllerId?: Id<StructureController>) {
-    super(controllerId, { mode: "maintain" });
+  public constructor(controller: StructureController) {
+    super(controller, { mode: "maintain" });
   }
 }

@@ -1,5 +1,5 @@
 import { CreepExtra } from "Creep";
-import { countBy, groupBy, some } from "lodash";
+import { countBy, groupBy, keysIn, some, unique } from "lodash";
 import { RoomExtra } from "Room";
 import { CreepTask, Move } from "tasks";
 import { Idle } from "tasks";
@@ -19,8 +19,8 @@ export interface ScoutingReport {
   status: RoomStatus;
   reservation?: ReservationDefinition;
   describeExits: Partial<Record<ExitKey, string>> | null;
-  mineralType?: MineralConstant;
-  mineralDensity?: DensityConstant;
+  mineralInfo?: Mineral;
+  depositInfo?: Deposit;
 }
 
 
@@ -37,7 +37,7 @@ export class Scout extends CreepRoleBase implements CreepRole {
 
   // Ensure a scout is only spawned once every `ScoutReportTTL` ticks.
   ScoutReportTTL = 2000;
-  IsSpawnNeeded(room: RoomExtra): boolean { return room.LastSpawnTick(this.name) > this.ScoutReportTTL; }
+  IsSpawnNeeded(room: RoomExtra): boolean { return (Game.time - room.LastSpawnTick(this.name)) > this.ScoutReportTTL; }
   OnSpawnScheduled(room: RoomExtra, name: string): void { room.SetLastSpawnTick(this.name, Game.time); }
 
   GetGlobalQuota(): number { return 1; }
@@ -86,7 +86,12 @@ export class Scout extends CreepRoleBase implements CreepRole {
     else
       this.log.info(`Creating Scouting Reporting for ${reportMsg}`, { "<creep>": creep, "<room>": creep.room });
 
-    const mineral: Mineral | undefined = creep.room.find(FIND_MINERALS).pop();
+    const minerals = creep.room.find(FIND_MINERALS);
+    if (minerals.length > 1) this.log.crit(`Room ${creep.room.name} has more than 1 mineral!`);
+
+    const deposits = creep.room.find(FIND_DEPOSITS);
+    if (deposits.length > 1) this.log.crit(`Room ${creep.room.name} has more than 1 commodity!`);
+
     return {
       roomName: creep.room.name,
       lastSeen: Game.time,
@@ -99,13 +104,27 @@ export class Scout extends CreepRoleBase implements CreepRole {
       describeExits: Game.map.describeExits(creep.room.name),
       scoutedFromOutpost: creep.memory.room,
       distFromOutpost: dist,
-      mineralType: mineral?.mineralType,
-      mineralDensity: mineral?.density,
+      mineralInfo: minerals.pop(),
+      depositInfo: deposits.pop(),
     };
   }
 
+  OnSpawn(_room: RoomExtra, creep: CreepExtra): void {
+    creep.notifyWhenAttacked(false);
+  }
+
   TickCreep(creep: CreepExtra, room: RoomExtra): void {
-    if (creep.hits < creep.hits)
+    const hostiles = creep.room.find(FIND_HOSTILE_CREEPS) as Creep[];
+    const hostileStructures = creep.room.find(FIND_HOSTILE_STRUCTURES) as AnyOwnedStructure[];
+    const hostilesByOwner = groupBy([...hostiles, ...hostileStructures], a => a.owner?.username);
+    if (Game.time % 10 == 0 && Object.values(hostilesByOwner).length) {
+      var report = "";
+      for (const owner in hostilesByOwner)
+        report += `[${owner}: ${hostilesByOwner[owner].filter(h => h instanceof Creep).length} Creeps, ${hostilesByOwner[owner].filter(h => h instanceof Structure).length} Structures]`;
+      this.log.warn(`${creep.room} has hostiles: ${report}`);
+    }
+
+    if (creep.hits < creep.hitsMax)
       this.log.warn(`I'm being attacked in ${creep.room}, Health: %${((creep.hits / creep.hitsMax) * 100).toPrecision(4)} (${creep.hits}/${creep.hitsMax})!`);
 
     // Create a new scouting report for old or new rooms.
