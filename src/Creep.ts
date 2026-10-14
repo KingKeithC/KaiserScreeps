@@ -203,9 +203,9 @@ export class CreepExtra extends Creep {
 
     // Log the transition as long as it's not Idle -> Idle.
     if (oldTask == null || oldTask == undefined)
-      this.log.verbose(`  Assigned ${newTask}`, { "<room>": room, "<role>": role });
+      this.log.info(`  Assigned ${newTask}`, { "<room>": room, "<role>": role });
     else if (!(oldTask.action === TaskAction.Idle && newTask.action === TaskAction.Idle))
-      this.log.verbose(`Reassigned ${oldTask} -> ${newTask}`, { "<room>": room, "<role>": role });
+      this.log.info(`Reassigned ${oldTask} -> ${newTask}`, { "<room>": room, "<role>": role });
   }
 
   PerformRole(): void {
