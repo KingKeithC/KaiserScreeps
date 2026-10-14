@@ -255,7 +255,7 @@ export class CreepExtra extends Creep {
         // if (res !== OK) this.log.info(`Move to ${outcome.target.pos} resulted in ${res}`, { "<room>": room, "<role>": role });
         if (res === ERR_NO_PATH) {
           this.log.warn(`Pathfinding from ${this.pos} to ${outcome.target.pos} failed.`, { "<role>": this.role });
-          delete this.memory["_move"]; // Clear out stale path
+          // delete this.memory["_move"]; // Clear out stale path
         }
         return;
       }

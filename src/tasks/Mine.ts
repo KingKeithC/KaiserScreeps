@@ -10,11 +10,18 @@ export class Mine extends TargetTask<typeof TaskAction.Mine, MiningPosition> {
   public constructor(mp: MiningPosition) { super(TaskAction.Mine, mp, "mining position"); }
 
   public override act(creep: CreepExtra): TaskActionResult | null {
+    const sourcePos = { pos: new RoomPosition(this.target.position.x, this.target.position.y, this.target.position.roomName) };
+
     const source = Game.getObjectById(this.target.sourceId);
     if (!source)
-      return { range: 0, result: ERR_NOT_IN_RANGE, target: { pos: new RoomPosition(this.target.position.x, this.target.position.y, this.target.position.roomName) } };
+      return { range: 0, result: ERR_NOT_IN_RANGE, target: sourcePos };
 
-    const outcome = this.perform(source, 1, source => creep.harvest(source));
+    const outcome: TaskActionResult = {
+      range: 0,
+      result: creep.harvest(source),
+      target: sourcePos
+    };
+
     if (outcome?.result === ERR_NOT_OWNER) outcome.result = ERR_NOT_IN_RANGE; // Ignore owner errors, forward to a 'move' instruction
     return outcome;
   }
