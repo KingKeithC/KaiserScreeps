@@ -65,6 +65,16 @@ export class Colony {
     return this._CreepsByRoom;
   }
 
+
+  GetAllAssignedTasks(taskAction?: string): CreepTask[] {
+    const tasks = this.MyCreeps
+      .filter(c => c.memory.jobMemory != null && c.memory.jobMemory != undefined)
+      .map(c => c.memory.jobMemory as CreepTask);
+
+    if (!taskAction) return tasks;
+    return tasks.filter(t => t.action === taskAction);
+  }
+
   private readonly log = new Logger(this);
 
   constructor() {

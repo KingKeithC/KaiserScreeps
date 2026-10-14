@@ -200,7 +200,7 @@ export class RoomExtra extends Room {
   }
 
   GetUnfilledUnassignedMiningPositions(): MiningPosition[] {
-    const assignedMiningPositions = this.GetAssignedTasks(TaskAction.Mine).map(p => (p as Mine).target.position);
+    const assignedMiningPositions = this.colony.GetAllAssignedTasks(TaskAction.Mine).map(p => (p as Mine).target.position);
     var ret: MiningPosition[] = [];
     for (const unfilled of this.GetUnfilledMiningPositions())
       if (assignedMiningPositions.some(pos =>

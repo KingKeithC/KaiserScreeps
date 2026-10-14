@@ -13,17 +13,13 @@ export class RemoteMiner extends CreepRoleBase implements CreepRole {
   override readonly tier: number = 1;
 
   UnfilledRemoteMiningPositions(room: RoomExtra): MiningPosition[] {
-    const assignedMiningPositions = room.GetAssignedTasks(TaskAction.Mine).map(p => (p as Mine).target.position);
+    const assignedMiningSources = room.GetAssignedTasks(TaskAction.Mine).map(p => (p as Mine).target.sourceId);
 
     var ret: MiningPosition[] = [];
     for (const claimedRoom of room.GetVisibleClaimedRooms())
-      for (const unfilled of claimedRoom.GetUnfilledMiningPositions())
-        if (assignedMiningPositions.some(pos =>
-          pos.x === unfilled.position.x &&
-          pos.y === unfilled.position.y &&
-          pos.roomName === unfilled.position.roomName
-        )) continue; // Skip if it's assigned
-        else ret = ret.concat(unfilled); // Skip if it's assigned
+      for (const unfilled of claimedRoom.GetUnfilledUnassignedMiningPositions())
+        if (assignedMiningSources.includes(unfilled.sourceId)) continue;
+        else ret.push(unfilled);
     return ret;
   }
 
@@ -65,16 +61,7 @@ export class RemoteMiner extends CreepRoleBase implements CreepRole {
 
   SelectNextTask(creep: CreepExtra, room: RoomExtra, lastTask: CreepTask | null): CreepTask | null {
     const unfilled = this.UnfilledRemoteMiningPositions(room).pop();
-    const readyToReturn = lastTask != null && lastTask.action === TaskAction.Mine && creep.store.getFreeCapacity(RESOURCE_ENERGY) === 0;
-    if (readyToReturn && room.storage != undefined) {
-      // Store energy in main room's storage
-      return new Supply(room.storage.id);
-    } if (readyToReturn && room.storage == undefined) {
-      // Ask the worker role to find a place to spend the energy
-      const workerRole = room.colony.RoleRegistry.get("Worker") as Worker;
-      if (!workerRole) throw new Error("Worker role is missing from Role Registry.");
-      return workerRole.FindSpendingTask(creep, room);
-    } else if (unfilled && !readyToReturn) {
+    if (unfilled) {
       // Mine the source next to the unfilled position
       this.log.info(`Filling Miner Position: ${unfilled}`, { "<creep>": creep, "<room>": room });
       return new Mine(unfilled);
