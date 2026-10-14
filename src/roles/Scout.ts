@@ -19,8 +19,8 @@ export interface ScoutingReport {
   status: RoomStatus;
   reservation?: ReservationDefinition;
   describeExits: Partial<Record<ExitKey, string>> | null;
-  mineralInfo?: Mineral;
-  depositInfo?: Deposit;
+  mineralInfo?: Omit<Mineral, 'room' | 'pos' | 'prototype'>;
+  depositInfo?: Omit<Deposit, 'room' | 'pos' | 'prototype'>;
 }
 
 
@@ -86,10 +86,10 @@ export class Scout extends CreepRoleBase implements CreepRole {
     else
       this.log.info(`Creating Scouting Reporting for ${reportMsg}`, { "<creep>": creep, "<room>": creep.room });
 
-    const minerals = creep.room.find(FIND_MINERALS);
+    const minerals = creep.room.find(FIND_MINERALS).map(({ room, pos, prototype, ...rest }) => rest);
     if (minerals.length > 1) this.log.crit(`Room ${creep.room.name} has more than 1 mineral!`);
 
-    const deposits = creep.room.find(FIND_DEPOSITS);
+    const deposits = creep.room.find(FIND_DEPOSITS).map(({ room, pos, prototype, ...rest }) => rest);
     if (deposits.length > 1) this.log.crit(`Room ${creep.room.name} has more than 1 commodity!`);
 
     return {
