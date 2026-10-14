@@ -80,6 +80,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
     return new Idle();
   }
 
+  MaxUpgraders = 3;
   public FindSpendingTask(creep: CreepExtra, room: RoomExtra): CreepTask {
     if (room.controller) {
       const downgradeMaintenanceThreshold = CONTROLLER_DOWNGRADE[room.controller.level] * UpdateController.DowngradeMaintenanceRatio;
@@ -100,6 +101,11 @@ export class Worker extends CreepRoleBase implements CreepRole {
         if (repair) return new Repair(repair.id as Id<AnyStructure>);
         else this.log.info(`[${room.name}]${creep}: No repairs needed!`);
       }
+    }
+
+    const currentUpgradeCount = room.GetAssignedTasks(TaskAction.UpgradeController).length;
+    if (currentUpgradeCount < this.MaxUpgraders) {
+      return new UpdateController(room.controller!, { mode: "upgrade" });
     }
 
     // If room has storage with room, put it there
