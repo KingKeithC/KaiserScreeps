@@ -45,7 +45,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
   }
 
   GetGlobalQuota(): number { return -1; }
-  override GetRoomQuota(room: RoomExtra) { return 12; }
+  override GetRoomQuota(room: RoomExtra) { return 9; }
   IsSpawnNeeded(_room: RoomExtra) { return true; }
 
   SelectNextTask(creep: CreepExtra, room: RoomExtra): CreepTask | null {
