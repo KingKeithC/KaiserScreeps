@@ -215,7 +215,8 @@ export class RoomExtra extends Room {
   GetVisibleClaimedRooms(): RoomExtra[] {
     const ret = [];
     for (const name of this.ClaimedNearbyRooms)
-      if (name in Game.rooms)
+      // A room is claimed by us if it is both visible, and not owned by someone else
+      if (name in Game.rooms && (Game.rooms[name].controller == undefined || Game.rooms[name].controller?.owner == undefined))
         ret.push(new RoomExtra(Game.rooms[name], this.colony, this));
     return ret;
   }
