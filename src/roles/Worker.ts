@@ -9,9 +9,6 @@ export class Worker extends CreepRoleBase implements CreepRole {
   readonly name: string = "Worker";
   readonly tier: number = 1;
 
-  StartSpawnAtRCL = 0;
-  StopSpawnAtRCL = 8;
-
   GetNewCreepBody(room: RoomExtra): BodyPartConstant[] {
     const tiers = [
       MakeBody(
@@ -45,7 +42,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
   }
 
   GetGlobalQuota(): number { return -1; }
-  override GetRoomQuota(room: RoomExtra) { return 9; }
+  override GetRoomQuota(room: RoomExtra) { return 5; }
   IsSpawnNeeded(_room: RoomExtra) { return true; }
 
   SelectNextTask(creep: CreepExtra, room: RoomExtra): CreepTask | null {
