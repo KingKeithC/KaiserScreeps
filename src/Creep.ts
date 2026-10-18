@@ -28,25 +28,11 @@ declare global {
 }
 
 export class CreepExtra extends Creep {
-
-  MaxStuckTicks = 2;
-  MaxAvoidTicks = 3;
-  MaxPathfindingOps = 200;
-
   private readonly log = new Logger(this, { formatArgs: { "<creep>": this } });
   private readonly colony: Colony;
   constructor(id: Id<Creep>, colony: Colony) {
     super(id);
     this.colony = colony;
-  }
-
-  static BodyCost(body: BodyPartConstant[]): number { return sum(body.map(p => BODYPART_COST[p])); }
-
-  static PartCounts(body: BodyPartDefinition[]): Record<string, number> {
-    return body.reduce((counts, part) => {
-      counts[part.type] = (counts[part.type] ?? 0) + 1;
-      return counts;
-    }, {} as Record<string, number>);
   }
 
   get role(): CreepRole | undefined {
@@ -70,7 +56,7 @@ export class CreepExtra extends Creep {
     if (this._AssignedRoom) return this._AssignedRoom;
 
     // Fetch and memoize our assigned room.
-    if (!this.memory.room) throw new Error(`Creep ${this.name} has no assigned room!`);
+    if (!this.memory.room) { throw new Error(`Creep ${this.name} has no assigned room!`); }
     const room = this.colony.MyRooms.filter(r => r.name === this.memory.room).pop();
     if (!room) throw new Error(`Assigned Room ${this.memory.room} not in colony.MyRooms!`);
     this._AssignedRoom = room;
@@ -85,6 +71,9 @@ export class CreepExtra extends Creep {
     this.memory.jobMemory = cast;
   }
 
+  MaxStuckTicks = 2;
+  MaxAvoidTicks = 3;
+  MaxPathfindingOps = 200;
   MoveLong(pos: RoomPosition, opts?: MoveToOpts): number {
     this.log.debug(`Invoking MoveLong ${pos} ${JSON.stringify(opts)}...`);
     return this.moveTo(pos, {
@@ -106,18 +95,6 @@ export class CreepExtra extends Creep {
       ignoreRoads: true,
     });
   }
-
-  // Return the closest position that exits towards `roomName`
-  FindExitPositionTo(roomName: string): RoomPosition | null {
-    const exitDir = Game.map.findExit(this.room.name, roomName);
-    if (exitDir === ERR_NO_PATH || exitDir === ERR_INVALID_ARGS) return null;
-    const exitPos = this.pos.findClosestByPath(exitDir);
-    if (!exitPos) return null;
-    this.memory._exit = { room: exitPos.roomName, x: exitPos.x, y: exitPos.y }; // Cache path in creep memory
-    this.log.warn(`Found exit position ${this.memory._exit} from ${this.room.name} to ${roomName}, direction ${exitDir}.`);
-    return exitPos;
-  }
-
 
   // Returns 1 when in range; otherwise returns the moveTo result.
   MoveCreep(target: RoomPosition | { pos: RoomPosition; }, opts?: MoveToOpts): number {
@@ -145,19 +122,19 @@ export class CreepExtra extends Creep {
       this.memory.successfulAvoidMoves = 0;
       this.memory.moveMode = "long";
       delete this.memory._move; // Clear out saved path
-      this.log.debug("Move complete, arrived and reset stuck tracking.");
+      this.log.debug("MoveCreep: Move complete, arrived and reset stuck tracking.");
       return 1;
     }
 
     // Increment counters
     if (this.memory.moveMode === "avoidCreeps" && movedBetweenTicks) {
-      this.log.debug(`avoidCreeps && movedBetweenTicks; ${this.memory.successfulAvoidMoves} (+1)`);
+      this.log.debug(`MoveCreep: avoidCreeps && movedBetweenTicks; ${this.memory.successfulAvoidMoves} (+1)`);
       this.memory.successfulAvoidMoves++;
     } else if (this.memory.moveMode === "long" && !movedBetweenTicks && this.fatigue === 0) {
-      this.log.debug(`long && !movedBetweenTicks && this.fatigue === 0; ${this.memory.stuckTicks} (+1)`);
+      this.log.debug(`MoveCreep: long && !movedBetweenTicks && this.fatigue === 0; ${this.memory.stuckTicks} (+1)`);
       this.memory.stuckTicks++;
     } else if (this.memory.moveMode === "long" && movedBetweenTicks) {
-      this.log.debug(`long && movedBetweenTicks; Was stuck ${this.memory.stuckTicks}, now 0.`);
+      this.log.debug(`MoveCreep: long && movedBetweenTicks; Was stuck ${this.memory.stuckTicks}, now 0.`);
       this.memory.stuckTicks = 0;
     }
 
@@ -180,7 +157,7 @@ export class CreepExtra extends Creep {
   JustFinishedSpawning(room: RoomExtra): void {
     this.memory._spawning = false;
     this.log.info(`Ready for service!`, { "<room>": room });
-    if (this.role) this.role.OnSpawn(room, this);
+    if (this.role) this.role.OnSpawn(this);
   }
 
   Tick(room: RoomExtra): void {
@@ -213,14 +190,14 @@ export class CreepExtra extends Creep {
     const role = this.role;
     const room = this.AssignedRoom;
 
-    role.TickCreep(this, room);
+    role.TickCreep(this);
 
     // Get the current task from memory, or a default task from the role.
     var task = this.currentTask ?? null;
 
     // If it's complete, get the next task.
     if (task == null || task == undefined || task.isComplete(this)) {
-      const nextTask = role.SelectNextTask(this, room, task);
+      const nextTask = role.SelectNextTask(this, task);
       if (nextTask != null) {
         this.OnTaskChanged(room, role, task, nextTask);
         task = nextTask;

@@ -1,26 +1,30 @@
 import { CreepExtra } from "Creep";
-import { countBy, groupBy, keysIn, some, unique } from "lodash";
 import { RoomExtra } from "Room";
-import { CreepTask, Move } from "tasks";
-import { Idle } from "tasks";
-import { GetMinerPositions, MakeBody, SerializeRoomPosition } from "utils/Collections";
-import { Miner } from "./Miner";
-import { CreepRole, CreepRoleBase } from "./Role";
+import { CreepTask, Move, Idle } from "tasks";
+import { MakeBody } from "utils/Collections";
+import { MiningPosition, HostileInfo, GetMinerPositions, GetHostileInfo, FormatHostileInfos } from "utils/RoomUtils";
+import { CreepRoleBase, CreepRole } from "./Role";
 
-export interface ScoutingReport {
+
+
+export interface RoomReport {
   roomName: string;
   lastSeen: number;
-  owner?: string;
-  scoutedFromOutpost: string,
-  distFromOutpost: number,
   hasController: boolean;
   numberOfSources: number;
-  spacesForMiners: number;
+  miningPositions: MiningPosition[];
   status: RoomStatus;
-  reservation?: ReservationDefinition;
   describeExits: Partial<Record<ExitKey, string>> | null;
-  mineralInfo?: Omit<Mineral, 'room' | 'pos' | 'prototype'>;
-  depositInfo?: Omit<Deposit, 'room' | 'pos' | 'prototype'>;
+  owner?: string;
+  reservation?: ReservationDefinition;
+  mineralInfo?: Omit<Mineral, 'room' | 'pos'>;
+  commodityInfo?: Omit<Deposit, 'room' | 'pos'>;
+  hostiles?: HostileInfo[];
+}
+
+export interface ScoutingReport extends RoomReport {
+  scoutedFromOutpost?: string,
+  distFromOutpost?: number,
 }
 
 
@@ -78,6 +82,30 @@ export class Scout extends CreepRoleBase implements CreepRole {
     return null;
   }
 
+
+  NewScoutingReportRoom(room: Room): RoomReport {
+    const minerals = room.find(FIND_MINERALS).map(({ room, pos, ...rest }) => rest);
+    if (minerals.length > 1) this.log.crit(`Room ${room.name} has more than 1 mineral!`);
+
+    const deposits = room.find(FIND_DEPOSITS).map(({ room, pos, ...rest }) => rest);
+    if (deposits.length > 1) this.log.crit(`Room ${room.name} has more than 1 commodity!`);
+
+    return {
+      roomName: room.name,
+      lastSeen: Game.time,
+      hasController: room.controller !== undefined,
+      numberOfSources: room.find(FIND_SOURCES).length,
+      miningPositions: GetMinerPositions(room),
+      status: Game.map.getRoomStatus(room.name),
+      describeExits: Game.map.describeExits(room.name),
+      owner: room.controller?.owner?.username,
+      reservation: room.controller?.reservation,
+      mineralInfo: minerals.pop(),
+      commodityInfo: deposits.pop(),
+      hostiles: GetHostileInfo(room),
+    };
+  }
+
   NewScoutingReport(creep: CreepExtra): ScoutingReport {
     const dist = Game.map.getRoomLinearDistance(creep.room.name, creep.memory.room);
     const reportMsg = `${creep.room.name} (~${dist} Rooms from ${creep.memory.room})`;
@@ -86,62 +114,47 @@ export class Scout extends CreepRoleBase implements CreepRole {
     else
       this.log.info(`Creating Scouting Reporting for ${reportMsg}`, { "<creep>": creep, "<room>": creep.room });
 
-    const minerals = creep.room.find(FIND_MINERALS).map(({ room, pos, prototype, ...rest }) => rest);
-    if (minerals.length > 1) this.log.crit(`Room ${creep.room.name} has more than 1 mineral!`);
-
-    const deposits = creep.room.find(FIND_DEPOSITS).map(({ room, pos, prototype, ...rest }) => rest);
-    if (deposits.length > 1) this.log.crit(`Room ${creep.room.name} has more than 1 commodity!`);
-
     return {
-      roomName: creep.room.name,
-      lastSeen: Game.time,
-      hasController: creep.room.controller !== undefined,
-      owner: creep.room.controller?.owner?.username,
-      reservation: creep.room.controller?.reservation,
-      numberOfSources: creep.room.find(FIND_SOURCES).length,
-      spacesForMiners: GetMinerPositions(creep.room).length,
-      status: Game.map.getRoomStatus(creep.room.name),
-      describeExits: Game.map.describeExits(creep.room.name),
+      ...this.NewScoutingReportRoom(creep.room),
       scoutedFromOutpost: creep.memory.room,
       distFromOutpost: dist,
-      mineralInfo: minerals.pop(),
-      depositInfo: deposits.pop(),
     };
   }
 
-  OnSpawn(_room: RoomExtra, creep: CreepExtra): void {
-    creep.notifyWhenAttacked(false);
-  }
+  OnSpawn(creep: CreepExtra): void { creep.notifyWhenAttacked(false); };
 
-  TickCreep(creep: CreepExtra, room: RoomExtra): void {
-    const hostiles = creep.room.find(FIND_HOSTILE_CREEPS) as Creep[];
-    const hostileStructures = creep.room.find(FIND_HOSTILE_STRUCTURES) as AnyOwnedStructure[];
-    const hostilesByOwner = groupBy([...hostiles, ...hostileStructures], a => a.owner?.username);
-    if (Game.time % 10 == 0 && Object.values(hostilesByOwner).length) {
-      var report = "";
-      for (const owner in hostilesByOwner)
-        report += `[${owner}: ${hostilesByOwner[owner].filter(h => h instanceof Creep).length} Creeps, ${hostilesByOwner[owner].filter(h => h instanceof Structure).length} Structures]`;
-      this.log.warn(`${creep.room} has hostiles: ${report}`);
-    }
-
+  TickCreep(creep: CreepExtra): void {
     if (creep.hits < creep.hitsMax)
       this.log.warn(`I'm being attacked in ${creep.room}, Health: %${((creep.hits / creep.hitsMax) * 100).toPrecision(4)} (${creep.hits}/${creep.hitsMax})!`);
 
+    var newReport: ScoutingReport | undefined = undefined;
+
     // Create a new scouting report for old or new rooms.
     if (!(creep.room.name in Memory.scoutingReports) || Game.time - (Memory.scoutingReports[creep.room.name].lastSeen ?? 0) > this.ScoutReportTTL)
-      Memory.scoutingReports[creep.room.name] = this.NewScoutingReport(creep);
+      newReport = this.NewScoutingReport(creep);
 
     // Retarget if we have been in this room for too long
     if (creep.room.name in Memory.scoutingReports && Game.time - (Memory.scoutingReports[creep.room.name].lastSeen ?? 0) > this.ScoutStuckRetargetTicks) {
       this.log.info(`Retargeting since we've been here too long (${Game.time - (Memory.scoutingReports[creep.room.name].lastSeen ?? 0)} > ${this.ScoutStuckRetargetTicks})`, { "<creep>": creep, "<room>": creep.room });
-      Memory.scoutingReports[creep.room.name] = this.NewScoutingReport(creep); // Refresh scouting report to update lastSeen
+      newReport = this.NewScoutingReport(creep); // Refresh scouting report to update lastSeen
       creep.memory.jobMemory = {}; // Force retarget
     }
+
+    if (newReport != undefined) {
+      // If we made a new report, replace the one in memory.
+      Memory.scoutingReports[creep.room.name] = newReport;
+
+      // If the new report has hostiles, print a message.
+      if (Game.time % 10 == 0 && newReport.hostiles != undefined) {
+        this.log.warn(`${creep.room} has hostiles: ${FormatHostileInfos(newReport.hostiles)}`);
+      }
+    }
+
   }
 
-  SelectNextTask(creep: CreepExtra, room: RoomExtra, lastTask: CreepTask<string>): CreepTask<string> | null {
+  SelectNextTask(creep: CreepExtra, lastTask: CreepTask<string>): CreepTask<string> | null {
     const newRoom = this.FindNearbyRandomRoom(creep);
     if (newRoom) return new Move(new RoomPosition(25, 25, newRoom), 25);
-    return new Idle();
+    return null;
   }
 }

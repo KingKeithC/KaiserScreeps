@@ -1,3 +1,5 @@
+import { CreepExtra } from "Creep";
+import { CreepRole } from "roles/Role";
 
 declare global {
   interface Memory {
@@ -21,7 +23,7 @@ export enum LogLevel {
 }
 
 type FormatProperty = "<date>" | "<time>" | "<wrapped>" | "<level>" | "<msg>" | "<room>" | "<role>" | "<creep>";
-type Loggable = string | number | { toString(): string; };
+type Loggable = string | number | CreepExtra | Room | CreepRole | { toString(): string; };
 type LogArg = Partial<Record<FormatProperty, Loggable>>;
 
 export interface LoggerOptions {
@@ -115,6 +117,10 @@ export class Logger<T extends Loggable> {
     // If both creep and role are set, then unset role
     if (formatArgs.get("<creep>") && formatArgs.get("<role>"))
       formatArgs.set("<role>", ""); // The creep names contain the role name, so it's redundant
+
+    // If we have a creep but not a room, get the room from the creep
+    if (formatArgs.get("<creep>") && !formatArgs.get("<room>"))
+      formatArgs.set("<room>", (formatArgs.get("<creep>") as CreepExtra)?.AssignedRoom);
 
     // Render the FormatProperties into the log line.
     let finalLine = this._fmt;

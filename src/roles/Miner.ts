@@ -1,16 +1,18 @@
 import { CreepExtra } from "Creep";
-import { CreepTask, Idle, Mine, TaskAction } from "tasks";
-import type { RoomExtra } from "Room";
-import { CreepRole, CreepRoleBase } from "./Role";
-import { Dictionary, groupBy, mapValues, min } from "lodash";
-import { GetMinerPositions, MakeBody } from "utils/Collections";
+import { RoomExtra } from "Room";
+import { CreepTask, Mine } from "tasks";
+import { MakeBody } from "utils/Collections";
+import { BodyCost } from "utils/CreepUtils";
+import { MiningPosition } from "utils/RoomUtils";
+import { CreepRoleBase, CreepRole } from "./Role";
+
 
 export class Miner extends CreepRoleBase implements CreepRole {
   readonly groupName = "Miners";
   override readonly name: string = "Miner";
   override readonly tier: number = 1;
 
-  IsSpawnNeeded(room: RoomExtra): boolean { return room.GetUnfilledMiningPositions().length > 0; }
+  IsSpawnNeeded(room: RoomExtra): boolean { return room.GetUnassignedMiningPositions().length > 0; }
 
   GetNewCreepBody(room: RoomExtra): BodyPartConstant[] {
     const t1 = MakeBody(
@@ -24,7 +26,7 @@ export class Miner extends CreepRoleBase implements CreepRole {
       [CARRY, 3],
     );
 
-    if (room.energyCapacityAvailable >= CreepExtra.BodyCost(t2))
+    if (room.energyCapacityAvailable >= BodyCost(t2))
       return t2;
 
     return t1;
@@ -33,27 +35,24 @@ export class Miner extends CreepRoleBase implements CreepRole {
   override GetRoomQuota(room: RoomExtra) { return room.MinerPositions.length; }
   GetGlobalQuota(): number { return -1; }
 
-  SelectNextTask(creep: CreepExtra, room: RoomExtra): CreepTask | null {
-    const unfilled = room.GetUnfilledUnassignedMiningPositions().pop();
-    if (unfilled) {
-      this.log.info(`Filling Miner Position: ${unfilled}`, { "<creep>": creep, "<room>": room });
-      return new Mine(unfilled);
-    }
-    this.log.info("No unfilled mining position found!", { "<creep>": creep, "<room>": room });
+  GetInitialTask(room: RoomExtra): CreepTask | null {
+    const unassigned = room.GetUnassignedMiningPositions().pop();
+    if (unassigned !== undefined) return new Mine(unassigned);
     return null;
   }
 
-  TickCreep(creep: CreepExtra, room: RoomExtra): void {
-    this.TransferToNeighbours(creep, room);
+  TickCreep(creep: CreepExtra): void {
+    this.TransferToNeighbours(creep);
   }
 
-  TransferToNeighbours(creep: CreepExtra, room: RoomExtra): void {
+  TransferToNeighbours(creep: CreepExtra): void {
     type EnergyCarrier = CreepExtra | AnyStoreStructure;
     const closeNeedsEnergy = creep.pos.findInRange(
       [
-        ...(room.AssignedCreepsByRoleName.get("Worker") ?? []),
-        ...(room.AssignedCreepsByRoleName.get("Settler") ?? []),
-        ...room.find(FIND_STRUCTURES, { filter: s => s.structureType === STRUCTURE_CONTAINER }),
+        ...(creep.AssignedRoom.AssignedCreepsByRoleName.get("Worker") ?? []),
+        ...(creep.AssignedRoom.AssignedCreepsByRoleName.get("Settler") ?? []),
+        ...creep.AssignedRoom.Containers,
+        ...creep.AssignedRoom.LinkSenders,
       ] as EnergyCarrier[],
       1,
       {

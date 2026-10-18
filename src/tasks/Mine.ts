@@ -1,8 +1,10 @@
-import type { CreepExtra } from "Creep";
-import { TaskAction } from "./TaskAction";
+import { CreepExtra } from "Creep";
+import { MiningPosition } from "utils/RoomUtils";
 import { TargetTask } from "./BaseTask";
+import { TaskAction } from "./TaskAction";
 import { TaskActionResult } from "./types";
-import { MiningPosition } from "utils/Collections";
+
+
 
 export class Mine extends TargetTask<typeof TaskAction.Mine, MiningPosition> {
   public readonly kind = "mine" as const;

@@ -118,7 +118,7 @@ export class Attacker extends CreepRoleBase implements CreepRole {
     if (mostHurt) creep.attack(mostHurt);
   };
 
-  TickCreep(creep: CreepExtra, room: RoomExtra): void {
+  TickCreep(creep: CreepExtra): void {
     creep.notifyWhenAttacked(false); // Ignore attack notifications for Attackers.
     this.HealHurtAllies(creep);
     this.AttackEnemies(creep);
@@ -145,8 +145,8 @@ export class Attacker extends CreepRoleBase implements CreepRole {
   override GetGlobalQuota(): number { return this.AttackSize; }
   override GetRoomQuota(room: RoomExtra): number { return this.AttackSize; }
   IsSpawnNeeded(room: RoomExtra): boolean { return this.GetCurrentStep() != null; }
-  SelectNextTask(creep: CreepExtra, room: RoomExtra, lastTask: CreepTask | null): CreepTask | null {
-    const nextTask = this.GetInitialTask(room);
+  SelectNextTask(creep: CreepExtra, lastTask: CreepTask | null): CreepTask | null {
+    const nextTask = this.GetInitialTask(creep.AssignedRoom);
     // Ignore Move if it's the same
     if (
       lastTask != null

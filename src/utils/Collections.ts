@@ -52,31 +52,52 @@ export function FormatStructureHits(s: AnyStructure, precision: number = 3, incl
   return `Hits: %${health}${includeUnits ? ` (${s.hits}/${s.hitsMax})` : ""}`;
 }
 
-export interface MiningPosition {
-  position: RoomPosition,
-  sourceId: Id<Source>,
-};
+/**
+ * Divide a value by another value and pretty print the result.
+ *
+ * Can optionally include the totals or other related numbers that formed the result.
+ *
+ * @param numerator The main numerator or 'Current' value for the calculated percent.
+ * @param denominator The main denominator or 'Limit' value for the calculated percent.
+ * @param withTotal Include the total amounts that went into the 'Current/Total' calculation.
+ * @param extraTotals Additional totals to include in the 'withTotal' section after the main values.
+ * @param precision Format all floats to this many places before rendering.
+ * @param units An optional unit to append in the `withTotal` section.
+ * @param unitsPlaceValue How many of the underlying values are represented by 1 `units`.
+ * @returns A formatted string for logging.
+ */
+export function FmtRatios(
+  numerator: number,
+  denominator: number,
+  withTotal: boolean = false,
+  extraTotals: number[] = [],
+  precision: number = 2,
+  units: string = "",
+  unitsPlaceValue: number = 1,
+): string {
+  if (denominator === 0) return "Cant Div By Zero!!!";
 
-// Search the spaces around each source, and return
-// the number of free spaces which a Miner creep could fill.
-export function GetMinerPositions(room: Room): MiningPosition[] {
-  const sources = room.find(FIND_SOURCES);
-  const terrain = room.getTerrain();
-  let spaces = 0;
-  const positions: MiningPosition[] = [];
+  // Start with the main ratio
+  var ret = ((numerator / denominator) * 100).toFixed(precision);
 
-  for (const s of sources)
-    // Given the source.pos is the centre point
-    // get the positions of all the surrounding spaces
-    for (let x = s.pos.x - 1; x <= s.pos.x + 1; x++)
-      for (let y = s.pos.y - 1; y <= s.pos.y + 1; y++) {
-        if (x === s.pos.x && y === s.pos.y) continue; // Skip centre point
-        if (terrain.get(x, y) !== TERRAIN_MASK_WALL) {
-          const pos = room.getPositionAt(x, y);
-          if (!pos) continue;
-          positions.push({ position: pos, sourceId: s.id });
-        }
-        spaces++;
-      }
-  return positions;
+  // If a total is to be included, wrap it in parens and append to the end after a space
+  if (withTotal) {
+    const ratios = [
+      // Current
+      numerator / unitsPlaceValue,
+
+      // Total
+      denominator / unitsPlaceValue,
+
+      // Optional Totals for groups above this, should use the same units as the main calculation.
+      ...extraTotals.map(t => t / unitsPlaceValue),
+    ];
+
+    ret += ' (';
+    ret += ratios.map(curr => `${(curr).toFixed(precision)}${units}`).join(" / ");
+    ret += ')';
+  }
+
+  // Return string prepended with a percent sign
+  return "%" + ret;
 }

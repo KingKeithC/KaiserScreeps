@@ -1,16 +1,16 @@
+import { Colony } from "Colony";
 import { CreepExtra } from "Creep";
 import { Colours } from "Data";
-import type { Colony } from "Colony";
-import { countGraphemes } from 'unicode-segmenter/grapheme';
-import { GetMinerPositions, LerpColour, MiningPosition } from "utils/Collections";
-import { Logger } from "utils/Logger";
-import { CreepTask, MaintainController, Mine, TaskAction } from "tasks";
+import { Dictionary, unique } from "lodash";
 import { CreepRole } from "roles/Role";
-import { unique } from "lodash";
+import { CreepTask, TaskAction, Mine, UpdateController } from "tasks";
+import { FmtRatios, LerpColour } from "utils/Collections";
+import { Logger } from "utils/Logger";
+import { MiningPosition, GetMinerPositions, HostileInfo, GetHostileInfo, FormatHostileInfos } from "utils/RoomUtils";
+
 
 declare global {
   interface RoomMemory {
-    lastSeen?: number;
     lastSpawnTick: { [roleName: string]: number; };
     quotas?: { [roleName: string]: number; };
     enableVisuals?: boolean,
@@ -20,16 +20,13 @@ declare global {
     disableTowers: boolean,
     disableTowerAttacks: boolean,
     towerAttackRange: number,
-    disableEvents?: boolean,
-    eventReportingFrequencyTicks?: number;
-    maxEventLogPerRoom?: number;
     towerAttackRangeTiles?: number;
     towerCriticalSupplyRatio?: number;
-    notificationFrequency?: number;
     hostileNotificationThreshold?: number;
     claimedNearby?: string[],
     minerPositions?: MiningPosition[],
     storageWartimeEnergyBuffer: number,
+    linkGroups?: Dictionary<Id<StructureLink>[]>,
   }
 }
 
@@ -39,16 +36,6 @@ interface EventSummary {
   summary: string,
   value: number | null,
 }
-
-
-interface HostileInfo {
-  owner: string;
-  name: string;
-  bodyCost: number;
-  partCounts: { [part: string]: number; };
-}
-
-
 
 export class RoomExtra extends Room {
   readonly colony: Colony;
@@ -79,7 +66,6 @@ export class RoomExtra extends Room {
       this.AssignedCreepsByRoleName.set(c.role.name, [...this.AssignedCreepsByRoleName.get(c.role.name) ?? [], c]);
       this.AssignedCreepsByRoleGroup.set(c.role.groupName, [...this.AssignedCreepsByRoleGroup.get(c.role.groupName) ?? [], c]);
     }
-    this.memory.minerPositions ??= GetMinerPositions(this);
   }
 
   GetAssignedTasks(taskAction?: string): CreepTask[] {
@@ -91,8 +77,6 @@ export class RoomExtra extends Room {
     return tasks.filter(t => t.action === taskAction);
   }
 
-  get LastSeen(): number { return this.memory.lastSeen ?? 0; }
-  set LastSeen(value: number) { this.memory.lastSeen = value; }
   get EnableVisuals(): boolean { return this.memory.enableVisuals ?? true; }
   set EnableVisuals(value: boolean) { this.memory.enableVisuals = value; }
   get EnableRepairOverlay(): boolean { return this.memory.enableRepairOverlay ?? false; }
@@ -109,27 +93,27 @@ export class RoomExtra extends Room {
   set TowerAttackRange(value: number) { this.memory.towerAttackRange = value; }
   get TowerCriticalSupplyRatio(): number { return this.memory.towerCriticalSupplyRatio ?? 0.75; }
   set TowerCriticalSupplyRatio(value: number) { this.memory.towerCriticalSupplyRatio = value; }
-  get DisableEvents(): boolean { return this.memory.disableEvents ?? false; }
-  set DisableEvents(value: boolean) { this.memory.disableEvents = value; }
-  get EventReportingFrequencyTicks(): number { return this.memory.eventReportingFrequencyTicks ?? 500; }
-  set EventReportingFrequencyTicks(value: number) { this.memory.eventReportingFrequencyTicks = value; }
-  get MaxEventLogPerRoom(): number { return this.memory.maxEventLogPerRoom ?? 1500; }
-  set MaxEventLogPerRoom(value: number) { this.memory.maxEventLogPerRoom = value; }
-  get NotificationFrequency(): number { return this.memory.notificationFrequency ?? 100; }
-  set NotificationFrequency(value: number) { this.memory.notificationFrequency = value; }
-  get HostileNotificationThreshold(): number { return this.memory.hostileNotificationThreshold ?? 4; }
+  get HostileNotificationThreshold(): number { return this.memory.hostileNotificationThreshold ?? 2; }
   set HostileNotificationThreshold(value: number) { this.memory.hostileNotificationThreshold = value; }
   get ClaimedNearbyRooms(): string[] { return this.memory.claimedNearby ?? []; }
   set ClaimedNearbyRooms(value: string[]) { this.memory.claimedNearby = unique([...this.memory.claimedNearby ?? [], ...value]); }
   get StorageWartimeEnergyBuffer(): number { return this.memory.storageWartimeEnergyBuffer ?? 5000; }
+  get LinkGroups(): Dictionary<Id<StructureLink>[]> { return this.memory.linkGroups ?? {}; }
+  set LinkGroups(value: Dictionary<Id<StructureLink>[]>) { this.memory.linkGroups = value; }
 
   set MinerPositions(value: MiningPosition[]) { this.memory.minerPositions = value; }
   get MinerPositions(): MiningPosition[] {
-    const eixsting: MiningPosition[] = this.memory.minerPositions ?? [];
-    const mapped = [];
-    for (const mp of eixsting)
-      mapped.push({ position: new RoomPosition(mp.position.x, mp.position.y, mp.position.roomName), sourceId: mp.sourceId });
-    return mapped;
+    this.memory.minerPositions ??= GetMinerPositions(this); // Memoize
+
+    // Create a RoomPosition on the way out for each minerPosition.
+    const ret: MiningPosition[] = [];
+    for (const mp of this.memory.minerPositions)
+      ret.push({
+        sourceId: mp.sourceId,
+        position: new RoomPosition(mp.position.x, mp.position.y, mp.position.roomName),
+      });
+
+    return ret;
   }
 
 
@@ -147,7 +131,9 @@ export class RoomExtra extends Room {
 
     // Try to get the role instance, and return -1 if we can't
     const role = this.colony.RoleRegistry.get(roleName);
-    if (!role) return 0; // Disabled if we can't find the role.
+    if (!role) {
+      throw new Error(`Role is not in Registry: ${roleName}`);
+    }
 
     // Return the quota from the role instance
     return role.GetRoomQuota(this);
@@ -161,6 +147,18 @@ export class RoomExtra extends Room {
 
   get Hostiles(): Creep[] {
     return this.find(FIND_HOSTILE_CREEPS);
+  }
+
+  get DroppedEnergy(): Resource<RESOURCE_ENERGY>[] {
+    return this.find(FIND_DROPPED_RESOURCES, { filter: r => r.resourceType === RESOURCE_ENERGY });
+  }
+
+  get ConstructionSites(): ConstructionSite[] {
+    return this.find(FIND_MY_CONSTRUCTION_SITES);
+  }
+
+  get HostileInfo(): HostileInfo[] {
+    return GetHostileInfo(this);
   }
 
   get AvailableSpawns(): StructureSpawn[] {
@@ -191,11 +189,44 @@ export class RoomExtra extends Room {
     return this.find(FIND_STRUCTURES, { filter: s => s.structureType === STRUCTURE_ROAD });
   }
 
+  get LinkReceivers(): StructureLink[] {
+    const ret = [];
+    for (const id of this.LinkGroups.Receivers) {
+      const obj = Game.getObjectById(id as Id<StructureLink>);
+      if (!obj) continue;
+      else ret.push(obj);
+    }
+    return ret;
+  }
+
+  get LinkSenders(): StructureLink[] {
+    const ret = [];
+    for (const id of this.LinkGroups.Senders) {
+      const obj = Game.getObjectById(id as Id<StructureLink>);
+      if (!obj) continue;
+      else ret.push(obj);
+    }
+    return ret;
+  }
+
   GetUnfilledMiningPositions(): MiningPosition[] {
     const ret = [];
     for (const mp of this.MinerPositions)
       if (new RoomPosition(mp.position.x, mp.position.y, mp.position.roomName).lookFor(LOOK_CREEPS).length === 0)
         ret.push(mp);
+    return ret;
+  }
+
+  GetUnassignedMiningPositions(): MiningPosition[] {
+    const assignedMiningPositions = this.colony.GetAllAssignedTasks(TaskAction.Mine).map(p => (p as Mine).target.position);
+    const ret = [];
+    for (const mp of this.MinerPositions)
+      if (assignedMiningPositions.some(pos =>
+        pos.x === mp.position.x
+        && pos.y === mp.position.y
+        && pos.roomName === mp.position.roomName
+      )) continue;
+      else ret.push(mp);
     return ret;
   }
 
@@ -212,12 +243,35 @@ export class RoomExtra extends Room {
     return ret;
   }
 
-  GetVisibleClaimedRooms(): RoomExtra[] {
+  GetUnassignedRemoteMiningPositions(): MiningPosition[] {
+    const assignedMiningPositions = this.colony.GetAllAssignedTasks(TaskAction.Mine).map(p => (p as Mine).target.position);
+
+    var ret: MiningPosition[] = [];
+    for (const claim of this.ClaimedNearbyRooms) {
+      Memory.scoutingReports[claim].miningPositions ??= [];
+      const remoteMiningPositions: MiningPosition[] = Memory.scoutingReports[claim].miningPositions.map(mp => ({
+        sourceId: mp.sourceId,
+        position: new RoomPosition(mp.position.x, mp.position.y, mp.position.roomName),
+      }));
+
+      for (const rmp of remoteMiningPositions)
+        if (assignedMiningPositions.some(pos =>
+          pos.x === rmp.position.x
+          && pos.y === rmp.position.y
+          && pos.roomName === rmp.position.roomName
+        )) continue;
+        else ret.push(rmp);
+    }
+
+    return ret;
+  }
+
+  GetVisibleUncontestedClaimedRooms(): Room[] {
     const ret = [];
     for (const name of this.ClaimedNearbyRooms)
       // A room is claimed by us if it is both visible, and not owned by someone else
       if (name in Game.rooms && (Game.rooms[name].controller == undefined || Game.rooms[name].controller?.owner == undefined))
-        ret.push(new RoomExtra(Game.rooms[name], this.colony, this));
+        ret.push(Game.rooms[name]);
     return ret;
   }
 
@@ -236,9 +290,41 @@ export class RoomExtra extends Room {
     }
   }
 
+  // Remove rooms from the claim list if they are not ok to claim
+  ValidateClaimedRooms(): void {
+    const stillValid: string[] = [];
+    for (const roomName of this.ClaimedNearbyRooms) {
+      // Assume invisible rooms are still ok to claim
+      if (!(roomName in Game.rooms)) {
+        stillValid.push(roomName);
+        continue;
+      }
+
+      // If the room is neutral, it's still ok to claim
+      const room = Game.rooms[roomName];
+      if (room && (room.controller == undefined || room.controller.owner == undefined)) {
+        stillValid.push(roomName);
+        continue;
+      }
+    }
+
+    this.ClaimedNearbyRooms = stillValid;
+  }
+
   Tick(): void {
     // Cleanup Dead creeps
     this.CleanupDeadCreeps();
+
+    // Remove claims that are no longer neutral
+    this.ValidateClaimedRooms();
+
+    // Report hostiles
+    this.ReportHostiles();
+
+    // Send energy across links
+    for (const sender of this.LinkSenders)
+      for (const receiver of this.LinkReceivers)
+        this.SendLink(sender, receiver);
 
     // Run each tower in the room
     if (!this.DisableTowers)
@@ -251,6 +337,21 @@ export class RoomExtra extends Room {
     // Visuals
     if (this.EnableVisuals && this.EnableRepairOverlay)
       this.DrawRepairOverlay();
+  }
+
+  SendLink(sender: StructureLink, receiver: StructureLink): void {
+    if (!sender.isActive() || !receiver.isActive()) return; // Can't use links
+    if (sender.store.getUsedCapacity() === 0 || sender.cooldown > 0) return; // Nothing to send
+    if (receiver.store.getFreeCapacity() === 0) return; // No ability to receive
+    const ret = sender.transferEnergy(receiver);
+    if (ret !== OK) this.log.warn(`Link Transfer from ${sender} -> ${receiver} failed: ${ret}`);
+  }
+
+  ReportHostiles(): void {
+    if (this.HostileInfo.length >= this.HostileNotificationThreshold && Game.time % 10 === 0) {
+      var msg = `!!! Hostiles Spotted in ${this.name}:\n`;
+      msg += `\t${FormatHostileInfos(this.HostileInfo)}`;
+    }
   }
 
   CheckSpawns(): void {
@@ -349,24 +450,23 @@ export class RoomExtra extends Room {
       msg += ` ENERGY IN STORAGE: ${ratio} (${this.storage.store.getUsedCapacity(RESOURCE_ENERGY)}/${this.storage.store.getCapacity(RESOURCE_ENERGY)})`;
     }
 
-    // Get info about hostiles
-    const hostileInfo = this.Hostiles.map(c => ({
-      owner: c.owner.username,
-      name: c.name,
-      bodyCost: CreepExtra.BodyCost(c.body.map(p => p.type)),
-      partCounts: CreepExtra.PartCounts(c.body),
-    }));
+    if (this.controller) {
+      const nextLevelStr = this.controller.level === 8 ? "" : ` -> ${this.controller.level + 1}`;
+      const downgradeMaintenanceThreshold = CONTROLLER_DOWNGRADE[this.controller.level] * UpdateController.DowngradeMaintenanceRatio;
+      const downgradeStr = this.controller.ticksToDowngrade < downgradeMaintenanceThreshold ? ` , Downgrade in ${this.controller.ticksToDowngrade}` : "";
+      msg += ` CONTROLLER ${this.controller.level}${nextLevelStr} ${FmtRatios(this.controller.progress, this.controller.progressTotal, true, [], 3, "K", 1000)}${downgradeStr}`;
+    }
 
     // Append hostile details
-    if (hostileInfo.length) {
-      msg += `\nHOSTILES ${hostileInfo.length} :::`;
-      for (const h of hostileInfo) msg += `\n\t${JSON.stringify(h)}`;
+    if (this.HostileInfo.length) {
+      msg += `\nHOSTILES ${this.HostileInfo.length} :::\n`;
+      msg += `\t${FormatHostileInfos(this.HostileInfo)}`;
     }
 
     // Get info about claimed rooms
-    const claimed = this.GetVisibleClaimedRooms();
+    const claimed = this.GetVisibleUncontestedClaimedRooms();
     if (claimed.length)
-      for (const claim of claimed) msg += `\n\t${claim.RoomStateReport()}`;
+      for (const claim of claimed) msg += `\n\t${claim}`;
 
     return msg;
   }
