@@ -93,7 +93,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
     const spawn = this.FindSupplyByPriorityAndPath(creep, [...MySpawnsOrExtensions(), ...MyTowers()]);
     if (spawn) return new Supply(spawn.id as Id<AnyStoreStructure>);
 
-    const cons = this.FindConstructionByPriorityAndPath(creep, ...[MyConstructionSites()]);
+    const cons = this.FindConstructionByPriorityAndPath(creep, MyConstructionSites());
     if (cons) return new Build(cons.id as Id<ConstructionSite<BuildableStructureConstant>>);
 
     if (creep.AssignedRoom.Towers.length === 0) {
