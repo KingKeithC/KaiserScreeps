@@ -153,8 +153,11 @@ export class Worker extends CreepRoleBase implements CreepRole {
       const source = creep.AssignedRoom.GetUnfilledUnassignedMiningPositions().pop();
       if (source) return new Mine(source);
     } else {
-      const bestMiner = miners.filter(m => m.store.getUsedCapacity(RESOURCE_ENERGY)).sort((a, b) => a.store.getUsedCapacity(RESOURCE_ENERGY) - b.store.getUsedCapacity(RESOURCE_ENERGY)).pop();
-      if (bestMiner) return new CollectEnergy(bestMiner.name, { maxAttempts: 5 });
+      const bestMiner = miners
+        .filter(m => m.store.getUsedCapacity(RESOURCE_ENERGY))
+        .sort((a, b) => a.store.getUsedCapacity(RESOURCE_ENERGY) - b.store.getUsedCapacity(RESOURCE_ENERGY))
+        .pop();
+      if (bestMiner) return new CollectEnergy(bestMiner.name, { maxAttempts: 8 });
     }
 
     if (creep.AssignedRoom.storage && creep.AssignedRoom.storage.store.getUsedCapacity(RESOURCE_ENERGY) > creep.AssignedRoom.StorageWartimeEnergyBuffer)
