@@ -149,10 +149,6 @@ export class RoomExtra extends Room {
     return this.find(FIND_HOSTILE_CREEPS);
   }
 
-  get DroppedEnergy(): Resource<RESOURCE_ENERGY>[] {
-    return this.find(FIND_DROPPED_RESOURCES, { filter: r => r.resourceType === RESOURCE_ENERGY });
-  }
-
   get ConstructionSites(): ConstructionSite[] {
     return this.find(FIND_MY_CONSTRUCTION_SITES);
   }

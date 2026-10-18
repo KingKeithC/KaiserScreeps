@@ -119,7 +119,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
   }
 
   FindDroppedEnergy(creep: CreepExtra): CreepTask | null {
-    const droppedResources = creep.AssignedRoom.DroppedEnergy;
+    const droppedResources = creep.room.find(FIND_DROPPED_RESOURCES, { filter: r => r.resourceType === RESOURCE_ENERGY });
     for (const res of droppedResources) {
       const countPickingUpSameRes = creep.AssignedRoom.GetAssignedTasks(TaskAction.Pickup).filter(
         t => "target" in t && t.target === res.id,
