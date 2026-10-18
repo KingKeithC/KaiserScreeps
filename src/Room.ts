@@ -430,10 +430,10 @@ export class RoomExtra extends Room {
       const globalCount = role.GetGlobalCreepsInRole().length;
       const globalCountStr = globalQuota > -1 && (globalCount !== roomCount || roomQuota === -1) ? ` | ${globalCount}/${globalQuota}` : "";
 
-      // Skip roles that have no creeps spawned in the room
-      if (roomCount === 0) continue;
-      msg += ` [${name}${spawnNeededStr}${spawnableStr} ${roomCount}/${roomQuota}${globalCountStr}]`;
-      spawned++;
+      if (spawnNeeded || spawnAble || roomCount > 0) {
+        msg += ` [${name}${spawnNeededStr}${spawnableStr} ${roomCount}/${roomQuota}${globalCountStr}]`;
+        spawned++;
+      }
     }
 
     const ownedStatus = this.parent != undefined ? `Claimed by ${this.parent.name}` : `HQ`;

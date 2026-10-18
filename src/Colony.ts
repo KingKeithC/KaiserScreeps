@@ -163,7 +163,7 @@ export class Colony {
     Memory.scoutInterval ??= CREEP_LIFE_TIME * 2;
 
     global.Colony = this; // Accessible as `Colony.whatever()` in the console.
-    this.stats.lastResetTime = Game.time;
+    this.stats = { ...this.stats, lastResetTime: Game.time };
     this.log.crit(`GLOBALS RESET | Profiling Configured: ${this.GlobalEnableProfiling}, ErrorMapper: ${this.GlobalEnableErrorMapper}`);
   }
 
