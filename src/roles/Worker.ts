@@ -1,6 +1,6 @@
 import { CreepExtra } from "Creep";
 import { RoomExtra } from "Room";
-import { Build, CollectEnergy, CreepTask, Idle, MaintainController, Mine, Pickup, Repair, Supply, TaskAction, UpdateController } from "tasks";
+import { Build, CollectEnergy, CreepTask, EnergySource, Idle, MaintainController, Mine, Pickup, Repair, Supply, TaskAction, UpdateController } from "tasks";
 import { MakeBody } from "utils/Collections";
 import { BodyCost } from "utils/CreepUtils";
 import { CreepRoleBase, CreepRole } from "./Role";
@@ -44,7 +44,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
 
   GetGlobalQuota(): number {
     return Math.ceil(Object.values(Game.structures)
-      .filter((s: any): s is AnyStoreStructure => s.my).length / 2);
+      .filter((s: any): s is AnyStoreStructure => s.my).length / this.MaxIncomingPerContaininer);
   }
 
   override GetRoomQuota(room: RoomExtra) { return -1; }
@@ -137,16 +137,26 @@ export class Worker extends CreepRoleBase implements CreepRole {
   }
 
   ContainerAmountNeededToTake = 50;
+  MaxIncomingPerContaininer = 2;
   FindGatheringTask(creep: CreepExtra): CreepTask | null {
     const dropped = this.FindDroppedEnergy(creep);
     if (dropped) return dropped;
 
+    const activeDeliveries = creep.AssignedRoom.GetAssignedTasks(TaskAction.CollectEnergy) as CollectEnergy[];
     const containerOrLinkReciever = creep.pos.findClosestByPath([
       ...creep.AssignedRoom.Containers,
       ...creep.AssignedRoom.LinkReceivers,
     ], {
       ignoreCreeps: true,
-      filter: s => s.store.getUsedCapacity(RESOURCE_ENERGY) > this.ContainerAmountNeededToTake
+      filter: s => {
+        const incoming = activeDeliveries.filter(ad => (
+          ad.source.kind === "container" && ad.source.id === s.id)
+          || (ad.source.kind === "link" && ad.source.id === s.id)
+        );
+
+        if (incoming.length > this.MaxIncomingPerContaininer) return false;
+        return s.store.getUsedCapacity(RESOURCE_ENERGY) > this.ContainerAmountNeededToTake;
+      }
     });
     if (containerOrLinkReciever) {
       if (containerOrLinkReciever instanceof StructureContainer) return new CollectEnergy({ kind: "container", id: containerOrLinkReciever.id as Id<StructureContainer> }, { maxAttempts: 3 });
