@@ -42,9 +42,10 @@ export class Worker extends CreepRoleBase implements CreepRole {
     return [];
   }
 
+  // Roughly 1 worker per 4 structures
   GetGlobalQuota(): number {
     return Math.ceil(Object.values(Game.structures)
-      .filter((s: any): s is AnyStoreStructure => s.my).length / this.MaxIncomingPerContaininer);
+      .filter((s: any): s is AnyStoreStructure => s.my).length / 4);
   }
 
   override GetRoomQuota(room: RoomExtra) { return -1; }
