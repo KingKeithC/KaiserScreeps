@@ -277,7 +277,7 @@ export class Colony {
       myCreepsCount: this.MyCreeps.length,
       visibleRooms: Object.keys(Game.rooms).length,
       structures: Object.keys(Game.structures).length,
-      lastResetTime: this.stats.lastReset,
+      lastResetTime: this.stats.lastResetTime,
     };
   }
 
