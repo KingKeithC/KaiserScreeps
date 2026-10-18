@@ -101,3 +101,15 @@ export function FmtRatios(
   // Return string prepended with a percent sign
   return "%" + ret;
 }
+
+export function MySpawnsOrExtensions(): (StructureSpawn | StructureExtension)[] {
+  return Object.values(Game.structures).filter(s => (s.structureType === STRUCTURE_SPAWN || s.structureType === STRUCTURE_EXTENSION) && s.my) as (StructureSpawn | StructureExtension)[];
+}
+
+export function MyTowers(): StructureTower[] {
+  return Object.values(Game.structures).filter(s => s.structureType === STRUCTURE_TOWER && s.my) as StructureTower[];
+}
+
+export function MyConstructionSites(): ConstructionSite[] {
+  return Object.values(Game.constructionSites).filter(s => s.my) as ConstructionSite[];
+}

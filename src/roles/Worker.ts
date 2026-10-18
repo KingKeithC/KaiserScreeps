@@ -1,7 +1,7 @@
 import { CreepExtra } from "Creep";
 import { RoomExtra } from "Room";
 import { Build, CollectEnergy, CreepTask, EnergySource, Idle, MaintainController, Mine, Pickup, Repair, Supply, TaskAction, UpdateController } from "tasks";
-import { MakeBody } from "utils/Collections";
+import { MakeBody, MyConstructionSites, MySpawnsOrExtensions, MyTowers } from "utils/Collections";
 import { BodyCost } from "utils/CreepUtils";
 import { CreepRoleBase, CreepRole } from "./Role";
 
@@ -90,10 +90,10 @@ export class Worker extends CreepRoleBase implements CreepRole {
         return new MaintainController(creep.AssignedRoom.controller);
     }
 
-    const spawn = this.FindSupplyByPriorityAndPath(creep, [...creep.AssignedRoom.SpawnsOrExtensions, ...creep.AssignedRoom.Towers]);
+    const spawn = this.FindSupplyByPriorityAndPath(creep, [...MySpawnsOrExtensions(), ...MyTowers()]);
     if (spawn) return new Supply(spawn.id as Id<AnyStoreStructure>);
 
-    const cons = this.FindConstructionByPriorityAndPath(creep);
+    const cons = this.FindConstructionByPriorityAndPath(creep, ...[MyConstructionSites()]);
     if (cons) return new Build(cons.id as Id<ConstructionSite<BuildableStructureConstant>>);
 
     if (creep.AssignedRoom.Towers.length === 0) {
@@ -204,10 +204,9 @@ export class Worker extends CreepRoleBase implements CreepRole {
     [(_ => true), 1],
   ];
 
-  FindConstructionByPriorityAndPath(creep: CreepExtra): ConstructionSite | null {
-    const constructions = creep.AssignedRoom.ConstructionSites;
+  FindConstructionByPriorityAndPath(creep: CreepExtra, candidates: ConstructionSite[] = creep.AssignedRoom.ConstructionSites): ConstructionSite | null {
     for (const p of this.ConstructionPriorities) {
-      const group = constructions.filter(p);
+      const group = candidates.filter(p);
       if (group.length) return creep.pos.findClosestByPath(group, { ignoreCreeps: true });
     }
     return null;
