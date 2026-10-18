@@ -128,8 +128,8 @@ export class Scout extends CreepRoleBase implements CreepRole {
       this.log.warn(`I'm being attacked in ${creep.room}, Health: %${((creep.hits / creep.hitsMax) * 100).toPrecision(4)} (${creep.hits}/${creep.hitsMax})!`);
 
     var newReport: ScoutingReport | undefined = undefined;
-    const lastScoutingReportTime = (Memory.scoutingReports[creep.room.name].lastSeen ?? 0);
-    const reportIsStale = lastScoutingReportTime > this.ScoutReportTTL || !(creep.room.name in Memory.scoutingReports);
+    const timeSinceLastScoutingReport = Game.time - (Memory.scoutingReports[creep.room.name].lastSeen ?? 0);
+    const reportIsStale = timeSinceLastScoutingReport > this.ScoutReportTTL || !(creep.room.name in Memory.scoutingReports);
 
     // Create a new scouting report for old or newly visited rooms.
     if (reportIsStale || creep.MovedBetweenRooms)

@@ -176,6 +176,7 @@ export class CreepExtra extends Creep {
 
   MovedBetweenRooms: boolean = false;
   OnCreepChangedRooms(lastRoomName: string): void {
+    this.log.info(`I moved from ${lastRoomName} to ${this.room.name}`);
     this.MovedBetweenRooms = true;
   }
 
