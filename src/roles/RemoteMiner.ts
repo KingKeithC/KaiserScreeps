@@ -50,6 +50,12 @@ export class RemoteMiner extends CreepRoleBase implements CreepRole {
     // If we are in the remote room, vaccuum up energy in containers
     if (creep.room.name !== creep.AssignedRoom.name)
       this.WithdrawFromContainers(creep);
+
+    // If we have space for energy, and there is energy below us, pick it up
+    if (creep.store.getUsedCapacity(RESOURCE_ENERGY) === 0)
+      for (const dropped of creep.pos.findInRange(FIND_DROPPED_RESOURCES, 1, { filter: r => r.resourceType === RESOURCE_ENERGY }))
+        if (dropped.resourceType === RESOURCE_ENERGY)
+          creep.pickup(dropped);
   }
 
   WithdrawFromContainers(creep: CreepExtra): void {
