@@ -136,6 +136,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
     return null;
   }
 
+  ContainerAmountNeededToTake = 50;
   FindGatheringTask(creep: CreepExtra): CreepTask | null {
     const dropped = this.FindDroppedEnergy(creep);
     if (dropped) return dropped;
@@ -145,7 +146,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
       ...creep.AssignedRoom.LinkReceivers,
     ], {
       ignoreCreeps: true,
-      filter: s => s.store.getUsedCapacity(RESOURCE_ENERGY) > 0
+      filter: s => s.store.getUsedCapacity(RESOURCE_ENERGY) > this.ContainerAmountNeededToTake
     });
     if (containerOrLinkReciever) {
       if (containerOrLinkReciever instanceof StructureContainer) return new CollectEnergy({ kind: "container", id: containerOrLinkReciever.id as Id<StructureContainer> }, { maxAttempts: 3 });
@@ -153,15 +154,17 @@ export class Worker extends CreepRoleBase implements CreepRole {
     }
 
     const miners = creep.AssignedRoom.AssignedCreepsByRoleGroup.get("Miners") ?? [];
-    if (miners.length === 0) {
-      const source = creep.AssignedRoom.GetUnfilledUnassignedMiningPositions().pop();
-      if (source) return new Mine(source);
-    } else {
+    if (miners.length > 0) {
+      // Collect energy from a dedicated miner
       const bestMiner = miners
         .filter(m => m.store.getUsedCapacity(RESOURCE_ENERGY))
         .sort((a, b) => a.store.getUsedCapacity(RESOURCE_ENERGY) - b.store.getUsedCapacity(RESOURCE_ENERGY))
         .pop();
       if (bestMiner) return new CollectEnergy(bestMiner.name, { maxAttempts: 8 });
+    } else {
+      // Do mining on our own
+      const source = creep.AssignedRoom.GetUnfilledUnassignedMiningPositions().pop();
+      if (source) return new Mine(source);
     }
 
     if (creep.AssignedRoom.storage && creep.AssignedRoom.storage.store.getUsedCapacity(RESOURCE_ENERGY) > creep.AssignedRoom.StorageWartimeEnergyBuffer)
