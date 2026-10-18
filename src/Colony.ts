@@ -163,6 +163,7 @@ export class Colony {
     Memory.scoutInterval ??= CREEP_LIFE_TIME * 2;
 
     global.Colony = this; // Accessible as `Colony.whatever()` in the console.
+    this.stats.lastResetTime = Game.time;
     this.log.crit(`GLOBALS RESET | Profiling Configured: ${this.GlobalEnableProfiling}, ErrorMapper: ${this.GlobalEnableErrorMapper}`);
   }
 
@@ -276,6 +277,7 @@ export class Colony {
       myCreepsCount: this.MyCreeps.length,
       visibleRooms: Object.keys(Game.rooms).length,
       structures: Object.keys(Game.structures).length,
+      lastResetTime: this.stats.lastReset,
     };
   }
 
