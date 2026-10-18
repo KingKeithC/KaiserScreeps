@@ -138,6 +138,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
 
   ContainerAmountNeededToTake = 50;
   MaxIncomingPerContaininer = 2;
+  MaxIncomingPerMiner = 2;
   FindGatheringTask(creep: CreepExtra): CreepTask | null {
     const dropped = this.FindDroppedEnergy(creep);
     if (dropped) return dropped;
@@ -167,7 +168,11 @@ export class Worker extends CreepRoleBase implements CreepRole {
     if (miners.length > 0) {
       // Collect energy from a dedicated miner
       const bestMiner = miners
-        .filter(m => m.store.getUsedCapacity(RESOURCE_ENERGY))
+        .filter(m => {
+          const incoming = activeDeliveries.filter(ad => (ad.source.kind === "creep" && ad.source.name === m.name));
+          if (incoming.length > this.MaxIncomingPerMiner) return false;
+          return m.store.getUsedCapacity(RESOURCE_ENERGY) > 0;
+        })
         .sort((a, b) => a.store.getUsedCapacity(RESOURCE_ENERGY) - b.store.getUsedCapacity(RESOURCE_ENERGY))
         .pop();
       if (bestMiner) return new CollectEnergy(bestMiner.name, { maxAttempts: 8 });
