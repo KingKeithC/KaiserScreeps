@@ -11,9 +11,15 @@ export class Claimer extends CreepRoleBase implements CreepRole {
   readonly name = "Claimer";
   readonly tier = 1;
 
-  GetNewCreepBody(_room: RoomExtra): BodyPartConstant[] {
+  GetNewCreepBody(room: RoomExtra): BodyPartConstant[] {
+    if (room.energyCapacityAvailable >= 1300)
+      return MakeBody(
+        [MOVE, 2],
+        [CLAIM, 2],
+      );
+
     return MakeBody(
-      [MOVE, 3],
+      [MOVE, 1],
       [CLAIM, 1],
     );
   }
