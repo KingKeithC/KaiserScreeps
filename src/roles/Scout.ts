@@ -128,17 +128,12 @@ export class Scout extends CreepRoleBase implements CreepRole {
       this.log.warn(`I'm being attacked in ${creep.room}, Health: %${((creep.hits / creep.hitsMax) * 100).toPrecision(4)} (${creep.hits}/${creep.hitsMax})!`);
 
     var newReport: ScoutingReport | undefined = undefined;
+    const lastScoutingReportTime = (Memory.scoutingReports[creep.room.name].lastSeen ?? 0);
+    const reportIsStale = lastScoutingReportTime > this.ScoutReportTTL || !(creep.room.name in Memory.scoutingReports);
 
-    // Create a new scouting report for old or new rooms.
-    if (!(creep.room.name in Memory.scoutingReports) || Game.time - (Memory.scoutingReports[creep.room.name].lastSeen ?? 0) > this.ScoutReportTTL)
+    // Create a new scouting report for old or newly visited rooms.
+    if (reportIsStale || creep.MovedBetweenRooms)
       newReport = this.NewScoutingReport(creep);
-
-    // Retarget if we have been in this room for too long
-    if (creep.room.name in Memory.scoutingReports && Game.time - (Memory.scoutingReports[creep.room.name].lastSeen ?? 0) > this.ScoutStuckRetargetTicks) {
-      this.log.info(`Retargeting since we've been here too long (${Game.time - (Memory.scoutingReports[creep.room.name].lastSeen ?? 0)} > ${this.ScoutStuckRetargetTicks})`, { "<creep>": creep, "<room>": creep.room });
-      newReport = this.NewScoutingReport(creep); // Refresh scouting report to update lastSeen
-      creep.memory.jobMemory = {}; // Force retarget
-    }
 
     if (newReport != undefined) {
       // If we made a new report, replace the one in memory.
@@ -154,7 +149,7 @@ export class Scout extends CreepRoleBase implements CreepRole {
 
   SelectNextTask(creep: CreepExtra, lastTask: CreepTask<string>): CreepTask<string> | null {
     const newRoom = this.FindNearbyRandomRoom(creep);
-    if (newRoom) return new Move(new RoomPosition(25, 25, newRoom), 25);
+    if (newRoom) return new Move(new RoomPosition(25, 25, newRoom), 40);
     return null;
   }
 }

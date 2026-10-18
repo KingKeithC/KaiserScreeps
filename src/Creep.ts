@@ -168,6 +168,15 @@ export class CreepExtra extends Creep {
       this.JustFinishedSpawning(room);
     else if (this.ticksToLive === 1)
       this.OnLastTickOfLife();
+
+    // Run a callback if we moved to a new room since last tick.
+    if (this.room.name !== this.memory.lastPos.room)
+      this.OnCreepChangedRooms(this.memory.lastPos.room);
+  }
+
+  MovedBetweenRooms: boolean = false;
+  OnCreepChangedRooms(lastRoomName: string): void {
+    this.MovedBetweenRooms = true;
   }
 
   OnLastTickOfLife(): void {
