@@ -11,7 +11,7 @@
         pkgs = (import (inputs.nixpkgs) { inherit system; });
       in
       {
-        devShell = pkgs.mkShell {
+        devShells.default = pkgs.mkShell {
           buildInputs = with pkgs; [
             pnpm
             nodejs
