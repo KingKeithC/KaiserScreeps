@@ -77,7 +77,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
     if (towerNeedingEnergy) return new Supply(towerNeedingEnergy.id as Id<AnyStoreStructure>);
 
     const damaged = this.FindIdealRepair(creep);
-    if (damaged) return new Repair(damaged.id as Id<AnyStructure>);
+    if (damaged) return new Repair(damaged);
 
     this.log.warn("No wartime spending tasks!");
     return new Idle();
@@ -97,11 +97,12 @@ export class Worker extends CreepRoleBase implements CreepRole {
     const cons = this.FindConstructionByPriorityAndPath(creep, MyConstructionSites());
     if (cons) return new Build(cons.id as Id<ConstructionSite<BuildableStructureConstant>>);
 
-    if (creep.AssignedRoom.Towers.length === 0) {
-      const currentRepairCount = creep.AssignedRoom.GetAssignedTasks(TaskAction.Repair).length;
-      if (currentRepairCount < this.MaxRepairPerRoom) {
+    // If there are no towers in this room
+    const currentRepairs = creep.AssignedRoom.GetAssignedTasks(TaskAction.Repair) as Repair[];
+    if (MyTowers().filter(t => t.pos.roomName === creep.pos.roomName).length === 0) {
+      if (currentRepairs.filter(r => r.repairRoom === creep.pos.roomName).length < this.MaxRepairPerRoom) {
         const repair = this.FindIdealRepairByStrength(creep.AssignedRoom);
-        if (repair) return new Repair(repair.id as Id<AnyStructure>);
+        if (repair) return new Repair(repair);
         else this.log.info(`[${creep.AssignedRoom.name}]${creep}: No repairs needed!`);
       }
     }
@@ -190,7 +191,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
     return null;
   }
 
-  MaxRepairPerRoom = 4;
+  MaxRepairPerRoom = 3;
   IgnoreDroppedResourcesLessThan = 30;
   MediumSearchRange = 20;
   ShortSearchRange = 5;

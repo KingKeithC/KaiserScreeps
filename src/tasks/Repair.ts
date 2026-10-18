@@ -5,7 +5,12 @@ import { TargetTask } from "./BaseTask";
 export class Repair extends TargetTask<typeof TaskAction.Repair, Id<AnyStructure>> {
   public readonly kind = "repair" as const;
 
-  public constructor(target: Id<AnyStructure>) { super(TaskAction.Repair, target, "structure"); }
+  public repairRoom: string;
+
+  public constructor(target: AnyStructure) {
+    super(TaskAction.Repair, target.id, "structure");
+    this.repairRoom = target.pos.roomName;
+  }
 
   public override act(creep: CreepExtra) {
     const target = Game.getObjectById(this.target);
