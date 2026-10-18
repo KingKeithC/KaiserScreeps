@@ -12,7 +12,6 @@ import { Logger } from "utils/Logger";
 import { Attacker } from "roles/Attacker";
 import { Dictionary, flatten, propertyOf, sum } from "lodash";
 import { Claimer } from "roles/Claimer";
-import { RemoteMiner } from "roles/RemoteMiner";
 import { FmtRatios } from "utils/Collections";
 
 
@@ -96,7 +95,6 @@ export class Colony {
   constructor() {
     [
       new Miner(this),
-      new RemoteMiner(this),
       new Worker(this),
       new Defender(this),
       new Scout(this),

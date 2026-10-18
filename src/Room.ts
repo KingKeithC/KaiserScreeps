@@ -102,10 +102,13 @@ export class RoomExtra extends Room {
   set LinkGroups(value: Dictionary<Id<StructureLink>[]>) { this.memory.linkGroups = value; }
 
   set MinerPositions(value: MiningPosition[]) { this.memory.minerPositions = value; }
+
+  private _MinerPositions: MiningPosition[] = [];
   get MinerPositions(): MiningPosition[] {
-    this.memory.minerPositions ??= GetMinerPositions(this); // Memoize
+    if (this._MinerPositions.length > 0) return this._MinerPositions;
 
     // Create a RoomPosition on the way out for each minerPosition.
+    this.memory.minerPositions ??= GetMinerPositions(this); // Memoize
     const ret: MiningPosition[] = [];
     for (const mp of this.memory.minerPositions)
       ret.push({
@@ -113,16 +116,31 @@ export class RoomExtra extends Room {
         position: new RoomPosition(mp.position.x, mp.position.y, mp.position.roomName),
       });
 
-    return ret;
+    this._MinerPositions = ret;
+    return this._MinerPositions;
   }
 
+  private _RemoteMinerPositions: MiningPosition[] = [];
+  get RemoteMinerPositions(): MiningPosition[] {
+    if (this._RemoteMinerPositions.length > 0) return this._RemoteMinerPositions;
+    var ret: MiningPosition[] = [];
+    for (const claim of this.ClaimedNearbyRooms) {
+      Memory.scoutingReports[claim].miningPositions ??= [];
+      Memory.scoutingReports[claim].miningPositions.forEach(mp => ret.push({
+        sourceId: mp.sourceId,
+        position: new RoomPosition(mp.position.x, mp.position.y, mp.position.roomName),
+      }));
+    }
+    this._RemoteMinerPositions = ret;
+    return this._RemoteMinerPositions;
+  }
 
   LastSpawnTick(roleName: string): number { return (this.memory.lastSpawnTick ?? {})[roleName] ?? 0; }
 
   SetLastSpawnTick(roleName: string, value: number): void {
     this.memory.lastSpawnTick ??= {};
     this.memory.lastSpawnTick[roleName] = value;
-  }
+  };
 
   Quota(roleName: string) {
     // Return the custom quota from room memory if there is one.
