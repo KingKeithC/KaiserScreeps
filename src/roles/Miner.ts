@@ -71,8 +71,12 @@ export class Miner extends CreepRoleBase implements CreepRole {
   GetGlobalQuota(): number { return -1; }
 
   GetInitialTask(room: RoomExtra): CreepTask | null {
-    const unassigned = room.GetUnassignedMiningPositions().pop();
-    if (unassigned !== undefined) return new Mine(unassigned);
+    const unassignedSource = this.AllUnassignedSources(room).pop();
+    for (const pos of this.AllUnassignedMiningPositions(room))
+      if (pos.sourceId === unassignedSource)
+        return new Mine(pos);
+
+    this.log.warn(`No suitable mining position found.`);
     return null;
   }
 
