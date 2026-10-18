@@ -20,7 +20,7 @@ export class Claimer extends CreepRoleBase implements CreepRole {
 
   override GetGlobalQuota(): number { return this.AllClaims().length; }
   override GetRoomQuota(room: RoomExtra): number { return this.UnworkedClaims(room).length; }
-  IsSpawnNeeded(room: RoomExtra): boolean { return this.AllClaims.length > 0; }
+  IsSpawnNeeded(room: RoomExtra): boolean { return this.AllClaims().length > 0; }
   SelectNextTask(creep: CreepExtra, lastTask: CreepTask | null): CreepTask | null { return this.GetInitialTask(creep.AssignedRoom); }
 
   AllClaims(): Flag[] { return Object.values(Game.flags).filter(f => f.name.startsWith("Claim")); }
