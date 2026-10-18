@@ -269,6 +269,11 @@ export class Colony {
 
   GetCurrentStats(): ColonyStats {
     const allMyContainers: StructureContainer[] = flatten(this.MyRooms.map(r => r.find(FIND_STRUCTURES, { filter: s => s.structureType === STRUCTURE_CONTAINER })));
+
+    const resources: { [key: string]: number; } = {};
+    for (const r of Object.entries(Game.resources))
+      resources["resource__" + r[0]] = r[1];
+
     return {
       time: Game.time,
       totalEnergyInContainers: sum(allMyContainers.map(c => c.store.getUsedCapacity(RESOURCE_ENERGY))),
@@ -278,6 +283,10 @@ export class Colony {
       visibleRooms: Object.keys(Game.rooms).length,
       structures: Object.keys(Game.structures).length,
       lastResetTime: this.stats.lastResetTime,
+      gcl__level: Game.gcl.level,
+      gcl__progress: Game.gcl.progress,
+      gcl__progressTotal: Game.gcl.progressTotal,
+      ...resources,
     };
   }
 
