@@ -30,7 +30,7 @@ export abstract class TargetTask<Action extends string, Target> extends BaseTask
 
   public toString(): string {
     const target = Game.getObjectById(this.target as Id<Source>);
-    return `${this.action} on ${target ? String(target) : `[${this.targetType} ${String(this.target)}]`}`;
+    return `${this.action} on ${target ? String(target) : `[${this.targetType} ${JSON.stringify(this.target)}]`}`;
   }
 
   protected resolveTarget(): RoomObject | null {

@@ -96,12 +96,12 @@ export class Colony {
   constructor() {
     [
       new Miner(this),
+      new RemoteMiner(this),
       new Worker(this),
       new Defender(this),
       new Scout(this),
       new Attacker(this),
       new Claimer(this),
-      new RemoteMiner(this),
     ].forEach(r => this.RoleRegistry.set(r.name, r));
 
     const taskPrototypes: [string, CreepTask][] = [

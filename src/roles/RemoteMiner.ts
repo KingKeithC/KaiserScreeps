@@ -36,14 +36,17 @@ export class RemoteMiner extends CreepRoleBase implements CreepRole {
   override GetRoomQuota(room: RoomExtra) { return room.GetUnassignedRemoteMiningPositions().length; }
   GetGlobalQuota(): number { return -1; }
 
-  SelectNextTask(creep: CreepExtra, lastTask: CreepTask | null): CreepTask | null {
-    const unassigned = creep.AssignedRoom.GetUnassignedRemoteMiningPositions().pop();
+  GetInitialTask(room: RoomExtra): CreepTask | null {
+    const unassigned = room.GetUnassignedRemoteMiningPositions().pop();
     if (unassigned) {
       // Mine the source next to the unfilled position
-      this.log.info(`Filling Miner Position: ${unassigned}`, { "<creep>": creep });
       return new Mine(unassigned);
     }
     return null;
+  }
+
+  SelectNextTask(creep: CreepExtra, _lastTask: CreepTask<string>): CreepTask<string> | null {
+    return this.GetInitialTask(creep.AssignedRoom);
   }
 
   TickCreep(creep: CreepExtra): void {
