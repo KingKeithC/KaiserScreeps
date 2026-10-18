@@ -24,12 +24,19 @@ declare global {
     scoutingReports: Dictionary<ScoutingReport>;
     scoutInterval: number;
     colonyStateReportFrequency: number;
+    stats: ColonyStats;
   }
 }
 
 declare const global: {
   Colony: Colony;
 };
+
+
+interface ColonyStats {
+  time: number;
+  [key: string]: number;
+}
 
 export class Colony {
   readonly RoleRegistry = new Map<string, CreepRole>();
@@ -205,6 +212,9 @@ export class Colony {
     // Run TickEnd on each role, for bookkeeping.
     for (const role of this.RoleRegistry.values()) role.TickEnd();
 
+    // Update the stats for this tick
+    this.stats = this.GetCurrentStats();
+
     // Periodically print a report with the state of the colony.
     if (Game.time % this.ColonyStateReportFrequency === 0)
       this.ColonyStateReport();
@@ -273,19 +283,20 @@ export class Colony {
     }
   }
 
-  private lastStats: ColonyStats = this.GetCurrentStats();
-  ColonyStateReport(): void {
-    const currentStats: ColonyStats = this.GetCurrentStats();
+  get stats(): ColonyStats { return Memory.stats ?? this.GetCurrentStats(); }
+  set stats(value: ColonyStats) { Memory.stats = value; }
 
+  private lastReportStats: ColonyStats = this.GetCurrentStats();
+  ColonyStateReport(): void {
     // Calculate differences from lastStats
     var diffs: ColonyStats | undefined = undefined;
     var rates: ColonyStats | undefined = undefined;
-    if (this.lastStats != undefined) {
-      diffs = { time: currentStats.time - this.lastStats.time };
+    if (this.stats != undefined) {
+      diffs = { time: this.stats.time - this.lastReportStats.time };
       rates = { time: 1 };
-      for (const k of Object.keys(currentStats)) {
+      for (const k of Object.keys(this.stats)) {
         if (k !== "time") {
-          diffs[k] = currentStats[k] - this.lastStats[k];
+          diffs[k] = this.lastReportStats[k] - this.stats[k];
           rates[k] = diffs[k] / diffs.time;
         }
       }
@@ -301,7 +312,7 @@ export class Colony {
     }
 
     // Include current stats, and differences from last stats
-    msg += `\tStats = ${JSON.stringify(currentStats)}\n`;
+    msg += `\tStats = ${JSON.stringify(this.stats)}\n`;
     if (diffs != undefined) msg += `\tDiffs = ${JSON.stringify(diffs)}\n`;
     if (rates != undefined) msg += `\tRates = ${JSON.stringify(rates)}\n`;
 
@@ -310,11 +321,8 @@ export class Colony {
 
     // Print
     this.log.report(msg);
-    this.lastStats = currentStats;
-  }
-}
 
-interface ColonyStats {
-  time: number;
-  [key: string]: number;
+    // Update report stats
+    this.lastReportStats = this.stats;
+  }
 }
