@@ -272,7 +272,10 @@ export class Colony {
       time: Game.time,
       totalEnergyInContainers: sum(allMyContainers.map(c => c.store.getUsedCapacity(RESOURCE_ENERGY))),
       totalEnergyInCreeps: sum(this.MyCreeps.map(c => c.store.getUsedCapacity(RESOURCE_ENERGY))),
-      totalEnergyInStorages: sum(this.MyRooms.map(r => r.storage?.store.getUsedCapacity(RESOURCE_ENERGY) ?? 0))
+      totalEnergyInStorages: sum(this.MyRooms.map(r => r.storage?.store.getUsedCapacity(RESOURCE_ENERGY) ?? 0)),
+      myCreepsCount: this.MyCreeps.length,
+      visibleRooms: Object.keys(Game.rooms).length,
+      structures: Object.keys(Game.structures).length,
     };
   }
 
