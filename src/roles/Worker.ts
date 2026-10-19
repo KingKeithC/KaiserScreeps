@@ -83,7 +83,9 @@ export class Worker extends CreepRoleBase implements CreepRole {
     return new Idle();
   }
 
-  MaxUpgraders = 3;
+  MaxUpgraders = 2;
+  MaxSupplyForSpawns = 2;
+  MaxSupplyForTowers = 2;
   public FindSpendingTask(creep: CreepExtra): CreepTask {
     if (creep.AssignedRoom.controller) {
       const downgradeMaintenanceThreshold = CONTROLLER_DOWNGRADE[creep.AssignedRoom.controller.level] * UpdateController.DowngradeMaintenanceRatio;
@@ -91,8 +93,14 @@ export class Worker extends CreepRoleBase implements CreepRole {
         return new MaintainController(creep.AssignedRoom.controller);
     }
 
-    const spawn = this.FindSupplyByPriorityAndPath(creep, [...MySpawnsOrExtensions(), ...MyTowers()]);
-    if (spawn) return new Supply(spawn.id as Id<AnyStoreStructure>);
+    const supplyTasks = creep.AssignedRoom.GetAssignedTasks(TaskAction.Supply) as Supply[];
+    const spawnsExtensions = MySpawnsOrExtensions();
+    const existingSpawnExtensionSupplyTasks = supplyTasks.filter(st => spawnsExtensions.some(se => se.id === (st as Supply).target));
+
+    if (existingSpawnExtensionSupplyTasks.length < this.MaxSupplyForSpawns) {
+      const spawn = this.FindSupplyByPriorityAndPath(creep, spawnsExtensions);
+      if (spawn) return new Supply(spawn.id as Id<AnyStoreStructure>);
+    }
 
     const cons = this.FindConstructionByPriorityAndPath(creep, MyConstructionSites());
     if (cons) return new Build(cons.id as Id<ConstructionSite<BuildableStructureConstant>>);
@@ -104,6 +112,14 @@ export class Worker extends CreepRoleBase implements CreepRole {
         const repair = this.FindIdealRepairByStrength(creep);
         if (repair) return new Repair(repair);
         else this.log.info(`[${creep.AssignedRoom.name}]${creep}: No repairs needed!`);
+      }
+    } else {
+      const towers = MyTowers();
+      const existingTowerSupplyTasks = supplyTasks.filter(st => towers.some(t => t.id === st.target));
+
+      if (existingTowerSupplyTasks.length < this.MaxSupplyForTowers) {
+        const tower = this.FindSupplyByPriorityAndPath(creep, towers);
+        if (tower) return new Supply(tower.id);
       }
     }
 
