@@ -274,6 +274,7 @@ export class Colony {
 
     return {
       time: Game.time,
+      totalEnergyInSpawns: sum(this.MyRooms.map(r => r.energyAvailable)),
       totalEnergyInContainers: sum(allMyContainers.map(c => c.store.getUsedCapacity(RESOURCE_ENERGY))),
       totalEnergyInCreeps: sum(this.MyCreeps.map(c => c.store.getUsedCapacity(RESOURCE_ENERGY))),
       totalEnergyInMines: sum(unique(this.GetAllAssignedTasks(TaskAction.Mine).map(m => (m as Mine).target.sourceId)).map(s => Game.getObjectById(s as Id<Source>)?.energy ?? 0)),
