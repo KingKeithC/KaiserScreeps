@@ -284,7 +284,7 @@ export class Colony {
       gcl__level: Game.gcl.level,
       gcl__progress: Game.gcl.progress,
       gcl__progressTotal: Game.gcl.progressTotal,
-      cpu__bucket: Game.cpu.bucket,
+      cpu__unusedBucket: Game.cpu.bucket,
       cpu__used: Game.cpu.getUsed(),
       cpu__limit: Game.cpu.limit,
       cpu__tickLimit: Game.cpu.tickLimit,
