@@ -133,7 +133,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
     if (creep.AssignedRoom.storage && creep.AssignedRoom.storage.store.getFreeCapacity(RESOURCE_ENERGY))
       return new Supply(creep.AssignedRoom.storage.id as Id<AnyStoreStructure>);
 
-    this.log.warn("No spending tasks found!");
+    // this.log.warn("No spending tasks found!");
     return new Idle();
   }
 
@@ -182,7 +182,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
 
       // Skip Energy sources that have too little energy
       if (possible.store.getUsedCapacity(RESOURCE_ENERGY) < this.ContainerAmountNeededToTake) {
-        this.log.info(`!Possibility: too little energy ${possible}`);
+        // this.log.info(`!Possibility: too little energy ${possible}`);
         continue;
       }
 
@@ -190,47 +190,43 @@ export class Worker extends CreepRoleBase implements CreepRole {
       if (possible instanceof StructureStorage) {
         // Skip Storage if it has less than the wartime amount
         if (possible.store.getUsedCapacity(RESOURCE_ENERGY) <= creep.AssignedRoom.StorageWartimeEnergyBuffer) {
-          this.log.info(`!Possibility: StructureStorage: less than the wartime amount ${possible}`);
+          // this.log.info(`!Possibility: StructureStorage: less than the wartime amount ${possible}`);
           continue;
         }
 
         // Skip source if it has too many incoming deliveries already
         if (activeDeliveries.filter(ad => ad.source.kind === "storage" && ad.source.id === possible.id).length > this.MaxIncomingPerEnergySource) {
-          this.log.info(`!Possibility: StructureStorage: too many incoming deliveries already ${possible}`);
+          // this.log.info(`!Possibility: StructureStorage: too many incoming deliveries already ${possible}`);
           continue;
         }
 
       } else if (possible instanceof StructureContainer) {
         // Skip source if it has too many incoming deliveries already
         if (activeDeliveries.filter(ad => ad.source.kind === "container" && ad.source.id === possible.id).length > this.MaxIncomingPerEnergySource) {
-          this.log.info(`!Possibility: StructureContainer: too many incoming deliveries already`);
+          // this.log.info(`!Possibility: StructureContainer: too many incoming deliveries already`);
           continue;
         }
 
       } else if (possible instanceof Creep) {
         // Skip source if it has too many incoming deliveries already
         if (activeDeliveries.filter(ad => ad.source.kind === "creep" && ad.source.name === possible.name).length > this.MaxIncomingPerEnergySource) {
-          this.log.info(`!Possibility: Creep: too many incoming deliveries already`);
+          // this.log.info(`!Possibility: Creep: too many incoming deliveries already`);
           continue;
         }
 
       } else if (possible instanceof StructureLink) {
         // Skip source if it has too many incoming deliveries already
         if (activeDeliveries.filter(ad => ad.source.kind === "link" && ad.source.id === possible.id).length > this.MaxIncomingPerEnergySource) {
-          this.log.info(`!Possibility: StructureLink: too many incoming deliveries already`);
+          // this.log.info(`!Possibility: StructureLink: too many incoming deliveries already`);
           continue;
         }
       } else {
-        this.log.warn(`Unknown Energy Possibility: ${possible}`);
+        // this.log.warn(`Unknown Energy Possibility: ${possible}`);
         continue;
       }
 
-      this.log.info(`Possibility: ${possible}`);
+      // this.log.info(`Possibility: ${possible}`);
       possibleSources.push(possible);
-    }
-
-    if (possibleSources.length === 0) {
-      this.log.warn(`No possible energy sources found!`);
     }
 
     const energySource = possibleSources
@@ -249,7 +245,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
       if (source) return new Mine(source);
     }
 
-    this.log.info(`FindGatheringTask no tasks found!`, { "<creep>": creep });
+    // this.log.info(`FindGatheringTask no tasks found!`, { "<creep>": creep });
     return null;
   }
 
