@@ -188,13 +188,15 @@ export class CreepExtra extends Creep {
   OnTaskChanged(room: RoomExtra, role: CreepRole, oldTask: CreepTask | null, newTask: CreepTask | null): CreepTask | null {
 
     // Log the transition as long as it's not Idle -> Idle.
-    if (!newTask) {
-      this.log.info(` Unssigned ${oldTask}`, { "<room>": room, "<role>": role });
-      return newTask;
-    } else if (oldTask == null || oldTask == undefined)
+    if (!newTask && oldTask) {
+      this.log.info(` Unassigned ${oldTask}`, { "<room>": room, "<role>": role });
+    } else if (!oldTask && newTask)
       this.log.info(`  Assigned ${newTask}`, { "<room>": room, "<role>": role });
-    else if (!(oldTask.action === TaskAction.Idle && newTask.action === TaskAction.Idle))
+    else if (oldTask && newTask)
       this.log.info(`Reassigned ${oldTask} -> ${newTask}`, { "<room>": room, "<role>": role });
+
+    // If the transition was to nothing, just return
+    if (!newTask) return null;
 
     // If the transition ended with a new task, speak its action
     this.currentTask = newTask;
