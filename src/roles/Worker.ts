@@ -83,8 +83,8 @@ export class Worker extends CreepRoleBase implements CreepRole {
     return new Idle();
   }
 
-  MaxUpgraders = 2;
-  MaxSupplyForSpawns = 2;
+  MaxUpgraders = 1;
+  MaxSupplyForSpawns = 3;
   MaxSupplyForTowers = 2;
   public FindSpendingTask(creep: CreepExtra): CreepTask {
     if (creep.AssignedRoom.controller) {
