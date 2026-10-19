@@ -101,7 +101,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
     const currentRepairs = creep.AssignedRoom.GetAssignedTasks(TaskAction.Repair) as Repair[];
     if (MyTowers().filter(t => t.pos.roomName === creep.pos.roomName).length === 0) {
       if (currentRepairs.filter(r => r.repairRoom === creep.pos.roomName).length < this.MaxRepairPerRoom) {
-        const repair = this.FindIdealRepairByStrength(creep.AssignedRoom);
+        const repair = this.FindIdealRepairByStrength(creep);
         if (repair) return new Repair(repair);
         else this.log.info(`[${creep.AssignedRoom.name}]${creep}: No repairs needed!`);
       }
@@ -249,8 +249,8 @@ export class Worker extends CreepRoleBase implements CreepRole {
     return null;
   }
 
-  FindIdealRepairByStrength(room: RoomExtra): AnyStructure | undefined | null {
-    const inProgressRepairTasks = this.CurrentAssignedTasks(room).filter(t => t.action === TaskAction.Repair);
+  FindIdealRepairByStrength(creep: CreepExtra): AnyStructure | undefined | null {
+    const inProgressRepairTasks = creep.AssignedRoom.GetAssignedTasks(TaskAction.Repair).filter(t => (t as Repair).repairRoom === creep.room.name);
     const targetsByCount = new Map<string, number>();
     for (const t of inProgressRepairTasks) {
       const target = "target" in t ? (t.target as string | undefined) : undefined;
@@ -259,8 +259,8 @@ export class Worker extends CreepRoleBase implements CreepRole {
       targetsByCount.set(target, existing + 1);
     }
 
-    const repairs = room.find(FIND_STRUCTURES, { filter: s => s.hits < s.hitsMax });
-    for (const [p, repairAt, maxRepairs] of room.RepairPriorities) {
+    const repairs = creep.room.find(FIND_STRUCTURES, { filter: s => s.hits < s.hitsMax });
+    for (const [p, repairAt, maxRepairs] of creep.AssignedRoom.RepairPriorities) {
       const needsRepair = repairs
         .map(s => ({ site: s, count: targetsByCount.get(s.id) ?? 0 }))
         .filter(s => p(s.site) && (s.site.hits / s.site.hitsMax) < repairAt && s.count < maxRepairs)
