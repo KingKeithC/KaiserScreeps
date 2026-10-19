@@ -46,6 +46,12 @@ export class CollectEnergy extends BaseTask<typeof TaskAction.CollectEnergy> {
       && !(source instanceof Ruin)
     ) return null;
 
+    // If there are dropped resources on the ground nearby, prioritize picking them up
+    for (const d of creep.pos.findInRange(FIND_DROPPED_RESOURCES, 1, { filter: dr => dr.resourceType === RESOURCE_ENERGY && dr.amount > 0 })) {
+      creep.pickup(d);
+      return { target: source, range: 1, ERR_NOT_IN_RANGE }; // Return an instruction to keep moving
+    }
+
     const lastInventory = this.lastInventory ?? 0;
     const currentInventory = creep.store.getUsedCapacity(RESOURCE_ENERGY);
     const result = source instanceof Creep
