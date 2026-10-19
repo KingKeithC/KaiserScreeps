@@ -66,9 +66,7 @@ export class CreepExtra extends Creep {
   }
 
   set currentTask(value: CreepTask | undefined) {
-    const cast = value as CreepTask;
-    if (cast == null || cast == undefined) return;
-    this.memory.jobMemory = cast;
+    this.memory.jobMemory = value as object;
   }
 
   MaxStuckTicks = 2;
