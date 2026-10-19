@@ -185,46 +185,50 @@ export class CreepExtra extends Creep {
     this.say('☠️☠️☠️', true);
   }
 
-  OnTaskChanged(room: RoomExtra, role: CreepRole, oldTask: CreepTask | null, newTask: CreepTask): void {
-    this.say(newTask.action);
+  OnTaskChanged(room: RoomExtra, role: CreepRole, oldTask: CreepTask | null, newTask: CreepTask | null): CreepTask | null {
 
     // Log the transition as long as it's not Idle -> Idle.
-    if (oldTask == null || oldTask == undefined)
+    if (!newTask) {
+      this.log.info(` Unssigned ${oldTask}`, { "<room>": room, "<role>": role });
+      return newTask;
+    } else if (oldTask == null || oldTask == undefined)
       this.log.info(`  Assigned ${newTask}`, { "<room>": room, "<role>": role });
     else if (!(oldTask.action === TaskAction.Idle && newTask.action === TaskAction.Idle))
       this.log.info(`Reassigned ${oldTask} -> ${newTask}`, { "<room>": room, "<role>": role });
+
+    // If the transition ended with a new task, speak its action
+    this.currentTask = newTask;
+    this.say(newTask.action);
+    return newTask;
   }
 
   PerformRole(): void {
     if (!this.role) return;
     const role = this.role;
-    const room = this.AssignedRoom;
 
     role.TickCreep(this);
 
-    // Get the current task from memory, or a default task from the role.
-    var task = this.currentTask ?? null;
+    var task: CreepTask | null = this.currentTask ?? null;
 
-    // If it's complete, get the next task.
-    if (task == null || task == undefined || task.isComplete(this)) {
-      const nextTask = role.SelectNextTask(this, task);
-      if (nextTask != null) {
-        this.OnTaskChanged(room, role, task, nextTask);
-        task = nextTask;
-        this.currentTask = nextTask;
-      } else {
-        // No next task, do nothing.
-        this.currentTask = undefined;
-        return;
-      }
+    // If we had no task, or the task we had is complete, change it.
+    if (!task || task.isComplete(this))
+      task = this.OnTaskChanged(
+        this.AssignedRoom,
+        this.role,
+        task,
+        this.role.SelectNextTask(this, task),
+      );
+
+    // If we ended up with no task, nothing more to do
+    if (task == null || task == undefined) {
+      // Update saved task
+      this.currentTask = undefined;
+      return;
     }
 
-    // Act on the task
     const outcome = task.act(this);
+    this.currentTask = task; // Update saved task in case it was modified
     this.log.verbose(`Task.act: ${JSON.stringify(task)} Outcome [target.pos: ${outcome?.target.pos} result: ${outcome?.result}, range: ${outcome?.range}]`, { "<role>": role, "<room>": room });
-
-    // Update memory
-    this.currentTask = task;
 
     // Handle no result
     if (outcome == null || outcome == undefined) return;
@@ -242,7 +246,14 @@ export class CreepExtra extends Creep {
         // if (res !== OK) this.log.info(`Move to ${outcome.target.pos} resulted in ${res}`, { "<room>": room, "<role>": role });
         if (res === ERR_NO_PATH) {
           this.log.warn(`Pathfinding from ${this.pos} to ${outcome.target.pos} failed.`, { "<role>": this.role });
-          // delete this.memory["_move"]; // Clear out stale path
+
+          // If pathfinding fails, select a new task
+          this.currentTask = this.OnTaskChanged(
+            this.AssignedRoom,
+            this.role,
+            this.currentTask,
+            this.role.SelectNextTask(this, this.currentTask),
+          ) ?? undefined;
         }
         return;
       }
