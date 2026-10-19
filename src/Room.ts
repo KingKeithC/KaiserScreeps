@@ -135,6 +135,10 @@ export class RoomExtra extends Room {
     return this._RemoteMinerPositions;
   }
 
+  get MaxMiners(): number {
+    return unique([...this.MinerPositions, ...this.RemoteMinerPositions].map(mp => mp.sourceId)).length
+  }
+
   LastSpawnTick(roleName: string): number { return (this.memory.lastSpawnTick ?? {})[roleName] ?? 0; }
 
   SetLastSpawnTick(roleName: string, value: number): void {
@@ -223,61 +227,10 @@ export class RoomExtra extends Room {
     return ret;
   }
 
-  GetUnfilledMiningPositions(): MiningPosition[] {
-    const ret = [];
-    for (const mp of this.MinerPositions)
-      if (new RoomPosition(mp.position.x, mp.position.y, mp.position.roomName).lookFor(LOOK_CREEPS).length === 0)
-        ret.push(mp);
-    return ret;
-  }
-
   GetUnassignedMiningPositions(): MiningPosition[] {
-    const assignedMiningPositions = this.colony.GetAllAssignedTasks(TaskAction.Mine).map(p => (p as Mine).target.position);
-    const ret = [];
-    for (const mp of this.MinerPositions)
-      if (assignedMiningPositions.some(pos =>
-        pos.x === mp.position.x
-        && pos.y === mp.position.y
-        && pos.roomName === mp.position.roomName
-      )) continue;
-      else ret.push(mp);
-    return ret;
-  }
-
-  GetUnfilledUnassignedMiningPositions(): MiningPosition[] {
-    const assignedMiningPositions = this.colony.GetAllAssignedTasks(TaskAction.Mine).map(p => (p as Mine).target.position);
-    var ret: MiningPosition[] = [];
-    for (const unfilled of this.GetUnfilledMiningPositions())
-      if (assignedMiningPositions.some(pos =>
-        pos.x === unfilled.position.x
-        && pos.y === unfilled.position.y
-        && pos.roomName === unfilled.position.roomName
-      )) continue;
-      else ret = ret.concat(unfilled);
-    return ret;
-  }
-
-  GetUnassignedRemoteMiningPositions(): MiningPosition[] {
-    const assignedMiningPositions = this.colony.GetAllAssignedTasks(TaskAction.Mine).map(p => (p as Mine).target.position);
-
-    var ret: MiningPosition[] = [];
-    for (const claim of this.ClaimedNearbyRooms) {
-      Memory.scoutingReports[claim].miningPositions ??= [];
-      const remoteMiningPositions: MiningPosition[] = Memory.scoutingReports[claim].miningPositions.map(mp => ({
-        sourceId: mp.sourceId,
-        position: new RoomPosition(mp.position.x, mp.position.y, mp.position.roomName),
-      }));
-
-      for (const rmp of remoteMiningPositions)
-        if (assignedMiningPositions.some(pos =>
-          pos.x === rmp.position.x
-          && pos.y === rmp.position.y
-          && pos.roomName === rmp.position.roomName
-        )) continue;
-        else ret.push(rmp);
-    }
-
-    return ret;
+    const assignedMiningPositions = this.colony.GetAllAssignedTasks(TaskAction.Mine).map(p => (p as Mine).target);
+    return [...this.MinerPositions, ...this.RemoteMinerPositions]
+      .filter(mp => !assignedMiningPositions.some(amp => amp.sourceId === mp.sourceId));
   }
 
   GetVisibleUncontestedClaimedRooms(): Room[] {

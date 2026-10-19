@@ -180,7 +180,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
       if (bestMiner) return new CollectEnergy(bestMiner.name, { maxAttempts: 8 });
     } else {
       // Do mining on our own
-      const source = creep.AssignedRoom.GetUnfilledUnassignedMiningPositions().pop();
+      const source = creep.AssignedRoom.GetUnassignedMiningPositions().pop();
       if (source) return new Mine(source);
     }
 

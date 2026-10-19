@@ -13,44 +13,7 @@ export class Miner extends CreepRoleBase implements CreepRole {
   override readonly name: string = "Miner";
   override readonly tier: number = 1;
 
-
-  private _AllMiningPositions: MiningPosition[] = [];
-  AllMiningPositions(room: RoomExtra): MiningPosition[] {
-    if (this._AllMiningPositions.length > 0)
-      return this._AllMiningPositions;
-
-    this._AllMiningPositions = [
-      ...room.MinerPositions,
-      ...room.RemoteMinerPositions,
-    ];
-
-    return this._AllMiningPositions;
-  }
-
-  AllAssigneableSources(room: RoomExtra): Id<Source>[] {
-    return unique(this.AllMiningPositions(room).map(mp => mp.sourceId));
-  }
-
-  private _AllUnassignedMiningPositions: MiningPosition[] = [];
-  AllUnassignedMiningPositions(room: RoomExtra): MiningPosition[] {
-    if (this._AllUnassignedMiningPositions.length > 0)
-      return this._AllUnassignedMiningPositions;
-
-    this._AllUnassignedMiningPositions = [
-      ...room.GetUnassignedMiningPositions(),
-      ...room.GetUnassignedRemoteMiningPositions(),
-    ];
-
-    return this._AllUnassignedMiningPositions;
-  }
-
-  AllUnassignedSources(room: RoomExtra): Id<Source>[] {
-    return unique(this.AllUnassignedMiningPositions(room).map(mp => mp.sourceId));
-  }
-
-  IsSpawnNeeded(room: RoomExtra): boolean {
-    return this.AllUnassignedSources(room).length > 0;
-  }
+  IsSpawnNeeded(room: RoomExtra): boolean { return room.GetUnassignedMiningPositions().length > 0; }
 
   GetNewCreepBody(room: RoomExtra): BodyPartConstant[] {
     const tiers = [
@@ -67,17 +30,18 @@ export class Miner extends CreepRoleBase implements CreepRole {
     return tiers.pop()!; // Return the last (cheapest) body.
   }
 
-  override GetRoomQuota(room: RoomExtra) { return this.AllAssigneableSources(room).length; }
+  override GetRoomQuota(room: RoomExtra) { return room.MaxMiners; }
   GetGlobalQuota(): number { return -1; }
 
   GetInitialTask(room: RoomExtra): CreepTask | null {
-    const unassignedSource = this.AllUnassignedSources(room).pop();
-    for (const pos of this.AllUnassignedMiningPositions(room))
-      if (pos.sourceId === unassignedSource)
-        return new Mine(pos);
-
+    const unassignedSource = room.GetUnassignedMiningPositions().pop();
+    if (unassignedSource) return new Mine(unassignedSource);
     this.log.warn(`No suitable mining position found.`);
     return null;
+  }
+
+  SelectNextTask(creep: CreepExtra): CreepTask | null {
+    return this.GetInitialTask(creep.AssignedRoom);
   }
 
   TickCreep(creep: CreepExtra): void {
