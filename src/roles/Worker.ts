@@ -159,7 +159,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
   }
 
   ContainerAmountNeededToTake = 50;
-  MaxIncomingPerContaininer = 2;
+  MaxIncomingPerEnergySource = 2;
   MaxIncomingPerMiner = 2;
   FindGatheringTask(creep: CreepExtra): CreepTask | null {
     const dropped = this.FindDroppedEnergy(creep);
@@ -169,46 +169,42 @@ export class Worker extends CreepRoleBase implements CreepRole {
     if (ruin) return new CollectEnergy({ kind: "ruin", id: ruin.id });
 
     const activeDeliveries = creep.AssignedRoom.GetAssignedTasks(TaskAction.CollectEnergy) as CollectEnergy[];
-    const containerOrLinkReciever = creep.pos.findClosestByPath([
+    const miners = creep.AssignedRoom.AssignedCreepsByRoleGroup.get("Miners") ?? [];
+    const energySource = creep.pos.findClosestByPath([
       ...creep.AssignedRoom.Containers,
       ...creep.AssignedRoom.LinkReceivers,
+      ...miners,
+      ...(creep.AssignedRoom.storage != undefined ? [creep.AssignedRoom.storage] : []),
     ], {
       ignoreCreeps: true,
       filter: s => {
         const incoming = activeDeliveries.filter(ad => (
           ad.source.kind === "container" && ad.source.id === s.id)
           || (ad.source.kind === "link" && ad.source.id === s.id)
+          || (ad.source.kind === "creep" && s instanceof Creep && ad.source.name === s.name)
+          || (ad.source.kind === "storage" && ad.source.id === s.id)
         );
+        if (incoming.length > this.MaxIncomingPerEnergySource) return false;
 
-        if (incoming.length > this.MaxIncomingPerContaininer) return false;
-        return s.store.getUsedCapacity(RESOURCE_ENERGY) > this.ContainerAmountNeededToTake;
+        if (s instanceof StructureStorage)
+          return s.store.getUsedCapacity(RESOURCE_ENERGY) > creep.AssignedRoom.StorageWartimeEnergyBuffer;
+        else
+          return s.store.getUsedCapacity(RESOURCE_ENERGY) > this.ContainerAmountNeededToTake;
       }
     });
-    if (containerOrLinkReciever) {
-      if (containerOrLinkReciever instanceof StructureContainer) return new CollectEnergy({ kind: "container", id: containerOrLinkReciever.id as Id<StructureContainer> }, { maxAttempts: 3 });
-      return new CollectEnergy({ kind: "link", id: containerOrLinkReciever.id as Id<StructureLink> }, { maxAttempts: 3 });
+
+    if (energySource) {
+      if (energySource instanceof StructureContainer) return new CollectEnergy({ kind: "container", id: energySource.id }, { maxAttempts: 3 });
+      if (energySource instanceof StructureLink) return new CollectEnergy({ kind: "link", id: energySource.id }, { maxAttempts: 3 });
+      if (energySource instanceof StructureStorage) return new CollectEnergy({ kind: "storage", id: energySource.id }, { maxAttempts: 3 });
+      if (energySource instanceof Creep) return new CollectEnergy({ kind: "creep", name: energySource.name }, { maxAttempts: 3 });
     }
 
-    const miners = creep.AssignedRoom.AssignedCreepsByRoleGroup.get("Miners") ?? [];
-    if (miners.length > 0) {
-      // Collect energy from a dedicated miner
-      const bestMiner = miners
-        .filter(m => {
-          const incoming = activeDeliveries.filter(ad => (ad.source.kind === "creep" && ad.source.name === m.name));
-          if (incoming.length > this.MaxIncomingPerMiner) return false;
-          return m.store.getUsedCapacity(RESOURCE_ENERGY) > 0;
-        })
-        .sort((a, b) => a.store.getUsedCapacity(RESOURCE_ENERGY) - b.store.getUsedCapacity(RESOURCE_ENERGY))
-        .pop();
-      if (bestMiner) return new CollectEnergy(bestMiner.name, { maxAttempts: 8 });
-    } else {
+    if (miners.length === 0) {
       // Do mining on our own
       const source = creep.AssignedRoom.GetUnassignedMiningPositions().pop();
       if (source) return new Mine(source);
     }
-
-    if (creep.AssignedRoom.storage && creep.AssignedRoom.storage.store.getUsedCapacity(RESOURCE_ENERGY) > creep.AssignedRoom.StorageWartimeEnergyBuffer)
-      return new CollectEnergy({ kind: "storage", id: creep.AssignedRoom.storage.id });
 
     this.log.info(`FindGatheringTask no tasks found!`, { "<creep>": creep });
     return null;
