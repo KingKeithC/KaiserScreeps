@@ -6,11 +6,11 @@ import { Defender } from "roles/Defender";
 import { Worker } from "roles/Worker";
 import { RoomExtra } from "Room";
 import profiler from "screeps-profiler";
-import { AttackTargetTask, Build, ClaimRoomTask, CollectEnergy, CreepTask, Dismantle, GuardTask, Idle, Mine, Move, Pickup, Repair, Supply, UpdateController } from "tasks";
+import { AttackTargetTask, Build, ClaimRoomTask, CollectEnergy, CreepTask, Dismantle, GuardTask, Idle, Mine, Move, Pickup, Repair, Supply, TaskAction, UpdateController } from "tasks";
 import { ErrorMapper } from "utils/ErrorMapper";
 import { Logger } from "utils/Logger";
 import { Attacker } from "roles/Attacker";
-import { Dictionary, flatten, propertyOf, sum } from "lodash";
+import { Dictionary, flatten, propertyOf, sum, unique } from "lodash";
 import { Claimer } from "roles/Claimer";
 import { FmtRatios } from "utils/Collections";
 
@@ -276,6 +276,7 @@ export class Colony {
       time: Game.time,
       totalEnergyInContainers: sum(allMyContainers.map(c => c.store.getUsedCapacity(RESOURCE_ENERGY))),
       totalEnergyInCreeps: sum(this.MyCreeps.map(c => c.store.getUsedCapacity(RESOURCE_ENERGY))),
+      totalEnergyInMines: sum(unique(this.GetAllAssignedTasks(TaskAction.Mine).map(m => (m as Mine).target.sourceId)).map(s => Game.getObjectById(s as Id<Source>)?.energy ?? 0)),
       totalEnergyInStorages: sum(this.MyRooms.map(r => r.storage?.store.getUsedCapacity(RESOURCE_ENERGY) ?? 0)),
       totalCapacityOfStorages: sum(this.MyRooms.map(r => r.storage?.store.getCapacity() ?? 0)),
       myCreepsCount: this.MyCreeps.length,
