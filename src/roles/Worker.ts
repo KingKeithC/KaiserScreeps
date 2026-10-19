@@ -111,7 +111,6 @@ export class Worker extends CreepRoleBase implements CreepRole {
       if (currentRepairs.filter(r => r.repairRoom === creep.pos.roomName).length < this.MaxRepairPerRoom) {
         const repair = this.FindIdealRepairByStrength(creep);
         if (repair) return new Repair(repair);
-        else this.log.info(`[${creep.AssignedRoom.name}]${creep}: No repairs needed!`);
       }
     } else {
       const towers = MyTowers();
