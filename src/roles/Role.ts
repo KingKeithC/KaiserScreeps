@@ -77,7 +77,7 @@ export abstract class CreepRoleBase implements CreepRole {
   ): boolean {
     const cost = BodyCost(body);
     if (room.energyAvailable < cost) {
-      if (Game.time % 10 === 0) this.log.info(`Room lacks the energy to spawn need ${cost} have ${room.energyAvailable}/${room.energyCapacityAvailable}`);
+      if (Game.time % 10 === 0) this.log.info(`Room lacks the energy to spawn need ${cost} have ${room.energyAvailable}/${room.energyCapacityAvailable}`, { "<room>": room });
       return false; // No point proceeding
     }
 
