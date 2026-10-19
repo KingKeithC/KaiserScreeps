@@ -48,8 +48,7 @@ export class CollectEnergy extends BaseTask<typeof TaskAction.CollectEnergy> {
 
     // If there are dropped resources on the ground nearby, prioritize picking them up
     for (const d of creep.pos.findInRange(FIND_DROPPED_RESOURCES, 1, { filter: dr => dr.resourceType === RESOURCE_ENERGY && dr.amount > 0 })) {
-      creep.pickup(d);
-      return { target: source, range: 1, ERR_NOT_IN_RANGE }; // Return an instruction to keep moving
+      return { target: d, range: 1, result: creep.pickup(d) };
     }
 
     const lastInventory = this.lastInventory ?? 0;
