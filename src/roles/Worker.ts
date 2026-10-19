@@ -138,12 +138,20 @@ export class Worker extends CreepRoleBase implements CreepRole {
     return null;
   }
 
+  FindEnergeticRuin(creep: CreepExtra): Ruin | null {
+    const ruins = creep.AssignedRoom.find(FIND_RUINS, { filter: r => r.store.getUsedCapacity(RESOURCE_ENERGY) });
+    return creep.pos.findClosestByPath(ruins, { ignoreCreeps: true });
+  }
+
   ContainerAmountNeededToTake = 50;
   MaxIncomingPerContaininer = 2;
   MaxIncomingPerMiner = 2;
   FindGatheringTask(creep: CreepExtra): CreepTask | null {
     const dropped = this.FindDroppedEnergy(creep);
     if (dropped) return dropped;
+
+    const ruin = this.FindEnergeticRuin(creep);
+    if (ruin) return new CollectEnergy({ kind: "ruin", id: ruin.id });
 
     const activeDeliveries = creep.AssignedRoom.GetAssignedTasks(TaskAction.CollectEnergy) as CollectEnergy[];
     const containerOrLinkReciever = creep.pos.findClosestByPath([

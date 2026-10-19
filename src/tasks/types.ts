@@ -18,4 +18,5 @@ export type EnergySource =
   | { kind: "creep"; name: string; }
   | { kind: "container"; id: Id<StructureContainer>; }
   | { kind: "storage"; id: Id<StructureStorage>; }
-  | { kind: "link"; id: Id<StructureLink>; };
+  | { kind: "link"; id: Id<StructureLink>; }
+  | { kind: "ruin"; id: Id<Ruin>; };
