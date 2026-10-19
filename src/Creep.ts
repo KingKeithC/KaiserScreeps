@@ -228,24 +228,24 @@ export class CreepExtra extends Creep {
 
     const outcome = task.act(this);
     this.currentTask = task; // Update saved task in case it was modified
-    this.log.verbose(`Task.act: ${JSON.stringify(task)} Outcome [target.pos: ${outcome?.target.pos} result: ${outcome?.result}, range: ${outcome?.range}]`, { "<role>": role, "<room>": room });
+    const outcomeSummary = `[target.pos: ${outcome?.target.pos} result: ${outcome?.result}, range: ${outcome?.range}]`;
+    this.log.verbose(`Task.act: ${JSON.stringify(task)} Outcome ${outcomeSummary}`, { "<role>": role });
 
     // Handle no result
-    if (outcome == null || outcome == undefined) return;
+    if (outcome == null || outcome == undefined)
+      return;
 
     // Handle ScreepsReturnCode
     switch (outcome.result) {
       case OK:
       case ERR_FULL:
-      case ERR_NOT_ENOUGH_RESOURCES: {
-        // These can be ignored.
-        return;
-      }
+      case ERR_NOT_ENOUGH_RESOURCES:
+        return; // These can be ignored.
       case ERR_NOT_IN_RANGE: {
         const res = this.MoveCreep(outcome.target.pos, { range: outcome.range });
         // if (res !== OK) this.log.info(`Move to ${outcome.target.pos} resulted in ${res}`, { "<room>": room, "<role>": role });
         if (res === ERR_NO_PATH) {
-          this.log.warn(`Pathfinding from ${this.pos} to ${outcome.target.pos} failed.`, { "<role>": this.role });
+          this.log.warn(` Outcome ${outcomeSummary}, Pathfinding from ${this.pos} to ${outcome.target.pos} failed.`, { "<role>": this.role });
 
           // If pathfinding fails, select a new task
           this.currentTask = this.OnTaskChanged(
@@ -259,7 +259,7 @@ export class CreepExtra extends Creep {
       }
       default: {
         // Generic print all
-        this.log.warn(`Act: Task ${task} was not successful: ${JSON.stringify(outcome)}`, { "<room>": room, "<role>": role });
+        this.log.warn(`Act: Task ${task} was not successful: ${JSON.stringify(outcome)}`, { "<role>": role });
         return;
       }
     }
