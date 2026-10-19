@@ -54,10 +54,12 @@ export class Worker extends CreepRoleBase implements CreepRole {
   SelectNextTask(creep: CreepExtra): CreepTask | null {
     if (creep.store.getUsedCapacity(RESOURCE_ENERGY) === 0)
       return this.FindGatheringTask(creep);
-    else if (creep.AssignedRoom.Hostiles.length > 0)
-      return this.FindWartimeSpendingTask(creep);
-    else
+    // else if (creep.AssignedRoom.Hostiles.length > 0)
+    //   return this.FindWartimeSpendingTask(creep);
+    else if (creep.store.getUsedCapacity(RESOURCE_ENERGY) > 0)
       return this.FindSpendingTask(creep);
+    else
+      return null;
   }
 
   CurrentAssignedTasks(room: RoomExtra): CreepTask[] {
@@ -135,7 +137,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
     return new Idle();
   }
 
-  FindDroppedEnergy(creep: CreepExtra): CreepTask | null {
+  FindDroppedEnergy(creep: CreepExtra): Pickup | null {
     const droppedResources = creep.room.find(FIND_DROPPED_RESOURCES, { filter: r => r.resourceType === RESOURCE_ENERGY });
     for (const res of droppedResources) {
       const countPickingUpSameRes = creep.AssignedRoom.GetAssignedTasks(TaskAction.Pickup).filter(
@@ -160,7 +162,6 @@ export class Worker extends CreepRoleBase implements CreepRole {
 
   ContainerAmountNeededToTake = 50;
   MaxIncomingPerEnergySource = 2;
-  MaxIncomingPerMiner = 2;
   FindGatheringTask(creep: CreepExtra): CreepTask | null {
     const dropped = this.FindDroppedEnergy(creep);
     if (dropped) return dropped;
@@ -170,29 +171,71 @@ export class Worker extends CreepRoleBase implements CreepRole {
 
     const activeDeliveries = creep.AssignedRoom.GetAssignedTasks(TaskAction.CollectEnergy) as CollectEnergy[];
     const miners = creep.AssignedRoom.AssignedCreepsByRoleGroup.get("Miners") ?? [];
-    const energySource = creep.pos.findClosestByPath([
+    const possibleSources: (CreepExtra | StructureLink | StructureStorage | StructureContainer)[] = [];
+
+    for (const possible of [
       ...creep.AssignedRoom.Containers,
       ...creep.AssignedRoom.LinkReceivers,
-      ...miners,
       ...(creep.AssignedRoom.storage != undefined ? [creep.AssignedRoom.storage] : []),
-    ], {
-      ignoreCreeps: true,
-      filter: s => {
-        const incoming = activeDeliveries.filter(ad => (
-          ad.source.kind === "container" && ad.source.id === s.id)
-          || (ad.source.kind === "link" && ad.source.id === s.id)
-          || (ad.source.kind === "creep" && s instanceof Creep && ad.source.name === s.name)
-          || (ad.source.kind === "storage" && ad.source.id === s.id)
-        );
-        if (incoming.length > this.MaxIncomingPerEnergySource) return false;
+      ...miners,
+    ]) {
 
-        if (s instanceof StructureStorage)
-          return s.store.getUsedCapacity(RESOURCE_ENERGY) > creep.AssignedRoom.StorageWartimeEnergyBuffer;
-        else
-          return s.store.getUsedCapacity(RESOURCE_ENERGY) > this.ContainerAmountNeededToTake;
+      // Skip Energy sources that have too little energy
+      if (possible.store.getUsedCapacity(RESOURCE_ENERGY) < this.ContainerAmountNeededToTake) {
+        this.log.info(`!Possibility: too little energy ${possible}`);
+        continue;
       }
-    });
 
+      // Skip energy sources based on type, and incomining collection tasks
+      if (possible instanceof StructureStorage) {
+        // Skip Storage if it has less than the wartime amount
+        if (possible.store.getUsedCapacity(RESOURCE_ENERGY) <= creep.AssignedRoom.StorageWartimeEnergyBuffer) {
+          this.log.info(`!Possibility: StructureStorage: less than the wartime amount ${possible}`);
+          continue;
+        }
+
+        // Skip source if it has too many incoming deliveries already
+        if (activeDeliveries.filter(ad => ad.source.kind === "storage" && ad.source.id === possible.id).length > this.MaxIncomingPerEnergySource) {
+          this.log.info(`!Possibility: StructureStorage: too many incoming deliveries already ${possible}`);
+          continue;
+        }
+
+      } else if (possible instanceof StructureContainer) {
+        // Skip source if it has too many incoming deliveries already
+        if (activeDeliveries.filter(ad => ad.source.kind === "container" && ad.source.id === possible.id).length > this.MaxIncomingPerEnergySource) {
+          this.log.info(`!Possibility: StructureContainer: too many incoming deliveries already`);
+          continue;
+        }
+
+      } else if (possible instanceof Creep) {
+        // Skip source if it has too many incoming deliveries already
+        if (activeDeliveries.filter(ad => ad.source.kind === "creep" && ad.source.name === possible.name).length > this.MaxIncomingPerEnergySource) {
+          this.log.info(`!Possibility: Creep: too many incoming deliveries already`);
+          continue;
+        }
+
+      } else if (possible instanceof StructureLink) {
+        // Skip source if it has too many incoming deliveries already
+        if (activeDeliveries.filter(ad => ad.source.kind === "link" && ad.source.id === possible.id).length > this.MaxIncomingPerEnergySource) {
+          this.log.info(`!Possibility: StructureLink: too many incoming deliveries already`);
+          continue;
+        }
+      } else {
+        this.log.warn(`Unknown Energy Possibility: ${possible}`);
+        continue;
+      }
+
+      this.log.info(`Possibility: ${possible}`);
+      possibleSources.push(possible);
+    }
+
+    if (possibleSources.length === 0) {
+      this.log.warn(`No possible energy sources found!`);
+    }
+
+    const energySource = possibleSources
+      .sort((a, b) => a.store.getUsedCapacity(RESOURCE_ENERGY) - b.store.getUsedCapacity(RESOURCE_ENERGY))
+      .pop();
     if (energySource) {
       if (energySource instanceof StructureContainer) return new CollectEnergy({ kind: "container", id: energySource.id }, { maxAttempts: 3 });
       if (energySource instanceof StructureLink) return new CollectEnergy({ kind: "link", id: energySource.id }, { maxAttempts: 3 });
