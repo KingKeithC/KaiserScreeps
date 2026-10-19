@@ -51,10 +51,6 @@ export class Miner extends CreepRoleBase implements CreepRole {
         if (dropped.resourceType === RESOURCE_ENERGY)
           creep.pickup(dropped);
 
-    // If we are in the remote room, vaccuum up energy in nearby containers
-    if (creep.room.name !== creep.AssignedRoom.name)
-      this.WithdrawFromContainers(creep);
-
     // Give away energy we have to consumers
     this.TransferToNeighbours(creep);
   }
@@ -74,7 +70,7 @@ export class Miner extends CreepRoleBase implements CreepRole {
       [
         ...(creep.AssignedRoom.AssignedCreepsByRoleName.get("Worker") ?? []),
         ...(creep.AssignedRoom.AssignedCreepsByRoleName.get("Settler") ?? []),
-        ...creep.AssignedRoom.Containers,
+        ...creep.pos.findInRange(FIND_STRUCTURES, 1, { filter: s => s.structureType === STRUCTURE_CONTAINER && s.store.getFreeCapacity(RESOURCE_ENERGY) }),
         ...creep.AssignedRoom.LinkSenders,
       ] as EnergyCarrier[],
       1,
