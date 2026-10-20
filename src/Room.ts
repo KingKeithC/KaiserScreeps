@@ -3,6 +3,7 @@ import { CreepExtra } from "Creep";
 import { Colours } from "Data";
 import { Dictionary, unique } from "lodash";
 import { CreepRole } from "roles/Role";
+import { Scout, ScoutingReport } from "roles/Scout";
 import { CreepTask, TaskAction, Mine, UpdateController } from "tasks";
 import { FmtRatios, LerpColour } from "utils/Collections";
 import { Logger } from "utils/Logger";
@@ -125,7 +126,23 @@ export class RoomExtra extends Room {
     if (this._RemoteMinerPositions.length > 0) return this._RemoteMinerPositions;
     var ret: MiningPosition[] = [];
     for (const claim of this.ClaimedNearbyRooms) {
-      Memory.scoutingReports[claim].miningPositions ??= [];
+      // Create a scouting report for the room if it is missing
+      if (!(claim in Memory.scoutingReports)) {
+        const claimedRoom = Game.rooms[claim];
+        const scout = this.colony.RoleRegistry.get("Scout") as Scout;
+        if (!scout) {
+          this.log.crit(`Scout role missing from Registry!`);
+          return [];
+        } else if (!claimedRoom) {
+          this.log.warn(`Cannot get Remote Mining Positions for ${this.name} because claimed room ${claim} has no scouting reports and is not visible`);
+          return [];
+        }
+        Memory.scoutingReports[claim] = scout.NewScoutingReportRoom(claimedRoom);
+      } else if ((Memory.scoutingReports[claim].miningPositions ?? []).length === 0) {
+        this.log.warn(`Cannot get Remote Mining Positions for ${this.name} because claimed room ${claim} apparently has none!`);
+        return [];
+      }
+
       Memory.scoutingReports[claim].miningPositions.forEach(mp => ret.push({
         sourceId: mp.sourceId,
         position: new RoomPosition(mp.position.x, mp.position.y, mp.position.roomName),
