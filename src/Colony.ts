@@ -42,6 +42,7 @@ export class Colony {
   readonly TaskRegistry = new Map<string, CreepTask>();
   readonly username: string;
 
+
   private _MyCreeps: CreepExtra[] = [];
   get MyCreeps(): CreepExtra[] {
     if (this._MyCreeps.length > 0) return this._MyCreeps;
@@ -272,6 +273,12 @@ export class Colony {
     for (const r of Object.entries(Game.resources))
       resources["resource__" + r[0]] = r[1];
 
+    const roles: { [key: string]: number; } = {};
+    for (const r of Object.entries(this.RoleRegistry)) {
+      roles[`role_${r[0]}__globalCount`] = (r[1] as CreepRole).GetGlobalCreepsInRole().length;
+      roles[`role_${r[0]}__globalQuota`] = (r[1] as CreepRole).GetGlobalQuota();
+    }
+
     return {
       time: Game.time,
       totalEnergyInSpawns: sum(this.MyRooms.map(r => r.energyAvailable)),
@@ -295,6 +302,7 @@ export class Colony {
       cpu__limit: Game.cpu.limit,
       cpu__tickLimit: Game.cpu.tickLimit,
       ...resources,
+      ...roles,
     };
   }
 
