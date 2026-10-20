@@ -42,6 +42,12 @@ export class Worker extends CreepRoleBase implements CreepRole {
     return [];
   }
 
+  TickCreep(creep: CreepExtra): void {
+    // If we run across a tombstone containing energy, pick it up
+    const tomb = creep.pos.findInRange(FIND_TOMBSTONES, 1, { filter: t => t.store.getUsedCapacity(RESOURCE_ENERGY) > 0 });
+    for (const t of tomb) creep.withdraw(t, RESOURCE_ENERGY);
+  }
+
   // Roughly 1 worker per 4 structures
   GetGlobalQuota(): number {
     return Math.ceil(Object.values(Game.structures)
