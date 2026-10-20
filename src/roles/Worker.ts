@@ -85,9 +85,10 @@ export class Worker extends CreepRoleBase implements CreepRole {
     return new Idle();
   }
 
-  MaxUpgraders = 1;
-  MaxSupplyForSpawns = 3;
-  MaxSupplyForTowers = 2;
+  MaxUpgraders = 2;
+  MaxSupplyForSpawns = 4;
+  MaxSupplyForTowers = 3;
+  MaxRepairPerRoom = 2;
   public FindSpendingTask(creep: CreepExtra): CreepTask {
     if (creep.AssignedRoom.controller) {
       const downgradeMaintenanceThreshold = CONTROLLER_DOWNGRADE[creep.AssignedRoom.controller.level] * UpdateController.DowngradeMaintenanceRatio;
@@ -249,7 +250,6 @@ export class Worker extends CreepRoleBase implements CreepRole {
     return null;
   }
 
-  MaxRepairPerRoom = 3;
   IgnoreDroppedResourcesLessThan = 30;
   MediumSearchRange = 20;
   ShortSearchRange = 5;
