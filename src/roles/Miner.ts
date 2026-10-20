@@ -16,18 +16,20 @@ export class Miner extends CreepRoleBase implements CreepRole {
   IsSpawnNeeded(room: RoomExtra): boolean { return room.GetUnassignedMiningPositions().length > 0; }
 
   GetNewCreepBody(room: RoomExtra): BodyPartConstant[] {
+    // 5 Work seems to be enough to mine a source to empty on the exact tick it recharges.
+
     const tiers = [
-      MakeBody([CARRY, 9], [WORK, 5], [MOVE, 7]),
-      MakeBody([CARRY, 3], [WORK, 5], [MOVE, 3]),
-      MakeBody([CARRY, 7], [WORK, 3], [MOVE, 3]),
-      MakeBody([CARRY, 1], [WORK, 1], [MOVE, 1]),
+      // MakeBody([CARRY, 9], [WORK, 5], [MOVE, 7]), // 1300, no containers.
+      MakeBody([WORK, 7], [MOVE, 4]), // 900, containers
+      MakeBody([CARRY, 3], [WORK, 5], [MOVE, 3]), // 800, no containers
+      MakeBody([CARRY, 7], [WORK, 3], [MOVE, 3]), // 800, containers
     ];
 
     for (const t of tiers)
       if (BodyCost(t) <= room.energyCapacityAvailable)
         return t; // Return the first body we can afford
 
-    return tiers.pop()!; // Return the last (cheapest) body.
+    return MakeBody([CARRY, 2], [WORK, 1], [MOVE, 2]); // 300, Zygote
   }
 
   override GetRoomQuota(room: RoomExtra) { return room.MaxMiners; }
