@@ -19,10 +19,10 @@ export class Miner extends CreepRoleBase implements CreepRole {
     // 5 Work seems to be enough to mine a source to empty on the exact tick it recharges.
 
     const tiers = [
-      // MakeBody([CARRY, 9], [WORK, 5], [MOVE, 7]), // 1300, no containers.
       MakeBody([WORK, 7], [MOVE, 4]), // 900, containers
-      MakeBody([CARRY, 3], [WORK, 5], [MOVE, 3]), // 800, no containers
-      MakeBody([CARRY, 7], [WORK, 3], [MOVE, 3]), // 800, containers
+      // MakeBody([CARRY, 9], [WORK, 5], [MOVE, 7]), // 1300, no containers.
+      MakeBody([CARRY, 3], [WORK, 5], [MOVE, 3]), // 800, containers
+      // MakeBody([CARRY, 7], [WORK, 3], [MOVE, 3]), // 800, no containers
     ];
 
     for (const t of tiers)
