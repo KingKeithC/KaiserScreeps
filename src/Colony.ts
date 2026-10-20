@@ -274,9 +274,9 @@ export class Colony {
       resources["resource__" + r[0]] = r[1];
 
     const roles: { [key: string]: number; } = {};
-    for (const r of Object.entries(this.RoleRegistry)) {
-      roles[`role_${r[0]}__globalCount`] = (r[1] as CreepRole).GetGlobalCreepsInRole().length;
-      roles[`role_${r[0]}__globalQuota`] = (r[1] as CreepRole).GetGlobalQuota();
+    for (const [n, r] of this.RoleRegistry.entries()) {
+      roles[`role_${n}__globalCount`] = r.GetGlobalCreepsInRole().length;
+      roles[`role_${n}__globalQuota`] = r.GetGlobalQuota();
     }
 
     return {
