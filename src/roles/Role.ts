@@ -21,7 +21,7 @@ export interface CreepRole {
   TickEnd(): void; // Called at the end of the tick, after ticking rooms.
 
   GetNewCreepName(room: RoomExtra): string; // Return a new name for a newly spawned creep.
-  GetNewCreepBody(room: RoomExtra): BodyPartConstant[]; // Return a new body for creeps of this role.
+  GetNewCreepBody(room: RoomExtra): BodyPartConstant[]; // Return a new body for creeps of this role. See also https://screepspl.us/services/creep-calculator/
   GetInitialTask(room: RoomExtra): CreepTask | null; // Return the initial task to put in the memory of a to-be-spawned creep. Given creep is not accessible yet.
   SelectNextTask(creep: CreepExtra, lastTask: CreepTask | null): CreepTask | null; // Given a creep who just finished a task, find a new task for them.
 
