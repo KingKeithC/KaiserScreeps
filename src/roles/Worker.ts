@@ -48,13 +48,13 @@ export class Worker extends CreepRoleBase implements CreepRole {
     for (const t of tomb) creep.withdraw(t, RESOURCE_ENERGY);
   }
 
-  // Roughly 1 worker per 4 structures
-  GetGlobalQuota(): number {
-    return Math.ceil(Object.values(Game.structures)
-      .filter((s: any): s is AnyStoreStructure => s.my).length / 4);
+  override GetGlobalQuota(): number {
+    return -1;
   }
 
-  override GetRoomQuota(room: RoomExtra) { return -1; }
+  // 3 workers per mine
+  override GetRoomQuota(room: RoomExtra) { return room.MaxMiners * 3; }
+
   IsSpawnNeeded(_room: RoomExtra) { return true; }
 
   SelectNextTask(creep: CreepExtra): CreepTask | null {
