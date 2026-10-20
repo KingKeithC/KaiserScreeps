@@ -136,7 +136,7 @@ export class RoomExtra extends Room {
   }
 
   get MaxMiners(): number {
-    return unique([...this.MinerPositions, ...this.RemoteMinerPositions].map(mp => mp.sourceId)).length
+    return unique([...this.MinerPositions, ...this.RemoteMinerPositions].map(mp => mp.sourceId)).length;
   }
 
   LastSpawnTick(roleName: string): number { return (this.memory.lastSpawnTick ?? {})[roleName] ?? 0; }
@@ -172,7 +172,11 @@ export class RoomExtra extends Room {
   }
 
   get ConstructionSites(): ConstructionSite[] {
-    return this.find(FIND_MY_CONSTRUCTION_SITES);
+    const constructionGetter = (r: Room) => r.find(FIND_MY_CONSTRUCTION_SITES) as ConstructionSite[];
+    var ret = [...constructionGetter(this)];
+    for (const claimed of this.GetVisibleUncontestedClaimedRooms())
+      ret = ret.concat(...constructionGetter(claimed));
+    return ret;
   }
 
   get HostileInfo(): HostileInfo[] {
@@ -192,11 +196,19 @@ export class RoomExtra extends Room {
   }
 
   get Containers(): StructureContainer[] {
-    return this.find(FIND_STRUCTURES, { filter: s => s.structureType === STRUCTURE_CONTAINER });
+    const containerGetter = (r: Room) => r.find(FIND_STRUCTURES, { filter: s => s.structureType === STRUCTURE_CONTAINER }) as StructureContainer[];
+    var ret = [...containerGetter(this)];
+    for (const claimed of this.GetVisibleUncontestedClaimedRooms())
+      ret = ret.concat(...containerGetter(claimed));
+    return ret;
   }
 
   get Repairs(): AnyStructure[] {
-    return this.find(FIND_STRUCTURES, { filter: s => s.hits < s.hitsMax });
+    const repairGetter = (r: Room) => r.find(FIND_STRUCTURES, { filter: s => s.hits < s.hitsMax }) as AnyStructure[];
+    var ret = [...repairGetter(this)];
+    for (const claimed of this.GetVisibleUncontestedClaimedRooms())
+      ret = ret.concat(...repairGetter(claimed));
+    return ret;
   }
 
   get Ramparts(): StructureRampart[] {
