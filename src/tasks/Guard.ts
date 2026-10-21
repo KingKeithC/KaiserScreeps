@@ -1,4 +1,5 @@
 import { CreepExtra } from "Creep";
+import { Logger } from "utils/Logger";
 import { TargetTask } from "./TargetTask";
 import { TaskAction } from "./TaskAction";
 import { TaskActionResult } from "./types";
@@ -20,7 +21,12 @@ export class GuardTask extends TargetTask<typeof TaskAction.Guard, string> {
     this.rampartId = options.rampartId;
   }
 
-  public override isComplete(): boolean {
+  public override isComplete(creep: CreepExtra): boolean {
+    for (const [r, hs] of creep.AssignedRoom.HostilesByRoom.entries())
+      if (hs.length > 0) {
+        Logger.warn(`GuardTask: Ending for ${creep.name} since we spotted ${hs.length} creeps in ${r}`);
+        return true;
+      }
     return false;
   }
 

@@ -33,7 +33,7 @@ export class Defender extends CreepRoleBase implements CreepRole {
 
   public SelectNextTask(creep: CreepExtra): CreepTask {
     const hostile = this.FindLeastTargetedHostile(creep.AssignedRoom);
-    if (!hostile) { return new GuardTask(creep.AssignedRoom.name); }
+    if (!hostile) { return new GuardTask(creep.room.name); }
     return new Attack(hostile);
   }
 
