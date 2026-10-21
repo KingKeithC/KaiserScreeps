@@ -32,7 +32,7 @@ export class Defender extends CreepRoleBase implements CreepRole {
 
 
   public SelectNextTask(creep: CreepExtra): CreepTask {
-    const hostile = this.FindLeastTargetedHostile(creep.AssignedRoom);
+    const hostile = this.FindNearestHostile(creep.AssignedRoom);
     if (!hostile) { return new GuardTask(creep.room.name); }
     return new Attack(hostile);
   }
@@ -67,6 +67,13 @@ export class Defender extends CreepRoleBase implements CreepRole {
     for (const creeps of room.HostilesByRoom.values())
       for (const c of creeps)
         if ((attacksByTarget[c.id] ?? []).length === 0) return c;
+    return null;
+  }
+
+  FindNearestHostile(creep: CreepExtra): Creep | null {
+    for (const [roomName, creeps] of creep.AssignedRoom.HostilesByRoom.entries())
+      if (roomName === creep.room.name)
+        return creep.pos.findClosestByPath(creeps)
     return null;
   }
 }
