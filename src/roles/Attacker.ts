@@ -114,8 +114,9 @@ export class Attacker extends CreepRoleBase implements CreepRole {
     if (mostHurt) creep.attack(mostHurt);
   };
 
+  public OnSpawn(creep: CreepExtra): void { creep.notifyWhenAttacked(false); }
+
   TickCreep(creep: CreepExtra): void {
-    creep.notifyWhenAttacked(false); // Ignore attack notifications for Attackers.
     this.HealHurtAllies(creep);
     this.AttackEnemies(creep);
   }

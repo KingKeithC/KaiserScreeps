@@ -32,10 +32,12 @@ export class Defender extends CreepRoleBase implements CreepRole {
 
 
   public SelectNextTask(creep: CreepExtra): CreepTask {
-    const hostile = this.FindNearestHostile(creep.AssignedRoom);
+    const hostile = this.FindNearestHostile(creep);
     if (!hostile) { return new GuardTask(creep.room.name); }
     return new Attack(hostile);
   }
+
+  public OnSpawn(creep: CreepExtra): void { creep.notifyWhenAttacked(false); }
 
   TickCreep(creep: CreepExtra): void {
     if (creep.getActiveBodyparts(ATTACK) > 0) {
@@ -71,9 +73,20 @@ export class Defender extends CreepRoleBase implements CreepRole {
   }
 
   FindNearestHostile(creep: CreepExtra): Creep | null {
+    // Find Hostiles in the current room
     for (const [roomName, creeps] of creep.AssignedRoom.HostilesByRoom.entries())
-      if (roomName === creep.room.name)
-        return creep.pos.findClosestByPath(creeps)
+      if (roomName === creep.room.name) {
+        const found = creep.pos.findClosestByPath(creeps)
+        if (found) return found;
+      }
+
+    // Find Hostiles in any room
+    for (const creeps of creep.AssignedRoom.HostilesByRoom.values())
+      if (creeps.length > 0) {
+        const found = creeps.pop()
+        if (found) return found;
+      }
+
     return null;
   }
 }
