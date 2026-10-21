@@ -16,6 +16,7 @@ export class Defender extends CreepRoleBase implements CreepRole {
 
   IsSpawnNeeded(room: RoomExtra): boolean { return this.GetRoomQuota(room) > 1; }
   GetGlobalQuota(): number { return -1; }
+
   // 1 For each hostile
   override GetRoomQuota(room: RoomExtra): number {
     let total = 0;

@@ -318,10 +318,10 @@ export class RoomExtra extends Room {
     for (const c of this.AssignedCreeps) {
       c.CheckRoomEvents(this);
 
-      if (c.currentTask === null || c.currentTask.isComplete(c))
-        c.ChangeTask();
-
       if (!c.spawning) {
+        if (c.currentTask === null || c.currentTask.isComplete(c))
+          c.ChangeTask();
+
         c.role.TickCreep(c);
         c.DoTask();
       }
