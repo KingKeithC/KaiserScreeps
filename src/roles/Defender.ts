@@ -1,5 +1,5 @@
 import { CreepExtra } from "Creep";
-import { groupBy } from "lodash";
+import { groupBy, sum } from "lodash";
 import type { RoomExtra } from "Room";
 import { CreepTask, TaskAction , AttackTargetTask, GuardTask } from "tasks";
 import { MakeBody } from "utils/Collections";
@@ -24,9 +24,9 @@ export class Defender extends CreepRoleBase implements CreepRole {
 
   // 1 For each hostile
   override GetRoomQuota(room: RoomExtra): number {
-    if (room.AttackHostiles && !room.DisableWarriors)
-      return room.Hostiles.length;
-    return 0;
+    let total = 0;
+    for (const v of room.HostilesByRoom.values()) total += v.length;
+    return total;
   }
 
   public SelectNextTask(creep: CreepExtra): CreepTask {
@@ -37,16 +37,9 @@ export class Defender extends CreepRoleBase implements CreepRole {
 
   FindLeastTargetedHostile(room: RoomExtra): Id<Creep> | null {
     const attacksByTarget = groupBy(room.GetAssignedTasks(TaskAction.Attack), a => (a as AttackTargetTask).targetId);
-    for (const target in attacksByTarget) if (attacksByTarget[target].length === 0) return target as Id<Creep>;
+    for (const [roomName, creeps] of room.HostilesByRoom.entries())
+      for (const c of creeps)
+        if (attacksByTarget[c.name].length === 0) return c.id;
     return null;
   }
-
-  Idle(creep: CreepExtra): void {
-    if (Game.time % 25 === 3) creep.say("zzz");
-    const rampart = creep.pos.findClosestByPath(FIND_MY_STRUCTURES, { filter: s => s.structureType === STRUCTURE_RAMPART });
-    if (!rampart) return;
-    creep.MoveCreep(rampart, { range: 0 });
-  }
-
-  Charging(): void { return; }
 }

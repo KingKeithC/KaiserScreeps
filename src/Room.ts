@@ -190,6 +190,13 @@ export class RoomExtra extends Room {
     return this.find(FIND_HOSTILE_CREEPS);
   }
 
+  get HostilesByRoom(): Map<string, Creep[]> {
+    const ret = new Map<string, Creep[]>();
+    for (const r of [this, ...this.GetVisibleUncontestedClaimedRooms()])
+      ret.set(r.name, [...(ret.get(r.name) ?? []), ...r.find(FIND_HOSTILE_CREEPS)])
+    return ret;
+  }
+
   get ConstructionSites(): ConstructionSite[] {
     const constructionGetter = (r: Room) => r.find(FIND_MY_CONSTRUCTION_SITES) ;
     let ret = [...constructionGetter(this)];
