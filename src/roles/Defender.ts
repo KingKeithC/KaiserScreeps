@@ -1,7 +1,8 @@
 import { CreepExtra } from "Creep";
 import { groupBy } from "lodash";
 import type { RoomExtra } from "Room";
-import { CreepTask, TaskAction , AttackTargetTask, GuardTask } from "tasks";
+import { CreepTask, TaskAction , GuardTask } from "tasks";
+import { Attack } from "tasks/Attack";
 import { MakeBody } from "utils/Collections";
 import { CreepRole, CreepRoleBase } from "./Role";
 
@@ -26,14 +27,14 @@ export class Defender extends CreepRoleBase implements CreepRole {
 
   override GetInitialTask(room: RoomExtra): CreepTask {
     const hostile = this.FindLeastTargetedHostile(room);
-    return hostile ? new AttackTargetTask(hostile) : new GuardTask(room.name);
+    return hostile ? new Attack(hostile) : new GuardTask(room.name);
   }
 
 
   public SelectNextTask(creep: CreepExtra): CreepTask {
     const hostile = this.FindLeastTargetedHostile(creep.AssignedRoom);
     if (!hostile) { return new GuardTask(creep.AssignedRoom.name); }
-    return new AttackTargetTask(hostile);
+    return new Attack(hostile);
   }
 
   TickCreep(creep: CreepExtra): void {
@@ -61,11 +62,11 @@ export class Defender extends CreepRoleBase implements CreepRole {
     }
   }
 
-  FindLeastTargetedHostile(room: RoomExtra): Id<Creep> | null {
-    const attacksByTarget = groupBy(room.GetAssignedTasks(TaskAction.Attack), a => (a as AttackTargetTask).targetId);
+  FindLeastTargetedHostile(room: RoomExtra): Creep | null {
+    const attacksByTarget = groupBy(room.GetAssignedTasks(TaskAction.Attack), a => (a as Attack).target);
     for (const creeps of room.HostilesByRoom.values())
       for (const c of creeps)
-        if ((attacksByTarget[c.name] ?? []).length === 0) return c.id;
+        if ((attacksByTarget[c.id] ?? []).length === 0) return c;
     return null;
   }
 }
