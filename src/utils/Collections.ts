@@ -1,3 +1,4 @@
+import { flatten } from "lodash";
 
 export function Strongest<E>(container: E[], currGetter: (e: E) => number, totalGetter: (e: E) => number, reverse = false): E | undefined {
   const sorter = (a: E, b: E) => (currGetter(a) / totalGetter(a)) - (currGetter(b) / totalGetter(b));
@@ -42,12 +43,12 @@ export function SerializeRoomPosition(pos: RoomPosition): RoomPositionString {
 
 export function DeserializeRoomPosition(str: RoomPositionString): RoomPosition {
   const [roomName, xStr, yStr] = str.split(":");
-  const x = Number.parseInt(xStr);
-  const y = Number.parseInt(yStr);
+  const x = Number.parseInt(xStr, 10);
+  const y = Number.parseInt(yStr, 10);
   return new RoomPosition(x, y, roomName);
 }
 
-export function FormatStructureHits(s: AnyStructure, precision: number = 3, includeUnits: boolean = true): string {
+export function FormatStructureHits(s: AnyStructure, precision = 3, includeUnits = true): string {
   const health = ((s.hits / s.hitsMax) * 100).toPrecision(precision);
   return `Hits: %${health}${includeUnits ? ` (${s.hits}/${s.hitsMax})` : ""}`;
 }
@@ -69,16 +70,16 @@ export function FormatStructureHits(s: AnyStructure, precision: number = 3, incl
 export function FmtRatios(
   numerator: number,
   denominator: number,
-  withTotal: boolean = false,
+  withTotal = false,
   extraTotals: number[] = [],
-  precision: number = 2,
-  units: string = "",
-  unitsPlaceValue: number = 1,
+  precision = 2,
+  units = "",
+  unitsPlaceValue = 1,
 ): string {
   if (denominator === 0) return "Cant Div By Zero!!!";
 
   // Start with the main ratio
-  var ret = ((numerator / denominator) * 100).toFixed(precision);
+  let ret = ((numerator / denominator) * 100).toFixed(precision);
 
   // If a total is to be included, wrap it in parens and append to the end after a space
   if (withTotal) {
@@ -111,5 +112,9 @@ export function MyTowers(): StructureTower[] {
 }
 
 export function MyConstructionSites(): ConstructionSite[] {
-  return Object.values(Game.constructionSites).filter(s => s.my) as ConstructionSite[];
+  return Object.values(Game.constructionSites).filter(s => s.my);
+}
+
+export function Sources(): Source[] {
+  return flatten(Object.values(Game.rooms).map(r => r.find(FIND_SOURCES)));
 }

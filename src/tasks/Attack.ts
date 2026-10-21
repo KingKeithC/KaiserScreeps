@@ -1,8 +1,9 @@
 import type { CreepExtra } from "Creep";
 import { TaskAction } from "./TaskAction";
 import { BaseTask } from "./BaseTask";
+import { CreepTask } from "./types";
 
-export class AttackTargetTask extends BaseTask<typeof TaskAction.Attack> {
+export class AttackTargetTask extends BaseTask<typeof TaskAction.Attack> implements CreepTask<string> {
   public readonly kind = "attack" as const;
 
   public constructor(public readonly targetId: Id<Creep>) { super(TaskAction.Attack); }

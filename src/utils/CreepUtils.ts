@@ -1,8 +1,8 @@
 import { Dictionary, sum } from "lodash";
 
 
-export function BodyCost(body: BodyPartConstant[]): number {
-  return sum(body.map(p => BODYPART_COST[p]));
+export function BodyCost(body: (BodyPartConstant | BodyPartDefinition)[]): number {
+  return sum(body.map(p => BODYPART_COST[p instanceof Object ? p.type : p]));
 }
 
 export function PartCounts(body: BodyPartDefinition[]): Dictionary<number> {

@@ -1,7 +1,8 @@
-import type { CreepExtra } from "Creep";
+import { CreepExtra } from "Creep";
+import { TargetTask } from "./TargetTask";
 import { TaskAction } from "./TaskAction";
-import { TargetTask } from "./BaseTask";
-import type { TaskActionResult } from "./types";
+import { TaskActionResult } from "./types";
+
 
 export class Dismantle extends TargetTask<typeof TaskAction.Dismantle, Id<AnyStructure>> {
   public readonly kind = "dismantle" as const;
@@ -11,10 +12,10 @@ export class Dismantle extends TargetTask<typeof TaskAction.Dismantle, Id<AnyStr
   public override act(creep: CreepExtra): TaskActionResult | null {
     const target = Game.getObjectById(this.target);
     if (!target) return null;
-    return { range: 1, result: creep.dismantle(target), target: target };
+    return { range: 1, result: creep.dismantle(target), target };
   }
 
-  public override isComplete(creep: CreepExtra): boolean {
+  public override isComplete(): boolean {
     const target = Game.getObjectById(this.target);
     return !target;
   }

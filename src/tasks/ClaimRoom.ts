@@ -1,7 +1,8 @@
-import type { CreepExtra } from "Creep";
+import { CreepExtra } from "Creep";
+import { TargetTask } from "./TargetTask";
 import { TaskAction } from "./TaskAction";
-import { BaseTask, TargetTask } from "./BaseTask";
-import type { TaskActionResult, TravelPath } from "./types";
+import { TaskActionResult } from "./types";
+
 
 export class ClaimRoomTask extends TargetTask<typeof TaskAction.Claim, string> {
   public readonly kind = "claim" as const;
@@ -16,8 +17,8 @@ export class ClaimRoomTask extends TargetTask<typeof TaskAction.Claim, string> {
   public isComplete(creep: CreepExtra): boolean {
     // If we are in the target room, and own its controller, then we are done.
     return creep.room.name === this.roomName
-      && (creep.room.controller != undefined)
-      && (creep.room.controller.owner != undefined)
+      && (creep.room.controller !== undefined)
+      && (creep.room.controller.owner !== undefined)
       && creep.room.controller.owner.username === creep.owner.username;
   }
 
@@ -35,8 +36,8 @@ export class ClaimRoomTask extends TargetTask<typeof TaskAction.Claim, string> {
     //   - If the room is owned, attack the claim
     //   - If the room is neutral, reserve it by default
     //    - otherwise, claim it
-    var outcome: TaskActionResult;
-    if (controller.owner != undefined && controller.owner.username !== creep.owner.username)
+    let outcome: TaskActionResult;
+    if (controller.owner !== undefined && controller.owner.username !== creep.owner.username)
       outcome = { range: 1, result: creep.attackController(controller), target: controller };
     else if (this.claim) {
       outcome = { range: 1, result: creep.claimController(controller), target: controller };

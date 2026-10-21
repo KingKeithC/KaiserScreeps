@@ -1,11 +1,11 @@
-import type { CreepExtra } from "Creep";
+import { CreepExtra } from "Creep";
+import { TargetTask } from "./TargetTask";
 import { TaskAction } from "./TaskAction";
-import { TargetTask } from "./BaseTask";
-import type { TaskActionResult } from "./types";
+import { TaskActionResult } from "./types";
 
-type GuardOptions = {
+interface GuardOptions {
   rampartId?: Id<StructureRampart>;
-};
+}
 
 export class GuardTask extends TargetTask<typeof TaskAction.Guard, string> {
   public readonly kind = "guard" as const;
@@ -20,7 +20,7 @@ export class GuardTask extends TargetTask<typeof TaskAction.Guard, string> {
     this.rampartId = options.rampartId;
   }
 
-  public override isComplete(creep: CreepExtra): boolean {
+  public override isComplete(): boolean {
     return false;
   }
 
@@ -28,8 +28,8 @@ export class GuardTask extends TargetTask<typeof TaskAction.Guard, string> {
     if (!(this.roomName in Game.rooms))
       return { range: 25, result: ERR_NOT_IN_RANGE, target: { pos: new RoomPosition(25, 25, this.roomName) } };
 
-    var room = Game.rooms[this.roomName];
-    var rampart = this.rampartId ? Game.getObjectById(this.rampartId) : null;
+    let room = Game.rooms[this.roomName];
+    let rampart = this.rampartId ? Game.getObjectById(this.rampartId) : null;
     if (!room && !rampart) return null;
     if (!room && rampart) room = rampart.room;
 

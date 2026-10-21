@@ -1,3 +1,4 @@
+/* eslint-disable no-underscore-dangle */
 import { CreepExtra } from "Creep";
 import { CreepRole } from "roles/Role";
 

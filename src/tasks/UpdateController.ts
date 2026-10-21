@@ -1,6 +1,7 @@
-import type { CreepExtra } from "Creep";
-import { TaskAction } from "./TaskAction";
+/* eslint-disable max-classes-per-file */
+import { CreepExtra } from "Creep";
 import { BaseTask } from "./BaseTask";
+import { TaskAction } from "./TaskAction";
 
 export interface UpdateControllerOptions {
   mode?: "upgrade" | "maintain";

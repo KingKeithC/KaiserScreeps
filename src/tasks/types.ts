@@ -8,6 +8,7 @@ export interface TaskActionResult {
 
 export interface CreepTask<Action extends string = string> {
   readonly action: Action;
+  // readonly kind: Action;
   toString(): string;
   isComplete(creep: CreepExtra): boolean;
   act(creep: CreepExtra): TaskActionResult | null;

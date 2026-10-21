@@ -1,27 +1,28 @@
 import { CreepExtra } from "Creep";
-import { unique } from "lodash";
 import { RoomExtra } from "Room";
 import { CreepTask, Mine } from "tasks";
 import { MakeBody } from "utils/Collections";
 import { BodyCost } from "utils/CreepUtils";
-import { MiningPosition } from "utils/RoomUtils";
-import { CreepRoleBase, CreepRole } from "./Role";
+import { CreepRole, CreepRoleBase } from "./Role";
 
 
 export class Miner extends CreepRoleBase implements CreepRole {
   readonly groupName = "Miners";
   override readonly name: string = "Miner";
-  override readonly tier: number = 1;
 
-  IsSpawnNeeded(room: RoomExtra): boolean { return room.GetUnassignedMiningPositions().length > 0; }
+  IsSpawnNeeded(room: RoomExtra): boolean {
+    // We can't spawn miners until we have at least two workers.
+    return this.colony.Roles.Worker.GetRoomCreepsInRole(room).length > 2;
+  }
 
   GetNewCreepBody(room: RoomExtra): BodyPartConstant[] {
     // 5 Work seems to be enough to mine a source to empty on the exact tick it recharges.
+    // All miners still need 1 carry to put what they mined into a container.
 
     const tiers = [
-      MakeBody([WORK, 7], [MOVE, 4]), // 900, containers
+      MakeBody([CARRY, 1], [WORK, 7], [MOVE, 4]), // 950, containers.
       // MakeBody([CARRY, 9], [WORK, 5], [MOVE, 7]), // 1300, no containers.
-      MakeBody([CARRY, 3], [WORK, 5], [MOVE, 3]), // 800, containers
+      MakeBody([CARRY, 1], [WORK, 5], [MOVE, 3]), // 800, containers
       // MakeBody([CARRY, 7], [WORK, 3], [MOVE, 3]), // 800, no containers
     ];
 
@@ -36,15 +37,12 @@ export class Miner extends CreepRoleBase implements CreepRole {
   GetGlobalQuota(): number { return -1; }
 
   GetInitialTask(room: RoomExtra): CreepTask | null {
-    const unassignedSource = room.GetUnassignedMiningPositions().pop();
-    if (unassignedSource) return new Mine(unassignedSource);
+    const miningPosition = room.AvailableMiningPositions().pop();
+    if (miningPosition) return new Mine(miningPosition);
     this.log.warn(`No suitable mining position found.`);
     return null;
   }
-
-  SelectNextTask(creep: CreepExtra): CreepTask | null {
-    return this.GetInitialTask(creep.AssignedRoom);
-  }
+  SelectNextTask(creep: CreepExtra): CreepTask | null { return this.GetInitialTask(creep.AssignedRoom); }
 
   TickCreep(creep: CreepExtra): void {
     // If we have space for energy, and there is energy below us, pick it up

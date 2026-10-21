@@ -1,7 +1,7 @@
-import type { CreepExtra } from "Creep";
-import { TaskAction } from "./TaskAction";
+import { CreepExtra } from "Creep";
 import { BaseTask } from "./BaseTask";
-import type { EnergySource, TaskActionResult } from "./types";
+import { TaskAction } from "./TaskAction";
+import { EnergySource } from "./types";
 
 export interface CollectEnergyOptions {
   maxAttempts?: number;

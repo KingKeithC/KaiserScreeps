@@ -1,6 +1,5 @@
 import { CreepExtra } from "Creep";
-import type { RoomExtra } from "Room";
-import { CreepTask, Dismantle, Idle, Move, TaskAction } from "tasks";
+import { CreepTask, Dismantle, Move } from "tasks";
 import { FormatStructureHits, MakeBody } from "utils/Collections";
 import { CreepRole, CreepRoleBase } from "./Role";
 
@@ -19,12 +18,11 @@ declare global {
 export class Attacker extends CreepRoleBase implements CreepRole {
   readonly groupName = "Warriors";
   readonly name = "Attacker";
-  readonly tier = 1;
 
   RallyDistance = 2;
   AttackSize = 1;
 
-  GetNewCreepBody(_room: RoomExtra): BodyPartConstant[] {
+  GetNewCreepBody(): BodyPartConstant[] {
     return MakeBody(
       [MOVE, 5],
       [WORK, 6],
@@ -37,11 +35,13 @@ export class Attacker extends CreepRoleBase implements CreepRole {
     const flags = Object.values(Game.flags).filter(f => f.name.startsWith("Attack") && f.name.includes(':'));
     for (const f of flags) {
       // Set initial memory for flags based on name
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const [_, index, action] = f.name.split(":");
-      f.memory.attackIndex ??= Number.parseInt(index);
+      f.memory.attackIndex ??= Number.parseInt(index, 10);
       f.memory.attackType ??= action as AttackType;
       f.memory.done ??= false;
     }
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     return flags.sort((a, b) => a.memory.attackIndex! - b.memory.attackIndex!);
   }
 
@@ -60,11 +60,7 @@ export class Attacker extends CreepRoleBase implements CreepRole {
     return allSteps[idx - 1];
   }
 
-  TickStart(): void {
-
-  }
-
-  TickEnd(): void {
+  EndOfTick(): void {
     const curr = this.GetCurrentStep();
     if (curr) this.SetStepCompletion(curr);
   }
@@ -124,7 +120,7 @@ export class Attacker extends CreepRoleBase implements CreepRole {
     this.AttackEnemies(creep);
   }
 
-  override GetInitialTask(room: RoomExtra): CreepTask | null {
+  override GetInitialTask(): CreepTask | null {
     const curr = this.GetCurrentStep();
     if (!curr) return null;
     if (!curr.memory.attackType) return null;
@@ -136,27 +132,21 @@ export class Attacker extends CreepRoleBase implements CreepRole {
     // If next step is Dismantle, find the target structure, and set to dismantling it
     if (curr.memory.attackType === "NearestStructure") {
       const structure = curr.pos.lookFor(LOOK_STRUCTURES).pop();
-      if (!structure) return new Idle(`no structs!`);
+      if (!structure) return null;
       return new Dismantle(structure.id);
     }
 
     return null;
   }
   override GetGlobalQuota(): number { return this.AttackSize; }
-  override GetRoomQuota(room: RoomExtra): number { return this.AttackSize; }
-  IsSpawnNeeded(room: RoomExtra): boolean { return this.GetCurrentStep() != null; }
-  SelectNextTask(creep: CreepExtra, lastTask: CreepTask | null): CreepTask | null {
-    const nextTask = this.GetInitialTask(creep.AssignedRoom);
+  override GetRoomQuota(): number { return this.AttackSize; }
+  IsSpawnNeeded(): boolean { return this.GetCurrentStep() != null; }
+  SelectNextTask(creep: CreepExtra): CreepTask | null {
     // Ignore Move if it's the same
-    if (
-      lastTask != null
-      && nextTask != null
-      && nextTask.action === TaskAction.Move
-      && lastTask.action === TaskAction.Move
-      && (nextTask as Move).target.x === (lastTask as Move).target.x
-      && (nextTask as Move).target.y === (lastTask as Move).target.y
-      && (nextTask as Move).target.roomName === (lastTask as Move).target.roomName
-    ) return null;
+    const oldTarget = (creep.currentTask as Move).target;
+    const nextTask = this.GetInitialTask();
+    const nextTarget = (nextTask as Move).target;
+    if (nextTarget === oldTarget) return null;
     else return nextTask;
   }
 }

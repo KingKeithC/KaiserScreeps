@@ -1,7 +1,7 @@
-import type { CreepExtra } from "Creep";
+import { CreepExtra } from "Creep";
+import { TargetTask } from "./TargetTask";
 import { TaskAction } from "./TaskAction";
-import { TargetTask } from "./BaseTask";
-import type { TaskActionResult } from "./types";
+import { TaskActionResult } from "./types";
 
 export class Move extends TargetTask<typeof TaskAction.Move, RoomPosition> {
   public readonly kind = "move" as const;
@@ -21,7 +21,7 @@ export class Move extends TargetTask<typeof TaskAction.Move, RoomPosition> {
     return new RoomPosition(this.targetPos.x, this.targetPos.y, this.targetPos.roomName);
   }
 
-  public override act(creep: CreepExtra): TaskActionResult | null {
+  public override act(): TaskActionResult | null {
     const target = this.GetTargetPosition();
     return { range: this.minDistance, result: ERR_NOT_IN_RANGE, target: { pos: target } };
   }

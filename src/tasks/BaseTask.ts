@@ -1,4 +1,5 @@
-import type { CreepExtra } from "Creep";
+/* eslint-disable @typescript-eslint/no-unused-vars */
+import { CreepExtra } from "Creep";
 import type { CreepTask, TaskActionResult } from "./types";
 
 export abstract class BaseTask<Action extends string> implements CreepTask<Action> {
@@ -16,24 +17,5 @@ export abstract class BaseTask<Action extends string> implements CreepTask<Actio
     action: (target: Target) => number,
   ): TaskActionResult | null {
     return target ? { target, range, result: action(target) } : null;
-  }
-}
-
-export abstract class TargetTask<Action extends string, Target> extends BaseTask<Action> {
-  public constructor(
-    action: Action,
-    public readonly target: Target,
-    private readonly targetType = "target",
-  ) {
-    super(action);
-  }
-
-  public toString(): string {
-    const target = Game.getObjectById(this.target as Id<Source>);
-    return `${this.action} on ${target ? String(target) : `[${this.targetType} ${JSON.stringify(this.target)}]`}`;
-  }
-
-  protected resolveTarget(): RoomObject | null {
-    return Game.getObjectById(this.target as Id<Source>) as RoomObject | null;
   }
 }

@@ -1,19 +1,17 @@
 import { CreepExtra } from "Creep";
 import { groupBy } from "lodash";
 import type { RoomExtra } from "Room";
-import { CreepTask, Idle, TaskAction } from "tasks";
-import { AttackTargetTask, GuardTask } from "tasks";
+import { CreepTask, TaskAction , AttackTargetTask, GuardTask } from "tasks";
 import { MakeBody } from "utils/Collections";
 import { CreepRole, CreepRoleBase } from "./Role";
 
 export class Defender extends CreepRoleBase implements CreepRole {
   readonly groupName = "Warriors";
   readonly name = "Defender";
-  readonly tier = 1;
 
   IsSpawnNeeded(room: RoomExtra): boolean { return room.Hostiles.length > 1; }
 
-  GetNewCreepBody(_room: RoomExtra): BodyPartConstant[] {
+  GetNewCreepBody(): BodyPartConstant[] {
     return MakeBody([TOUGH, 2], [ATTACK, 2], [MOVE, 3], [HEAL, 1]);
   }
 
@@ -50,5 +48,5 @@ export class Defender extends CreepRoleBase implements CreepRole {
     creep.MoveCreep(rampart, { range: 0 });
   }
 
-  Charging(_creep: CreepExtra): void { return; }
+  Charging(): void { return; }
 }

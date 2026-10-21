@@ -1,13 +1,12 @@
+import { Dictionary, flatten, unique } from "lodash";
+import { CreepTask, Mine, Repair, TaskAction, UpdateController } from "tasks";
+import { FormatHostileInfos, GetHostileInfo, GetMiningPositions, HostileInfo, MakeRoomReport, MiningPosition } from "utils/RoomUtils";
 import { Colony } from "Colony";
 import { CreepExtra } from "Creep";
-import { Colours } from "Data";
-import { Dictionary, unique } from "lodash";
-import { CreepRole } from "roles/Role";
-import { Scout, ScoutingReport } from "roles/Scout";
-import { CreepTask, TaskAction, Mine, UpdateController } from "tasks";
 import { FmtRatios, LerpColour } from "utils/Collections";
+import { Colours } from "Data";
+import { CreepRole } from "roles/Role";
 import { Logger } from "utils/Logger";
-import { MiningPosition, GetMinerPositions, HostileInfo, GetHostileInfo, FormatHostileInfos } from "utils/RoomUtils";
 
 
 declare global {
@@ -25,17 +24,10 @@ declare global {
     towerCriticalSupplyRatio?: number;
     hostileNotificationThreshold?: number;
     claimedNearby?: string[],
-    minerPositions?: MiningPosition[],
+    mines: MiningPosition[],
     storageWartimeEnergyBuffer: number,
     linkGroups?: Dictionary<Id<StructureLink>[]>,
   }
-}
-
-interface EventSummary {
-  time: number,
-  event: string,
-  summary: string,
-  value: number | null,
 }
 
 export class RoomExtra extends Room {
@@ -59,7 +51,8 @@ export class RoomExtra extends Room {
     // This class init
     this.parent = parent;
     this.colony = colony;
-    this.AssignedCreeps = colony.MyCreeps.filter(c => c.memory.room === this.name);
+    this.AssignedCreeps = colony.CreepsByAssignedRoom.get(this.name) ?? [];
+
     this.AssignedCreepsByRoleName = new Map();
     this.AssignedCreepsByRoleGroup = new Map();
     for (const c of this.AssignedCreeps) {
@@ -70,12 +63,14 @@ export class RoomExtra extends Room {
   }
 
   GetAssignedTasks(taskAction?: string): CreepTask[] {
-    const tasks = this.AssignedCreeps
-      .filter(c => c.memory.jobMemory != null && c.memory.jobMemory != undefined)
-      .map(c => c.memory.jobMemory as CreepTask);
+    const ret = [];
 
-    if (!taskAction) return tasks;
-    return tasks.filter(t => t.action === taskAction);
+    for (const c of this.AssignedCreeps)
+      if (c.currentTask)
+        ret.push(c.currentTask);
+
+    if (!taskAction) return ret;
+    return ret.filter(t => t.action === taskAction);
   }
 
   get EnableVisuals(): boolean { return this.memory.enableVisuals ?? true; }
@@ -102,58 +97,65 @@ export class RoomExtra extends Room {
   get LinkGroups(): Dictionary<Id<StructureLink>[]> { return this.memory.linkGroups ?? {}; }
   set LinkGroups(value: Dictionary<Id<StructureLink>[]>) { this.memory.linkGroups = value; }
 
-  set MinerPositions(value: MiningPosition[]) { this.memory.minerPositions = value; }
-
-  private _MinerPositions: MiningPosition[] = [];
-  get MinerPositions(): MiningPosition[] {
-    if (this._MinerPositions.length > 0) return this._MinerPositions;
-
-    // Create a RoomPosition on the way out for each minerPosition.
-    this.memory.minerPositions ??= GetMinerPositions(this); // Memoize
-    const ret: MiningPosition[] = [];
-    for (const mp of this.memory.minerPositions)
-      ret.push({
-        sourceId: mp.sourceId,
-        position: new RoomPosition(mp.position.x, mp.position.y, mp.position.roomName),
-      });
-
-    this._MinerPositions = ret;
-    return this._MinerPositions;
+  set Mines(value: MiningPosition[]) { this.memory.mines = value; }
+  get Mines(): MiningPosition[] {
+    if (this.memory.mines === undefined || this.memory.mines.length === 0)
+      this.memory.mines = GetMiningPositions(this); // Update memoized
+    return this.memory.mines; // Return memoized
   }
 
-  private _RemoteMinerPositions: MiningPosition[] = [];
-  get RemoteMinerPositions(): MiningPosition[] {
-    if (this._RemoteMinerPositions.length > 0) return this._RemoteMinerPositions;
-    var ret: MiningPosition[] = [];
-    for (const claim of this.ClaimedNearbyRooms) {
-      // Create a scouting report for the room if it is missing
-      if (!(claim in Memory.scoutingReports)) {
-        const claimedRoom = Game.rooms[claim];
-        const scout = this.colony.RoleRegistry.get("Scout") as Scout;
-        if (!scout) {
-          this.log.crit(`Scout role missing from Registry!`);
-          return [];
-        } else if (!claimedRoom) {
-          this.log.warn(`Cannot get Remote Mining Positions for ${this.name} because claimed room ${claim} has no scouting reports and is not visible`);
-          return [];
+  private cachedClaimedMines: Dictionary<MiningPosition[]> = {};
+  get ClaimedMines(): Dictionary<MiningPosition[]> {
+    if (Object.keys(this.cachedClaimedMines).length > 0) return this.cachedClaimedMines;
+
+    // Start with the mining positions for this room
+    this.cachedClaimedMines[this.name] = this.Mines;
+
+    // Add the mining positions for the rooms this one claims
+    for (const c of this.ClaimedNearbyRooms) {
+
+      // If the room has no scouting report, create one
+      Memory.scoutingReports ??= {};
+      if (!(c in Memory.scoutingReports)) {
+        const claimedRoom = Game.rooms[c];
+        if (!claimedRoom) {
+          this.log.warn(`Cannot get Remote Mining Positions for ${this.name} because claimed room ${c} has no scouting reports and is not visible`);
+          continue;
         }
-        Memory.scoutingReports[claim] = scout.NewScoutingReportRoom(claimedRoom);
-      } else if ((Memory.scoutingReports[claim].miningPositions ?? []).length === 0) {
-        this.log.warn(`Cannot get Remote Mining Positions for ${this.name} because claimed room ${claim} apparently has none!`);
-        return [];
+        Memory.scoutingReports[c] = MakeRoomReport(claimedRoom);
       }
 
-      Memory.scoutingReports[claim].miningPositions.forEach(mp => ret.push({
-        sourceId: mp.sourceId,
-        position: new RoomPosition(mp.position.x, mp.position.y, mp.position.roomName),
-      }));
+      // Skip rooms without mining positions
+      if (Object.keys(Memory.scoutingReports[c].mines ?? {}).length === 0) {
+        // The existing report is empty, which is odd since we shouldn't be claiming rooms
+        // that have no mines, must be some other error.
+        this.log.warn(`Claimed room ${c} apparently has no mining positions!`);
+        continue;
+      }
+
+      // Add the room's mining positions to the Dictionary
+      this.cachedClaimedMines[c] = Memory.scoutingReports[c].mines;
     }
-    this._RemoteMinerPositions = ret;
-    return this._RemoteMinerPositions;
+
+    return this.cachedClaimedMines;
+  }
+
+  // Get all MiningPositions for Mines we claim that don't have any assigned miners.
+  // Each mine only really needs one miner, but may have multiple positions to mine
+  // from around it.
+  AvailableMiningPositions(): MiningPosition[] {
+    const ret = [];
+    const assignedMiningPositions = this.colony.GetAllAssignedTasks(TaskAction.Mine).map(p => (p as Mine).target);
+    for (const mines of Object.values(this.ClaimedMines))
+      for (const mine of mines)
+        if (!assignedMiningPositions.some(amp => amp.source === mine.source))
+          ret.push(mine);
+    return ret;
   }
 
   get MaxMiners(): number {
-    return unique([...this.MinerPositions, ...this.RemoteMinerPositions].map(mp => mp.sourceId)).length;
+    // 1 Miner per source we claim
+    return unique(flatten(Object.values(this.ClaimedMines).map(rmp => rmp.map(m => m.source)))).length;
   }
 
   LastSpawnTick(roleName: string): number { return (this.memory.lastSpawnTick ?? {})[roleName] ?? 0; }
@@ -169,7 +171,7 @@ export class RoomExtra extends Room {
     if (overridenQuota !== undefined) return overridenQuota;
 
     // Try to get the role instance, and return -1 if we can't
-    const role = this.colony.RoleRegistry.get(roleName);
+    const role = this.colony.Roles[roleName];
     if (!role) {
       throw new Error(`Role is not in Registry: ${roleName}`);
     }
@@ -189,14 +191,14 @@ export class RoomExtra extends Room {
   }
 
   get ConstructionSites(): ConstructionSite[] {
-    const constructionGetter = (r: Room) => r.find(FIND_MY_CONSTRUCTION_SITES) as ConstructionSite[];
-    var ret = [...constructionGetter(this)];
+    const constructionGetter = (r: Room) => r.find(FIND_MY_CONSTRUCTION_SITES) ;
+    let ret = [...constructionGetter(this)];
     for (const claimed of this.GetVisibleUncontestedClaimedRooms())
       ret = ret.concat(...constructionGetter(claimed));
     return ret;
   }
 
-  get HostileInfo(): HostileInfo[] {
+  public get HostileInfo(): HostileInfo[] {
     return GetHostileInfo(this);
   }
 
@@ -208,21 +210,21 @@ export class RoomExtra extends Room {
     return this.find(FIND_MY_STRUCTURES, { filter: s => s.structureType === STRUCTURE_TOWER });
   }
 
-  get Sources(): Source[] {
+  public get Sources(): Source[] {
     return this.find(FIND_SOURCES);
   }
 
   get Containers(): StructureContainer[] {
-    const containerGetter = (r: Room) => r.find(FIND_STRUCTURES, { filter: s => s.structureType === STRUCTURE_CONTAINER }) as StructureContainer[];
-    var ret = [...containerGetter(this)];
+    const containerGetter = (r: Room) => r.find(FIND_STRUCTURES, { filter: s => s.structureType === STRUCTURE_CONTAINER }) ;
+    let ret = [...containerGetter(this)];
     for (const claimed of this.GetVisibleUncontestedClaimedRooms())
       ret = ret.concat(...containerGetter(claimed));
-    return ret;
+    return ret as StructureContainer[];
   }
 
   get Repairs(): AnyStructure[] {
-    const repairGetter = (r: Room) => r.find(FIND_STRUCTURES, { filter: s => s.hits < s.hitsMax }) as AnyStructure[];
-    var ret = [...repairGetter(this)];
+    const repairGetter = (r: Room) => r.find(FIND_STRUCTURES, { filter: s => s.hits < s.hitsMax }) ;
+    let ret = [...repairGetter(this)];
     for (const claimed of this.GetVisibleUncontestedClaimedRooms())
       ret = ret.concat(...repairGetter(claimed));
     return ret;
@@ -239,7 +241,7 @@ export class RoomExtra extends Room {
   get LinkReceivers(): StructureLink[] {
     const ret = [];
     for (const id of this.LinkGroups.Receivers) {
-      const obj = Game.getObjectById(id as Id<StructureLink>);
+      const obj = Game.getObjectById(id );
       if (!obj) continue;
       else ret.push(obj);
     }
@@ -249,24 +251,18 @@ export class RoomExtra extends Room {
   get LinkSenders(): StructureLink[] {
     const ret = [];
     for (const id of this.LinkGroups.Senders) {
-      const obj = Game.getObjectById(id as Id<StructureLink>);
+      const obj = Game.getObjectById(id );
       if (!obj) continue;
       else ret.push(obj);
     }
     return ret;
   }
 
-  GetUnassignedMiningPositions(): MiningPosition[] {
-    const assignedMiningPositions = this.colony.GetAllAssignedTasks(TaskAction.Mine).map(p => (p as Mine).target);
-    return [...this.MinerPositions, ...this.RemoteMinerPositions]
-      .filter(mp => !assignedMiningPositions.some(amp => amp.sourceId === mp.sourceId));
-  }
-
   GetVisibleUncontestedClaimedRooms(): Room[] {
     const ret = [];
     for (const name of this.ClaimedNearbyRooms)
       // A room is claimed by us if it is both visible, and not owned by someone else
-      if (name in Game.rooms && (Game.rooms[name].controller == undefined || Game.rooms[name].controller?.owner == undefined))
+      if (name in Game.rooms && (Game.rooms[name].controller === undefined || Game.rooms[name].controller?.owner === undefined))
         ret.push(Game.rooms[name]);
     return ret;
   }
@@ -280,8 +276,10 @@ export class RoomExtra extends Room {
         delete Memory.creeps[name];
 
         // Invoke the role cleanup if they had a role
-        const role = this.colony.RoleRegistry.get(oldMem.role);
-        if (role) role.OnCleanup(this, name, oldMem);
+        if (oldMem.role) {
+          const role = this.colony.GetRole(oldMem.role);
+          if (role) role.OnCleanup(this, name, oldMem);
+        }
       }
     }
   }
@@ -298,7 +296,7 @@ export class RoomExtra extends Room {
 
       // If the room is neutral, it's still ok to claim
       const room = Game.rooms[roomName];
-      if (room && (room.controller == undefined || room.controller.owner == undefined)) {
+      if (room && (room.controller === undefined || room.controller.owner === undefined)) {
         stillValid.push(roomName);
         continue;
       }
@@ -307,47 +305,52 @@ export class RoomExtra extends Room {
     this.ClaimedNearbyRooms = stillValid;
   }
 
-  Tick(): void {
-    // Cleanup Dead creeps
-    this.CleanupDeadCreeps();
 
-    // Remove claims that are no longer neutral
-    this.ValidateClaimedRooms();
+  RunCreeps(): void {
+    // Run each creep in the room.
+    for (const c of this.AssignedCreeps) {
+      c.CheckRoomEvents(this);
 
-    // Report hostiles
-    this.ReportHostiles();
+      if (c.currentTask === null || c.currentTask.isComplete(c))
+        c.ChangeTask();
 
-    // Send energy across links
-    for (const sender of this.LinkSenders)
-      for (const receiver of this.LinkReceivers)
-        this.SendLink(sender, receiver);
+      if (!c.spawning) {
+        c.role.TickCreep(c);
+        c.DoTask();
+      }
+    }
+  }
 
+  RunTowers(): void {
     // Run each tower in the room
     if (!this.DisableTowers)
       for (const tower of this.Towers)
         this.TickTower(tower);
+  }
 
-    // Build any designated roads
-    this.BuildRoads();
+  RunLinks(): void {
+    // Send energy across links
+    for (const sender of this.LinkSenders)
+      for (const receiver of this.LinkReceivers)
+        this.SendLink(sender, receiver);
+  }
 
-    // Visuals
-    if (this.EnableVisuals && this.EnableRepairOverlay)
-      this.DrawRepairOverlay();
+  DrawVisuals(): void {
+    if (!this.EnableVisuals) return;
+    if (this.EnableRepairOverlay) this.DrawRepairOverlay();
   }
 
   SendLink(sender: StructureLink, receiver: StructureLink): void {
     if (!sender.isActive() || !receiver.isActive()) return; // Can't use links
-    if (sender.store.getUsedCapacity() === 0 || sender.cooldown > 0) return; // Nothing to send
-    if (receiver.store.getFreeCapacity() === 0) return; // No ability to receive
+    if (sender.store.getUsedCapacity(RESOURCE_ENERGY) === 0 || sender.cooldown > 0) return; // Can't / Nothing to send
+    if (receiver.store.getFreeCapacity(RESOURCE_ENERGY) === 0) return; // No ability to receive
     const ret = sender.transferEnergy(receiver);
-    if (ret !== OK) this.log.warn(`Link Transfer from ${sender} -> ${receiver} failed: ${ret}`);
+    if (ret !== OK) this.log.warn(`Link Transfer from ${sender} (Used: ${sender.store.getUsedCapacity()}) -> ${receiver} (Free: ${receiver.store.getFreeCapacity()}) failed: ${ret}`);
   }
 
   ReportHostiles(): void {
-    if (this.HostileInfo.length >= this.HostileNotificationThreshold && Game.time % 10 === 0) {
-      var msg = `!!! Hostiles Spotted in ${this.name}:\n`;
-      msg += `\t${FormatHostileInfos(this.HostileInfo)}`;
-    }
+    if (this.HostileInfo.length >= this.HostileNotificationThreshold && Game.time % 10 === 0)
+      this.log.report(`!!! Hostiles Spotted in ${this.name}:\n\t${FormatHostileInfos(this.HostileInfo)}`);
   }
 
   CheckSpawns(): void {
@@ -357,9 +360,9 @@ export class RoomExtra extends Room {
       return;
     }
 
-    var completedSpawns = 0;
+    let completedSpawns = 0;
 
-    for (const r of this.colony.RoleRegistry.values()) {
+    for (const r of Object.values(this.colony.Roles)) {
       this.log.debug(`Checking Spawns for ${r.name}`);
       if (!this.IsRoleSpawnable(r)) continue;
       if (!r.IsSpawnNeeded(this)) continue;
@@ -412,9 +415,9 @@ export class RoomExtra extends Room {
     let spawned = 0;
 
     // Build a string of role populations
-    for (const name of Array.from(this.colony.RoleRegistry.keys()).sort()) {
+    for (const name of Array.from(Object.keys(this.colony.Roles)).sort()) {
       totalRoles++;
-      const role = this.colony.RoleRegistry.get(name);
+      const role = this.colony.Roles[name];
       if (!role) {
         this.log.crit(`No instance for ${name}`);
         continue;
@@ -436,22 +439,20 @@ export class RoomExtra extends Room {
       }
     }
 
-    const ownedStatus = this.parent != undefined ? `Claimed by ${this.parent.name}` : `HQ`;
+    const ownedStatus = this.parent !== undefined ? `Claimed by ${this.parent.name}` : `HQ`;
 
     // Prepend a leader to the populations string.
     msg = `${this.name} (${ownedStatus}) ::: ${spawned}/${totalRoles} Roles, ${this.AssignedCreeps.length} Assigned Creeps` + msg;
 
-    if (this.storage) {
-      const ratio = 100 * (this.storage.store.getUsedCapacity(RESOURCE_ENERGY) / this.storage.store.getCapacity(RESOURCE_ENERGY));
-      msg += ` ENERGY IN STORAGE: ${ratio} (${this.storage.store.getUsedCapacity(RESOURCE_ENERGY)}/${this.storage.store.getCapacity(RESOURCE_ENERGY)})`;
-    }
+    if (this.storage)
+      msg += ` ENERGY IN STORAGE: ${FmtRatios(this.storage.store.getUsedCapacity(RESOURCE_ENERGY), this.storage.store.getCapacity(RESOURCE_ENERGY), true, [], 3, "K", 1000)}`;
 
-    if (this.controller) {
-      const nextLevelStr = this.controller.level === 8 ? "" : ` -> ${this.controller.level + 1}`;
-      const downgradeMaintenanceThreshold = CONTROLLER_DOWNGRADE[this.controller.level] * UpdateController.DowngradeMaintenanceRatio;
-      const downgradeStr = this.controller.ticksToDowngrade < downgradeMaintenanceThreshold ? ` , Downgrade in ${this.controller.ticksToDowngrade}` : "";
-      msg += ` CONTROLLER ${this.controller.level}${nextLevelStr} ${FmtRatios(this.controller.progress, this.controller.progressTotal, true, [], 3, "K", 1000)}${downgradeStr}`;
-    }
+    if (!this.controller) throw new Error(`RoomExtra is an owned room, therefore should never not have a controller.`);
+
+    const nextLevelStr = this.controller.level === 8 ? "" : ` -> ${this.controller.level + 1}`;
+    const downgradeMaintenanceThreshold = CONTROLLER_DOWNGRADE[this.controller.level] * UpdateController.DowngradeMaintenanceRatio;
+    const downgradeStr = this.controller.ticksToDowngrade < downgradeMaintenanceThreshold ? ` , Downgrade in ${this.controller.ticksToDowngrade}` : "";
+    msg += ` CONTROLLER ${this.controller.level}${nextLevelStr} ${FmtRatios(this.controller.progress, this.controller.progressTotal, true, [], 3, "K", 1000)}${downgradeStr}`;
 
     // Append hostile details
     if (this.HostileInfo.length) {
@@ -479,22 +480,31 @@ export class RoomExtra extends Room {
     [(s => s instanceof StructureRoad), 0.75, 1],
     [(s => s instanceof StructureRampart), 1, 1],
     [(s => s instanceof StructureWall), 0.1, 1],
-    [(_ => true), 0.75, 1],
+    [(() => true), 0.75, 1],
   ];
 
-  FindRepairByPriorityAndStrength(pos: RoomPosition): AnyStructure | null {
+  FindRepairByPriorityAndStrength(limitToRoom?: RoomExtra, byRangeTo?: RoomPosition): AnyStructure | null {
     let priorityIndex = 0;
-    for (const [p, repairAt, _] of this.RepairPriorities) {
-      // Get candidates and group by number of suppliers
-      const needsRepair = this.Repairs
-        .filter(s => p(s) && (s.hits / s.hitsMax) < repairAt)
+    const ongoingRepairs = this.GetAssignedTasks(TaskAction.Repair) as Repair[];
+    const incoming = (s: AnyStructure) => ongoingRepairs.filter(or => or.target === s.id).length;
+    const roomLimit = (s: AnyStructure) => limitToRoom === undefined || (limitToRoom !== undefined && s.pos.roomName === limitToRoom.name)
+    for (const [predicate, repairAt, maxWorkers] of this.RepairPriorities) {
+      const candidates = this.Repairs.filter(s => roomLimit(s) && predicate(s) && (s.hits / s.hitsMax) < repairAt && incoming(s) < maxWorkers);
+
+      let selected;
+      if (byRangeTo === undefined)
+        // Sort by most needed
+        selected = candidates
         .sort((b, a) => (a.hits / a.hitsMax) - (b.hits / b.hitsMax))
         .pop();
+      else
+        // Sort by range to given point
+        selected = byRangeTo.findClosestByRange(candidates)
 
-      if (needsRepair) return needsRepair;
       priorityIndex++;
+      if (!selected) continue;
+      else return selected;
     }
-
     this.log.debug(`No repairs found, searched ${priorityIndex} priority groups.`);
     return null;
   }
@@ -534,7 +544,7 @@ export class RoomExtra extends Room {
 
     // If we have enough energy, repair the most damaged structure in the room
     if (supplyRatio >= this.TowerCriticalSupplyRatio) {
-      const needRepair = this.FindRepairByPriorityAndStrength(tower.pos);
+      const needRepair = this.FindRepairByPriorityAndStrength(this, tower.pos);
       if (needRepair) tower.repair(needRepair);
     }
   }

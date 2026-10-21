@@ -1,6 +1,7 @@
-import type { CreepExtra } from "Creep";
+import { CreepExtra } from "Creep";
+import { TargetTask } from "./TargetTask";
 import { TaskAction } from "./TaskAction";
-import { TargetTask } from "./BaseTask";
+
 
 export class Pickup extends TargetTask<typeof TaskAction.Pickup, Id<Resource<RESOURCE_ENERGY>>> {
   public readonly kind = "pickup" as const;

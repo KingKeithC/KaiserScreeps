@@ -84,7 +84,7 @@ export const Colours = {
 };
 
 export function GetRandomName() {
-  const salutationGroups = Object.values(Salutations) as string[][];
+  const salutationGroups = Object.values(Salutations);
   const salutationGroup = salutationGroups[Math.floor(Math.random() * salutationGroups.length)];
   const salutation = salutationGroup[Math.floor(Math.random() * salutationGroup.length)];
   const male = Math.random() > 0.5;

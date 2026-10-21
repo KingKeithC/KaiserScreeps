@@ -1,15 +1,17 @@
-import type { CreepExtra } from "Creep";
+import { CreepExtra } from "Creep";
+import { TargetTask } from "./TargetTask";
 import { TaskAction } from "./TaskAction";
-import { TargetTask } from "./BaseTask";
+import { TaskActionResult } from "./types";
 
 export class Supply extends TargetTask<typeof TaskAction.Supply, Id<AnyStoreStructure>> {
   public readonly kind = "supply" as const;
 
   public constructor(target: Id<AnyStoreStructure>) { super(TaskAction.Supply, target, "structure"); }
 
-  public override act(creep: CreepExtra) {
+  public override act(creep: CreepExtra): TaskActionResult | null {
     const target = Game.getObjectById(this.target);
-    return this.perform(target && "store" in target ? target as AnyStoreStructure : null, 1, structure => creep.transfer(structure, RESOURCE_ENERGY));
+    if (!target) return null;
+    return { range: 1, result: creep.transfer(target, RESOURCE_ENERGY), target };
   }
 
   public override isComplete(creep: CreepExtra): boolean {

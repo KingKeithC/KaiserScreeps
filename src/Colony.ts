@@ -1,29 +1,31 @@
 import { CreepExtra } from "Creep";
+import { Dictionary, flatten, sum } from "lodash";
+import { Attacker } from "roles/Attacker";
+import { Claimer } from "roles/Claimer";
+import { Defender } from "roles/Defender";
 import { Miner } from "roles/Miner";
 import { CreepRole } from "roles/Role";
-import { Scout, ScoutingReport } from "roles/Scout";
-import { Defender } from "roles/Defender";
+import { Scout } from "roles/Scout";
 import { Worker } from "roles/Worker";
 import { RoomExtra } from "Room";
 import profiler from "screeps-profiler";
-import { AttackTargetTask, Build, ClaimRoomTask, CollectEnergy, CreepTask, Dismantle, GuardTask, Idle, Mine, Move, Pickup, Repair, Supply, TaskAction, UpdateController } from "tasks";
+import { AttackTargetTask, Build, ClaimRoomTask, CollectEnergy, CreepTask, Dismantle, GuardTask, Mine, Move, Pickup, Repair, Supply, UpdateController } from "tasks";
+import { FmtRatios } from "utils/Collections";
+import { BodyCost } from "utils/CreepUtils";
 import { ErrorMapper } from "utils/ErrorMapper";
 import { Logger } from "utils/Logger";
-import { Attacker } from "roles/Attacker";
-import { Dictionary, flatten, propertyOf, sum, unique } from "lodash";
-import { Claimer } from "roles/Claimer";
-import { FmtRatios } from "utils/Collections";
+import { MakeRoomReport, RoomReport } from "utils/RoomUtils";
 
 
 
 declare global {
   interface Memory {
-    globalEnableProfiling: boolean,
-    globalEnableErrorMapper: boolean,
-    scoutingReports: Dictionary<ScoutingReport>;
-    scoutInterval: number;
-    colonyStateReportFrequency: number;
-    stats: ColonyStats;
+    globalEnableProfiling?: boolean,
+    globalEnableErrorMapper?: boolean,
+    scoutingReports?: Dictionary<RoomReport>;
+    scoutInterval?: number;
+    colonyStateReportFrequency?: number;
+    stats?: ColonyStats;
   }
 }
 
@@ -37,89 +39,102 @@ interface ColonyStats {
   [key: string]: number;
 }
 
+interface RoleRegistry { [name: string]: CreepRole; }
+interface TaskRegistry { [name: string]: CreepTask; }
+
 export class Colony {
-  readonly RoleRegistry = new Map<string, CreepRole>();
-  readonly TaskRegistry = new Map<string, CreepTask>();
-  readonly username: string;
+  readonly Tasks: TaskRegistry = {
+    mine: Mine.prototype,
+    collectEnergy: CollectEnergy.prototype,
+    updateController: UpdateController.prototype,
+    build: Build.prototype,
+    repair: Repair.prototype,
+    supply: Supply.prototype,
+    pickup: Pickup.prototype,
+    attack: AttackTargetTask.prototype,
+    guard: GuardTask.prototype,
+    move: Move.prototype,
+    claim: ClaimRoomTask.prototype,
+    dismantle: Dismantle.prototype,
+  } as const;
 
+  readonly Roles: RoleRegistry = {
+    Miner: new Miner(this),
+    Worker: new Worker(this),
+    Defender: new Defender(this),
+    Scout: new Scout(this),
+    Attacker: new Attacker(this),
+    Claimer: new Claimer(this),
+  } as const;
 
-  private _MyCreeps: CreepExtra[] = [];
+  DeserializeTask(value: unknown): CreepTask | null {
+    if (value === null || value === undefined) return null;
+    if (typeof value !== "object")  throw new Error(`Creep Task is not null or object.`);
+    if (!("kind" in value)) throw new Error(`Creep Task contains no 'kind' property.`);
+    const kind: string = value.kind as string;
+    const taskPrototype = this.Tasks[kind];
+    if (!taskPrototype) throw new Error(`No Prototype for ${kind} exists.`);
+    return Object.assign(Object.create(taskPrototype), value) as CreepTask;
+  }
+
+  // Lookup a role from the registry, and throw an error if not found
+  GetRole(name: string): CreepRole {
+    const role = this.Roles[name];
+    if (!role) {
+      // It's a game breaking error to have no role
+      throw new Error(`Role is not in Registry: ${name}`);
+    }
+    return role;
+  }
+
+  // All the living creeps I own
+  private cachedMyCreeps: CreepExtra[] = [];
   get MyCreeps(): CreepExtra[] {
-    if (this._MyCreeps.length > 0) return this._MyCreeps;
-    this._MyCreeps = Object.values(Game.creeps).filter(c => c.my).map(c => new CreepExtra(c.id, this));
-    return this._MyCreeps;
+    if (this.cachedMyCreeps.length > 0) return this.cachedMyCreeps;
+    this.cachedMyCreeps = Object.values(Game.creeps).filter(c => c.my).map(c => new CreepExtra(c.id, this));
+    return this.cachedMyCreeps;
   }
 
   // All visible room owned by me.
-  private _MyRooms: RoomExtra[] = [];
+  private cachedMyRooms: RoomExtra[] = [];
   get MyRooms(): RoomExtra[] {
-    if (this._MyRooms.length > 0) return this._MyRooms;
-    this._MyRooms = Object.values(Game.rooms).filter(r => r.controller && r.controller.my).map(r => new RoomExtra(r, this));
-    return this._MyRooms;
+    if (this.cachedMyRooms.length > 0) return this.cachedMyRooms;
+    this.cachedMyRooms = Object.values(Game.rooms).filter(r => r.controller && r.controller.my).map(r => new RoomExtra(r, this));
+    return this.cachedMyRooms;
   }
 
   // All visible rooms, not owned by me.
-  private _OtherRooms: Room[] = [];
+  private cachedOtherRooms: Room[] = [];
   get OtherRooms(): Room[] {
-    if (this._OtherRooms.length > 0) return this._OtherRooms;
-    this._OtherRooms = Object.values(Game.rooms).filter(r => !(r.controller && r.controller.my));
-    return this._OtherRooms;
+    if (this.cachedOtherRooms.length > 0) return this.cachedOtherRooms;
+    this.cachedOtherRooms = Object.values(Game.rooms).filter(r => !(r.controller && r.controller.my));
+    return this.cachedOtherRooms;
   }
 
-  private _RolesByGroup: Map<string, CreepRole[]> = new Map();
-  get RolesByGroup(): Map<string, CreepRole[]> {
-    if (this._RolesByGroup.size > 0) return this._RolesByGroup;
-    for (const roleType of this.RoleRegistry.values())
-      this._RolesByGroup.set(roleType.groupName, [...this._RolesByGroup.get(roleType.groupName) ?? [], roleType]);
-    return this._RolesByGroup;
-  }
-
-  private _CreepsByAssignedRoom: Map<string, CreepExtra[]> = new Map();
+  // this.MyCreeps Grouped by Assigned Room (creep.memory.room)
+  private cachedCreepsByAssignedRoom: Map<string, CreepExtra[]> = new Map();
   get CreepsByAssignedRoom(): Map<string, CreepExtra[]> {
-    if (this._CreepsByAssignedRoom.size > 0) return this._CreepsByAssignedRoom;
+    if (this.cachedCreepsByAssignedRoom.size > 0) return this.cachedCreepsByAssignedRoom;
     for (const c of this.MyCreeps)
-      this._CreepsByAssignedRoom.set(c.memory.room, [...this._CreepsByAssignedRoom.get(c.memory.room) ?? [], c]);
-    return this._CreepsByAssignedRoom;
+      if (c.memory.room)
+        this.cachedCreepsByAssignedRoom.set(c.memory.room, [...this.cachedCreepsByAssignedRoom.get(c.memory.room) ?? [], c]);
+    return this.cachedCreepsByAssignedRoom;
   }
 
-  GetAllAssignedTasks<Action extends string = string>(taskAction?: Action): CreepTask[] {
-    const tasks = this.MyCreeps
-      .filter(c => c.memory.jobMemory != null && c.memory.jobMemory != undefined)
-      .map(c => c.memory.jobMemory as CreepTask);
-
-    if (!taskAction) return tasks;
-    return tasks.filter(t => t.action === taskAction);
+  // creep.memory.currentTask from all MyCreeps, optionally filtered by a type of action
+  private cachedAllAssignedTasks: CreepTask[] = [];
+  GetAllAssignedTasks<Action extends string = CreepTask["action"]>(taskAction?: Action): CreepTask[] | CreepTask<Action>[] {
+    if (taskAction === undefined && this.cachedAllAssignedTasks.length > 0) return this.cachedAllAssignedTasks;
+    if (taskAction !== undefined && this.cachedAllAssignedTasks.length > 0) return this.cachedAllAssignedTasks.filter(t => t.action === taskAction);
+    this.cachedAllAssignedTasks = this.MyCreeps.map(c => c.currentTask).filter(t => t !== null) as CreepTask[];
+    if (taskAction) return this.cachedAllAssignedTasks.filter(t => t.action === taskAction);
+    return this.cachedAllAssignedTasks;
   }
 
   private readonly log = new Logger(this);
 
+  readonly username: string;
   constructor() {
-    [
-      new Miner(this),
-      new Worker(this),
-      new Defender(this),
-      new Scout(this),
-      new Attacker(this),
-      new Claimer(this),
-    ].forEach(r => this.RoleRegistry.set(r.name, r));
-
-    const taskPrototypes: [string, CreepTask][] = [
-      ["idle", Idle.prototype],
-      ["mine", Mine.prototype],
-      ["collectEnergy", CollectEnergy.prototype],
-      ["updateController", UpdateController.prototype],
-      ["build", Build.prototype],
-      ["repair", Repair.prototype],
-      ["supply", Supply.prototype],
-      ["pickup", Pickup.prototype],
-      ["attack", AttackTargetTask.prototype],
-      ["guard", GuardTask.prototype],
-      ["move", Move.prototype],
-      ["claim", ClaimRoomTask.prototype],
-      ["dismantle", Dismantle.prototype],
-    ];
-    taskPrototypes.forEach(([kind, task]) => this.TaskRegistry.set(kind, task));
-
     // Set my username
     this.username = Game.spawns[Object.keys(Game.spawns)[0]].owner.username;
   }
@@ -131,9 +146,9 @@ export class Colony {
     profiler.registerClass(ErrorMapper, "ErrorMapper");
     profiler.registerClass(CreepExtra, "CreepExtra");
     profiler.registerClass(RoomExtra, "RoomExtra");
-    for (const [name, roleType] of this.RoleRegistry.entries())
+    for (const [name, roleType] of Object.entries(this.Roles))
       profiler.registerClass(roleType.constructor, name);
-    for (const [name, taskType] of this.TaskRegistry.entries())
+    for (const [name, taskType] of Object.entries(this.Tasks))
       profiler.registerClass(taskType, name);
     profiler.registerClass(Colony, "Colony");
     profiler.enable();
@@ -176,33 +191,36 @@ export class Colony {
 
   private ClearCaches(): void {
     // Reset Cached fields so they are generated on next access.
-    this._MyCreeps = [];
-    this._MyRooms = [];
-    this._OtherRooms = [];
-    this._CreepsByAssignedRoom = new Map();
+    this.cachedMyCreeps = [];
+    this.cachedMyRooms = [];
+    this.cachedOtherRooms = [];
+    this.cachedAllAssignedTasks = [];
+    this.cachedCreepsByAssignedRoom = new Map();
   }
+
+  // Stats are only fetched evey ~90 seconds, so we only need
+  StatsFrequency = 30;
 
   // This is the effectively the loop function invoked each tick.
   private MainLoop(): void {
     this.ClearCaches();
-
     this.CleanupStaleFlags();
-
-    // Try to generate a pixel if we can
     this.TryGeneratingPixel();
 
-    // Run TickStart on each role, so they can do optional bookkeeping.
-    for (const role of this.RoleRegistry.values()) role.TickStart();
+    for (const role of Object.values(this.Roles))
+      role.StartOfTick();
 
-    // Tick each of my rooms, followed by the creeps assigned to those rooms.
+    // Tick each of my rooms
     for (const room of this.MyRooms) {
-      room.Tick();
-      for (const c of this.CreepsByAssignedRoom.get(room.name) ?? []) {
-        c.Tick(room);
-
-        if (!c.spawning) c.PerformRole();
-      }
+      room.CleanupDeadCreeps();
+      room.ValidateClaimedRooms();
+      room.ReportHostiles();
+      room.RunLinks();
+      room.RunTowers();
+      room.BuildRoads();
+      room.RunCreeps();
       room.CheckSpawns();
+      room.DrawVisuals();
     }
 
     // Tick all other rooms I can see but don't own
@@ -210,10 +228,12 @@ export class Colony {
       this.TickOtherVisibleRoom(room);
 
     // Run TickEnd on each role, for bookkeeping.
-    for (const role of this.RoleRegistry.values()) role.TickEnd();
+    for (const role of Object.values(this.Roles))
+      role.EndOfTick();
 
-    // Update the stats for this tick
-    this.stats = this.GetCurrentStats();
+    // Update stats
+    if (Game.time % this.StatsFrequency === 0)
+      this.stats = this.GetCurrentStats();
 
     // Periodically print a report with the state of the colony.
     if (Game.time % this.ColonyStateReportFrequency === 0)
@@ -240,14 +260,15 @@ export class Colony {
       return;
     }
 
-    // Update the scouting reports for unowned rooms
+    // Update the room reports for unowned rooms
+    Memory.scoutingReports ??= {};
     if (!(room.name in Memory.scoutingReports)) {
       // If the room has never been scouted, create a scouting report for the room
-      Memory.scoutingReports[room.name] = (this.RoleRegistry.get("Scout") as Scout).NewScoutingReportRoom(room);
+      Memory.scoutingReports[room.name] = MakeRoomReport(room);
     } else if (Game.time % 50 === 0) {
-      // The room has been scouted, regularly fetch a new room report for it, and update the scouting report
+      // The room has been scouted, regularly fetch a new room report for it, and update the existing scouting report
       const existing = Memory.scoutingReports[room.name];
-      const updates = (this.RoleRegistry.get("Scout") as Scout).NewScoutingReportRoom(room);
+      const updates = MakeRoomReport(room);
       Memory.scoutingReports[room.name] = { ...existing, ...updates };
     }
   }
@@ -260,7 +281,7 @@ export class Colony {
   }
 
   Restart(): void {
-    if (Game.cpu.halt == undefined)
+    if (Game.cpu.halt === undefined)
       this.log.crit(`Game.cpu.halt() is undefined. Game must in in Isolated VM mode.`);
     else
       Game.cpu.halt();
@@ -271,20 +292,27 @@ export class Colony {
 
     const resources: { [key: string]: number; } = {};
     for (const r of Object.entries(Game.resources))
-      resources["resource__" + r[0]] = r[1];
+      resources["resource__" + r[0]] = r[1] as number;
 
     const roles: { [key: string]: number; } = {};
-    for (const [n, r] of this.RoleRegistry.entries()) {
+    for (const [n, r] of Object.entries(this.Roles)) {
       roles[`role_${n}__globalCount`] = r.GetGlobalCreepsInRole().length;
       roles[`role_${n}__globalQuota`] = r.GetGlobalQuota();
+      roles[`role_${n}__globalSpawnedBodiesCost`] = sum(r.GetGlobalCreepsInRole().map(c => BodyCost(c.body)));
     }
 
+    const meminfo: { [key: string]: number } = {};
+    if (Game.cpu.getHeapStatistics)
+      for (const [k, v] of Object.entries(Game.cpu.getHeapStatistics()))
+        meminfo[`meminfo__${k}`] = v as number;
+
+    /* eslint-disable camelcase */
     return {
       time: Game.time,
       totalEnergyInSpawns: sum(this.MyRooms.map(r => r.energyAvailable)),
       totalEnergyInContainers: sum(allMyContainers.map(c => c.store.getUsedCapacity(RESOURCE_ENERGY))),
       totalEnergyInCreeps: sum(this.MyCreeps.map(c => c.store.getUsedCapacity(RESOURCE_ENERGY))),
-      totalEnergyInMines: sum(unique(this.GetAllAssignedTasks(TaskAction.Mine).map(m => (m as Mine).target.sourceId)).map(s => Game.getObjectById(s as Id<Source>)?.energy ?? 0)),
+      totalEnergyInMines: sum(this.MyRooms.map(mr => [...mr.Sources.map(s => s.energy), ...flatten(mr.GetVisibleUncontestedClaimedRooms().map(r => r.find(FIND_SOURCES).map(s => s.energy)))])),
       totalEnergyInStorages: sum(this.MyRooms.map(r => r.storage?.store.getUsedCapacity(RESOURCE_ENERGY) ?? 0)),
       totalCapacityOfStorages: sum(this.MyRooms.map(r => r.storage?.store.getCapacity() ?? 0)),
       myCreepsCount: this.MyCreeps.length,
@@ -303,25 +331,27 @@ export class Colony {
       cpu__tickLimit: Game.cpu.tickLimit,
       ...resources,
       ...roles,
+      ...meminfo,
     };
+    /* eslint-enable camelcase */
   }
 
   UnassignAllTasks(): void {
     for (const c of this.MyCreeps) {
-      this.log.warn(`Clearing Job Memory from ${c.name}... was ${JSON.stringify(c.memory.jobMemory)}`);
-      c.memory.jobMemory = {};
+      this.log.warn(`Clearing Job Memory from ${c.name}... was ${JSON.stringify(c.memory.currentTask)}`);
+      c.memory.currentTask = undefined;
     }
   }
 
   get stats(): ColonyStats { return Memory.stats ?? this.GetCurrentStats(); }
   set stats(value: ColonyStats) { Memory.stats = value; }
 
-  private lastReportStats: ColonyStats = this.GetCurrentStats();
+  private lastReportStats: ColonyStats = this.stats;
   ColonyStateReport(): void {
     // Calculate differences from lastStats
-    var diffs: ColonyStats | undefined = undefined;
-    var rates: ColonyStats | undefined = undefined;
-    if (this.stats != undefined) {
+    let diffs: ColonyStats | undefined;
+    let rates: ColonyStats | undefined;
+    if (this.stats !== undefined) {
       diffs = { time: this.stats.time - this.lastReportStats.time };
       rates = { time: 1 };
       for (const k of Object.keys(this.stats)) {
@@ -335,16 +365,11 @@ export class Colony {
     let msg = `Tick ${Game.time} ::: COLONY REPORT for ${this.username} ::: ${this.MyRooms.length} Owned Rooms, ${this.MyCreeps.length} Creeps\n`;
 
     // Include memory usage info
-    if (Game.cpu.getHeapStatistics != undefined) {
-      var mem = Game.cpu.getHeapStatistics();
+    if (Game.cpu.getHeapStatistics !== undefined) {
+      const mem = Game.cpu.getHeapStatistics();
       msg += `\tMem (Phy / Avail): ${FmtRatios(mem.total_physical_size, mem.total_available_size, true, [], 2, "MiB", 1000000)}, `;
       msg += `Heap (Used / Limit): ${FmtRatios(mem.total_heap_size + mem.externally_allocated_size, mem.heap_size_limit, true, [], 2, "MiB", 1000000)}\n`;
     }
-
-    // Include current stats, and differences from last stats
-    msg += `\tStats = ${JSON.stringify(this.stats)}\n`;
-    if (diffs != undefined) msg += `\tDiffs = ${JSON.stringify(diffs)}\n`;
-    if (rates != undefined) msg += `\tRates = ${JSON.stringify(rates)}\n`;
 
     for (const myRoom of this.MyRooms)
       msg = msg.concat(`    ${myRoom.RoomStateReport()}\n`);

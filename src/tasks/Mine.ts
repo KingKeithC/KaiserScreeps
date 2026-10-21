@@ -1,9 +1,9 @@
 import { CreepExtra } from "Creep";
+import { DeserializeRoomPosition } from "utils/Collections";
 import { MiningPosition } from "utils/RoomUtils";
-import { TargetTask } from "./BaseTask";
+import { TargetTask } from "./TargetTask";
 import { TaskAction } from "./TaskAction";
 import { TaskActionResult } from "./types";
-
 
 
 export class Mine extends TargetTask<typeof TaskAction.Mine, MiningPosition> {
@@ -12,18 +12,13 @@ export class Mine extends TargetTask<typeof TaskAction.Mine, MiningPosition> {
   public constructor(mp: MiningPosition) { super(TaskAction.Mine, mp, "mining position"); }
 
   public override act(creep: CreepExtra): TaskActionResult | null {
-    const sourcePos = { pos: new RoomPosition(this.target.position.x, this.target.position.y, this.target.position.roomName) };
+    const sourcePos = { pos: DeserializeRoomPosition(this.target.pos) };
 
-    const source = Game.getObjectById(this.target.sourceId);
+    const source = Game.getObjectById(this.target.source);
     if (!source)
       return { range: 0, result: ERR_NOT_IN_RANGE, target: sourcePos };
 
-    const outcome: TaskActionResult = {
-      range: 0,
-      result: creep.harvest(source),
-      target: sourcePos
-    };
-
+    const outcome: TaskActionResult = { range: 0, result: creep.harvest(source), target: sourcePos };
     if (outcome?.result === ERR_NOT_OWNER) outcome.result = ERR_NOT_IN_RANGE; // Ignore owner errors, forward to a 'move' instruction
     return outcome;
   }
@@ -36,10 +31,10 @@ export class Mine extends TargetTask<typeof TaskAction.Mine, MiningPosition> {
     if (creep.store.getFreeCapacity(RESOURCE_ENERGY) === 0)
       return true;
 
-    if (creep.pos.findInRange(FIND_MY_CREEPS, 4, { filter: c => c.memory.role.startsWith("Miner") }).length > 0)
+    if (creep.pos.findInRange(FIND_MY_CREEPS, 4, { filter: c => c.memory.role?.startsWith("Miner") }).length > 0)
       return true;
 
-    const source = Game.getObjectById(this.target.sourceId);
+    const source = Game.getObjectById(this.target.source);
     return !(source instanceof Source) || source.energy === 0;
   }
 }

@@ -1,15 +1,13 @@
-import { CreepExtra } from "Creep";
 import { unique } from "lodash";
 import type { RoomExtra } from "Room";
-import { ClaimRoomTask, CreepTask, Dismantle, Idle, Move, TaskAction } from "tasks";
-import { FormatStructureHits, MakeBody } from "utils/Collections";
+import { ClaimRoomTask, CreepTask, TaskAction } from "tasks";
+import { MakeBody } from "utils/Collections";
 import { CreepRole, CreepRoleBase } from "./Role";
 
 
 export class Claimer extends CreepRoleBase implements CreepRole {
   readonly groupName = "Warriors";
   readonly name = "Claimer";
-  readonly tier = 1;
 
   GetNewCreepBody(room: RoomExtra): BodyPartConstant[] {
     if (room.energyCapacityAvailable >= 1300)
@@ -26,8 +24,10 @@ export class Claimer extends CreepRoleBase implements CreepRole {
 
   override GetGlobalQuota(): number { return this.AllClaims().length; }
   override GetRoomQuota(room: RoomExtra): number { return this.UnworkedClaims(room).length; }
-  IsSpawnNeeded(room: RoomExtra): boolean { return this.AllClaims().length > 0; }
-  SelectNextTask(creep: CreepExtra, lastTask: CreepTask | null): CreepTask | null { return this.GetInitialTask(creep.AssignedRoom); }
+
+  // Don't spawn claimers unless we have at least 10 living creeps
+  IsSpawnNeeded(room: RoomExtra): boolean { return room.AssignedCreeps.length > 10; }
+
 
   AllClaims(): Flag[] { return Object.values(Game.flags).filter(f => f.name.startsWith("Claim")); }
 

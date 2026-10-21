@@ -1,5 +1,4 @@
 export const TaskAction = {
-  Idle: '💤',
   Mine: '⛏️',
   CollectEnergy: '🔌',
   MaintainController: '🦸‍♀️',

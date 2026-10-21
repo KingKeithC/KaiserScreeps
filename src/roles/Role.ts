@@ -1,29 +1,29 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
+import { Colony } from "Colony";
 import { CreepExtra } from "Creep";
 import { GetRandomName } from "Data";
 import { RoomExtra } from "Room";
-import { CreepTask, Idle } from "tasks";
-import { Logger } from "utils/Logger";
-import { Colony } from "Colony";
+import { CreepTask } from "tasks";
 import { BodyCost } from "utils/CreepUtils";
+import { Logger } from "utils/Logger";
 
 
 export interface CreepRole {
   readonly name: string;
   readonly groupName: string;
-  readonly tier: number;
 
   toString(): string;
   TickCreep(creep: CreepExtra): void;
 
-  TickStart(): void; // Called at the start of the tick, before ticking rooms.
+  StartOfTick(): void; // Called at the start of the tick, before ticking rooms.
   RoomTickStart(room: RoomExtra): void; // Called before ticking the creeps in the room.
   RoomTickEnd(room: RoomExtra): void; // Called after ticking the creeps in the room.
-  TickEnd(): void; // Called at the end of the tick, after ticking rooms.
+  EndOfTick(): void; // Called at the end of the tick, after ticking rooms.
 
   GetNewCreepName(room: RoomExtra): string; // Return a new name for a newly spawned creep.
   GetNewCreepBody(room: RoomExtra): BodyPartConstant[]; // Return a new body for creeps of this role. See also https://screepspl.us/services/creep-calculator/
   GetInitialTask(room: RoomExtra): CreepTask | null; // Return the initial task to put in the memory of a to-be-spawned creep. Given creep is not accessible yet.
-  SelectNextTask(creep: CreepExtra, lastTask: CreepTask | null): CreepTask | null; // Given a creep who just finished a task, find a new task for them.
+  SelectNextTask(creep: CreepExtra): CreepTask | null; // Given a creep who just finished a task, find a new task for them.
 
   GetGlobalQuota(): number;
   GetRoomQuota(room: RoomExtra): number;
@@ -43,11 +43,10 @@ export abstract class CreepRoleBase implements CreepRole {
   // Must be supplied by derived roles.
   readonly abstract name: string;
   readonly abstract groupName: string;
-  readonly abstract tier: number;
-  abstract GetNewCreepBody(_room: RoomExtra): BodyPartConstant[];
-  abstract GetGlobalQuota(): number;
-  abstract GetRoomQuota(_room: RoomExtra): number;
+  abstract GetNewCreepBody(room: RoomExtra): BodyPartConstant[];
+  abstract GetRoomQuota(room: RoomExtra): number;
   abstract IsSpawnNeeded(room: RoomExtra): boolean;
+  abstract GetInitialTask(room: RoomExtra): CreepTask | null;
 
   // Init
   protected readonly log: Logger<CreepRoleBase> = new Logger(this, { formatArgs: { "<role>": this } });
@@ -55,19 +54,19 @@ export abstract class CreepRoleBase implements CreepRole {
   toString(): string { return `[role ${this.name}]`; }
 
   // Default Implementations
+  GetGlobalQuota(): number { return -1; }
   GetGlobalCreepsInRole(): CreepExtra[] { return this.colony.MyCreeps.filter(c => c.memory.role === this.name); }
-  GetInitialTask(room: RoomExtra): CreepTask | null { return null; }
-  GetNewCreepName(room: RoomExtra): string { return GetRandomName(); }
+  GetNewCreepName(_room: RoomExtra): string { return GetRandomName(); }
   GetRoomCreepsInRole(room: RoomExtra): CreepExtra[] { return room.AssignedCreeps.filter(c => c.memory.role === this.name); }
-  OnCleanup(room: RoomExtra, creepName: string, creepMemory: CreepMemory): void { }
-  OnSpawn(creep: CreepExtra): void { }
-  OnSpawnScheduled(room: RoomExtra, name: string): void { }
-  RoomTickEnd(room: RoomExtra): void { }
-  RoomTickStart(room: RoomExtra): void { }
-  SelectNextTask(_creep: CreepExtra, _lastTask: CreepTask): CreepTask | null { return null; }
-  TickCreep(creep: CreepExtra): void { }
-  TickEnd(): void { }
-  TickStart(): void { }
+  OnCleanup(): void { return; }
+  OnSpawn(_creep: CreepExtra): void { return;}
+  OnSpawnScheduled(room: RoomExtra, name: string): void { return;}
+  RoomTickEnd(): void { return;}
+  RoomTickStart(): void { return;}
+  SelectNextTask(creep: CreepExtra): CreepTask | null { return this.GetInitialTask(creep.AssignedRoom); }
+  TickCreep(_creep: CreepExtra): void { return;}
+  EndOfTick(): void { return;}
+  StartOfTick(): void { return;}
 
   AttemptSpawn(
     room: RoomExtra,
@@ -105,8 +104,8 @@ export abstract class CreepRoleBase implements CreepRole {
         role: this.name,
         stuckTicks: 0,
         lastPos: { x: spawn.pos.x, y: spawn.pos.y, room: room.name },
-        jobMemory: initialTask,
-        _spawning: true,
+        currentTask: initialTask,
+        spawning: true,
       },
     });
 
