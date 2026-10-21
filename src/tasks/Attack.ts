@@ -1,7 +1,7 @@
 import type { CreepExtra } from "Creep";
 import { TaskAction } from "./TaskAction";
 import { BaseTask } from "./BaseTask";
-import { CreepTask } from "./types";
+import { CreepTask, TaskActionResult } from "./types";
 
 export class AttackTargetTask extends BaseTask<typeof TaskAction.Attack> implements CreepTask<string> {
   public readonly kind = "attack" as const;
@@ -12,6 +12,14 @@ export class AttackTargetTask extends BaseTask<typeof TaskAction.Attack> impleme
 
   public override isComplete(creep: CreepExtra): boolean {
     const target = Game.getObjectById(this.targetId);
-    return !(target instanceof Creep) || !creep.room.find(FIND_HOSTILE_CREEPS).some(hostile => hostile.id === target.id);
+    if (!target || !(target instanceof Creep)) return true;
+    return false;
+  }
+
+  public override act(creep: CreepExtra): TaskActionResult | null {
+    const target = Game.getObjectById(this.targetId);
+    if (!target || !(target instanceof Creep)) return null;
+
+    return { range: 1, result: creep.attack(target), target };
   }
 }
