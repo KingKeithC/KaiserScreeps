@@ -1,5 +1,5 @@
 import { CreepExtra } from "Creep";
-import { groupBy, sum } from "lodash";
+import { groupBy } from "lodash";
 import type { RoomExtra } from "Room";
 import { CreepTask, TaskAction , AttackTargetTask, GuardTask } from "tasks";
 import { MakeBody } from "utils/Collections";
@@ -62,9 +62,9 @@ export class Defender extends CreepRoleBase implements CreepRole {
 
   FindLeastTargetedHostile(room: RoomExtra): Id<Creep> | null {
     const attacksByTarget = groupBy(room.GetAssignedTasks(TaskAction.Attack), a => (a as AttackTargetTask).targetId);
-    for (const [roomName, creeps] of room.HostilesByRoom.entries())
+    for (const creeps of room.HostilesByRoom.values())
       for (const c of creeps)
-        if (attacksByTarget[c.name].length === 0) return c.id;
+        if ((attacksByTarget[c.name] ?? []).length === 0) return c.id;
     return null;
   }
 }
