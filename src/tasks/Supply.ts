@@ -14,10 +14,11 @@ export class Supply extends TargetTask<typeof TaskAction.Supply, Id<AnyStoreStru
     return { range: 1, result: creep.transfer(target, RESOURCE_ENERGY), target };
   }
 
+  FreeCapacityToConsiderComplete = 20;
   public override isComplete(creep: CreepExtra): boolean {
     if (creep.store.energy === 0) return true;
     const target = this.resolveTarget();
     return !target || !("store" in target)
-      || (target as AnyStoreStructure).store.getFreeCapacity(RESOURCE_ENERGY) === 0;
+      || (target as AnyStoreStructure).store.getFreeCapacity(RESOURCE_ENERGY) < this.FreeCapacityToConsiderComplete;
   }
 }

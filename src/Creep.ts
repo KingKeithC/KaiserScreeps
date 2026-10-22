@@ -70,8 +70,8 @@ export class CreepExtra extends Creep {
       visualizePathStyle: { stroke: Colours.PATH_LONG, lineStyle: "solid" },
       ignoreCreeps: true,
       ignoreRoads: false,
-      maxOps: this.MaxPathfindingOps * 4,
-      plainCost: 2
+      // maxOps: this.MaxPathfindingOps * 4,
+      plainCost: 2,
     });
   }
 
@@ -81,10 +81,15 @@ export class CreepExtra extends Creep {
       ...opts,
       visualizePathStyle: { stroke: Colours.PATH_STUCK, lineStyle: "dotted" },
       ignoreCreeps: false,
-      ignoreRoads: false,
-      maxOps: this.MaxPathfindingOps,
+      ignoreRoads: true,
+      // maxOps: this.MaxPathfindingOps,
+      plainCost: 2,
     });
   }
+
+  OnUnstuck(): void { return; }
+  OnStuck(): void { return; }
+  OnMoveSucceeded(): void { return; }
 
   // Returns 1 when in range; otherwise returns the moveTo result.
   MoveCreep(target: RoomPosition | { pos: RoomPosition; }, opts?: MoveToOpts): number {
@@ -96,7 +101,7 @@ export class CreepExtra extends Creep {
     this.memory.successfulAvoidMoves ??= 0;
 
     // Figure out if we moved, and then update position
-    const movedBetweenTicks = !this.memory.lastPos
+    const movedBetweenTicks = this.memory.lastPos === undefined
       || this.pos.x !== this.memory.lastPos.x
       || this.pos.y !== this.memory.lastPos.y
       || this.pos.roomName !== this.memory.lastPos.room;
@@ -112,28 +117,31 @@ export class CreepExtra extends Creep {
       this.memory.moveMode = "long";
       // eslint-disable-next-line no-underscore-dangle
       delete this.memory._move; // Clear out saved path
-      this.log.debug("MoveCreep: Move complete, arrived and reset stuck tracking.");
+      this.log.info("MoveCreep: Move complete, arrived and reset stuck tracking.");
+      this.OnMoveSucceeded();
       return 1;
     }
 
     // Increment counters
     if (this.memory.moveMode === "avoidCreeps" && movedBetweenTicks) {
-      this.log.debug(`MoveCreep: avoidCreeps && movedBetweenTicks; ${this.memory.successfulAvoidMoves} (+1)`);
+      this.log.info(`MoveCreep: avoidCreeps && movedBetweenTicks; ${this.memory.successfulAvoidMoves} (+1)`);
       this.memory.successfulAvoidMoves++;
     } else if (this.memory.moveMode === "long" && !movedBetweenTicks && this.fatigue === 0) {
-      this.log.debug(`MoveCreep: long && !movedBetweenTicks && this.fatigue === 0; ${this.memory.stuckTicks} (+1)`);
+      this.log.info(`MoveCreep: long && !movedBetweenTicks && this.fatigue === 0; ${this.memory.stuckTicks} (+1)`);
       this.memory.stuckTicks++;
-    } else if (this.memory.moveMode === "long" && movedBetweenTicks) {
-      this.log.debug(`MoveCreep: long && movedBetweenTicks; Was stuck ${this.memory.stuckTicks}, now 0.`);
+    } else if (this.memory.stuckTicks && this.memory.moveMode === "long" && movedBetweenTicks) {
+      this.log.info(`MoveCreep: long && movedBetweenTicks; Was stuck ${this.memory.stuckTicks}, now 0.`);
       this.memory.stuckTicks = 0;
     }
 
     // Switch move mode
     if (this.memory.moveMode === "long" && this.memory.stuckTicks > this.MaxStuckTicks) {
+      this.OnStuck();
       this.memory.moveMode = "avoidCreeps";
       this.memory.stuckTicks = 0;
       this.memory.successfulAvoidMoves = 0;
-    } else if (this.memory.moveMode === "avoidCreeps" && this.memory.successfulAvoidMoves > this.MaxAvoidTicks) {
+    } else if (this.memory.moveMode === "avoidCreeps" && this.memory.successfulAvoidMoves >= this.MaxAvoidTicks) {
+      this.OnUnstuck();
       this.memory.moveMode = "long";
       this.memory.stuckTicks = 0;
       this.memory.successfulAvoidMoves = 0;
@@ -147,8 +155,8 @@ export class CreepExtra extends Creep {
     };
 
     return this.memory.moveMode === "long"
-      ? this.MoveLong(targetPos, opts ? { ...opts, costCallback } : { costCallback })
-      : this.MoveAvoidCreeps(targetPos, opts ? { ...opts, costCallback } : { costCallback });
+      ? this.MoveLong(targetPos, opts ? { ...opts, costCallback } : { costCallback, range: 1 })
+      : this.MoveAvoidCreeps(targetPos, opts ? { ...opts, costCallback } : { costCallback, range: 1 });
   }
 
   JustFinishedSpawning(room: RoomExtra): void {
