@@ -30,8 +30,8 @@ export class Worker extends CreepRoleBase implements CreepRole {
     for (const t of tomb) creep.withdraw(t, RESOURCE_ENERGY);
   }
 
-  // 3 workers per mine
-  override GetRoomQuota(room: RoomExtra) { return room.MaxMiners * 3; }
+  // 4 workers per mine
+  override GetRoomQuota(room: RoomExtra) { return room.MaxMiners * 4; }
 
   IsSpawnNeeded() { return true; }
 
