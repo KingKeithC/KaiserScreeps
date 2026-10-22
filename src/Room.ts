@@ -21,6 +21,8 @@ declare global {
     disableTowerAttacks: boolean,
     towerAttackRange: number,
     towerAttackRangeTiles?: number;
+    eventCounts?: Map<EventConstant, number>;
+    eventAmounts?: Map<EventConstant, number | null>;
     towerCriticalSupplyRatio?: number;
     hostileNotificationThreshold?: number;
     claimedNearby?: string[],
@@ -102,6 +104,26 @@ export class RoomExtra extends Room {
     if (this.memory.mines === undefined || this.memory.mines.length === 0)
       this.memory.mines = GetMiningPositions(this); // Update memoized
     return this.memory.mines; // Return memoized
+  }
+
+  private set EventCounts(value: Map<EventConstant, number>) { this.memory.eventCounts = value; }
+  get EventCounts(): Map<EventConstant, number> {
+    const ret = new Map<EventConstant, number>();
+    if (this.memory.eventCounts === undefined || this.memory.eventCounts === null)
+      return ret;
+    for (const [event, counts] of this.memory.eventCounts)
+      ret.set(event, counts);
+    return ret;
+  }
+
+  private set EventAmounts(value: Map<EventConstant, number | null>) { this.memory.eventAmounts = value; }
+  get EventAmounts(): Map<EventConstant, number | null> {
+    const ret = new Map<EventConstant, number | null>();
+    if (this.memory.eventAmounts === undefined || this.memory.eventAmounts === null)
+      return ret;
+    for (const [event, amounts] of this.memory.eventAmounts)
+      ret.set(event, amounts);
+    return ret;
   }
 
   private cachedClaimedMines: Dictionary<MiningPosition[]> = {};
@@ -193,12 +215,12 @@ export class RoomExtra extends Room {
   get HostilesByRoom(): Map<string, Creep[]> {
     const ret = new Map<string, Creep[]>();
     for (const r of [this, ...this.GetVisibleUncontestedClaimedRooms()])
-      ret.set(r.name, [...(ret.get(r.name) ?? []), ...r.find(FIND_HOSTILE_CREEPS)])
+      ret.set(r.name, [...(ret.get(r.name) ?? []), ...r.find(FIND_HOSTILE_CREEPS)]);
     return ret;
   }
 
   get ConstructionSites(): ConstructionSite[] {
-    const constructionGetter = (r: Room) => r.find(FIND_MY_CONSTRUCTION_SITES) ;
+    const constructionGetter = (r: Room) => r.find(FIND_MY_CONSTRUCTION_SITES);
     let ret = [...constructionGetter(this)];
     for (const claimed of this.GetVisibleUncontestedClaimedRooms())
       ret = ret.concat(...constructionGetter(claimed));
@@ -222,7 +244,7 @@ export class RoomExtra extends Room {
   }
 
   get Containers(): StructureContainer[] {
-    const containerGetter = (r: Room) => r.find(FIND_STRUCTURES, { filter: s => s.structureType === STRUCTURE_CONTAINER }) ;
+    const containerGetter = (r: Room) => r.find(FIND_STRUCTURES, { filter: s => s.structureType === STRUCTURE_CONTAINER });
     let ret = [...containerGetter(this)];
     for (const claimed of this.GetVisibleUncontestedClaimedRooms())
       ret = ret.concat(...containerGetter(claimed));
@@ -230,7 +252,7 @@ export class RoomExtra extends Room {
   }
 
   get Repairs(): AnyStructure[] {
-    const repairGetter = (r: Room) => r.find(FIND_STRUCTURES, { filter: s => s.hits < s.hitsMax }) ;
+    const repairGetter = (r: Room) => r.find(FIND_STRUCTURES, { filter: s => s.hits < s.hitsMax });
     let ret = [...repairGetter(this)];
     for (const claimed of this.GetVisibleUncontestedClaimedRooms())
       ret = ret.concat(...repairGetter(claimed));
@@ -248,7 +270,7 @@ export class RoomExtra extends Room {
   get LinkReceivers(): StructureLink[] {
     const ret = [];
     for (const id of this.LinkGroups.Receivers) {
-      const obj = Game.getObjectById(id );
+      const obj = Game.getObjectById(id);
       if (!obj) continue;
       else ret.push(obj);
     }
@@ -258,7 +280,7 @@ export class RoomExtra extends Room {
   get LinkSenders(): StructureLink[] {
     const ret = [];
     for (const id of this.LinkGroups.Senders) {
-      const obj = Game.getObjectById(id );
+      const obj = Game.getObjectById(id);
       if (!obj) continue;
       else ret.push(obj);
     }
@@ -293,6 +315,43 @@ export class RoomExtra extends Room {
         }
       }
     }
+  }
+
+  ResetEvents(): void {
+    this.EventCounts = new Map();
+    this.EventAmounts = new Map();
+  }
+
+  AcumulateEvents(): void {
+    const existingCount = this.EventCounts;
+    const existingAmount = this.EventAmounts;
+    const events = this.getEventLog();
+    for (const e of events) {
+      existingCount.set(e.event, (existingCount.get(e.event) ?? 0) + 1);
+
+      let amount;
+      if (e.event === EVENT_ATTACK)
+        amount = e.data.damage;
+      if (e.event === EVENT_BUILD)
+        amount = e.data.amount;
+      if (e.event === EVENT_HARVEST)
+        amount = e.data.amount;
+      if (e.event === EVENT_HEAL)
+        amount = e.data.amount;
+      if (e.event === EVENT_REPAIR)
+        amount = e.data.amount;
+      if (e.event === EVENT_RESERVE_CONTROLLER)
+        amount = e.data.amount;
+      if (e.event === EVENT_UPGRADE_CONTROLLER)
+        amount = e.data.amount;
+      if (e.event === EVENT_TRANSFER)
+        amount = e.data.amount;
+
+      if (amount) existingAmount.set(e.event, (existingAmount.get(e.event) ?? 0) + 1);
+      else existingAmount.set(e.event, null);
+    }
+    this.EventCounts = existingCount;
+    this.EventAmounts = existingAmount;
   }
 
   // Remove rooms from the claim list if they are not ok to claim
@@ -499,7 +558,7 @@ export class RoomExtra extends Room {
     let priorityIndex = 0;
     const ongoingRepairs = this.GetAssignedTasks(TaskAction.Repair) as Repair[];
     const incoming = (s: AnyStructure) => ongoingRepairs.filter(or => or.target === s.id).length;
-    const roomLimit = (s: AnyStructure) => limitToRoom === undefined || (limitToRoom !== undefined && s.pos.roomName === limitToRoom.name)
+    const roomLimit = (s: AnyStructure) => limitToRoom === undefined || (limitToRoom !== undefined && s.pos.roomName === limitToRoom.name);
     for (const [predicate, repairAt, maxWorkers] of this.RepairPriorities) {
       const candidates = this.Repairs.filter(s => roomLimit(s) && predicate(s) && (s.hits / s.hitsMax) < repairAt && incoming(s) < maxWorkers);
 
@@ -507,11 +566,11 @@ export class RoomExtra extends Room {
       if (byRangeTo === undefined)
         // Sort by most needed
         selected = candidates
-        .sort((b, a) => (a.hits / a.hitsMax) - (b.hits / b.hitsMax))
-        .pop();
+          .sort((b, a) => (a.hits / a.hitsMax) - (b.hits / b.hitsMax))
+          .pop();
       else
         // Sort by range to given point
-        selected = byRangeTo.findClosestByRange(candidates)
+        selected = byRangeTo.findClosestByRange(candidates);
 
       priorityIndex++;
       if (!selected) continue;
