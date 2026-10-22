@@ -690,7 +690,10 @@ export class RoomExtra extends Room {
     for (let x = 0; x < 50; x++)
       for (let y = 0; y < 50; y++) {
         const weight = this.PathfindingCostMatrix.get(x, y);
-        this.visual.rect(x - 0.5, y - 0.5, 1, 1, { fill: LerpColour("#ff0000", "#00ff00", weight / 255) });
+        if (weight > 0)
+          this.visual
+            .rect(x - 0.5, y - 0.5, 1, 1, { fill: LerpColour("#00ff00", "#ff0000", weight / 255) })
+            .text(weight.toString(10), x, y);
       }
   };
 
