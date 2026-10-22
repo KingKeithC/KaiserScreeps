@@ -550,6 +550,7 @@ export class RoomExtra extends Room {
   DrawVisuals(): void {
     if (!this.EnableVisuals) return;
     if (this.EnableRepairOverlay) this.DrawRepairOverlay();
+    if (this.EnableCostMatrixOverlay) this.DrawCostMatrixOverlay();
   }
 
   SendLink(sender: StructureLink, receiver: StructureLink): void {
@@ -683,6 +684,14 @@ export class RoomExtra extends Room {
   DrawRepairOverlay(): void {
     for (const d of this.Repairs)
       this.visual.rect(d.pos.x - 0.5, d.pos.y - 0.5, 1, 1, { fill: LerpColour("#ff0000", "#00ff00", d.hits / d.hitsMax) });
+  };
+
+  DrawCostMatrixOverlay(): void {
+    for (let x = 0; x < 50; x++)
+      for (let y = 0; y < 50; y++) {
+        const weight = this.PathfindingCostMatrix.get(x, y);
+        this.visual.rect(x - 0.5, y - 0.5, 1, 1, { fill: LerpColour("#ff0000", "#00ff00", weight / 255) });
+      }
   };
 
   // List of filter callback, health capacity to begin repair, and maxRepairers, descending order.
