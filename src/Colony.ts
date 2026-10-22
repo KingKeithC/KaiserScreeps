@@ -36,15 +36,15 @@ type Recursive<T> = T | Dictionary<T | Recursive<T>>;
 
 
 interface FieldSchema {
-  info?: Dictionary<string> // Extra key/value info to associate with the field
+  info?: Dictionary<string>; // Extra key/value info to associate with the field
   unit?: string, // The type of unit to use for the metric (default: 'number')
   description?: string, // An optional description for the metric.
   labelKeys?: string[], // Each element corresponds to a level in the `Recursive` stat.
 }
 
 interface ColonyStats {
-  schema: { [key: string]: Recursive<FieldSchema> }
-  data: { [key: string]: Recursive<number> }
+  schema: { [key: string]: Recursive<FieldSchema>; };
+  data: { [key: string]: Recursive<number>; };
 }
 
 interface RoleRegistry { [name: string]: CreepRole; }
@@ -76,7 +76,7 @@ export class Colony {
 
   DeserializeTask(value: unknown): CreepTask | null {
     if (value === null || value === undefined) return null;
-    if (typeof value !== "object")  throw new Error(`Creep Task is not null or object.`);
+    if (typeof value !== "object") throw new Error(`Creep Task is not null or object.`);
     if (!("kind" in value)) throw new Error(`Creep Task contains no 'kind' property.`);
     const kind: string = value.kind as string;
     const taskPrototype = this.Tasks[kind];
@@ -295,7 +295,7 @@ export class Colony {
       Game.cpu.halt();
   }
 
-  MapNameable<N extends { name: string }, T>(iterOfNamed: Iterable<N>, mapper: (n: N) => T): Dictionary<T> {
+  MapNameable<N extends { name: string; }, T>(iterOfNamed: Iterable<N>, mapper: (n: N) => T): Dictionary<T> {
     const ret: Dictionary<T> = {};
     for (const named of iterOfNamed) ret[named.name] = mapper(named);
     return ret;
@@ -303,7 +303,7 @@ export class Colony {
 
   DisplayCurrentStats(): void {
     this.stats = this.GetCurrentStats(); // Force a stat refresh
-    this.log.report(JSON.stringify(this.stats, undefined, 2)) // Print up-to-date stats
+    this.log.report(JSON.stringify(this.stats, undefined, 2)); // Print up-to-date stats
   }
 
   GetCurrentStats(): ColonyStats {
@@ -314,26 +314,26 @@ export class Colony {
 
     const roomStats: { [key: string]: Dictionary<number>; } = {};
     roomStats.my_creep_count = this.MapNameable(Object.values(Game.rooms), vr => vr.find(FIND_MY_CREEPS).length);
-    roomStats.neutral_structure_count = this.MapNameable(Object.values(Game.rooms), vr => vr.find(FIND_STRUCTURES, {filter: s => !("owner" in s)}).length);
+    roomStats.neutral_structure_count = this.MapNameable(Object.values(Game.rooms), vr => vr.find(FIND_STRUCTURES, { filter: s => !("owner" in s) }).length);
     roomStats.hostile_creep_count = this.MapNameable(Object.values(Game.rooms), vr => vr.find(FIND_HOSTILE_CREEPS).length);
     roomStats.my_structure_count = this.MapNameable(Object.values(Game.rooms), vr => vr.find(FIND_MY_STRUCTURES).length);
     roomStats.hostile_structure_count = this.MapNameable(Object.values(Game.rooms), vr => vr.find(FIND_HOSTILE_STRUCTURES).length);
     roomStats.dropped_energy_amount = this.MapNameable(Object.values(Game.rooms), vr => sum(vr.find(FIND_DROPPED_RESOURCES), r => r.resourceType === RESOURCE_ENERGY ? r.amount : 0));
     roomStats.my_constructions_count = this.MapNameable(Object.values(Game.rooms), vr => vr.find(FIND_MY_CONSTRUCTION_SITES).length);
     roomStats.capacity_of_storage = this.MapNameable(Object.values(Game.rooms), vr => vr.storage?.store.getCapacity() ?? 0);
-    roomStats.energy_in_storage  = this.MapNameable(Object.values(Game.rooms), vr => vr.storage?.store.getUsedCapacity(RESOURCE_ENERGY) ?? 0);
-    roomStats.energy_in_spawns  = this.MapNameable(Object.values(Game.rooms), vr => vr.energyAvailable);
-    roomStats.energy_in_sources  = this.MapNameable(Object.values(Game.rooms), vr => sum(vr.find(FIND_SOURCES).map(s => s.energy)));
-    roomStats.capacity_of_spawns  = this.MapNameable(Object.values(Game.rooms), vr => vr.energyCapacityAvailable);
+    roomStats.energy_in_storage = this.MapNameable(Object.values(Game.rooms), vr => vr.storage?.store.getUsedCapacity(RESOURCE_ENERGY) ?? 0);
+    roomStats.energy_in_spawns = this.MapNameable(Object.values(Game.rooms), vr => vr.energyAvailable);
+    roomStats.energy_in_sources = this.MapNameable(Object.values(Game.rooms), vr => sum(vr.find(FIND_SOURCES).map(s => s.energy)));
+    roomStats.capacity_of_spawns = this.MapNameable(Object.values(Game.rooms), vr => vr.energyCapacityAvailable);
     roomStats.energy_in_containers = this.MapNameable(Object.values(Game.rooms), vr => sum(vr.find(FIND_STRUCTURES).map(s => s.structureType === STRUCTURE_CONTAINER ? s.store.getUsedCapacity(RESOURCE_ENERGY) : 0)));
     roomStats.energy_in_my_creeps = this.MapNameable(Object.values(Game.rooms), vr => sum(vr.find(FIND_MY_CREEPS).map(s => s.store.getUsedCapacity(RESOURCE_ENERGY))));
     roomStats.energy_in_links = this.MapNameable(Object.values(Game.rooms), vr => sum(vr.find(FIND_STRUCTURES).map(s => s.structureType === STRUCTURE_LINK ? s.store.getUsedCapacity(RESOURCE_ENERGY) : 0)));
     roomStats.spawns_in_progress = this.MapNameable(Object.values(Game.rooms), vr => vr.find(FIND_MY_SPAWNS).filter(s => s.spawning !== null && s.spawning !== undefined).length);
 
     const roleStats: { [key: string]: Dictionary<number> | Dictionary<Dictionary<number>>; } = {};
-    roleStats.global_quota = this.MapNameable(Object.values(this.Roles), ro => ro.GetGlobalQuota())
-    roleStats.room_quota = this.MapNameable(Object.values(this.Roles), r => this.MapNameable(this.MyRooms, ro => r.GetRoomQuota(ro)))
-    roleStats.assigned_room_count = this.MapNameable(Object.values(this.Roles), r => this.MapNameable(this.MyRooms, ro => r.GetRoomCreepsInRole(ro).length))
+    roleStats.global_quota = this.MapNameable(Object.values(this.Roles), ro => ro.GetGlobalQuota());
+    roleStats.room_quota = this.MapNameable(Object.values(this.Roles), r => this.MapNameable(this.MyRooms, ro => r.GetRoomQuota(ro)));
+    roleStats.assigned_room_count = this.MapNameable(Object.values(this.Roles), r => this.MapNameable(this.MyRooms, ro => r.GetRoomCreepsInRole(ro).length));
 
     const meminfo: Dictionary<number> = {};
     if (Game.cpu.getHeapStatistics) {
