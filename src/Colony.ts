@@ -37,12 +37,12 @@ type Recursive<T> = T | Dictionary<T | Recursive<T>>;
 
 interface FieldSchema {
   info?: Dictionary<string> // Extra key/value info to associate with the field
-  unit?: string,
+  unit?: string, // The type of unit to use for the metric (default: 'number')
+  description?: string, // An optional description for the metric.
   labelKeys?: string[], // Each element corresponds to a level in the `Recursive` stat.
 }
 
 interface ColonyStats {
-  time: number;
   schema: { [key: string]: Recursive<FieldSchema> }
   data: { [key: string]: Recursive<number> }
 }
@@ -342,110 +342,133 @@ export class Colony {
       if ("does_zap_garbage" in meminfo) delete meminfo.does_zap_garbage;
     }
 
-    const gclAndgplSchema = {
-      level: { unit: "number" },
-      progress: { unit: "number" },
-      progressTotal: { unit: "number" },
-    }
-
     return {
-      time: Game.time,
       schema: {
-        last_reset_time: { unit: "ticks" },
-        visible_rooms_count: { unit: "number" },
-        gcl: gclAndgplSchema,
-        gpl: gclAndgplSchema,
+        time: { unit: "ticks", description: "Monotonicly increasing tick counter, the current 'time' of the Game.", },
+        last_reset_time: { unit: "ticks", description: "Last time the Program was Reset (happens on code push, or semi-rarely by the platform)" },
+        visible_rooms_count: { unit: "number", description: "The total number of visible rooms this tick." },
+        gcl: {
+          level: { unit: "number", description: "The current Global Control Level. Increased by upgrading controllers." },
+          progress: { unit: "number", description: "Progress toward the next Global Control Level." },
+          progressTotal: { unit: "number", description: "The Global Control Level will increase when Progress reaches this amount." },
+        },
+        gpl: {
+          level: { unit: "number", description: "The current Global Power Level. Increased by harvesting Power from Highway rooms." },
+          progress: { unit: "number", description: "Progress toward the next Global Power Level." },
+          progressTotal: { unit: "number", description: "The Global Power Level will increase when Progress reaches this amount." },
+        },
         cpu: {
-          unusedBucket: { unit: "cpu" },
-          used: { unit: "cpu" },
-          limit: { unit: "cpu" },
-          tickLimit: { unit: "cpu" },
+          unusedBucket: { unit: "cpu", description: "How much CPU has accumulated in the bucket (limit 10k)." },
+          used: { unit: "cpu", description: "How much CPU was used this tick in the execution of scripts." },
+          limit: { unit: "cpu", description: "The maximum average limit of CPU usage. Excess unused amount below the limit contributes to the unusedBucket." },
+          tickLimit: { unit: "cpu", description: "How much CPU total are we allowed to burst to (and consume from the bucket) this tick?" },
         },
         resources: {
           labelKeys: ["resourceType"],
           unit: "number",
+          description: "Account level resources.",
         },
         meminfo: {
-          unit: "bytes(SI)"
+          unit: "bytes(SI)",
+          description: "How much memory are scripts using.",
         },
         ...{
           global_quota: {
             labelKeys: ["role"],
             unit: "number",
-          },
+            description: "The maximum limit of creeps that may be spawned in all owned rooms.",
+        },
           room_quota: {
             labelKeys: ["role", "room"],
             unit: "number",
-          },
+            description: "The maximum limit of creeps that may be spawned in this role or room.",
+        },
           assigned_room_count: {
             labelKeys: ["role", "room"],
             unit: "number",
+            description: "The living number of creeps currently spawned by assigned room.",
           },
         },
         ...{
           my_creep_count: {
             labelKeys: ["room"],
             unit: "number",
+            description: "The living number of creeps currently spawned by occupied room.",
           },
           neutral_structure_count: {
             labelKeys: ["room"],
             unit: "number",
+            description: "Structures that have no owner.",
           },
           hostile_creep_count: {
             labelKeys: ["room"],
             unit: "number",
+            description: "Living hostile creep count.",
           },
           my_structure_count: {
             labelKeys: ["room"],
             unit: "number",
+            description: "Structures I own.",
           },
           hostile_structure_count: {
             labelKeys: ["room"],
             unit: "number",
+            description: "Non-Neutral structures owned by someone else.",
           },
           dropped_energy_amount: {
             labelKeys: ["room"],
             unit: "number",
+            description: "Total amount of energy sitting on the ground.",
           },
           my_constructions_count: {
             labelKeys: ["room"],
             unit: "number",
+            description: "Count of ongoing Constructions sites.",
           },
           capacity_of_storage: {
             labelKeys: ["room"],
             unit: "number",
+            description: "How much space is available in room storage.",
           },
           energy_in_storage: {
             labelKeys: ["room"],
             unit: "number",
+            description: "How storage space is used by energy.",
           },
           energy_in_spawns: {
             labelKeys: ["room"],
             unit: "number",
+            description: "Total energy of all spawns and extensions.",
           },
           energy_in_sources: {
             labelKeys: ["room"],
             unit: "number",
+            description: "Total amount of all energy sources in the room.",
           },
           capacity_of_spawns: {
             labelKeys: ["room"],
             unit: "number",
+            description: "Total capacity of all spawns and extensions.",
           },
           energy_in_containers: {
             labelKeys: ["room"],
             unit: "number",
+            description: "Total amount of energy in all containers in the room.",
           },
           energy_in_my_creeps: {
             labelKeys: ["room"],
             unit: "number",
+            description: "Total amount of energy my creeps are carrying in the room.",
           },
           energy_in_links: {
             labelKeys: ["room"],
             unit: "number",
+            description: "Total amount of energy sitting in links in the room.",
           },
         },
       },
       data: {
+        time: Game.time,
         last_reset_time: this.stats.data.lastResetTime ?? 0,
         visible_rooms_count: Object.keys(Game.rooms).length,
         gcl: {
