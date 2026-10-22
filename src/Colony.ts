@@ -328,6 +328,7 @@ export class Colony {
     roomStats.energy_in_containers = this.MapNameable(Object.values(Game.rooms), vr => sum(vr.find(FIND_STRUCTURES).map(s => s.structureType === STRUCTURE_CONTAINER ? s.store.getUsedCapacity(RESOURCE_ENERGY) : 0)));
     roomStats.energy_in_my_creeps = this.MapNameable(Object.values(Game.rooms), vr => sum(vr.find(FIND_MY_CREEPS).map(s => s.store.getUsedCapacity(RESOURCE_ENERGY))));
     roomStats.energy_in_links = this.MapNameable(Object.values(Game.rooms), vr => sum(vr.find(FIND_STRUCTURES).map(s => s.structureType === STRUCTURE_LINK ? s.store.getUsedCapacity(RESOURCE_ENERGY) : 0)));
+    roomStats.spawns_in_progress = this.MapNameable(Object.values(Game.rooms), vr => vr.find(FIND_MY_SPAWNS).filter(s => s.spawning !== null && s.spawning !== undefined).length);
 
     const roleStats: { [key: string]: Dictionary<number> | Dictionary<Dictionary<number>>; } = {};
     roleStats.global_quota = this.MapNameable(Object.values(this.Roles), ro => ro.GetGlobalQuota())
@@ -466,6 +467,11 @@ export class Colony {
             labelKeys: ["room"],
             unit: "number",
             description: "Total amount of energy sitting in links in the room.",
+          },
+          spawns_in_progress: {
+            labelKeys: ["room"],
+            unit: "number",
+            description: "Total amount of spawns in the spawning state.",
           },
         },
       },
