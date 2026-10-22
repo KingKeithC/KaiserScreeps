@@ -22,24 +22,21 @@ export class Claimer extends CreepRoleBase implements CreepRole {
     );
   }
 
+  IsSpawnNeeded(room: RoomExtra): boolean { return this.UnworkedClaims(room).length > 0; }
   override GetGlobalQuota(): number { return this.AllClaims().length; }
-  override GetRoomQuota(room: RoomExtra): number { return this.UnworkedClaims(room).length; }
-
-  // Don't spawn claimers unless we have at least 6 living creeps
-  IsSpawnNeeded(room: RoomExtra): boolean { return room.AssignedCreeps.length > 6; }
+  override GetRoomQuota(): number { return -1; }
 
 
   AllClaims(): Flag[] { return Object.values(Game.flags).filter(f => f.name.startsWith("Claim")); }
-
   WorkedClaims(room: RoomExtra): string[] {
-    return unique(room.GetAssignedTasks(TaskAction.Claim).map(p => (p as ClaimRoomTask).roomName));
+    return unique(room.colony.GetAllAssignedTasks(TaskAction.Claim).map(p => (p as ClaimRoomTask).target));
   }
 
   UnworkedClaims(room: RoomExtra): Flag[] {
     const worked = this.WorkedClaims(room);
     const ret = [];
     for (const claim of this.AllClaims())
-      if (claim.pos.roomName in worked) continue;
+      if (worked.includes(claim.pos.roomName)) continue;
       else ret.push(claim);
     return ret;
   }
