@@ -106,6 +106,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
   MinUsedCapacityPerNonCreepSource = 150;
   MaxIncomingPerEnergySource = 2;
   MaxIncomingPerContainer = 4;
+  NeedToGatherFromStorage = false;
   FindGatheringTask(creep: CreepExtra): CreepTask | null {
     const activeDeliveries = creep.AssignedRoom.GetAssignedTasks(TaskAction.CollectEnergy) as CollectEnergy[];
     const miners = (creep.AssignedRoom.AssignedCreepsByRoleGroup.get("Miners") ?? []).filter(m => !m.spawning);
@@ -118,7 +119,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
       ...creep.AssignedRoom.MapRoomsInClaimedArea(cr => cr.find(FIND_RUINS)) as Ruin[],
       ...creep.AssignedRoom.MapRoomsInClaimedArea(cr => cr.find(FIND_STRUCTURES, { filter: s => s.structureType === STRUCTURE_CONTAINER })) as StructureContainer[],
       ...creep.AssignedRoom.LinkReceivers as StructureLink[],
-      ...(creep.AssignedRoom.storage !== undefined ? [creep.AssignedRoom.storage] : []),
+      ...(creep.AssignedRoom.storage !== undefined && this.NeedToGatherFromStorage ? [creep.AssignedRoom.storage] : []),
       ...miners,
       /* eslint-enable @typescript-eslint/no-unnecessary-type-assertion */
     ]) {
