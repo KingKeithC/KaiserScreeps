@@ -127,9 +127,10 @@ export class Worker extends CreepRoleBase implements CreepRole {
     ]) {
 
       // Skip Energy sources that have too little energy
-      if ((possible instanceof Resource && possible.amount < this.IgnoreDroppedResourcesLessThan)
-        || (!(possible instanceof Resource) && !(possible instanceof CreepExtra) && possible.store.getUsedCapacity(RESOURCE_ENERGY) < this.MinUsedCapacityPerNonCreepSource)
-        || (possible instanceof CreepExtra && possible.store.getFreeCapacity(RESOURCE_ENERGY) === 0) // Collect from miners only when they're full
+      if (
+        (possible instanceof Resource && possible.amount < this.IgnoreDroppedResourcesLessThan)
+        || (possible instanceof CreepExtra && possible.store.getFreeCapacity(RESOURCE_ENERGY) > 0) // Collect from miners only when they're full
+        || (!(possible instanceof Resource) && !(possible instanceof CreepExtra) && !(possible instanceof Creep) && possible.store.getUsedCapacity(RESOURCE_ENERGY) < this.MinUsedCapacityPerNonCreepSource)
       ) {
         // this.log.info(`!Possibility: too little energy ${possible}`);
         continue;
