@@ -220,6 +220,7 @@ export class Colony {
 
     // Tick each of my rooms
     for (const room of this.MyRooms) {
+      room.AcumulateEvents();
       room.CleanupDeadCreeps();
       room.ValidateClaimedRooms();
       room.ReportHostiles();
@@ -312,29 +313,6 @@ export class Colony {
     for (const r of Object.entries(Game.resources))
       resources[r[0]] = r[1] as number;
 
-    const roomStats: { [key: string]: Dictionary<number>; } = {};
-    roomStats.my_creep_count = this.MapNameable(Object.values(Game.rooms), vr => vr.find(FIND_MY_CREEPS).length);
-    roomStats.neutral_structure_count = this.MapNameable(Object.values(Game.rooms), vr => vr.find(FIND_STRUCTURES, { filter: s => !("owner" in s) }).length);
-    roomStats.hostile_creep_count = this.MapNameable(Object.values(Game.rooms), vr => vr.find(FIND_HOSTILE_CREEPS).length);
-    roomStats.my_structure_count = this.MapNameable(Object.values(Game.rooms), vr => vr.find(FIND_MY_STRUCTURES).length);
-    roomStats.hostile_structure_count = this.MapNameable(Object.values(Game.rooms), vr => vr.find(FIND_HOSTILE_STRUCTURES).length);
-    roomStats.dropped_energy_amount = this.MapNameable(Object.values(Game.rooms), vr => sum(vr.find(FIND_DROPPED_RESOURCES), r => r.resourceType === RESOURCE_ENERGY ? r.amount : 0));
-    roomStats.my_constructions_count = this.MapNameable(Object.values(Game.rooms), vr => vr.find(FIND_MY_CONSTRUCTION_SITES).length);
-    roomStats.capacity_of_storage = this.MapNameable(Object.values(Game.rooms), vr => vr.storage?.store.getCapacity() ?? 0);
-    roomStats.energy_in_storage = this.MapNameable(Object.values(Game.rooms), vr => vr.storage?.store.getUsedCapacity(RESOURCE_ENERGY) ?? 0);
-    roomStats.energy_in_spawns = this.MapNameable(Object.values(Game.rooms), vr => vr.energyAvailable);
-    roomStats.energy_in_sources = this.MapNameable(Object.values(Game.rooms), vr => sum(vr.find(FIND_SOURCES).map(s => s.energy)));
-    roomStats.capacity_of_spawns = this.MapNameable(Object.values(Game.rooms), vr => vr.energyCapacityAvailable);
-    roomStats.energy_in_containers = this.MapNameable(Object.values(Game.rooms), vr => sum(vr.find(FIND_STRUCTURES).map(s => s.structureType === STRUCTURE_CONTAINER ? s.store.getUsedCapacity(RESOURCE_ENERGY) : 0)));
-    roomStats.energy_in_my_creeps = this.MapNameable(Object.values(Game.rooms), vr => sum(vr.find(FIND_MY_CREEPS).map(s => s.store.getUsedCapacity(RESOURCE_ENERGY))));
-    roomStats.energy_in_links = this.MapNameable(Object.values(Game.rooms), vr => sum(vr.find(FIND_STRUCTURES).map(s => s.structureType === STRUCTURE_LINK ? s.store.getUsedCapacity(RESOURCE_ENERGY) : 0)));
-    roomStats.spawns_in_progress = this.MapNameable(Object.values(Game.rooms), vr => vr.find(FIND_MY_SPAWNS).filter(s => s.spawning !== null && s.spawning !== undefined).length);
-
-    const roleStats: { [key: string]: Dictionary<number> | Dictionary<Dictionary<number>>; } = {};
-    roleStats.global_quota = this.MapNameable(Object.values(this.Roles), ro => ro.GetGlobalQuota());
-    roleStats.room_quota = this.MapNameable(Object.values(this.Roles), r => this.MapNameable(this.MyRooms, ro => r.GetRoomQuota(ro)));
-    roleStats.assigned_room_count = this.MapNameable(Object.values(this.Roles), r => this.MapNameable(this.MyRooms, ro => r.GetRoomCreepsInRole(ro).length));
-
     const meminfo: Dictionary<number> = {};
     if (Game.cpu.getHeapStatistics) {
       for (const [k, v] of Object.entries(Game.cpu.getHeapStatistics()))
@@ -345,7 +323,7 @@ export class Colony {
       if ("does_zap_garbage" in meminfo) delete meminfo.does_zap_garbage;
     }
 
-    return {
+    const stats = {
       schema: {
         time: { unit: "ticks", description: "Monotonicly increasing tick counter, the current 'time' of the Game.", },
         last_reset_time: { unit: "ticks", description: "Last time the Program was Reset (happens on code push, or semi-rarely by the platform)" },
@@ -470,6 +448,16 @@ export class Colony {
           unit: "number",
           description: "Total amount of spawns in the spawning state.",
         },
+        event_counts: {
+          labelKeys: ["room", "event_type"],
+          unit: "number",
+          description: "Total times an event occured.",
+        },
+        event_amounts: {
+          labelKeys: ["room", "event_type"],
+          unit: "number",
+          description: "Total amount for all occurences of event.",
+        },
       },
       data: {
         time: Game.time,
@@ -493,11 +481,35 @@ export class Colony {
         },
         resources,
         meminfo,
-        ...roleStats,
-        ...roomStats,
-      },
+        global_quota: this.MapNameable(Object.values(this.Roles), ro => ro.GetGlobalQuota()),
+        room_quota: this.MapNameable(Object.values(this.Roles), r => this.MapNameable(this.MyRooms, ro => r.GetRoomQuota(ro))),
+        assigned_room_count: this.MapNameable(Object.values(this.Roles), r => this.MapNameable(this.MyRooms, ro => r.GetRoomCreepsInRole(ro).length)),
+        my_creep_count: this.MapNameable(Object.values(Game.rooms), vr => vr.find(FIND_MY_CREEPS).length),
+        neutral_structure_count: this.MapNameable(Object.values(Game.rooms), vr => vr.find(FIND_STRUCTURES, { filter: s => !("owner" in s) }).length),
+        hostile_creep_count: this.MapNameable(Object.values(Game.rooms), vr => vr.find(FIND_HOSTILE_CREEPS).length),
+        my_structure_count: this.MapNameable(Object.values(Game.rooms), vr => vr.find(FIND_MY_STRUCTURES).length),
+        hostile_structure_count: this.MapNameable(Object.values(Game.rooms), vr => vr.find(FIND_HOSTILE_STRUCTURES).length),
+        dropped_energy_amount: this.MapNameable(Object.values(Game.rooms), vr => sum(vr.find(FIND_DROPPED_RESOURCES), r => r.resourceType === RESOURCE_ENERGY ? r.amount : 0)),
+        my_constructions_count: this.MapNameable(Object.values(Game.rooms), vr => vr.find(FIND_MY_CONSTRUCTION_SITES).length),
+        capacity_of_storage: this.MapNameable(Object.values(Game.rooms), vr => vr.storage?.store.getCapacity() ?? 0),
+        energy_in_storage: this.MapNameable(Object.values(Game.rooms), vr => vr.storage?.store.getUsedCapacity(RESOURCE_ENERGY) ?? 0),
+        energy_in_spawns: this.MapNameable(Object.values(Game.rooms), vr => vr.energyAvailable),
+        energy_in_sources: this.MapNameable(Object.values(Game.rooms), vr => sum(vr.find(FIND_SOURCES).map(s => s.energy))),
+        capacity_of_spawns: this.MapNameable(Object.values(Game.rooms), vr => vr.energyCapacityAvailable),
+        energy_in_containers: this.MapNameable(Object.values(Game.rooms), vr => sum(vr.find(FIND_STRUCTURES).map(s => s.structureType === STRUCTURE_CONTAINER ? s.store.getUsedCapacity(RESOURCE_ENERGY) : 0))),
+        energy_in_my_creeps: this.MapNameable(Object.values(Game.rooms), vr => sum(vr.find(FIND_MY_CREEPS).map(s => s.store.getUsedCapacity(RESOURCE_ENERGY)))),
+        energy_in_links: this.MapNameable(Object.values(Game.rooms), vr => sum(vr.find(FIND_STRUCTURES).map(s => s.structureType === STRUCTURE_LINK ? s.store.getUsedCapacity(RESOURCE_ENERGY) : 0))),
+        spawns_in_progress: this.MapNameable(Object.values(Game.rooms), vr => vr.find(FIND_MY_SPAWNS).filter(s => s.spawning !== null && s.spawning !== undefined).length),
+        event_counts: this.MapNameable(this.MyRooms, mr => mr.EventCounts),
+        event_amounts: this.MapNameable(this.MyRooms, mr => mr.EventAmounts),
+      }
     };
     /* eslint-enable camelcase */
+
+    // Reset event accumulators on my rooms
+    this.MyRooms.forEach(r => r.ResetEvents());
+
+    return stats;
   }
 
   UnassignAllTasks(): void {

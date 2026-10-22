@@ -21,8 +21,8 @@ declare global {
     disableTowerAttacks: boolean,
     towerAttackRange: number,
     towerAttackRangeTiles?: number;
-    eventCounts?: Map<EventConstant, number>;
-    eventAmounts?: Map<EventConstant, number | null>;
+    eventCounts?: Dictionary<number>;
+    eventAmounts?: Dictionary<number>;
     towerCriticalSupplyRatio?: number;
     hostileNotificationThreshold?: number;
     claimedNearby?: string[],
@@ -106,25 +106,11 @@ export class RoomExtra extends Room {
     return this.memory.mines; // Return memoized
   }
 
-  private set EventCounts(value: Map<EventConstant, number>) { this.memory.eventCounts = value; }
-  get EventCounts(): Map<EventConstant, number> {
-    const ret = new Map<EventConstant, number>();
-    if (this.memory.eventCounts === undefined || this.memory.eventCounts === null)
-      return ret;
-    for (const [event, counts] of this.memory.eventCounts)
-      ret.set(event, counts);
-    return ret;
-  }
+  private set EventCounts(value: Dictionary<number>) { this.memory.eventCounts = value; }
+  get EventCounts(): Dictionary<number> { return this.memory.eventCounts ?? {}; }
 
-  private set EventAmounts(value: Map<EventConstant, number | null>) { this.memory.eventAmounts = value; }
-  get EventAmounts(): Map<EventConstant, number | null> {
-    const ret = new Map<EventConstant, number | null>();
-    if (this.memory.eventAmounts === undefined || this.memory.eventAmounts === null)
-      return ret;
-    for (const [event, amounts] of this.memory.eventAmounts)
-      ret.set(event, amounts);
-    return ret;
-  }
+  private set EventAmounts(value: Dictionary<number>) { this.memory.eventAmounts = value; }
+  get EventAmounts(): Dictionary<number> { return this.memory.eventAmounts ?? {}; }
 
   private cachedClaimedMines: Dictionary<MiningPosition[]> = {};
   get ClaimedMines(): Dictionary<MiningPosition[]> {
@@ -318,8 +304,27 @@ export class RoomExtra extends Room {
   }
 
   ResetEvents(): void {
-    this.EventCounts = new Map();
-    this.EventAmounts = new Map();
+    this.EventCounts = {};
+    this.EventAmounts = {};
+  }
+
+  EventToName(e: EventConstant): string {
+    switch (e) {
+      case EVENT_ATTACK: return "EVENT_ATTACK";
+      case EVENT_OBJECT_DESTROYED: return "EVENT_OBJECT_DESTROYED";
+      case EVENT_ATTACK_CONTROLLER: return "EVENT_ATTACK_CONTROLLER";
+      case EVENT_BUILD: return "EVENT_BUILD";
+      case EVENT_HARVEST: return "EVENT_HARVEST";
+      case EVENT_HEAL: return "EVENT_HEAL";
+      case EVENT_REPAIR: return "EVENT_REPAIR";
+      case EVENT_RESERVE_CONTROLLER: return "EVENT_RESERVE_CONTROLLER";
+      case EVENT_UPGRADE_CONTROLLER: return "EVENT_UPGRADE_CONTROLLER";
+      case EVENT_EXIT: return "EVENT_EXIT";
+      case EVENT_POWER: return "EVENT_POWER";
+      case EVENT_TRANSFER: return "EVENT_TRANSFER";
+      default:
+        throw new Error(`Invalid EventConstant: ${e}`);
+    }
   }
 
   AcumulateEvents(): void {
@@ -327,7 +332,9 @@ export class RoomExtra extends Room {
     const existingAmount = this.EventAmounts;
     const events = this.getEventLog();
     for (const e of events) {
-      existingCount.set(e.event, (existingCount.get(e.event) ?? 0) + 1);
+      const name = this.EventToName(e.event);
+
+      existingCount[name] = (existingCount[name] ?? 0) + 1;
 
       let amount;
       if (e.event === EVENT_ATTACK)
@@ -347,8 +354,8 @@ export class RoomExtra extends Room {
       if (e.event === EVENT_TRANSFER)
         amount = e.data.amount;
 
-      if (amount) existingAmount.set(e.event, (existingAmount.get(e.event) ?? 0) + 1);
-      else existingAmount.set(e.event, null);
+      if (amount) existingAmount[name] = (existingAmount[name] ?? 0) + amount;
+      else continue; // Skip events with no 'amount' field.
     }
     this.EventCounts = existingCount;
     this.EventAmounts = existingAmount;
