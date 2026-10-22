@@ -301,7 +301,8 @@ export class Colony {
   }
 
   DisplayCurrentStats(): void {
-    this.log.report(JSON.stringify(this.GetCurrentStats(), undefined, 2))
+    this.stats = this.GetCurrentStats(); // Force a stat refresh
+    this.log.report(JSON.stringify(this.stats, undefined, 2)) // Print up-to-date stats
   }
 
   GetCurrentStats(): ColonyStats {
