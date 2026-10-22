@@ -552,7 +552,7 @@ export class RoomExtra extends Room {
 
     // If we have enough energy, repair the most damaged structure in the room
     if (supplyRatio >= this.TowerCriticalSupplyRatio) {
-      const needRepair = this.FindRepairByPriorityAndStrength(this, tower.pos);
+      const needRepair = this.FindRepairByPriorityAndStrength(this);
       if (needRepair) tower.repair(needRepair);
     }
   }
