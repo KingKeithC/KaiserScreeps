@@ -43,18 +43,16 @@ export class CollectEnergy extends BaseTask<typeof TaskAction.CollectEnergy> {
       && !(source instanceof StructureContainer)
       && !(source instanceof StructureStorage)
       && !(source instanceof StructureLink)
+      && !(source instanceof Resource)
       && !(source instanceof Ruin)
     ) return null;
-
-    // If there are dropped resources on the ground nearby, prioritize picking them up
-    for (const d of creep.pos.findInRange(FIND_DROPPED_RESOURCES, 1, { filter: dr => dr.resourceType === RESOURCE_ENERGY && dr.amount > 0 })) {
-      return { target: d, range: 1, result: creep.pickup(d) };
-    }
 
     const lastInventory = this.lastInventory ?? 0;
     const currentInventory = creep.store.getUsedCapacity(RESOURCE_ENERGY);
     const result = source instanceof Creep
       ? source.transfer(creep, RESOURCE_ENERGY)
+      : source instanceof Resource
+      ? creep.pickup(source)
       : creep.withdraw(source, RESOURCE_ENERGY);
     this.lastInventory = currentInventory;
 
@@ -72,13 +70,18 @@ export class CollectEnergy extends BaseTask<typeof TaskAction.CollectEnergy> {
     const source = this.source.kind === "creep"
       ? Game.creeps[this.source.name] ?? null
       : Game.getObjectById(this.source.id);
-    return (
-      !(source instanceof Creep)
+    const sourceIsWrongType = source === null ||
+      (!(source instanceof Creep)
       && !(source instanceof StructureContainer)
       && !(source instanceof StructureStorage)
       && !(source instanceof StructureLink)
-      && !(source instanceof Ruin)
-      || source.store.getUsedCapacity(RESOURCE_ENERGY) === 0
+      && !(source instanceof Resource)
+      && !(source instanceof Ruin));
+
+    return (
+      sourceIsWrongType
+      || ("store" in source && source.store.getUsedCapacity(RESOURCE_ENERGY) === 0)
+      || ("amount" in source && source.amount === 0)
     );
   }
 }

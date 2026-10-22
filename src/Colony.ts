@@ -9,7 +9,7 @@ import { Scout } from "roles/Scout";
 import { Worker } from "roles/Worker";
 import { RoomExtra } from "Room";
 import profiler from "screeps-profiler";
-import { AttackTargetTask, Build, ClaimRoomTask, CollectEnergy, CreepTask, Dismantle, GuardTask, Mine, Move, Pickup, Repair, Supply, UpdateController } from "tasks";
+import { AttackTargetTask, Build, ClaimRoomTask, CollectEnergy, CreepTask, Dismantle, GuardTask, Mine, Move, Repair, Supply, UpdateController } from "tasks";
 import { FmtRatios } from "utils/Collections";
 import { BodyCost } from "utils/CreepUtils";
 import { ErrorMapper } from "utils/ErrorMapper";
@@ -50,7 +50,6 @@ export class Colony {
     build: Build.prototype,
     repair: Repair.prototype,
     supply: Supply.prototype,
-    pickup: Pickup.prototype,
     attack: AttackTargetTask.prototype,
     guard: GuardTask.prototype,
     move: Move.prototype,

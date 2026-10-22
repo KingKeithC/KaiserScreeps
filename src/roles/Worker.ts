@@ -1,6 +1,6 @@
 import { CreepExtra } from "Creep";
 import { RoomExtra } from "Room";
-import { Build, CollectEnergy, CreepTask, MaintainController, Mine, Pickup, Repair, Supply, TaskAction, UpdateController } from "tasks";
+import { Build, CollectEnergy, CreepTask, MaintainController, Mine, Repair, Supply, TaskAction, UpdateController } from "tasks";
 import { MakeBody, MyConstructionSites, MySpawnsOrExtensions, MyTowers } from "utils/Collections";
 import { BodyCost } from "utils/CreepUtils";
 import { CreepRoleBase, CreepRole } from "./Role";
@@ -45,24 +45,6 @@ export class Worker extends CreepRoleBase implements CreepRole {
       return this.FindSpendingTask(creep);
     else
       return null;
-  }
-
-  FindWartimeSpendingTask(creep: CreepExtra): CreepTask | null {
-    this.log.warn(`Finding Wartime Spending Task!`);
-    const spawnNeedingEnergy = this.FindSupplyByPath(creep, creep.AssignedRoom.SpawnsOrExtensions);
-    if (spawnNeedingEnergy) return new Supply(spawnNeedingEnergy.id as Id<AnyStoreStructure>);
-
-    const site = this.FindConstructionByPriorityAndPath(creep);
-    if (site) return new Build(site.id);
-
-    const towerNeedingEnergy = this.FindSupplyByPath(creep, creep.AssignedRoom.Towers);
-    if (towerNeedingEnergy) return new Supply(towerNeedingEnergy.id as Id<AnyStoreStructure>);
-
-    const damaged = this.FindIdealRepair(creep);
-    if (damaged) return new Repair(damaged);
-
-    this.log.warn("No wartime spending tasks!");
-    return null;
   }
 
   MaxUpgraders = 2;
@@ -119,43 +101,17 @@ export class Worker extends CreepRoleBase implements CreepRole {
     return null;
   }
 
-  FindDroppedEnergy(creep: CreepExtra): Pickup | null {
-    const droppedResources = creep.room.find(FIND_DROPPED_RESOURCES, { filter: r => r.resourceType === RESOURCE_ENERGY });
-    for (const res of droppedResources) {
-      const countPickingUpSameRes = creep.AssignedRoom.GetAssignedTasks(TaskAction.Pickup).filter(
-        t => "target" in t && t.target === res.id,
-      ).length;
-      if (countPickingUpSameRes) continue;
-      const path = creep.pos.findPathTo(res, { ignoreCreeps: true });
-      const distance = path.length;
-      const approxAmtRemaining = Math.ceil(res.amount / 1000) * distance;
-      const collect = approxAmtRemaining > this.IgnoreDroppedResourcesLessThan;
-      this.log.debug(`${collect ? "Collecting" : "Ignoring"} Dropped ${res} that is ${distance} steps away, currently has ${res.amount} remaining, we expect ${approxAmtRemaining} by the time we get there.`);
-      if (collect) return new Pickup(res.id as Id<Resource<RESOURCE_ENERGY>>);
-    }
-
-    return null;
-  }
-
-  FindEnergeticRuin(creep: CreepExtra): Ruin | null {
-    const ruins = creep.AssignedRoom.find(FIND_RUINS, { filter: r => r.store.getUsedCapacity(RESOURCE_ENERGY) });
-    return creep.pos.findClosestByPath(ruins, { ignoreCreeps: true });
-  }
-
-  ContainerAmountNeededToTake = 50;
+  MinUsedCapacityPerEnergySource = 150;
   MaxIncomingPerEnergySource = 2;
   FindGatheringTask(creep: CreepExtra): CreepTask | null {
-    const dropped = this.FindDroppedEnergy(creep);
-    if (dropped) return dropped;
-
-    const ruin = this.FindEnergeticRuin(creep);
-    if (ruin) return new CollectEnergy({ kind: "ruin", id: ruin.id });
-
     const activeDeliveries = creep.AssignedRoom.GetAssignedTasks(TaskAction.CollectEnergy) as CollectEnergy[];
     const miners = creep.AssignedRoom.AssignedCreepsByRoleGroup.get("Miners") ?? [];
-    const possibleSources: (CreepExtra | StructureLink | StructureStorage | StructureContainer)[] = [];
+    const possibleSources: (CreepExtra | StructureLink | StructureStorage | StructureContainer | Resource<RESOURCE_ENERGY> | Ruin)[] = [];
 
     for (const possible of [
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
+      ...creep.AssignedRoom.find(FIND_DROPPED_RESOURCES, { filter: r => r.resourceType === RESOURCE_ENERGY }) as Resource<RESOURCE_ENERGY>[],
+      ...creep.AssignedRoom.find(FIND_RUINS),
       ...creep.AssignedRoom.Containers,
       ...creep.AssignedRoom.LinkReceivers,
       ...(creep.AssignedRoom.storage !== undefined ? [creep.AssignedRoom.storage] : []),
@@ -163,7 +119,9 @@ export class Worker extends CreepRoleBase implements CreepRole {
     ]) {
 
       // Skip Energy sources that have too little energy
-      if (possible.store.getUsedCapacity(RESOURCE_ENERGY) < this.ContainerAmountNeededToTake) {
+      if ((possible instanceof Resource && possible.amount < this.IgnoreDroppedResourcesLessThan)
+        || (!(possible instanceof Resource) && possible.store.getUsedCapacity(RESOURCE_ENERGY) < this.MinUsedCapacityPerEnergySource)
+      ) {
         // this.log.info(`!Possibility: too little energy ${possible}`);
         continue;
       }
@@ -179,6 +137,27 @@ export class Worker extends CreepRoleBase implements CreepRole {
         // Skip source if it has too many incoming deliveries already
         if (activeDeliveries.filter(ad => ad.source.kind === "storage" && ad.source.id === possible.id).length > this.MaxIncomingPerEnergySource) {
           // this.log.info(`!Possibility: StructureStorage: too many incoming deliveries already ${possible}`);
+          continue;
+        }
+
+      }  else if (possible instanceof Resource && possible.resourceType === RESOURCE_ENERGY) {
+        // Skip source if it has too many incoming deliveries already
+        if (activeDeliveries.filter(ad => ad.source.kind === "dropped" && ad.source.id === possible.id).length > this.MaxIncomingPerEnergySource) {
+          // this.log.info(`!Possibility: Resource: too many incoming deliveries already`);
+          continue;
+        }
+
+        // Calculate amount remaining by time we get there:
+        // const path = creep.pos.findPathTo(res, { ignoreCreeps: true });
+        // const distance = path.length;
+        // const approxAmtRemaining = Math.ceil(res.amount / 1000) * distance;
+        // const collect = approxAmtRemaining > this.IgnoreDroppedResourcesLessThan;
+        // this.log.debug(`${collect ? "Collecting" : "Ignoring"} Dropped ${res} that is ${distance} steps away, currently has ${res.amount} remaining, we expect ${approxAmtRemaining} by the time we get there.`);
+
+      } else if (possible instanceof Ruin) {
+        // Skip source if it has too many incoming deliveries already
+        if (activeDeliveries.filter(ad => ad.source.kind === "ruin" && ad.source.id === possible.id).length > this.MaxIncomingPerEnergySource) {
+          // this.log.info(`!Possibility: Ruin: too many incoming deliveries already`);
           continue;
         }
 
@@ -211,14 +190,18 @@ export class Worker extends CreepRoleBase implements CreepRole {
       possibleSources.push(possible);
     }
 
+    const amountMapper = (a: Resource | { store: StoreDefinition}) => ( a instanceof Resource ? {amount: a.amount} : { amount: a.store.getUsedCapacity(RESOURCE_ENERGY)});
+
     const energySource = possibleSources
-      .sort((a, b) => a.store.getUsedCapacity(RESOURCE_ENERGY) - b.store.getUsedCapacity(RESOURCE_ENERGY))
+      .sort((a, b) => amountMapper(a).amount - amountMapper(b).amount)
       .pop();
     if (energySource) {
       if (energySource instanceof StructureContainer) return new CollectEnergy({ kind: "container", id: energySource.id }, { maxAttempts: 3 });
       if (energySource instanceof StructureLink) return new CollectEnergy({ kind: "link", id: energySource.id }, { maxAttempts: 3 });
       if (energySource instanceof StructureStorage) return new CollectEnergy({ kind: "storage", id: energySource.id }, { maxAttempts: 3 });
-      if (energySource instanceof Creep) return new CollectEnergy({ kind: "creep", name: energySource.name }, { maxAttempts: 3 });
+      if (energySource instanceof Creep) return new CollectEnergy({ kind: "creep", name: energySource.name }, { maxAttempts: 8 });
+      if (energySource instanceof Ruin) return new CollectEnergy({ kind: "ruin", id: energySource.id }, { maxAttempts: 3 });
+      if (energySource instanceof Resource) return new CollectEnergy({ kind: "dropped", id: energySource.id }, { maxAttempts: 3 });
     }
 
     if (miners.length === 0) {

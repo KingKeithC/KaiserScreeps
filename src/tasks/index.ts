@@ -10,7 +10,6 @@ export { Dismantle } from "./Dismantle";
 export { Move } from "./Move";
 export { Repair } from "./Repair";
 export { Supply } from "./Supply";
-export { Pickup } from "./Pickup";
 export { Attack as AttackTargetTask } from "./Attack";
 export { GuardTask } from "./Guard";
 export { ClaimRoomTask } from "./ClaimRoom";
