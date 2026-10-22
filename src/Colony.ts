@@ -370,7 +370,7 @@ export class Colony {
           description: "Account level resources.",
         },
         meminfo: {
-          unit: "bytes(SI)",
+          unit: "bytes",
           description: "How much memory are scripts using.",
         },
         ...{
