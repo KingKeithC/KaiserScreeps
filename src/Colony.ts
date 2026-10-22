@@ -298,51 +298,57 @@ export class Colony {
 
   GetCurrentStats(): ColonyStats {
     /* eslint-disable camelcase */
-    const allMyContainers: StructureContainer[] = flatten(this.MyRooms.map(r => r.find(FIND_STRUCTURES, { filter: s => s.structureType === STRUCTURE_CONTAINER })));
-
-    const resources: { [key: string]: number; } = {};
+    const resources: Dictionary<number> = {};
     for (const r of Object.entries(Game.resources))
-      resources["resource__" + r[0]] = r[1] as number;
+      resources[r[0]] = r[1] as number;
 
     const roomStats: { [key: string]: Dictionary<number>; } = {};
     roomStats.my_creep_count = this.MapNameable(Object.values(Game.rooms), vr => vr.find(FIND_MY_CREEPS).length);
+    roomStats.my_structure_count = this.MapNameable(Object.values(Game.rooms), vr => vr.find(FIND_MY_STRUCTURES).length);
+    roomStats.hostile_structure_count = this.MapNameable(Object.values(Game.rooms), vr => vr.find(FIND_HOSTILE_STRUCTURES).length);
+    roomStats.neutral_structure_count = this.MapNameable(Object.values(Game.rooms), vr => vr.find(FIND_STRUCTURES, {filter: s => !("owner" in s)}).length);
     roomStats.hostile_creep_count = this.MapNameable(Object.values(Game.rooms), vr => vr.find(FIND_HOSTILE_CREEPS).length);
+    roomStats.my_structure_count = this.MapNameable(Object.values(Game.rooms), vr => vr.find(FIND_MY_STRUCTURES).length);
+    roomStats.hostile_structure_count = this.MapNameable(Object.values(Game.rooms), vr => vr.find(FIND_HOSTILE_STRUCTURES).length);
+    roomStats.dropped_energy_amount = this.MapNameable(Object.values(Game.rooms), vr => sum(vr.find(FIND_DROPPED_RESOURCES), r => r.resourceType === RESOURCE_ENERGY ? r.amount : 0));
+    roomStats.my_constructions_count = this.MapNameable(Object.values(Game.rooms), vr => vr.find(FIND_MY_CONSTRUCTION_SITES).length);
+    roomStats.capacity_of_storage = this.MapNameable(Object.values(Game.rooms), vr => vr.storage?.store.getCapacity() ?? 0);
+    roomStats.energy_in_storage  = this.MapNameable(Object.values(Game.rooms), vr => vr.storage?.store.getUsedCapacity(RESOURCE_ENERGY) ?? 0);
+    roomStats.energy_in_spawns  = this.MapNameable(Object.values(Game.rooms), vr => vr.energyAvailable);
+    roomStats.energy_in_sources  = this.MapNameable(Object.values(Game.rooms), vr => sum(vr.find(FIND_SOURCES).map(s => s.energy)));
+    roomStats.capacity_of_spawns  = this.MapNameable(Object.values(Game.rooms), vr => vr.energyCapacityAvailable);
+    roomStats.energy_in_containers = this.MapNameable(Object.values(Game.rooms), vr => sum(vr.find(FIND_STRUCTURES).map(s => s.structureType === STRUCTURE_CONTAINER ? s.store.getUsedCapacity(RESOURCE_ENERGY) : 0)));
+    roomStats.energy_in_my_creeps = this.MapNameable(Object.values(Game.rooms), vr => sum(vr.find(FIND_MY_CREEPS).map(s => s.store.getUsedCapacity(RESOURCE_ENERGY))));
+    roomStats.energy_in_links = this.MapNameable(Object.values(Game.rooms), vr => sum(vr.find(FIND_STRUCTURES).map(s => s.structureType === STRUCTURE_LINK ? s.store.getUsedCapacity(RESOURCE_ENERGY) : 0)));
 
     const roleStats: { [key: string]: Dictionary<number> | Dictionary<Dictionary<number>>; } = {};
     roleStats.global_quota = this.MapNameable(Object.values(this.Roles), ro => ro.GetGlobalQuota())
     roleStats.room_quota = this.MapNameable(Object.values(this.Roles), r => this.MapNameable(this.MyRooms, ro => r.GetRoomQuota(ro)))
+    roleStats.assigned_room_count = this.MapNameable(Object.values(this.Roles), r => this.MapNameable(this.MyRooms, ro => r.GetRoomCreepsInRole(ro).length))
 
-    const meminfo: { [key: string]: number } = {};
+    const meminfo: Dictionary<number> = {};
     if (Game.cpu.getHeapStatistics)
       for (const [k, v] of Object.entries(Game.cpu.getHeapStatistics()))
-        meminfo[`meminfo__${k}`] = v as number;
+        meminfo[k] = v as number;
 
     return {
       time: Game.time,
-      totalEnergyInSpawns: sum(this.MyRooms.map(r => r.energyAvailable)),
-      totalEnergyInContainers: sum(allMyContainers.map(c => c.store.getUsedCapacity(RESOURCE_ENERGY))),
-      totalEnergyInCreeps: sum(this.MyCreeps.map(c => c.store.getUsedCapacity(RESOURCE_ENERGY))),
-      totalEnergyInMines: sum(this.MyRooms.map(mr => [...mr.Sources.map(s => s.energy), ...flatten(mr.GetVisibleUncontestedClaimedRooms().map(r => r.find(FIND_SOURCES).map(s => s.energy)))])),
-      totalEnergyInStorages: sum(this.MyRooms.map(r => r.storage?.store.getUsedCapacity(RESOURCE_ENERGY) ?? 0)),
-      totalCapacityOfStorages: sum(this.MyRooms.map(r => r.storage?.store.getCapacity() ?? 0)),
-      myCreepsCount: this.MyCreeps.length,
+      last_reset_time: this.stats.lastResetTime,
       visibleRooms: Object.keys(Game.rooms).length,
-      structures: Object.keys(Game.structures).length,
-      lastResetTime: this.stats.lastResetTime,
-      gcl__level: Game.gcl.level,
-      gcl__progress: Game.gcl.progress,
-      gcl__progressTotal: Game.gcl.progressTotal,
-      gpl__level: Game.gpl.level,
-      gpl__progress: Game.gpl.progress,
-      gpl__progressTotal: Game.gpl.progressTotal,
-      cpu__unusedBucket: Game.cpu.bucket,
-      cpu__used: Game.cpu.getUsed(),
-      cpu__limit: Game.cpu.limit,
-      cpu__tickLimit: Game.cpu.tickLimit,
+      gcl_level: Game.gcl.level,
+      gcl_progress: Game.gcl.progress,
+      gcl_progressTotal: Game.gcl.progressTotal,
+      gpl_level: Game.gpl.level,
+      gpl_progress: Game.gpl.progress,
+      gpl_progressTotal: Game.gpl.progressTotal,
+      cpu_unusedBucket: Game.cpu.bucket,
+      cpu_used: Game.cpu.getUsed(),
+      cpu_limit: Game.cpu.limit,
+      cpu_tickLimit: Game.cpu.tickLimit,
+      resources,
+      meminfo,
       ...roleStats,
       ...roomStats,
-      ...resources,
-      ...meminfo,
     };
     /* eslint-enable camelcase */
   }
