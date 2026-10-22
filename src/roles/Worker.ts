@@ -36,8 +36,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
     }
   }
 
-  // 4 workers per mine
-  override GetRoomQuota(room: RoomExtra) { return room.MaxMiners * 4; }
+  override GetRoomQuota(room: RoomExtra) { return room.MaxMiners * 3; }
 
   IsSpawnNeeded() { return true; }
 
