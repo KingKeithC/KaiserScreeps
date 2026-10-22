@@ -70,20 +70,22 @@ export class CreepExtra extends Creep {
       visualizePathStyle: { stroke: Colours.PATH_LONG, lineStyle: "solid" },
       ignoreCreeps: true,
       ignoreRoads: false,
-      // maxOps: this.MaxPathfindingOps * 4,
+      reusePath: 10,
       plainCost: 2,
     });
   }
 
   MoveAvoidCreeps(pos: RoomPosition, opts?: MoveToOpts): number {
     this.log.debug(`Invoking MoveAvoidCreeps ${pos} ${JSON.stringify(opts)}...`);
+    // eslint-disable-next-line no-underscore-dangle
+    delete this.memory._move; // Clear out any cached path
     return this.moveTo(pos, {
       ...opts,
       visualizePathStyle: { stroke: Colours.PATH_STUCK, lineStyle: "dotted" },
+      maxOps: this.MaxPathfindingOps,
       ignoreCreeps: false,
-      ignoreRoads: true,
-      // maxOps: this.MaxPathfindingOps,
-      plainCost: 2,
+      reusePath: 0,
+      plainCost: 1,
     });
   }
 

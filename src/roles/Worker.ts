@@ -239,8 +239,8 @@ export class Worker extends CreepRoleBase implements CreepRole {
 
   SupplyPriorities: [((s: AnyStoreStructure) => boolean), number][] = [
     [(s => s instanceof StructureExtension), 1],
-    [(s => s instanceof StructureSpawn), 2],
-    [(s => s instanceof StructureTower), 3],
+    [(s => s instanceof StructureSpawn), 1],
+    [(s => s instanceof StructureTower), 1],
     [(() => true), 1],
   ];
 
@@ -253,26 +253,29 @@ export class Worker extends CreepRoleBase implements CreepRole {
   }
 
   FindSupplyByPath(supplier: CreepExtra, candidates: AnyStoreStructure[]): AnyStoreStructure | null {
-    const inProgressSupplyTasks = supplier.AssignedRoom.GetAssignedTasks(TaskAction.Supply);
-    const supplyTargetsByCount = new Map<string, number>();
-    for (const t of inProgressSupplyTasks) {
-      const target = "target" in t ? (t.target as string | undefined) : undefined;
-      if (!target) continue;
-      const existing = supplyTargetsByCount.get(target) ?? 0;
-      supplyTargetsByCount.set(target, existing + 1);
-    }
-
+    const inProgressSupplyTasks = supplier.AssignedRoom.GetAssignedTasks(TaskAction.Supply) as Supply[];
+    let considered = 0;
+    let groups = 0;
     for (const [p, maxSuppliers] of this.SupplyPriorities) {
-      const needsSupply = candidates
-        .map(s => ({ structure: s, suppliers: supplyTargetsByCount.get(s.id) ?? 0 }))
+      const group = candidates
+        .map(s => ({ structure: s, suppliers: inProgressSupplyTasks.filter(ist => ist.target === s.id).length }))
         .filter(s => s.structure.store.getFreeCapacity(RESOURCE_ENERGY) > 0 && p(s.structure) && s.suppliers < maxSuppliers)
         .map(s => s.structure);
+      considered += group.length;
 
-      // Would prefer to use following, but doesn't work across multiple rooms:
-      //  supplier.pos.findClosestByPath(needsSupply, { ignoreCreeps: true });
-      if (needsSupply.length > 0) return needsSupply.pop() ?? null;
+      const sameRoom = supplier.pos
+        .findClosestByPath(group.filter(s => s.room.name === supplier.room.name), { ignoreCreeps: true });
+      if (sameRoom) return sameRoom;
+
+      const remoteRoom = group
+        .filter(s => s.room.name !== supplier.room.name)
+        .sort((a, b) => (a.store.getUsedCapacity(RESOURCE_ENERGY) / a.store.getCapacity(RESOURCE_ENERGY)) - (b.store.getUsedCapacity(RESOURCE_ENERGY) / b.store.getCapacity(RESOURCE_ENERGY)))
+        .pop();
+      if (remoteRoom) return remoteRoom;
+      groups++;
     }
 
+    this.log.info(`Nothing needs supply. Considered ${considered} eligible objects across ${groups} groups.`);
     return null;
   }
 
