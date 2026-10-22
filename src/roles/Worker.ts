@@ -109,6 +109,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
 
   MinUsedCapacityPerNonCreepSource = 150;
   MaxIncomingPerEnergySource = 2;
+  MaxIncomingPerContainer = 4;
   FindGatheringTask(creep: CreepExtra): CreepTask | null {
     const activeDeliveries = creep.AssignedRoom.GetAssignedTasks(TaskAction.CollectEnergy) as CollectEnergy[];
     const miners = creep.AssignedRoom.AssignedCreepsByRoleGroup.get("Miners") ?? [];
@@ -171,7 +172,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
 
       } else if (possible instanceof StructureContainer) {
         // Skip source if it has too many incoming deliveries already
-        if (activeDeliveries.filter(ad => ad.source.kind === "container" && ad.source.id === possible.id).length > this.MaxIncomingPerEnergySource) {
+        if (activeDeliveries.filter(ad => ad.source.kind === "container" && ad.source.id === possible.id).length > this.MaxIncomingPerContainer) {
           // this.log.info(`!Possibility: StructureContainer: too many incoming deliveries already`);
           continue;
         }
