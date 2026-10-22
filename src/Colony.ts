@@ -375,104 +375,100 @@ export class Colony {
           unit: "bytes",
           description: "How much memory are scripts using.",
         },
-        ...{
-          global_quota: {
-            labelKeys: ["role"],
-            unit: "number",
-            description: "The maximum limit of creeps that may be spawned in all owned rooms.",
+        global_quota: {
+          labelKeys: ["role"],
+          unit: "number",
+          description: "The maximum limit of creeps that may be spawned in all owned rooms.",
         },
-          room_quota: {
-            labelKeys: ["role", "room"],
-            unit: "number",
-            description: "The maximum limit of creeps that may be spawned in this role or room.",
+        room_quota: {
+          labelKeys: ["role", "room"],
+          unit: "number",
+          description: "The maximum limit of creeps that may be spawned in this role or room.",
         },
-          assigned_room_count: {
-            labelKeys: ["role", "room"],
-            unit: "number",
-            description: "The living number of creeps currently spawned by assigned room.",
-          },
+        assigned_room_count: {
+          labelKeys: ["role", "room"],
+          unit: "number",
+          description: "The living number of creeps currently spawned by assigned room.",
         },
-        ...{
-          my_creep_count: {
-            labelKeys: ["room"],
-            unit: "number",
-            description: "The living number of creeps currently spawned by occupied room.",
-          },
-          neutral_structure_count: {
-            labelKeys: ["room"],
-            unit: "number",
-            description: "Structures that have no owner.",
-          },
-          hostile_creep_count: {
-            labelKeys: ["room"],
-            unit: "number",
-            description: "Living hostile creep count.",
-          },
-          my_structure_count: {
-            labelKeys: ["room"],
-            unit: "number",
-            description: "Structures I own.",
-          },
-          hostile_structure_count: {
-            labelKeys: ["room"],
-            unit: "number",
-            description: "Non-Neutral structures owned by someone else.",
-          },
-          dropped_energy_amount: {
-            labelKeys: ["room"],
-            unit: "number",
-            description: "Total amount of energy sitting on the ground.",
-          },
-          my_constructions_count: {
-            labelKeys: ["room"],
-            unit: "number",
-            description: "Count of ongoing Constructions sites.",
-          },
-          capacity_of_storage: {
-            labelKeys: ["room"],
-            unit: "number",
-            description: "How much space is available in room storage.",
-          },
-          energy_in_storage: {
-            labelKeys: ["room"],
-            unit: "number",
-            description: "How storage space is used by energy.",
-          },
-          energy_in_spawns: {
-            labelKeys: ["room"],
-            unit: "number",
-            description: "Total energy of all spawns and extensions.",
-          },
-          energy_in_sources: {
-            labelKeys: ["room"],
-            unit: "number",
-            description: "Total amount of all energy sources in the room.",
-          },
-          capacity_of_spawns: {
-            labelKeys: ["room"],
-            unit: "number",
-            description: "Total capacity of all spawns and extensions.",
-          },
-          energy_in_containers: {
-            labelKeys: ["room"],
-            unit: "number",
-            description: "Total amount of energy in all containers in the room.",
-          },
-          energy_in_my_creeps: {
-            labelKeys: ["room"],
-            unit: "number",
-            description: "Total amount of energy my creeps are carrying in the room.",
-          },
-          energy_in_links: {
-            labelKeys: ["room"],
-            unit: "number",
-            description: "Total amount of energy sitting in links in the room.",
-          },
-          spawns_in_progress: {
-            labelKeys: ["room"],
-            unit: "number",
-            description: "Total amount of spawns in the spawning state.",
-          },
+        my_creep_count: {
+          labelKeys: ["room"],
+          unit: "number",
+          description: "The living number of creeps currently spawned by occupied room.",
+        },
+        neutral_structure_count: {
+          labelKeys: ["room"],
+          unit: "number",
+          description: "Structures that have no owner.",
+        },
+        hostile_creep_count: {
+          labelKeys: ["room"],
+          unit: "number",
+          description: "Living hostile creep count.",
+        },
+        my_structure_count: {
+          labelKeys: ["room"],
+          unit: "number",
+          description: "Structures I own.",
+        },
+        hostile_structure_count: {
+          labelKeys: ["room"],
+          unit: "number",
+          description: "Non-Neutral structures owned by someone else.",
+        },
+        dropped_energy_amount: {
+          labelKeys: ["room"],
+          unit: "number",
+          description: "Total amount of energy sitting on the ground.",
+        },
+        my_constructions_count: {
+          labelKeys: ["room"],
+          unit: "number",
+          description: "Count of ongoing Constructions sites.",
+        },
+        capacity_of_storage: {
+          labelKeys: ["room"],
+          unit: "number",
+          description: "How much space is available in room storage.",
+        },
+        energy_in_storage: {
+          labelKeys: ["room"],
+          unit: "number",
+          description: "How storage space is used by energy.",
+        },
+        energy_in_spawns: {
+          labelKeys: ["room"],
+          unit: "number",
+          description: "Total energy of all spawns and extensions.",
+        },
+        energy_in_sources: {
+          labelKeys: ["room"],
+          unit: "number",
+          description: "Total amount of all energy sources in the room.",
+        },
+        capacity_of_spawns: {
+          labelKeys: ["room"],
+          unit: "number",
+          description: "Total capacity of all spawns and extensions.",
+        },
+        energy_in_containers: {
+          labelKeys: ["room"],
+          unit: "number",
+          description: "Total amount of energy in all containers in the room.",
+        },
+        energy_in_my_creeps: {
+          labelKeys: ["room"],
+          unit: "number",
+          description: "Total amount of energy my creeps are carrying in the room.",
+        },
+        energy_in_links: {
+          labelKeys: ["room"],
+          unit: "number",
+          description: "Total amount of energy sitting in links in the room.",
+        },
+        spawns_in_progress: {
+          labelKeys: ["room"],
+          unit: "number",
+          description: "Total amount of spawns in the spawning state.",
         },
       },
       data: {
