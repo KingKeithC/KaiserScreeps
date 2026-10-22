@@ -120,7 +120,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
       ...creep.AssignedRoom.MapRoomsInClaimedArea(cr => cr.find(FIND_DROPPED_RESOURCES, { filter: r => r.resourceType === RESOURCE_ENERGY })) as Resource<RESOURCE_ENERGY>[],
       ...creep.AssignedRoom.MapRoomsInClaimedArea(cr => cr.find(FIND_RUINS)) as Ruin[],
       ...creep.AssignedRoom.MapRoomsInClaimedArea(cr => cr.find(FIND_STRUCTURES, { filter: s => s.structureType === STRUCTURE_CONTAINER })) as StructureContainer[],
-      ...creep.AssignedRoom.MapRoomsInClaimedArea(cr => cr.find(FIND_STRUCTURES, { filter: s => s.structureType === STRUCTURE_LINK && s.id in creep.AssignedRoom.LinkGroups.Receivers })) as StructureLink[],
+      ...creep.AssignedRoom.LinkReceivers as StructureLink[],
       ...(creep.AssignedRoom.storage !== undefined ? [creep.AssignedRoom.storage] : []),
       ...miners,
       /* eslint-enable @typescript-eslint/no-unnecessary-type-assertion */
@@ -128,9 +128,10 @@ export class Worker extends CreepRoleBase implements CreepRole {
 
       // Skip Energy sources that have too little energy
       if (
-        (possible instanceof Resource && possible.amount < this.IgnoreDroppedResourcesLessThan)
-        || (possible instanceof CreepExtra && possible.store.getFreeCapacity(RESOURCE_ENERGY) > 0) // Collect from miners only when they're full
-        || (!(possible instanceof Resource) && !(possible instanceof CreepExtra) && !(possible instanceof Creep) && possible.store.getUsedCapacity(RESOURCE_ENERGY) < this.MinUsedCapacityPerNonCreepSource)
+        (possible instanceof Resource && possible.amount < this.IgnoreDroppedResourcesLessThan) // Skip resources that are too small
+        || (possible instanceof CreepExtra && possible.store.getFreeCapacity(RESOURCE_ENERGY) !== 0) // Skip miners that aren't full
+        || (!(possible instanceof Resource) && !(possible instanceof CreepExtra) && !(possible instanceof Creep)
+          && possible.store.getUsedCapacity(RESOURCE_ENERGY) < this.MinUsedCapacityPerNonCreepSource) // Skip other stores that are not full enough
       ) {
         // this.log.info(`!Possibility: too little energy ${possible}`);
         continue;
@@ -192,7 +193,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
           continue;
         }
       } else {
-        // this.log.warn(`Unknown Energy Possibility: ${possible}`);
+        this.log.warn(`Unknown Energy Possibility: ${possible}`);
         continue;
       }
 
@@ -200,27 +201,27 @@ export class Worker extends CreepRoleBase implements CreepRole {
       possibleSources.push(possible);
     }
 
-    const amountMapper = (a: Resource | { store: StoreDefinition; }) => (a instanceof Resource ? { amount: a.amount } : { amount: a.store.getUsedCapacity(RESOURCE_ENERGY) });
+    if (possibleSources.length === 0) return null; // Nothing more to do
 
-    const energySource = possibleSources
-      .sort((a, b) => amountMapper(a).amount - amountMapper(b).amount)
-      .pop();
-    if (energySource) {
-      if (energySource instanceof StructureContainer) return new CollectEnergy({ kind: "container", id: energySource.id }, { maxAttempts: 3 });
-      if (energySource instanceof StructureLink) return new CollectEnergy({ kind: "link", id: energySource.id }, { maxAttempts: 3 });
-      if (energySource instanceof StructureStorage) return new CollectEnergy({ kind: "storage", id: energySource.id }, { maxAttempts: 3 });
-      if (energySource instanceof Creep) return new CollectEnergy({ kind: "creep", name: energySource.name }, { maxAttempts: 8 });
-      if (energySource instanceof Ruin) return new CollectEnergy({ kind: "ruin", id: energySource.id }, { maxAttempts: 3 });
-      if (energySource instanceof Resource) return new CollectEnergy({ kind: "dropped", id: energySource.id }, { maxAttempts: 3 });
-    }
+    const amountMapper = (a: Resource | { store: StoreDefinition; }) => (a instanceof Resource ? a.amount : a.store.getUsedCapacity(RESOURCE_ENERGY));
+    const target = possibleSources.sort((b, a) => amountMapper(a) - amountMapper(b))[0];
 
-    if (miners.length === 0) {
-      // Do mining on our own
+    // this.log.info(`Worker narrowed: '${possibleSources.map(ps => ps.id)}' down to ${target}`);
+
+    if (target instanceof StructureContainer) return new CollectEnergy({ kind: "container", id: target.id }, { maxAttempts: 3 });
+    else if (target instanceof StructureLink) return new CollectEnergy({ kind: "link", id: target.id }, { maxAttempts: 3 });
+    else if (target instanceof StructureStorage) return new CollectEnergy({ kind: "storage", id: target.id }, { maxAttempts: 3 });
+    else if (target instanceof Creep || target instanceof CreepExtra) return new CollectEnergy({ kind: "creep", name: target.name }, { maxAttempts: 8 });
+    else if (target instanceof Ruin) return new CollectEnergy({ kind: "ruin", id: target.id }, { maxAttempts: 3 });
+    else if (target instanceof Resource) return new CollectEnergy({ kind: "dropped", id: target.id }, { maxAttempts: 3 });
+    else if (miners.length === 0) {
+      this.log.warn(`Emergency mining since no miners are available...`);
       const source = creep.AssignedRoom.AvailableMiningPositions().pop();
       if (source) return new Mine(source);
-    }
+    } else if (target === null || target === undefined)
+      throw new Error(`We only sorted the target ${target}, yet seem to have lost it.`);
 
-    // this.log.info(`FindGatheringTask no tasks found!`, { "<creep>": creep });
+    this.log.warn(`FindGatheringTask no tasks found!`, { "<creep>": creep });
     return null;
   }
 
