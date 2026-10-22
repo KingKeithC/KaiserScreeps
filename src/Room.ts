@@ -274,6 +274,10 @@ export class RoomExtra extends Room {
     return ret;
   }
 
+  MapRoomsInClaimedArea<T>(mapper: (r: RoomExtra | Room) => T[]): T[] {
+    return flatten([this, ...this.GetVisibleUncontestedClaimedRooms()].map(mapper));
+  }
+
   CleanupDeadCreeps(): void {
     for (const name in Memory.creeps) {
       // If the creep is dead and was assigned to this room

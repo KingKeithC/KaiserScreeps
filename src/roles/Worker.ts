@@ -109,13 +109,14 @@ export class Worker extends CreepRoleBase implements CreepRole {
     const possibleSources: (CreepExtra | StructureLink | StructureStorage | StructureContainer | Resource<RESOURCE_ENERGY> | Ruin)[] = [];
 
     for (const possible of [
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
-      ...creep.AssignedRoom.find(FIND_DROPPED_RESOURCES, { filter: r => r.resourceType === RESOURCE_ENERGY }) as Resource<RESOURCE_ENERGY>[],
-      ...creep.AssignedRoom.find(FIND_RUINS),
-      ...creep.AssignedRoom.Containers,
-      ...creep.AssignedRoom.LinkReceivers,
+      /* eslint-disable @typescript-eslint/no-unnecessary-type-assertion */
+      ...creep.AssignedRoom.MapRoomsInClaimedArea(cr => cr.find(FIND_DROPPED_RESOURCES, { filter: r => r.resourceType === RESOURCE_ENERGY })) as Resource<RESOURCE_ENERGY>[],
+      ...creep.AssignedRoom.MapRoomsInClaimedArea(cr => cr.find(FIND_RUINS)) as Ruin[],
+      ...creep.AssignedRoom.MapRoomsInClaimedArea(cr => cr.find(FIND_STRUCTURES, { filter: s => s.structureType === STRUCTURE_CONTAINER})) as StructureContainer[],
+      ...creep.AssignedRoom.MapRoomsInClaimedArea(cr => cr.find(FIND_STRUCTURES, { filter: s => s.structureType === STRUCTURE_LINK && s.id in creep.AssignedRoom.LinkGroups.Receivers})) as StructureLink[],
       ...(creep.AssignedRoom.storage !== undefined ? [creep.AssignedRoom.storage] : []),
       ...miners,
+      /* eslint-enable @typescript-eslint/no-unnecessary-type-assertion */
     ]) {
 
       // Skip Energy sources that have too little energy
