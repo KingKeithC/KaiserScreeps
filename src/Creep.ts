@@ -230,4 +230,15 @@ export class CreepExtra extends Creep {
       }
     }
   }
+
+  MoveIntoRoomIfOnEdge(): void {
+    if (this.pos.y === 0) // TOP
+      this.move(BOTTOM);
+    else if (this.pos.x === 49) // RIGHT
+      this.move(LEFT);
+    else if (this.pos.y === 49) // BOTTOM
+      this.move(TOP);
+    else if (this.pos.x === 0) // LEFT
+      this.move(RIGHT);
+  }
 }

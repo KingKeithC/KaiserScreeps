@@ -324,6 +324,7 @@ export class RoomExtra extends Room {
 
         c.role.TickCreep(c);
         c.DoTask();
+        c.MoveIntoRoomIfOnEdge();
       }
     }
   }
