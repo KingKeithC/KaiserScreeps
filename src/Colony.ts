@@ -240,6 +240,11 @@ export class Colony {
     for (const role of Object.values(this.Roles))
       role.EndOfTick();
 
+    // Delete the cost matrixes marked as stale
+    this.MyRooms
+      .filter(r => r.CostMatrixIsStale)
+      .forEach(r => r.memory.pathfindingCostMatrix = undefined);
+
     // Update stats
     if (Game.time % this.StatsFrequency === 0)
       this.stats = this.GetCurrentStats();

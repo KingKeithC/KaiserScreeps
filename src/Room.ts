@@ -1,4 +1,4 @@
-import { Dictionary, flatten, unique } from "lodash";
+import { Dictionary, flatten, range, unique } from "lodash";
 import { CreepTask, Mine, Repair, TaskAction, UpdateController } from "tasks";
 import { FormatHostileInfos, GetHostileInfo, GetMiningPositions, HostileInfo, MakeRoomReport, MiningPosition } from "utils/RoomUtils";
 import { Colony } from "Colony";
@@ -29,6 +29,8 @@ declare global {
     mines: MiningPosition[],
     storageWartimeEnergyBuffer: number,
     linkGroups?: Dictionary<Id<StructureLink>[]>,
+    enableCostMatrixOverlay?: boolean,
+    pathfindingCostMatrix?: number[],
   }
 }
 
@@ -104,6 +106,138 @@ export class RoomExtra extends Room {
     if (this.memory.mines === undefined || this.memory.mines.length === 0)
       this.memory.mines = GetMiningPositions(this); // Update memoized
     return this.memory.mines; // Return memoized
+  }
+
+  get EnableCostMatrixOverlay(): boolean { return this.memory.enableCostMatrixOverlay ?? false; }
+  set EnableCostMatrixOverlay(value: boolean) { this.memory.enableCostMatrixOverlay = value; }
+
+  // We return the cached matrix from the property if it is defined,
+  // Otherwise we check memory and deserialize it from there,
+  // then cache that as a property for fast access in the same tick.
+  private cachedDeserializedCostMatrix?: CostMatrix;
+  get PathfindingCostMatrix(): CostMatrix {
+    // Return from cached property
+    if (this.cachedDeserializedCostMatrix !== undefined)
+      return this.cachedDeserializedCostMatrix;
+
+    // Return from memory, and update cache
+    if (this.memory.pathfindingCostMatrix !== undefined) {
+      this.cachedDeserializedCostMatrix = PathFinder.CostMatrix.deserialize(this.memory.pathfindingCostMatrix);
+      return this.cachedDeserializedCostMatrix;
+    }
+
+    // Not in memory or cache, call update function.
+    this.UpdateCostMatrix();
+
+    // If still undefined, then there was an error
+    if (this.memory.pathfindingCostMatrix === undefined)
+      throw new Error("Cost Matrix was undefined after calling UpdateCostMatrix().");
+
+    // Return from memory, and update cache
+    this.cachedDeserializedCostMatrix = PathFinder.CostMatrix.deserialize(this.memory.pathfindingCostMatrix);
+    return this.cachedDeserializedCostMatrix;
+  }
+
+  // If true at end of tick, then Memoized CostMatrix is deleted.
+  CostMatrixIsStale = false;
+
+  PathfindingParams = {
+    RoadCost: 1,
+    SourceRadius: 4,      // The radius around each source to apply a bias
+    SourceBiasMax: 8,     // Start biasing at Sources with this cost (since sources are unwalkable so only applies for Radius >= 1 )
+    SourceBiasMin: 3,     // Do not bias lower than this cost around Sources
+    SourceBiasFalloff: 1, // Decrease the cost by this much per additional radius
+    Unwalkable: 0xff,
+  };
+
+  private UpdateCostMatrix(): void {
+    this.log.info(`Updating Cost Matrix...`);
+    const matrix = new PathFinder.CostMatrix();
+
+    // Avoid pathing around Sources, since they tend to crowd
+    this.find(FIND_SOURCES).forEach(source => {
+      /*
+        "Ring Search" Algorithm
+        -----------------------
+
+        Given the origin point (`x`, `y`), and radius `r` find the positions at `O`
+
+         - <- x -> +
+        -
+        ^
+        |          r=0
+        y    O     H=1
+        |          W=1
+        v          T=1
+        +
+            OOO    r=1
+            OxO    H=3
+            OOO    W=1
+                   T=8
+           OOOOO
+           OxxxO   r=2
+           OxxxO   H=5
+           OxxxO   W=3
+           OOOOO   T=16
+
+          OOOOOOO
+          OxxxxxO
+          OxxxxxO   r=3
+          OxxxxxO   H=7
+          OxxxxxO   W=5
+          OxxxxxO   T=24
+          OOOOOOO
+
+        r=0,H=1,W=1,T=1;pos=[(x, y)]
+        r=1,H=3,W=1,T=8;pos=[HPosL=(x-1, y-1),(x-1, y-0),(x-1, y+1),    HPosR=(x+1, y-1),(x+1, y-0), (x+1, y+1)    WTop=(x-0, y-1),    WBot=(x-0, y+1)]
+        r=2,H=5,W=3,T=16;pos=[HPosL=(x-2, y-1),(x-2, y-0),(x-2, y+1),(x-2, y-2),(x-2, y+2),   HPosR=...   WTop=(x-1, y-2),(x-0, y-2),(x+1, y-2),  WBot=...]
+      */
+
+      // For each 'ring' in the radii
+      for (let r = 0; r < this.PathfindingParams.SourceRadius; r++) {
+
+        // Determine a bias weight for this ring
+        const weight = Math.max(
+          this.PathfindingParams.SourceBiasMin,
+          this.PathfindingParams.SourceBiasMax - (r * this.PathfindingParams.SourceBiasFalloff)
+        );
+
+        if (r === 0)
+          // Set weight of Origin Point
+          matrix.set(source.pos.x, source.pos.y, weight);
+        else {
+          // Set weight of ascending left and right columns
+          for (const yOff of range(-r, r + 1)) {
+            matrix.set(source.pos.x - r, source.pos.y + yOff, weight); // Left side
+            matrix.set(source.pos.x + r, source.pos.y + yOff, weight); // Right side
+          }
+
+          // Set weight of ascending top and bottom rows (except the corners)
+          const xOffs = r === 1 ? [0] : range(-(r - 1), r);
+          for (const xOff of xOffs) {
+            matrix.set(source.pos.x + xOff, source.pos.y - r, weight); // Top side
+            matrix.set(source.pos.x + xOff, source.pos.y + r, weight); // Bottom Side
+          }
+        }
+      }
+    });
+
+    // Set roads to weight 1, and unwalkable structures to max weight
+    this.find(FIND_STRUCTURES).forEach(struct => {
+      if (struct.structureType === STRUCTURE_ROAD) {
+        // Favor roads over plain tiles
+        matrix.set(struct.pos.x, struct.pos.y, this.PathfindingParams.RoadCost);
+      } else if (struct.structureType !== STRUCTURE_CONTAINER && (struct.structureType !== STRUCTURE_RAMPART || !struct.my)) {
+        // Can't walk through non-walkable buildings
+        matrix.set(struct.pos.x, struct.pos.y, this.PathfindingParams.Unwalkable);
+      }
+    });
+
+    // Cache
+    this.cachedDeserializedCostMatrix = matrix;
+
+    // Memoize
+    this.memory.pathfindingCostMatrix = matrix.serialize();
   }
 
   private set EventCounts(value: Dictionary<number>) { this.memory.eventCounts = value; }

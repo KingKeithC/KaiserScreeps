@@ -69,8 +69,9 @@ export class CreepExtra extends Creep {
       ...opts,
       visualizePathStyle: { stroke: Colours.PATH_LONG, lineStyle: "solid" },
       ignoreCreeps: true,
-      // maxOps: this.MaxPathfindingOps * 4,
-      plainCost: 3
+      ignoreRoads: false,
+      maxOps: this.MaxPathfindingOps * 4,
+      plainCost: 2
     });
   }
 
@@ -80,8 +81,8 @@ export class CreepExtra extends Creep {
       ...opts,
       visualizePathStyle: { stroke: Colours.PATH_STUCK, lineStyle: "dotted" },
       ignoreCreeps: false,
-      // maxOps: this.MaxPathfindingOps,
-      ignoreRoads: true,
+      ignoreRoads: false,
+      maxOps: this.MaxPathfindingOps,
     });
   }
 
@@ -93,7 +94,6 @@ export class CreepExtra extends Creep {
     this.memory.moveMode ??= "long";
     this.memory.stuckTicks ??= 0;
     this.memory.successfulAvoidMoves ??= 0;
-    const minRange = opts?.range ?? 1;
 
     // Figure out if we moved, and then update position
     const movedBetweenTicks = !this.memory.lastPos
@@ -103,7 +103,7 @@ export class CreepExtra extends Creep {
     this.memory.lastPos = { x: this.pos.x, y: this.pos.y, room: this.pos.roomName };
 
 
-    if (this.pos.roomName === targetPos.roomName && this.pos.getRangeTo(targetPos) <= minRange) {
+    if (this.pos.roomName === targetPos.roomName && this.pos.getRangeTo(targetPos) <= (opts?.range ?? 1)) {
       // Arrived / Base case
       // Reset to clean, long move mode
       this.memory.exit = undefined;
@@ -139,9 +139,16 @@ export class CreepExtra extends Creep {
       this.memory.successfulAvoidMoves = 0;
     }
 
+    const costCallback = (rn: string, cm: CostMatrix) => {
+      if (!(rn in Game.rooms)) return cm;
+      const myRoom = this.colony.MyRooms.filter(mr => mr.name === rn).pop();
+      if (myRoom) return myRoom.PathfindingCostMatrix;
+      return cm;
+    };
+
     return this.memory.moveMode === "long"
-      ? this.MoveLong(targetPos, opts)
-      : this.MoveAvoidCreeps(targetPos, opts);
+      ? this.MoveLong(targetPos, opts ? { ...opts, costCallback } : { costCallback })
+      : this.MoveAvoidCreeps(targetPos, opts ? { ...opts, costCallback } : { costCallback });
   }
 
   JustFinishedSpawning(room: RoomExtra): void {
