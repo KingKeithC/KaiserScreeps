@@ -65,12 +65,9 @@ export class Worker extends CreepRoleBase implements CreepRole {
 
     const supplyTasks = creep.AssignedRoom.GetAssignedTasks(TaskAction.Supply) as Supply[];
     const spawnsExtensions = MySpawnsOrExtensions();
-    const existingSpawnExtensionSupplyTasks = supplyTasks.filter(st => spawnsExtensions.some(se => se.id === st.target));
 
-    if (existingSpawnExtensionSupplyTasks.length < this.MaxSupplyForSpawns) {
-      const spawn = this.FindSupplyByPath(creep, spawnsExtensions);
-      if (spawn) return new Supply(spawn.id);
-    }
+    const spawn = this.FindSupplyByPath(creep, spawnsExtensions);
+    if (spawn) return new Supply(spawn.id);
 
     const cons = this.FindConstructionByPriorityAndPath(creep, MyConstructionSites());
     if (cons) return new Build(cons.id);
