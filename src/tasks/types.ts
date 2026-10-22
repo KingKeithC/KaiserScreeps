@@ -21,4 +21,5 @@ export type EnergySource =
   | { kind: "storage"; id: Id<StructureStorage>; }
   | { kind: "link"; id: Id<StructureLink>; }
   | { kind: "dropped"; id: Id<Resource<RESOURCE_ENERGY>>; }
+  | { kind: "tomb"; id: Id<Tombstone>; }
   | { kind: "ruin"; id: Id<Ruin>; };

@@ -109,10 +109,11 @@ export class Worker extends CreepRoleBase implements CreepRole {
   FindGatheringTask(creep: CreepExtra): CreepTask | null {
     const activeDeliveries = creep.AssignedRoom.GetAssignedTasks(TaskAction.CollectEnergy) as CollectEnergy[];
     const miners = (creep.AssignedRoom.AssignedCreepsByRoleGroup.get("Miners") ?? []).filter(m => !m.spawning);
-    const possibleSources: (CreepExtra | StructureLink | StructureStorage | StructureContainer | Resource<RESOURCE_ENERGY> | Ruin)[] = [];
+    const possibleSources: (CreepExtra | StructureLink | StructureStorage | StructureContainer | Resource<RESOURCE_ENERGY> | Ruin | Tombstone)[] = [];
 
     for (const possible of [
       /* eslint-disable @typescript-eslint/no-unnecessary-type-assertion */
+      ...creep.AssignedRoom.MapRoomsInClaimedArea(cr => cr.find(FIND_TOMBSTONES, { filter: t => t.store.getUsedCapacity(RESOURCE_ENERGY) > 0 })) as Tombstone[],
       ...creep.AssignedRoom.MapRoomsInClaimedArea(cr => cr.find(FIND_DROPPED_RESOURCES, { filter: r => r.resourceType === RESOURCE_ENERGY })) as Resource<RESOURCE_ENERGY>[],
       ...creep.AssignedRoom.MapRoomsInClaimedArea(cr => cr.find(FIND_RUINS)) as Ruin[],
       ...creep.AssignedRoom.MapRoomsInClaimedArea(cr => cr.find(FIND_STRUCTURES, { filter: s => s.structureType === STRUCTURE_CONTAINER })) as StructureContainer[],
@@ -168,6 +169,13 @@ export class Worker extends CreepRoleBase implements CreepRole {
           continue;
         }
 
+      } else if (possible instanceof Tombstone) {
+        // Skip source if it has too many incoming deliveries already
+        if (activeDeliveries.filter(ad => ad.source.kind === "tomb" && ad.source.id === possible.id).length > this.MaxIncomingPerEnergySource) {
+          // this.log.info(`!Possibility: Tombstone: too many incoming deliveries already`);
+          continue;
+        }
+
       } else if (possible instanceof StructureContainer) {
         // Skip source if it has too many incoming deliveries already
         if (activeDeliveries.filter(ad => ad.source.kind === "container" && ad.source.id === possible.id).length > this.MaxIncomingPerContainer) {
@@ -209,6 +217,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
     else if (target instanceof StructureStorage) return new CollectEnergy({ kind: "storage", id: target.id }, { maxAttempts: 3 });
     else if (target instanceof Creep || target instanceof CreepExtra) return new CollectEnergy({ kind: "creep", name: target.name }, { maxAttempts: 8 });
     else if (target instanceof Ruin) return new CollectEnergy({ kind: "ruin", id: target.id }, { maxAttempts: 3 });
+    else if (target instanceof Tombstone) return new CollectEnergy({ kind: "tomb", id: target.id }, { maxAttempts: 3 });
     else if (target instanceof Resource) return new CollectEnergy({ kind: "dropped", id: target.id }, { maxAttempts: 3 });
     else if (miners.length === 0) {
       this.log.warn(`Emergency mining since no miners are available...`);

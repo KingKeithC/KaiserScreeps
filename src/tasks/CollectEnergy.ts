@@ -44,6 +44,7 @@ export class CollectEnergy extends BaseTask<typeof TaskAction.CollectEnergy> {
       && !(source instanceof StructureStorage)
       && !(source instanceof StructureLink)
       && !(source instanceof Resource)
+      && !(source instanceof Tombstone)
       && !(source instanceof Ruin)
     ) return null;
 
@@ -52,8 +53,8 @@ export class CollectEnergy extends BaseTask<typeof TaskAction.CollectEnergy> {
     const result = source instanceof Creep
       ? source.transfer(creep, RESOURCE_ENERGY)
       : source instanceof Resource
-      ? creep.pickup(source)
-      : creep.withdraw(source, RESOURCE_ENERGY);
+        ? creep.pickup(source)
+        : creep.withdraw(source, RESOURCE_ENERGY);
     this.lastInventory = currentInventory;
 
     if (result === OK && currentInventory - lastInventory <= this.SmallPickupThreshold)
@@ -72,11 +73,12 @@ export class CollectEnergy extends BaseTask<typeof TaskAction.CollectEnergy> {
       : Game.getObjectById(this.source.id);
     const sourceIsWrongType = source === null ||
       (!(source instanceof Creep)
-      && !(source instanceof StructureContainer)
-      && !(source instanceof StructureStorage)
-      && !(source instanceof StructureLink)
-      && !(source instanceof Resource)
-      && !(source instanceof Ruin));
+        && !(source instanceof StructureContainer)
+        && !(source instanceof StructureStorage)
+        && !(source instanceof StructureLink)
+        && !(source instanceof Tombstone)
+        && !(source instanceof Resource)
+        && !(source instanceof Ruin));
 
     return (
       sourceIsWrongType
