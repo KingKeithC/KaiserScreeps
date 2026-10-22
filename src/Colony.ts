@@ -352,6 +352,7 @@ export class Colony {
       time: Game.time,
       schema: {
         last_reset_time: { unit: "ticks" },
+        visible_rooms_count: { unit: "number" },
         gcl: gclAndgplSchema,
         gpl: gclAndgplSchema,
         cpu: {
@@ -367,7 +368,7 @@ export class Colony {
         meminfo: {
           unit: "bytes(SI)"
         },
-        roleStats: {
+        ...{
           global_quota: {
             labelKeys: ["role"],
             unit: "number",
@@ -381,7 +382,7 @@ export class Colony {
             unit: "number",
           },
         },
-        roomStats: {
+        ...{
           my_creep_count: {
             labelKeys: ["room"],
             unit: "number",
@@ -446,7 +447,7 @@ export class Colony {
       },
       data: {
         last_reset_time: this.stats.data.lastResetTime ?? 0,
-        visibleRooms: Object.keys(Game.rooms).length,
+        visible_rooms_count: Object.keys(Game.rooms).length,
         gcl: {
           level: Game.gcl.level,
           progress: Game.gcl.progress,
