@@ -65,12 +65,21 @@ export class CreepExtra extends Creep {
   MaxPathfindingOps = 200;
   MoveLong(pos: RoomPosition, opts?: MoveToOpts): number {
     this.log.debug(`Invoking MoveLong ${pos} ${JSON.stringify(opts)}...`);
+
+    const costCallback = (rn: string, cm: CostMatrix) => {
+      if (!(rn in Game.rooms)) return cm;
+      const myRoom = this.colony.MyRooms.filter(mr => mr.name === rn).pop();
+      if (myRoom) return myRoom.PathfindingCostMatrix;
+      return cm;
+    };
+
     return this.moveTo(pos, {
       ...opts,
+      costCallback,
       visualizePathStyle: { stroke: Colours.PATH_LONG, lineStyle: "solid" },
+      maxOps: this.MaxPathfindingOps * 4,
       ignoreCreeps: true,
-      ignoreRoads: false,
-      reusePath: 10,
+      reusePath: 20,
       plainCost: 2,
     });
   }
@@ -149,16 +158,9 @@ export class CreepExtra extends Creep {
       this.memory.successfulAvoidMoves = 0;
     }
 
-    const costCallback = (rn: string, cm: CostMatrix) => {
-      if (!(rn in Game.rooms)) return cm;
-      const myRoom = this.colony.MyRooms.filter(mr => mr.name === rn).pop();
-      if (myRoom) return myRoom.PathfindingCostMatrix;
-      return cm;
-    };
-
     return this.memory.moveMode === "long"
-      ? this.MoveLong(targetPos, opts ? { ...opts, costCallback } : { costCallback, range: 1 })
-      : this.MoveAvoidCreeps(targetPos, opts ? { ...opts, costCallback } : { costCallback, range: 1 });
+      ? this.MoveLong(targetPos, opts)
+      : this.MoveAvoidCreeps(targetPos, opts);
   }
 
   JustFinishedSpawning(room: RoomExtra): void {
