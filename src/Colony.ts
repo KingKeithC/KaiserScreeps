@@ -206,7 +206,7 @@ export class Colony {
     this.cachedCreepsByAssignedRoom = new Map();
   }
 
-  // Stats are only fetched evey ~90 seconds, so we only need
+  // Stats are only fetched evey ~90 seconds, so we only need to update them infrequently
   StatsFrequency = 30;
 
   // This is the effectively the loop function invoked each tick.
