@@ -101,7 +101,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
     return null;
   }
 
-  MinUsedCapacityPerEnergySource = 150;
+  MinUsedCapacityPerNonCreepSource = 150;
   MaxIncomingPerEnergySource = 2;
   FindGatheringTask(creep: CreepExtra): CreepTask | null {
     const activeDeliveries = creep.AssignedRoom.GetAssignedTasks(TaskAction.CollectEnergy) as CollectEnergy[];
@@ -121,7 +121,8 @@ export class Worker extends CreepRoleBase implements CreepRole {
 
       // Skip Energy sources that have too little energy
       if ((possible instanceof Resource && possible.amount < this.IgnoreDroppedResourcesLessThan)
-        || (!(possible instanceof Resource) && possible.store.getUsedCapacity(RESOURCE_ENERGY) < this.MinUsedCapacityPerEnergySource)
+        || (!(possible instanceof Resource) && !(possible instanceof CreepExtra) && possible.store.getUsedCapacity(RESOURCE_ENERGY) < this.MinUsedCapacityPerNonCreepSource)
+      || (possible instanceof CreepExtra && possible.store.getFreeCapacity(RESOURCE_ENERGY) === 0) // Collect from miners only when they're full
       ) {
         // this.log.info(`!Possibility: too little energy ${possible}`);
         continue;
