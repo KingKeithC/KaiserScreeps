@@ -112,7 +112,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
   MaxIncomingPerContainer = 4;
   FindGatheringTask(creep: CreepExtra): CreepTask | null {
     const activeDeliveries = creep.AssignedRoom.GetAssignedTasks(TaskAction.CollectEnergy) as CollectEnergy[];
-    const miners = creep.AssignedRoom.AssignedCreepsByRoleGroup.get("Miners") ?? [];
+    const miners = (creep.AssignedRoom.AssignedCreepsByRoleGroup.get("Miners") ?? []).filter(m => !m.spawning);
     const possibleSources: (CreepExtra | StructureLink | StructureStorage | StructureContainer | Resource<RESOURCE_ENERGY> | Ruin)[] = [];
 
     for (const possible of [
