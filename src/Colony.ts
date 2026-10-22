@@ -1,5 +1,5 @@
 import { CreepExtra } from "Creep";
-import { Dictionary, flatten, sum } from "lodash";
+import { Dictionary, sum } from "lodash";
 import { Attacker } from "roles/Attacker";
 import { Claimer } from "roles/Claimer";
 import { Defender } from "roles/Defender";
@@ -11,7 +11,6 @@ import { RoomExtra } from "Room";
 import profiler from "screeps-profiler";
 import { AttackTargetTask, Build, ClaimRoomTask, CollectEnergy, CreepTask, Dismantle, GuardTask, Mine, Move, Repair, Supply, UpdateController } from "tasks";
 import { FmtRatios } from "utils/Collections";
-import { BodyCost } from "utils/CreepUtils";
 import { ErrorMapper } from "utils/ErrorMapper";
 import { Logger } from "utils/Logger";
 import { MakeRoomReport, RoomReport } from "utils/RoomUtils";
@@ -33,10 +32,19 @@ declare const global: {
   Colony: Colony;
 };
 
+type Recursive<T> = T | Dictionary<T | Recursive<T>>;
+
+
+interface FieldSchema {
+  info?: Dictionary<string> // Extra key/value info to associate with the field
+  unit?: string,
+  labelKeys?: string[], // Each element corresponds to a level in the `Recursive` stat.
+}
 
 interface ColonyStats {
   time: number;
-  [key: string]: number | Dictionary<number> | Dictionary<Dictionary<number>>;
+  schema: { [key: string]: Recursive<FieldSchema> }
+  data: { [key: string]: Recursive<number> }
 }
 
 interface RoleRegistry { [name: string]: CreepRole; }
@@ -176,7 +184,7 @@ export class Colony {
     Memory.scoutInterval ??= CREEP_LIFE_TIME * 2;
 
     global.Colony = this; // Accessible as `Colony.whatever()` in the console.
-    this.stats = { ...this.stats, lastResetTime: Game.time };
+    this.stats = { time: this.stats.time, schema: this.stats.schema, data: { ...this.stats.data, lastResetTime: Game.time } };
     this.log.crit(`GLOBALS RESET | Profiling Configured: ${this.GlobalEnableProfiling}, ErrorMapper: ${this.GlobalEnableErrorMapper}`);
   }
 
@@ -304,8 +312,6 @@ export class Colony {
 
     const roomStats: { [key: string]: Dictionary<number>; } = {};
     roomStats.my_creep_count = this.MapNameable(Object.values(Game.rooms), vr => vr.find(FIND_MY_CREEPS).length);
-    roomStats.my_structure_count = this.MapNameable(Object.values(Game.rooms), vr => vr.find(FIND_MY_STRUCTURES).length);
-    roomStats.hostile_structure_count = this.MapNameable(Object.values(Game.rooms), vr => vr.find(FIND_HOSTILE_STRUCTURES).length);
     roomStats.neutral_structure_count = this.MapNameable(Object.values(Game.rooms), vr => vr.find(FIND_STRUCTURES, {filter: s => !("owner" in s)}).length);
     roomStats.hostile_creep_count = this.MapNameable(Object.values(Game.rooms), vr => vr.find(FIND_HOSTILE_CREEPS).length);
     roomStats.my_structure_count = this.MapNameable(Object.values(Game.rooms), vr => vr.find(FIND_MY_STRUCTURES).length);
@@ -327,34 +333,141 @@ export class Colony {
     roleStats.assigned_room_count = this.MapNameable(Object.values(this.Roles), r => this.MapNameable(this.MyRooms, ro => r.GetRoomCreepsInRole(ro).length))
 
     const meminfo: Dictionary<number> = {};
-    if (Game.cpu.getHeapStatistics)
+    if (Game.cpu.getHeapStatistics) {
       for (const [k, v] of Object.entries(Game.cpu.getHeapStatistics()))
         meminfo[k] = v as number;
 
+      // Not sure what this even means, / I don't care
+      // and it breaks the rest of the schema for this field
+      if ("does_zap_garbage" in meminfo) delete meminfo.does_zap_garbage;
+    }
+
+    const gclAndgplSchema = {
+      level: { unit: "number" },
+      progress: { unit: "number" },
+      progressTotal: { unit: "number" },
+    }
+
     return {
       time: Game.time,
-      last_reset_time: this.stats.lastResetTime,
-      visibleRooms: Object.keys(Game.rooms).length,
-      gcl: {
-        level: Game.gcl.level,
-        progress: Game.gcl.progress,
-        progressTotal: Game.gcl.progressTotal,
+      schema: {
+        last_reset_time: { unit: "ticks" },
+        gcl: gclAndgplSchema,
+        gpl: gclAndgplSchema,
+        cpu: {
+          unusedBucket: { unit: "cpu" },
+          used: { unit: "cpu" },
+          limit: { unit: "cpu" },
+          tickLimit: { unit: "cpu" },
+        },
+        resources: {
+          labelKeys: ["resourceType"],
+          unit: "number",
+        },
+        meminfo: {
+          unit: "bytes(SI)"
+        },
+        roleStats: {
+          global_quota: {
+            labelKeys: ["role"],
+            unit: "number",
+          },
+          room_quota: {
+            labelKeys: ["role", "room"],
+            unit: "number",
+          },
+          assigned_room_count: {
+            labelKeys: ["role", "room"],
+            unit: "number",
+          },
+        },
+        roomStats: {
+          my_creep_count: {
+            labelKeys: ["room"],
+            unit: "number",
+          },
+          neutral_structure_count: {
+            labelKeys: ["room"],
+            unit: "number",
+          },
+          hostile_creep_count: {
+            labelKeys: ["room"],
+            unit: "number",
+          },
+          my_structure_count: {
+            labelKeys: ["room"],
+            unit: "number",
+          },
+          hostile_structure_count: {
+            labelKeys: ["room"],
+            unit: "number",
+          },
+          dropped_energy_amount: {
+            labelKeys: ["room"],
+            unit: "number",
+          },
+          my_constructions_count: {
+            labelKeys: ["room"],
+            unit: "number",
+          },
+          capacity_of_storage: {
+            labelKeys: ["room"],
+            unit: "number",
+          },
+          energy_in_storage: {
+            labelKeys: ["room"],
+            unit: "number",
+          },
+          energy_in_spawns: {
+            labelKeys: ["room"],
+            unit: "number",
+          },
+          energy_in_sources: {
+            labelKeys: ["room"],
+            unit: "number",
+          },
+          capacity_of_spawns: {
+            labelKeys: ["room"],
+            unit: "number",
+          },
+          energy_in_containers: {
+            labelKeys: ["room"],
+            unit: "number",
+          },
+          energy_in_my_creeps: {
+            labelKeys: ["room"],
+            unit: "number",
+          },
+          energy_in_links: {
+            labelKeys: ["room"],
+            unit: "number",
+          },
+        },
       },
-      gpl: {
-        level: Game.gpl.level,
-        progress: Game.gpl.progress,
-        progressTotal: Game.gpl.progressTotal,
+      data: {
+        last_reset_time: this.stats.data.lastResetTime,
+        visibleRooms: Object.keys(Game.rooms).length,
+        gcl: {
+          level: Game.gcl.level,
+          progress: Game.gcl.progress,
+          progressTotal: Game.gcl.progressTotal,
+        },
+        gpl: {
+          level: Game.gpl.level,
+          progress: Game.gpl.progress,
+          progressTotal: Game.gpl.progressTotal,
+        },
+        cpu: {
+          unusedBucket: Game.cpu.bucket,
+          used: Game.cpu.getUsed(),
+          limit: Game.cpu.limit,
+          tickLimit: Game.cpu.tickLimit,
+        },
+        resources,
+        meminfo,
+        ...roleStats,
+        ...roomStats,
       },
-      cpu: {
-        unusedBucket: Game.cpu.bucket,
-        used: Game.cpu.getUsed(),
-        limit: Game.cpu.limit,
-        tickLimit: Game.cpu.tickLimit,
-      },
-      resources,
-      meminfo,
-      ...roleStats,
-      ...roomStats,
     };
     /* eslint-enable camelcase */
   }
