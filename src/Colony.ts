@@ -477,7 +477,7 @@ export class Colony {
       },
       data: {
         time: Game.time,
-        last_reset_time: this.stats.data.lastResetTime ?? 0,
+        last_reset_time: this.stats.data.last_reset_time, // Carry forward unmodified time
         visible_rooms_count: Object.keys(Game.rooms).length,
         gcl: {
           level: Game.gcl.level,
