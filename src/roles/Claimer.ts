@@ -25,8 +25,8 @@ export class Claimer extends CreepRoleBase implements CreepRole {
   override GetGlobalQuota(): number { return this.AllClaims().length; }
   override GetRoomQuota(room: RoomExtra): number { return this.UnworkedClaims(room).length; }
 
-  // Don't spawn claimers unless we have at least 10 living creeps
-  IsSpawnNeeded(room: RoomExtra): boolean { return room.AssignedCreeps.length > 10; }
+  // Don't spawn claimers unless we have at least 6 living creeps
+  IsSpawnNeeded(room: RoomExtra): boolean { return room.AssignedCreeps.length > 6; }
 
 
   AllClaims(): Flag[] { return Object.values(Game.flags).filter(f => f.name.startsWith("Claim")); }
