@@ -445,7 +445,7 @@ export class Colony {
         },
       },
       data: {
-        last_reset_time: this.stats.data.lastResetTime,
+        last_reset_time: this.stats.data.lastResetTime ?? 0,
         visibleRooms: Object.keys(Game.rooms).length,
         gcl: {
           level: Game.gcl.level,
