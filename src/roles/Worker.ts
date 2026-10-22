@@ -25,9 +25,15 @@ export class Worker extends CreepRoleBase implements CreepRole {
   }
 
   TickCreep(creep: CreepExtra): void {
-    // If we run across a tombstone containing energy, pick it up
-    const tomb = creep.pos.findInRange(FIND_TOMBSTONES, 1, { filter: t => t.store.getUsedCapacity(RESOURCE_ENERGY) > 0 });
-    for (const t of tomb) creep.withdraw(t, RESOURCE_ENERGY);
+    if (creep.store.getFreeCapacity(RESOURCE_ENERGY) > 0) {
+      // If we run across a tombstone containing energy, pick it up
+      const tomb = creep.pos.findInRange(FIND_TOMBSTONES, 1, { filter: t => t.store.getUsedCapacity(RESOURCE_ENERGY) > 0 });
+      for (const t of tomb) creep.withdraw(t, RESOURCE_ENERGY);
+
+      // If there is energy next to us, pick it up
+      const dropped = creep.pos.findInRange(FIND_DROPPED_RESOURCES, 1, { filter: r => r.resourceType === RESOURCE_ENERGY && r.amount > 0 });
+      for (const d of dropped) creep.pickup(d);
+    }
   }
 
   // 4 workers per mine
@@ -35,7 +41,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
 
   IsSpawnNeeded() { return true; }
 
-  GetInitialTask(): CreepTask<string> | null { return null }
+  GetInitialTask(): CreepTask<string> | null { return null; }
   SelectNextTask(creep: CreepExtra): CreepTask | null {
     if (creep.store.getUsedCapacity(RESOURCE_ENERGY) === 0)
       return this.FindGatheringTask(creep);
@@ -112,8 +118,8 @@ export class Worker extends CreepRoleBase implements CreepRole {
       /* eslint-disable @typescript-eslint/no-unnecessary-type-assertion */
       ...creep.AssignedRoom.MapRoomsInClaimedArea(cr => cr.find(FIND_DROPPED_RESOURCES, { filter: r => r.resourceType === RESOURCE_ENERGY })) as Resource<RESOURCE_ENERGY>[],
       ...creep.AssignedRoom.MapRoomsInClaimedArea(cr => cr.find(FIND_RUINS)) as Ruin[],
-      ...creep.AssignedRoom.MapRoomsInClaimedArea(cr => cr.find(FIND_STRUCTURES, { filter: s => s.structureType === STRUCTURE_CONTAINER})) as StructureContainer[],
-      ...creep.AssignedRoom.MapRoomsInClaimedArea(cr => cr.find(FIND_STRUCTURES, { filter: s => s.structureType === STRUCTURE_LINK && s.id in creep.AssignedRoom.LinkGroups.Receivers})) as StructureLink[],
+      ...creep.AssignedRoom.MapRoomsInClaimedArea(cr => cr.find(FIND_STRUCTURES, { filter: s => s.structureType === STRUCTURE_CONTAINER })) as StructureContainer[],
+      ...creep.AssignedRoom.MapRoomsInClaimedArea(cr => cr.find(FIND_STRUCTURES, { filter: s => s.structureType === STRUCTURE_LINK && s.id in creep.AssignedRoom.LinkGroups.Receivers })) as StructureLink[],
       ...(creep.AssignedRoom.storage !== undefined ? [creep.AssignedRoom.storage] : []),
       ...miners,
       /* eslint-enable @typescript-eslint/no-unnecessary-type-assertion */
@@ -122,7 +128,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
       // Skip Energy sources that have too little energy
       if ((possible instanceof Resource && possible.amount < this.IgnoreDroppedResourcesLessThan)
         || (!(possible instanceof Resource) && !(possible instanceof CreepExtra) && possible.store.getUsedCapacity(RESOURCE_ENERGY) < this.MinUsedCapacityPerNonCreepSource)
-      || (possible instanceof CreepExtra && possible.store.getFreeCapacity(RESOURCE_ENERGY) === 0) // Collect from miners only when they're full
+        || (possible instanceof CreepExtra && possible.store.getFreeCapacity(RESOURCE_ENERGY) === 0) // Collect from miners only when they're full
       ) {
         // this.log.info(`!Possibility: too little energy ${possible}`);
         continue;
@@ -142,7 +148,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
           continue;
         }
 
-      }  else if (possible instanceof Resource && possible.resourceType === RESOURCE_ENERGY) {
+      } else if (possible instanceof Resource && possible.resourceType === RESOURCE_ENERGY) {
         // Skip source if it has too many incoming deliveries already
         if (activeDeliveries.filter(ad => ad.source.kind === "dropped" && ad.source.id === possible.id).length > this.MaxIncomingPerEnergySource) {
           // this.log.info(`!Possibility: Resource: too many incoming deliveries already`);
@@ -192,7 +198,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
       possibleSources.push(possible);
     }
 
-    const amountMapper = (a: Resource | { store: StoreDefinition}) => ( a instanceof Resource ? {amount: a.amount} : { amount: a.store.getUsedCapacity(RESOURCE_ENERGY)});
+    const amountMapper = (a: Resource | { store: StoreDefinition; }) => (a instanceof Resource ? { amount: a.amount } : { amount: a.store.getUsedCapacity(RESOURCE_ENERGY) });
 
     const energySource = possibleSources
       .sort((a, b) => amountMapper(a).amount - amountMapper(b).amount)
