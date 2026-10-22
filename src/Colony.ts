@@ -36,7 +36,7 @@ declare const global: {
 
 interface ColonyStats {
   time: number;
-  [key: string]: number;
+  [key: string]: number | Dictionary<number> | Dictionary<Dictionary<number>>;
 }
 
 interface RoleRegistry { [name: string]: CreepRole; }
@@ -286,26 +286,37 @@ export class Colony {
       Game.cpu.halt();
   }
 
+  MapNameable<N extends { name: string }, T>(iterOfNamed: Iterable<N>, mapper: (n: N) => T): Dictionary<T> {
+    const ret: Dictionary<T> = {};
+    for (const named of iterOfNamed) ret[named.name] = mapper(named);
+    return ret;
+  }
+
+  DisplayCurrentStats(): void {
+    this.log.report(JSON.stringify(this.GetCurrentStats(), undefined, 2))
+  }
+
   GetCurrentStats(): ColonyStats {
+    /* eslint-disable camelcase */
     const allMyContainers: StructureContainer[] = flatten(this.MyRooms.map(r => r.find(FIND_STRUCTURES, { filter: s => s.structureType === STRUCTURE_CONTAINER })));
 
     const resources: { [key: string]: number; } = {};
     for (const r of Object.entries(Game.resources))
       resources["resource__" + r[0]] = r[1] as number;
 
-    const roles: { [key: string]: number; } = {};
-    for (const [n, r] of Object.entries(this.Roles)) {
-      roles[`role_${n}__globalCount`] = r.GetGlobalCreepsInRole().length;
-      roles[`role_${n}__globalQuota`] = r.GetGlobalQuota();
-      roles[`role_${n}__globalSpawnedBodiesCost`] = sum(r.GetGlobalCreepsInRole().map(c => BodyCost(c.body)));
-    }
+    const roomStats: { [key: string]: Dictionary<number>; } = {};
+    roomStats.my_creep_count = this.MapNameable(Object.values(Game.rooms), vr => vr.find(FIND_MY_CREEPS).length);
+    roomStats.hostile_creep_count = this.MapNameable(Object.values(Game.rooms), vr => vr.find(FIND_HOSTILE_CREEPS).length);
+
+    const roleStats: { [key: string]: Dictionary<number> | Dictionary<Dictionary<number>>; } = {};
+    roleStats.global_quota = this.MapNameable(Object.values(this.Roles), ro => ro.GetGlobalQuota())
+    roleStats.room_quota = this.MapNameable(Object.values(this.Roles), r => this.MapNameable(this.MyRooms, ro => r.GetRoomQuota(ro)))
 
     const meminfo: { [key: string]: number } = {};
     if (Game.cpu.getHeapStatistics)
       for (const [k, v] of Object.entries(Game.cpu.getHeapStatistics()))
         meminfo[`meminfo__${k}`] = v as number;
 
-    /* eslint-disable camelcase */
     return {
       time: Game.time,
       totalEnergyInSpawns: sum(this.MyRooms.map(r => r.energyAvailable)),
@@ -328,8 +339,9 @@ export class Colony {
       cpu__used: Game.cpu.getUsed(),
       cpu__limit: Game.cpu.limit,
       cpu__tickLimit: Game.cpu.tickLimit,
+      ...roleStats,
+      ...roomStats,
       ...resources,
-      ...roles,
       ...meminfo,
     };
     /* eslint-enable camelcase */
@@ -345,22 +357,7 @@ export class Colony {
   get stats(): ColonyStats { return Memory.stats ?? this.GetCurrentStats(); }
   set stats(value: ColonyStats) { Memory.stats = value; }
 
-  private lastReportStats: ColonyStats = this.stats;
   ColonyStateReport(): void {
-    // Calculate differences from lastStats
-    let diffs: ColonyStats | undefined;
-    let rates: ColonyStats | undefined;
-    if (this.stats !== undefined) {
-      diffs = { time: this.stats.time - this.lastReportStats.time };
-      rates = { time: 1 };
-      for (const k of Object.keys(this.stats)) {
-        if (k !== "time") {
-          diffs[k] = this.lastReportStats[k] - this.stats[k];
-          rates[k] = diffs[k] / diffs.time;
-        }
-      }
-    }
-
     let msg = `Tick ${Game.time} ::: COLONY REPORT for ${this.username} ::: ${this.MyRooms.length} Owned Rooms, ${this.MyCreeps.length} Creeps\n`;
 
     // Include memory usage info
@@ -375,8 +372,5 @@ export class Colony {
 
     // Print
     this.log.report(msg);
-
-    // Update report stats
-    this.lastReportStats = this.stats;
   }
 }
