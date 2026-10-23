@@ -64,9 +64,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
     }
 
     const supplyTasks = creep.AssignedRoom.GetAssignedTasks(TaskAction.Supply) as Supply[];
-    const spawnsExtensions = creep.AssignedRoom.SpawnsOrExtensions;
-
-    const spawn = this.FindSupplyByPath(creep, spawnsExtensions, "spawns/extensions");
+    const spawn = this.FindSupplyByPath(creep, creep.AssignedRoom.SpawnsOrExtensions, "spawns/extensions");
     if (spawn) return new Supply(spawn.id);
 
     const cons = this.FindConstructionByPriorityAndPath(creep, MyConstructionSites());
@@ -263,13 +261,22 @@ export class Worker extends CreepRoleBase implements CreepRole {
     [(() => true), 1],
   ];
 
-  FindConstructionByPriorityAndPath(creep: CreepExtra, candidates: ConstructionSite[] = creep.AssignedRoom.ConstructionSites): ConstructionSite | null {
+  FindConstructionByPriorityAndPath(supplier: CreepExtra, candidates: ConstructionSite[] = supplier.AssignedRoom.ConstructionSites): ConstructionSite | null {
     for (const p of this.ConstructionPriorities) {
       const group = candidates.filter(p);
-      if (group.length) return creep.pos.findClosestByPath(group, { ignoreCreeps: true });
+
+      const sameRoom = supplier.pos.findClosestByPath(group.filter(s => s.pos.roomName === supplier.room.name), { ignoreCreeps: true });
+      if (sameRoom) return sameRoom;
+
+      const remoteRoom = group
+        .filter(s => s.pos.roomName !== supplier.room.name)
+        .sort((a, b) => (a.progress / a.progressTotal) - (b.progress / b.progressTotal))
+        .pop();
+      if (remoteRoom) return remoteRoom;
     }
     return null;
   }
+
 
   FindSupplyByPath(supplier: CreepExtra, candidates: AnyStoreStructure[], candidateName?: string): AnyStoreStructure | null {
     const inProgressSupplyTasks = supplier.AssignedRoom.GetAssignedTasks(TaskAction.Supply) as Supply[];
