@@ -127,7 +127,7 @@ export class RoomExtra extends Room {
           // My Room
           if (room.find(FIND_MY_SPAWNS).length === 0) {
             // Not Self-Sufficient
-            this.log.warn(`Claimed Room ${name} is still under support by ${this.name}!`);
+            this.log.info(`Claimed Room ${name} is still under support by ${this.name}!`, { "<rate>": 20 });
             this.cachedClaimedRooms.push(room);
           } else {
             // Self-Sufficient
@@ -140,7 +140,7 @@ export class RoomExtra extends Room {
           toRemove.push(name);
         }
       }
-      else this.log.warn(`Claimed Room ${name} is not visible!`);
+      else this.log.info(`Claimed Room ${name} is not visible!`, { "<rate>": 10 });
     }
 
     // Remove rooms which are not claimable anymore
