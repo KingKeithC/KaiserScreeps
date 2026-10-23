@@ -60,6 +60,7 @@ export class CreepExtra extends Creep {
     return this.cachedAssignedRoom;
   }
 
+
   MaxStuckTicks = 2;
   MaxAvoidTicks = 3;
   MaxPathfindingOps = 200;

@@ -1,4 +1,5 @@
 import { CreepExtra } from "Creep";
+import { unique } from "lodash";
 import { TargetTask } from "./TargetTask";
 import { TaskAction } from "./TaskAction";
 import { TaskActionResult } from "./types";
@@ -48,8 +49,8 @@ export class ClaimRoomTask extends TargetTask<typeof TaskAction.Claim, string> {
       outcome = { range: 1, result: creep.reserveController(controller), target: controller };
 
     // Ensure this room is added to the claim list for our assigned room
-    if (outcome != null && outcome.result === OK && !(creep.room.name in creep.AssignedRoom.ClaimedNearbyRooms))
-      creep.AssignedRoom.ClaimedNearbyRooms = creep.AssignedRoom.ClaimedNearbyRooms.concat(creep.room.name);
+    if (outcome != null && outcome.result === OK && !(creep.room.name in creep.AssignedRoom.ClaimedRoomNames))
+      creep.AssignedRoom.ClaimedRoomNames = unique([...creep.AssignedRoom.ClaimedRoomNames, creep.room.name]);
 
     if (outcome != null && outcome.result === ERR_TIRED)
       outcome.result = ERR_NOT_IN_RANGE; // Ignore ERR_TIRED, which occurs if the "Upgrade blocked" timer is running, use ERR_NOT_IN_RANGE to force a move

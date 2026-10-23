@@ -1,4 +1,4 @@
-import { Dictionary, flatten, range, unique } from "lodash";
+import { Dictionary, filter, flatten, range, unique } from "lodash";
 import { CreepTask, Mine, Repair, TaskAction, UpdateController } from "tasks";
 import { FormatHostileInfos, GetHostileInfo, GetMiningPositions, HostileInfo, MakeRoomReport, MiningPosition } from "utils/RoomUtils";
 import { Colony } from "Colony";
@@ -96,8 +96,6 @@ export class RoomExtra extends Room {
   set TowerCriticalSupplyRatio(value: number) { this.memory.towerCriticalSupplyRatio = value; }
   get HostileNotificationThreshold(): number { return this.memory.hostileNotificationThreshold ?? 2; }
   set HostileNotificationThreshold(value: number) { this.memory.hostileNotificationThreshold = value; }
-  get ClaimedNearbyRooms(): string[] { return this.memory.claimedNearby ?? []; }
-  set ClaimedNearbyRooms(value: string[]) { this.memory.claimedNearby = unique([...this.memory.claimedNearby ?? [], ...value]); }
   get StorageWartimeEnergyBuffer(): number { return this.memory.storageWartimeEnergyBuffer ?? 5000; }
   get LinkGroups(): { [key: string]: Id<StructureLink>[]; } { return this.memory.linkGroups ?? {}; }
   set LinkGroups(value: { [key: string]: Id<StructureLink>[]; }) { this.memory.linkGroups = value; }
@@ -108,6 +106,49 @@ export class RoomExtra extends Room {
       this.memory.mines = GetMiningPositions(this); // Update memoized
     return this.memory.mines; // Return memoized
   }
+
+  set ClaimedRoomNames(value: string[]) { this.memory.claimedNearby = unique(value); }
+  get ClaimedRoomNames(): string[] {
+    return unique(this.memory.claimedNearby ?? []);
+  }
+
+  private cachedClaimedRooms: Room[] = [];
+  get ClaimedRooms(): Room[] {
+    const toRemove: string[] = [];
+
+    if (this.cachedClaimedRooms.length > 0) return this.cachedClaimedRooms;
+    for (const name of this.ClaimedRoomNames) {
+      const room = Game.rooms[name];
+      if (room != undefined) {
+        if (room.controller === undefined || room.controller.owner === undefined)
+          // Neutral Room
+          this.cachedClaimedRooms.push(room);
+        else if (room.controller.owner.username === "KeyserSozayme")
+          // My Room
+          if (room.find(FIND_MY_SPAWNS).length === 0) {
+            // Not Self-Sufficient
+            this.log.warn(`Claimed Room ${name} is still under support by ${this.name}!`);
+            this.cachedClaimedRooms.push(room);
+          } else {
+            // Self-Sufficient
+            this.log.warn(`Claimed Room ${name} is up and running, no longer supported by ${this.name}!`);
+            toRemove.push(name);
+          }
+        // Hostile Room
+        else {
+          this.log.warn(`Claimed Room ${room} is now hostile and will be removed from the claim list of ${this.name}!`);
+          toRemove.push(name);
+        }
+      }
+      else this.log.warn(`Claimed Room ${name} is not visible!`);
+    }
+
+    // Remove rooms which are not claimable anymore
+    this.ClaimedRoomNames = filter(this.ClaimedRoomNames, n => !toRemove.includes(n));
+    return this.cachedClaimedRooms;
+  }
+
+  HostilesByRoom = this.MapWithRoomsInClaimedArea(mr => mr.find(FIND_HOSTILE_CREEPS));
 
   get EnableCostMatrixOverlay(): boolean { return this.memory.enableCostMatrixOverlay ?? false; }
   set EnableCostMatrixOverlay(value: boolean) { this.memory.enableCostMatrixOverlay = value; }
@@ -259,7 +300,7 @@ export class RoomExtra extends Room {
     this.cachedClaimedMines[this.name] = this.Mines;
 
     // Add the mining positions for the rooms this one claims
-    for (const c of this.ClaimedNearbyRooms) {
+    for (const c of this.ClaimedRoomNames) {
 
       // If the room has no scouting report, create one
       Memory.scoutingReports ??= {};
@@ -337,17 +378,10 @@ export class RoomExtra extends Room {
     return this.find(FIND_HOSTILE_CREEPS);
   }
 
-  get HostilesByRoom(): Map<string, Creep[]> {
-    const ret = new Map<string, Creep[]>();
-    for (const r of [this, ...this.GetVisibleUncontestedClaimedRooms()])
-      ret.set(r.name, [...(ret.get(r.name) ?? []), ...r.find(FIND_HOSTILE_CREEPS)]);
-    return ret;
-  }
-
   get ConstructionSites(): ConstructionSite[] {
     const constructionGetter = (r: Room) => r.find(FIND_MY_CONSTRUCTION_SITES);
     let ret = [...constructionGetter(this)];
-    for (const claimed of this.GetVisibleUncontestedClaimedRooms())
+    for (const claimed of this.ClaimedRooms)
       ret = ret.concat(...constructionGetter(claimed));
     return ret;
   }
@@ -371,7 +405,7 @@ export class RoomExtra extends Room {
   get Containers(): StructureContainer[] {
     const containerGetter = (r: Room) => r.find(FIND_STRUCTURES, { filter: s => s.structureType === STRUCTURE_CONTAINER });
     let ret = [...containerGetter(this)];
-    for (const claimed of this.GetVisibleUncontestedClaimedRooms())
+    for (const claimed of this.ClaimedRooms)
       ret = ret.concat(...containerGetter(claimed));
     return ret as StructureContainer[];
   }
@@ -379,7 +413,7 @@ export class RoomExtra extends Room {
   get Repairs(): AnyStructure[] {
     const repairGetter = (r: Room) => r.find(FIND_STRUCTURES, { filter: s => s.hits < s.hitsMax });
     let ret = [...repairGetter(this)];
-    for (const claimed of this.GetVisibleUncontestedClaimedRooms())
+    for (const claimed of this.ClaimedRooms)
       ret = ret.concat(...repairGetter(claimed));
     return ret;
   }
@@ -412,17 +446,13 @@ export class RoomExtra extends Room {
     return ret;
   }
 
-  GetVisibleUncontestedClaimedRooms(): Room[] {
-    const ret = [];
-    for (const name of this.ClaimedNearbyRooms)
-      // A room is claimed by us if it is both visible, and not owned by someone else
-      if (name in Game.rooms && (Game.rooms[name].controller === undefined || Game.rooms[name].controller?.owner === undefined))
-        ret.push(Game.rooms[name]);
-    return ret;
+  MapWithRoomsInClaimedArea<T>(mapper: (r: RoomExtra | Room) => T[], includeMainRoom: boolean = false): [Room, T[]][] {
+    const rooms = this.ClaimedRooms.concat(includeMainRoom ? [this] : []);
+    return rooms.map(r => [r, mapper(r)]);
   }
 
-  MapRoomsInClaimedArea<T>(mapper: (r: RoomExtra | Room) => T[]): T[] {
-    return flatten([this, ...this.GetVisibleUncontestedClaimedRooms()].map(mapper));
+  FlatMapOverRoomsInClaimedArea<T>(mapper: (r: RoomExtra | Room) => T[], includeMainRoom: boolean = false): T[] {
+    return flatten(this.MapWithRoomsInClaimedArea(mapper, includeMainRoom).map(v => v[1]));
   }
 
   CleanupDeadCreeps(): void {
@@ -499,28 +529,6 @@ export class RoomExtra extends Room {
     this.EventCounts = existingCount;
     this.EventAmounts = existingAmount;
   }
-
-  // Remove rooms from the claim list if they are not ok to claim
-  ValidateClaimedRooms(): void {
-    const stillValid: string[] = [];
-    for (const roomName of this.ClaimedNearbyRooms) {
-      // Assume invisible rooms are still ok to claim
-      if (!(roomName in Game.rooms)) {
-        stillValid.push(roomName);
-        continue;
-      }
-
-      // If the room is neutral, it's still ok to claim
-      const room = Game.rooms[roomName];
-      if (room && (room.controller === undefined || room.controller.owner === undefined)) {
-        stillValid.push(roomName);
-        continue;
-      }
-    }
-
-    this.ClaimedNearbyRooms = stillValid;
-  }
-
 
   RunCreeps(): void {
     // Run each creep in the room.
@@ -679,9 +687,7 @@ export class RoomExtra extends Room {
     }
 
     // Get info about claimed rooms
-    const claimed = this.GetVisibleUncontestedClaimedRooms();
-    if (claimed.length)
-      for (const claim of claimed) msg += `\n\t${claim}`;
+    for (const claim of this.ClaimedRooms) msg += `\n\t${claim}`;
 
     return msg;
   }

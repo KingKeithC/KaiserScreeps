@@ -113,10 +113,10 @@ export class Worker extends CreepRoleBase implements CreepRole {
 
     for (const possible of [
       /* eslint-disable @typescript-eslint/no-unnecessary-type-assertion */
-      ...creep.AssignedRoom.MapRoomsInClaimedArea(cr => cr.find(FIND_TOMBSTONES, { filter: t => t.store.getUsedCapacity(RESOURCE_ENERGY) > 0 })) as Tombstone[],
-      ...creep.AssignedRoom.MapRoomsInClaimedArea(cr => cr.find(FIND_DROPPED_RESOURCES, { filter: r => r.resourceType === RESOURCE_ENERGY })) as Resource<RESOURCE_ENERGY>[],
-      ...creep.AssignedRoom.MapRoomsInClaimedArea(cr => cr.find(FIND_RUINS)) as Ruin[],
-      ...creep.AssignedRoom.MapRoomsInClaimedArea(cr => cr.find(FIND_STRUCTURES, { filter: s => s.structureType === STRUCTURE_CONTAINER })) as StructureContainer[],
+      ...creep.AssignedRoom.FlatMapOverRoomsInClaimedArea(cr => cr.find(FIND_TOMBSTONES, { filter: t => t.store.getUsedCapacity(RESOURCE_ENERGY) > 0 })) as Tombstone[],
+      ...creep.AssignedRoom.FlatMapOverRoomsInClaimedArea(cr => cr.find(FIND_DROPPED_RESOURCES, { filter: r => r.resourceType === RESOURCE_ENERGY })) as Resource<RESOURCE_ENERGY>[],
+      ...creep.AssignedRoom.FlatMapOverRoomsInClaimedArea(cr => cr.find(FIND_RUINS)) as Ruin[],
+      ...creep.AssignedRoom.FlatMapOverRoomsInClaimedArea(cr => cr.find(FIND_STRUCTURES, { filter: s => s.structureType === STRUCTURE_CONTAINER })) as StructureContainer[],
       ...creep.AssignedRoom.LinkReceivers as StructureLink[],
       ...miners,
       /* eslint-enable @typescript-eslint/no-unnecessary-type-assertion */
@@ -196,7 +196,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
           continue;
         }
       } else {
-        this.log.warn(`Unknown Energy Possibility: ${possible}`, {"<creep>": creep});
+        this.log.warn(`Unknown Energy Possibility: ${possible}`, { "<creep>": creep });
         continue;
       }
 
@@ -219,7 +219,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
     else if (target instanceof Tombstone) return new CollectEnergy({ kind: "tomb", id: target.id }, { maxAttempts: 3 });
     else if (target instanceof Resource) return new CollectEnergy({ kind: "dropped", id: target.id }, { maxAttempts: 3 });
     else if (miners.length === 0) {
-      this.log.warn(`Emergency mining since no miners are available...`, {"<creep>": creep});
+      this.log.warn(`Emergency mining since no miners are available...`, { "<creep>": creep });
       const source = creep.AssignedRoom.AvailableMiningPositions().pop();
       if (source) return new Mine(source);
     } else if (target === null || target === undefined)
@@ -231,11 +231,11 @@ export class Worker extends CreepRoleBase implements CreepRole {
 
       const stored = creep.AssignedRoom.storage.store.getUsedCapacity(RESOURCE_ENERGY);
       if (stored <= creep.AssignedRoom.StorageWartimeEnergyBuffer) {
-        this.log.warn(`${warning} !!! Except Storage is below Emergency Reservation ${stored} < !${creep.AssignedRoom.StorageWartimeEnergyBuffer}`, {"<creep>": creep});
+        this.log.warn(`${warning} !!! Except Storage is below Emergency Reservation ${stored} < !${creep.AssignedRoom.StorageWartimeEnergyBuffer}`, { "<creep>": creep });
         return null;
       }
 
-      this.log.warn(warning, {"<creep>": creep});
+      this.log.warn(warning, { "<creep>": creep });
       return new CollectEnergy({ kind: "storage", id: creep.AssignedRoom.storage.id });
     }
 
@@ -294,7 +294,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
       groups++;
     }
 
-    this.log.info(`Nothing needs supply${candidateName === undefined ? "" : ` in group: '${candidateName}'`}. Considered ${considered} eligible objects across ${groups} groups.`, {"<creep>": supplier});
+    this.log.info(`Nothing needs supply${candidateName === undefined ? "" : ` in group: '${candidateName}'`}. Considered ${considered} eligible objects across ${groups} groups.`, { "<creep>": supplier });
     return null;
   }
 

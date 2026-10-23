@@ -22,9 +22,9 @@ export class GuardTask extends TargetTask<typeof TaskAction.Guard, string> {
   }
 
   public override isComplete(creep: CreepExtra): boolean {
-    for (const [r, hs] of creep.AssignedRoom.HostilesByRoom.entries())
-      if (hs.length > 0) {
-        Logger.warn(`GuardTask: Ending for ${creep.name} since we spotted ${hs.length} creeps in ${r}`);
+    for (const [r, v] of creep.AssignedRoom.HostilesByRoom)
+      if (v.length > 0) {
+        Logger.warn(`GuardTask cancelled since we spotted ${v.length} creeps in ${r}`, { "<creep>": creep });
         return true;
       }
     return false;

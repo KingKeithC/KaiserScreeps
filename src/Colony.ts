@@ -223,7 +223,6 @@ export class Colony {
     for (const room of this.MyRooms) {
       room.AcumulateEvents();
       room.CleanupDeadCreeps();
-      room.ValidateClaimedRooms();
       room.ReportHostiles();
       room.RunLinks();
       room.RunTowers();
