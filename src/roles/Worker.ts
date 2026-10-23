@@ -66,7 +66,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
     const supplyTasks = creep.AssignedRoom.GetAssignedTasks(TaskAction.Supply) as Supply[];
     const spawnsExtensions = MySpawnsOrExtensions();
 
-    const spawn = this.FindSupplyByPath(creep, spawnsExtensions);
+    const spawn = this.FindSupplyByPath(creep, spawnsExtensions, "spawns/extensions");
     if (spawn) return new Supply(spawn.id);
 
     const cons = this.FindConstructionByPriorityAndPath(creep, MyConstructionSites());
@@ -84,7 +84,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
       const existingTowerSupplyTasks = supplyTasks.filter(st => towers.some(t => t.id === st.target));
 
       if (existingTowerSupplyTasks.length < this.MaxSupplyForTowers) {
-        const tower = this.FindSupplyByPath(creep, towers);
+        const tower = this.FindSupplyByPath(creep, towers, "towers");
         if (tower) return new Supply(tower.id);
       }
     }
@@ -271,7 +271,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
     return null;
   }
 
-  FindSupplyByPath(supplier: CreepExtra, candidates: AnyStoreStructure[]): AnyStoreStructure | null {
+  FindSupplyByPath(supplier: CreepExtra, candidates: AnyStoreStructure[], candidateName?: string): AnyStoreStructure | null {
     const inProgressSupplyTasks = supplier.AssignedRoom.GetAssignedTasks(TaskAction.Supply) as Supply[];
     let considered = 0;
     let groups = 0;
@@ -294,7 +294,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
       groups++;
     }
 
-    this.log.info(`Nothing needs supply. Considered ${considered} eligible objects across ${groups} groups.`);
+    this.log.info(`Nothing needs supply${candidateName === undefined ? "" : ` in group: '${candidateName}'`}. Considered ${considered} eligible objects across ${groups} groups.`);
     return null;
   }
 
