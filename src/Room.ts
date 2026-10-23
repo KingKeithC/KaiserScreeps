@@ -99,8 +99,8 @@ export class RoomExtra extends Room {
   get ClaimedNearbyRooms(): string[] { return this.memory.claimedNearby ?? []; }
   set ClaimedNearbyRooms(value: string[]) { this.memory.claimedNearby = unique([...this.memory.claimedNearby ?? [], ...value]); }
   get StorageWartimeEnergyBuffer(): number { return this.memory.storageWartimeEnergyBuffer ?? 5000; }
-  get LinkGroups(): Dictionary<Id<StructureLink>[]> { return this.memory.linkGroups ?? {}; }
-  set LinkGroups(value: Dictionary<Id<StructureLink>[]>) { this.memory.linkGroups = value; }
+  get LinkGroups(): { [key: string]: Id<StructureLink>[]; } { return this.memory.linkGroups ?? {}; }
+  set LinkGroups(value: { [key: string]: Id<StructureLink>[]; }) { this.memory.linkGroups = value; }
 
   set Mines(value: MiningPosition[]) { this.memory.mines = value; }
   get Mines(): MiningPosition[] {
@@ -394,7 +394,7 @@ export class RoomExtra extends Room {
 
   get LinkReceivers(): StructureLink[] {
     const ret = [];
-    for (const id of this.LinkGroups.Receivers) {
+    for (const id of this.LinkGroups.Receivers ?? []) {
       const obj = Game.getObjectById(id);
       if (!obj) continue;
       else ret.push(obj);
@@ -404,7 +404,7 @@ export class RoomExtra extends Room {
 
   get LinkSenders(): StructureLink[] {
     const ret = [];
-    for (const id of this.LinkGroups.Senders) {
+    for (const id of this.LinkGroups.Senders ?? []) {
       const obj = Game.getObjectById(id);
       if (!obj) continue;
       else ret.push(obj);
