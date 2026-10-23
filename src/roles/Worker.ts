@@ -204,24 +204,30 @@ export class Worker extends CreepRoleBase implements CreepRole {
 
     if (possibleSources.length === 0) return null; // Nothing more to do
 
+    const sameRoom = creep.pos.findClosestByPath(possibleSources.filter(s => s.pos.roomName === creep.room.name), { ignoreCreeps: true });
+    if (sameRoom instanceof StructureContainer) return new CollectEnergy({ kind: "container", id: sameRoom.id }, { maxAttempts: 3 });
+    else if (sameRoom instanceof StructureLink) return new CollectEnergy({ kind: "link", id: sameRoom.id }, { maxAttempts: 3 });
+    else if (sameRoom instanceof StructureStorage) return new CollectEnergy({ kind: "storage", id: sameRoom.id }, { maxAttempts: 3 });
+    else if (sameRoom instanceof Creep || sameRoom instanceof CreepExtra) return new CollectEnergy({ kind: "creep", name: sameRoom.name }, { maxAttempts: 8 });
+    else if (sameRoom instanceof Ruin) return new CollectEnergy({ kind: "ruin", id: sameRoom.id }, { maxAttempts: 3 });
+    else if (sameRoom instanceof Tombstone) return new CollectEnergy({ kind: "tomb", id: sameRoom.id }, { maxAttempts: 3 });
+    else if (sameRoom instanceof Resource) return new CollectEnergy({ kind: "dropped", id: sameRoom.id }, { maxAttempts: 3 });
+
     const amountMapper = (a: Resource | { store: StoreDefinition; }) => (a instanceof Resource ? a.amount : a.store.getUsedCapacity(RESOURCE_ENERGY));
-    const target = possibleSources.sort((b, a) => amountMapper(a) - amountMapper(b))[0];
-
-    // this.log.info(`Worker narrowed: '${possibleSources.map(ps => ps.id)}' down to ${target}`);
-
-    if (target instanceof StructureContainer) return new CollectEnergy({ kind: "container", id: target.id }, { maxAttempts: 3 });
-    else if (target instanceof StructureLink) return new CollectEnergy({ kind: "link", id: target.id }, { maxAttempts: 3 });
-    else if (target instanceof StructureStorage) return new CollectEnergy({ kind: "storage", id: target.id }, { maxAttempts: 3 });
-    else if (target instanceof Creep || target instanceof CreepExtra) return new CollectEnergy({ kind: "creep", name: target.name }, { maxAttempts: 8 });
-    else if (target instanceof Ruin) return new CollectEnergy({ kind: "ruin", id: target.id }, { maxAttempts: 3 });
-    else if (target instanceof Tombstone) return new CollectEnergy({ kind: "tomb", id: target.id }, { maxAttempts: 3 });
-    else if (target instanceof Resource) return new CollectEnergy({ kind: "dropped", id: target.id }, { maxAttempts: 3 });
+    const mostInNeed = possibleSources.sort((b, a) => amountMapper(a) - amountMapper(b))[0];
+    if (mostInNeed instanceof StructureContainer) return new CollectEnergy({ kind: "container", id: mostInNeed.id }, { maxAttempts: 3 });
+    else if (mostInNeed instanceof StructureLink) return new CollectEnergy({ kind: "link", id: mostInNeed.id }, { maxAttempts: 3 });
+    else if (mostInNeed instanceof StructureStorage) return new CollectEnergy({ kind: "storage", id: mostInNeed.id }, { maxAttempts: 3 });
+    else if (mostInNeed instanceof Creep || mostInNeed instanceof CreepExtra) return new CollectEnergy({ kind: "creep", name: mostInNeed.name }, { maxAttempts: 8 });
+    else if (mostInNeed instanceof Ruin) return new CollectEnergy({ kind: "ruin", id: mostInNeed.id }, { maxAttempts: 3 });
+    else if (mostInNeed instanceof Tombstone) return new CollectEnergy({ kind: "tomb", id: mostInNeed.id }, { maxAttempts: 3 });
+    else if (mostInNeed instanceof Resource) return new CollectEnergy({ kind: "dropped", id: mostInNeed.id }, { maxAttempts: 3 });
     else if (miners.length === 0) {
       this.log.warn(`Emergency mining since no miners are available...`, { "<creep>": creep });
       const source = creep.AssignedRoom.AvailableMiningPositions().pop();
       if (source) return new Mine(source);
-    } else if (target === null || target === undefined)
-      throw new Error(`We only sorted the target ${target}, yet seem to have lost it.`);
+    } else if (mostInNeed === null || mostInNeed === undefined)
+      throw new Error(`We only sorted the target ${mostInNeed}, yet seem to have lost it.`);
 
 
     if (creep.AssignedRoom.storage !== undefined) {
