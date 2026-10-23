@@ -253,6 +253,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
   ShortSearchRange = 5;
 
   ConstructionPriorities: ((c: ConstructionSite) => boolean)[] = [
+    (c => c.structureType === STRUCTURE_SPAWN),
     (c => c.structureType === STRUCTURE_ROAD),
     (c => c.structureType === STRUCTURE_EXTENSION || c.structureType === STRUCTURE_SPAWN),
     (c => c.structureType === STRUCTURE_STORAGE || c.structureType === STRUCTURE_CONTAINER),
