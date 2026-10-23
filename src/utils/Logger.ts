@@ -23,8 +23,8 @@ export enum LogLevel {
   CRITICAL,
 }
 
-type FormatProperty = "<date>" | "<time>" | "<wrapped>" | "<level>" | "<msg>" | "<room>" | "<role>" | "<creep>";
-type Loggable = string | number | CreepExtra | Room | CreepRole | { toString(): string; };
+type FormatProperty = "<date>" | "<time>" | "<wrapped>" | "<level>" | "<msg>" | "<room>" | "<role>" | "<creep>" | "<creep>" | "<rate>";
+type Loggable = string | number | boolean | CreepExtra | Room | CreepRole | { toString(): string; };
 type LogArg = Partial<Record<FormatProperty, Loggable>>;
 
 export interface LoggerOptions {
@@ -88,6 +88,7 @@ export class Logger<T extends Loggable> {
     formatArgs.set("<room>", "");
     formatArgs.set("<creep>", "");
     formatArgs.set("<role>", "");
+    formatArgs.set("<rate>", "");
 
     // Overwrite with common and provided args
     for (const [key, value] of Object.entries(this._commonArgs)) formatArgs.set(key, value);
@@ -97,14 +98,25 @@ export class Logger<T extends Loggable> {
     return formatArgs;
   }
 
+  private writeMessage(msg: string, unsafe: boolean = false, rate?: number): void {
+    if (rate && Game.time % rate !== 0)
+      return; // Do nothing if rate limited
+
+    // Log the message to the console.
+    if (unsafe)
+      console.logUnsafe(msg);
+    else
+      console.log(msg);
+  }
+
 
   log(level: LogLevel, msg: string, ...args: LogArg[]): void {
     if (level < this._level) {
       // Provided log level is too low for us to handle
       return;
     } else if (level === LogLevel.REPORT) {
-      // REPORT messages are filtered by level, but not formatted aside from colour, so log it directly.
-      console.logUnsafe(`<span style="color: DodgerBlue">${msg}</span>`);
+      // REPORT messages are filtered by level, but not formatted aside from colour, so log it directly, and don't rate limit it.
+      this.writeMessage(`<span style="color: DodgerBlue">${msg}</span>`, true, undefined);
       return;
     }
 
@@ -170,9 +182,9 @@ export class Logger<T extends Loggable> {
 
     // Log it.
     if (level !== LogLevel.ERROR)
-      console.log(finalLine);
+      this.writeMessage(finalLine, false, formatArgs.get("<rate>") as number);
     else
-      console.logUnsafe(`<span style="color: red">${finalLine}</span>`);
+      this.writeMessage(`<span style="color: red">${finalLine}</span>`, true, formatArgs.get("<rate>") as number);
   }
 
   debug(msg: string, ...args: LogArg[]): void { this.log(LogLevel.DEBUG, msg, ...args); }
