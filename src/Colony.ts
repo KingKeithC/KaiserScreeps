@@ -177,6 +177,7 @@ export class Colony {
   set GlobalEnableErrorMapper(value) { Memory.globalEnableErrorMapper = value; }
   get ColonyStateReportFrequency(): number { return Memory.colonyStateReportFrequency ?? 1000; }
 
+  CostMatrixRefreshTTL = 500;
   OnGlobalReset(): void {
     Memory.creeps ??= {};
     Memory.rooms ??= {};
@@ -240,10 +241,10 @@ export class Colony {
     for (const role of Object.values(this.Roles))
       role.EndOfTick();
 
-    // Delete the cost matrixes marked as stale
+    // Delete stale cost matrices
     this.MyRooms
-      .filter(r => r.CostMatrixIsStale)
-      .forEach(r => r.memory.pathfindingCostMatrix = undefined);
+      .filter(r => (Game.time - r.PathfindingCostMatrixDate) > this.CostMatrixRefreshTTL)
+      .forEach(r => r.ClearCostMatrix());
 
     // Update stats
     if (Game.time % this.StatsFrequency === 0)
@@ -264,6 +265,13 @@ export class Colony {
 
   OnRoomSuccessfullyClaimed(newRoom: Room) {
     this.log.crit(`!!!! WE CLAIMED A ROOM ${newRoom} !!!!`);
+  }
+
+  RegenerateCostMatrixes(): void {
+    this.MyRooms.forEach(r => {
+      r.ClearCostMatrix();
+      this.log.report(`Regenerated ${r.name} PathfindingCostMatrix ${r.PathfindingCostMatrix !== null ? "Yes" : "Error"}`);
+    });
   }
 
   TickOtherVisibleRoom(room: Room): void {

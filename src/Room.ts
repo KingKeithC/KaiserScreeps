@@ -30,6 +30,7 @@ declare global {
     storageWartimeEnergyBuffer: number,
     linkGroups?: Dictionary<Id<StructureLink>[]>,
     enableCostMatrixOverlay?: boolean,
+    pathfindingCostMatrixDate?: number,
     pathfindingCostMatrix?: number[],
   }
 }
@@ -138,8 +139,14 @@ export class RoomExtra extends Room {
     return this.cachedDeserializedCostMatrix;
   }
 
-  // If true at end of tick, then Memoized CostMatrix is deleted.
-  CostMatrixIsStale = false;
+  public ClearCostMatrix(): void {
+    this.cachedDeserializedCostMatrix = undefined;
+    this.memory.pathfindingCostMatrix = undefined;
+    this.memory.pathfindingCostMatrixDate = undefined;
+  }
+
+  get PathfindingCostMatrixDate(): number { return this.memory.pathfindingCostMatrixDate ?? 0; }
+  private set PathfindingCostMatrixDate(value: number) { this.memory.pathfindingCostMatrixDate = value; }
 
   PathfindingParams = {
     RoadCost: 1,
@@ -154,7 +161,11 @@ export class RoomExtra extends Room {
     this.log.info(`Updating Cost Matrix...`);
     const matrix = new PathFinder.CostMatrix();
 
-    // Avoid pathing around Sources, since they tend to crowd
+    // Set roads to cheapest cost
+    for (const s of this.find(FIND_STRUCTURES, { filter: st => st.structureType === STRUCTURE_ROAD }))
+      matrix.set(s.pos.x, s.pos.y, this.PathfindingParams.RoadCost);
+
+    // Blot out pathing around sources, since they tend to crowd
     this.find(FIND_SOURCES).forEach(source => {
       /*
         "Ring Search" Algorithm
@@ -222,22 +233,16 @@ export class RoomExtra extends Room {
       }
     });
 
-    // Set roads to weight 1, and unwalkable structures to max weight
-    this.find(FIND_STRUCTURES).forEach(struct => {
-      if (struct.structureType === STRUCTURE_ROAD) {
-        // Favor roads over plain tiles
-        matrix.set(struct.pos.x, struct.pos.y, this.PathfindingParams.RoadCost);
-      } else if (struct.structureType !== STRUCTURE_CONTAINER && (struct.structureType !== STRUCTURE_RAMPART || !struct.my)) {
-        // Can't walk through non-walkable buildings
-        matrix.set(struct.pos.x, struct.pos.y, this.PathfindingParams.Unwalkable);
-      }
-    });
+    // Blot out unwalkable structures
+    for (const s of this.find(FIND_STRUCTURES, { filter: st => st.structureType !== STRUCTURE_CONTAINER && (st.structureType !== STRUCTURE_RAMPART || !st.my) }))
+      matrix.set(s.pos.x, s.pos.y, this.PathfindingParams.Unwalkable);
 
     // Cache
     this.cachedDeserializedCostMatrix = matrix;
 
     // Memoize
     this.memory.pathfindingCostMatrix = matrix.serialize();
+    this.PathfindingCostMatrixDate = Game.time;
   }
 
   private set EventCounts(value: Dictionary<number>) { this.memory.eventCounts = value; }
