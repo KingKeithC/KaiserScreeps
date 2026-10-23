@@ -106,7 +106,6 @@ export class Worker extends CreepRoleBase implements CreepRole {
   MinUsedCapacityPerNonCreepSource = 150;
   MaxIncomingPerEnergySource = 2;
   MaxIncomingPerContainer = 4;
-  NeedToGatherFromStorage = false;
   FindGatheringTask(creep: CreepExtra): CreepTask | null {
     const activeDeliveries = creep.AssignedRoom.GetAssignedTasks(TaskAction.CollectEnergy) as CollectEnergy[];
     const miners = (creep.AssignedRoom.AssignedCreepsByRoleGroup.get("Miners") ?? []).filter(m => !m.spawning);
@@ -119,7 +118,6 @@ export class Worker extends CreepRoleBase implements CreepRole {
       ...creep.AssignedRoom.MapRoomsInClaimedArea(cr => cr.find(FIND_RUINS)) as Ruin[],
       ...creep.AssignedRoom.MapRoomsInClaimedArea(cr => cr.find(FIND_STRUCTURES, { filter: s => s.structureType === STRUCTURE_CONTAINER })) as StructureContainer[],
       ...creep.AssignedRoom.LinkReceivers as StructureLink[],
-      ...(creep.AssignedRoom.storage !== undefined && this.NeedToGatherFromStorage ? [creep.AssignedRoom.storage] : []),
       ...miners,
       /* eslint-enable @typescript-eslint/no-unnecessary-type-assertion */
     ]) {
@@ -226,6 +224,21 @@ export class Worker extends CreepRoleBase implements CreepRole {
       if (source) return new Mine(source);
     } else if (target === null || target === undefined)
       throw new Error(`We only sorted the target ${target}, yet seem to have lost it.`);
+
+
+    if (creep.AssignedRoom.storage !== undefined) {
+      const warning = "Too few energy sources, need to collect from room storage!";
+
+      const stored = creep.AssignedRoom.storage.store.getUsedCapacity(RESOURCE_ENERGY);
+      if (stored <= creep.AssignedRoom.StorageWartimeEnergyBuffer) {
+        this.log.warn(`${warning} !!! Except Storage is below Emergency Reservation ${stored} < !${creep.AssignedRoom.StorageWartimeEnergyBuffer}`);
+        return null;
+      }
+
+      this.log.warn(warning);
+      return new CollectEnergy({ kind: "storage", id: creep.AssignedRoom.storage.id });
+    }
+
 
     this.log.warn(`FindGatheringTask no tasks found!`, { "<creep>": creep });
     return null;
