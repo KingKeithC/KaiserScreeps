@@ -25,7 +25,7 @@ module.exports = {
     },
     "import/resolver": {
       typescript: {}
-    }
+    },
   },
   rules: {
     "@typescript-eslint/array-type": "error",
@@ -43,6 +43,12 @@ module.exports = {
       }
     ],
     "@typescript-eslint/no-unused-expressions": "error",
+    "@typescript-eslint/no-unused-vars": [
+      "error",
+      {
+        destructuredArrayIgnorePattern: "^_"
+      }
+    ],
     "@typescript-eslint/no-use-before-define": ["error", { functions: false }],
     "@typescript-eslint/prefer-for-of": "error",
     "@typescript-eslint/space-within-parens": ["off", "never"],

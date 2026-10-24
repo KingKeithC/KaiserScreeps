@@ -98,7 +98,7 @@ export class Logger<T extends Loggable> {
     return formatArgs;
   }
 
-  private writeMessage(msg: string, unsafe: boolean = false, rate?: number): void {
+  private writeMessage(msg: string, unsafe = false, rate?: number): void {
     if (rate && Game.time % rate !== 0)
       return; // Do nothing if rate limited
 

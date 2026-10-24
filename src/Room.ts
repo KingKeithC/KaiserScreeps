@@ -117,7 +117,7 @@ export class RoomExtra extends Room {
     if (this.cachedClaimedRooms.length > 0) return this.cachedClaimedRooms;
     for (const name of this.ClaimedRoomNames) {
       const room = Game.rooms[name];
-      if (room != undefined) {
+      if (room !== undefined) {
         if (room.controller === undefined || room.controller.owner === undefined)
           // Neutral Room
           this.cachedClaimedRooms.push(room);
@@ -438,12 +438,12 @@ export class RoomExtra extends Room {
     return ret;
   }
 
-  MapWithRoomsInClaimedArea<T>(mapper: (r: RoomExtra | Room) => T[], includeMainRoom: boolean = false): [Room, T[]][] {
+  MapWithRoomsInClaimedArea<T>(mapper: (r: RoomExtra | Room) => T[], includeMainRoom = false): [Room, T[]][] {
     const rooms = this.ClaimedRooms.concat(includeMainRoom ? [this] : []);
     return rooms.map(r => [r, mapper(r)]);
   }
 
-  FlatMapOverRoomsInClaimedArea<T>(mapper: (r: RoomExtra | Room) => T[], includeMainRoom: boolean = false): T[] {
+  FlatMapOverRoomsInClaimedArea<T>(mapper: (r: RoomExtra | Room) => T[], includeMainRoom = false): T[] {
     return flatten(this.MapWithRoomsInClaimedArea(mapper, includeMainRoom).map(v => v[1]));
   }
 

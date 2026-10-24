@@ -20,7 +20,7 @@ export class Defender extends CreepRoleBase implements CreepRole {
   // 1 For each hostile
   override GetRoomQuota(room: RoomExtra): number {
     let total = 0;
-    for (const [r, v] of room.HostilesByRoom) total += v.length;
+    for (const [_, v] of room.HostilesByRoom) total += v.length;
     return total;
   }
 
@@ -60,7 +60,7 @@ export class Defender extends CreepRoleBase implements CreepRole {
 
   FindLeastTargetedHostile(room: RoomExtra): Creep | null {
     const attacksByTarget = groupBy(room.GetAssignedTasks(TaskAction.Attack), a => (a as Attack).target);
-    for (const [r, creeps] of room.HostilesByRoom)
+    for (const [_, creeps] of room.HostilesByRoom)
       for (const c of creeps)
         if ((attacksByTarget[c.id] ?? []).length === 0) return c;
     return null;
@@ -75,7 +75,7 @@ export class Defender extends CreepRoleBase implements CreepRole {
       }
 
     // Find Hostiles in any room
-    for (const [r, creeps] of creep.AssignedRoom.HostilesByRoom)
+    for (const [_, creeps] of creep.AssignedRoom.HostilesByRoom)
       if (creeps.length > 0) {
         const found = creeps.pop();
         if (found) return found;

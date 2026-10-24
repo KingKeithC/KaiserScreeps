@@ -1,7 +1,7 @@
 import { CreepExtra } from "Creep";
 import { RoomExtra } from "Room";
 import { Build, CollectEnergy, CreepTask, MaintainController, Mine, Repair, Supply, TaskAction, UpdateController } from "tasks";
-import { MakeBody, MyConstructionSites, MySpawnsOrExtensions, MyTowers, SerializeRoomPosition } from "utils/Collections";
+import { MakeBody, MyConstructionSites, MyTowers, SerializeRoomPosition } from "utils/Collections";
 import { BodyCost } from "utils/CreepUtils";
 import { CreepRoleBase, CreepRole } from "./Role";
 
@@ -94,7 +94,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
     const currentUpgradeCount = creep.AssignedRoom.GetAssignedTasks(TaskAction.UpgradeController).length;
     if (currentUpgradeCount < this.MaxUpgraders) {
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      return new UpdateController(creep.AssignedRoom.controller!, { mode: "upgrade" });
+      return new UpdateController(creep.AssignedRoom.controller, { mode: "upgrade" });
     }
 
     // If room has storage with room, put it there

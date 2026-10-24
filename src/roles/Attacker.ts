@@ -123,7 +123,7 @@ export class Attacker extends CreepRoleBase implements CreepRole {
 
   override GetRoomQuota(): number { return this.AttackSize; }
   IsSpawnNeeded(): boolean { return this.GetCurrentStep() != null; }
-  SelectNextTask(creep: CreepExtra): CreepTask | null {
+  SelectNextTask(): CreepTask | null {
     const curr = this.GetCurrentStep();
     if (!curr) return null;
     if (!curr.memory.attackType) return null;

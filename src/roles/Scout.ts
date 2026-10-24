@@ -75,7 +75,6 @@ export class Scout extends CreepRoleBase implements CreepRole {
       const [hRange, roomMapYStr] = creep.room.name.split(roomIsNorth ? "N" : "S");
       const roomMapY = Number.parseInt(roomMapYStr, 10);
       const roomIsEast = hRange.includes("E");
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const [_, roomMapXStr] = hRange.split(roomIsEast ? "E" : "W");
       const roomMapX = Number.parseInt(roomMapXStr, 10);
       const xBias = ((2 * this.RandomMoveRadius * Math.random()) - this.RandomMoveRadius);

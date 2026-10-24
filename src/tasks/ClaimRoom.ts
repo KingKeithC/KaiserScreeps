@@ -1,5 +1,4 @@
 import { CreepExtra } from "Creep";
-import { unique } from "lodash";
 import { TargetTask } from "./TargetTask";
 import { TaskAction } from "./TaskAction";
 import { TaskActionResult } from "./types";
