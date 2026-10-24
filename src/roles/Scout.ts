@@ -24,7 +24,7 @@ export class Scout extends CreepRoleBase implements CreepRole {
   ScoutReportTTL = 2000;
 
   // 1 per owned room
-  GetRoomQuota(room: RoomExtra): number { return room.colony.MyRooms.length; }
+  GetRoomQuota(room: RoomExtra): number { return 1; }
 
   // Ensure a scout is only spawned once every `ScoutReportTTL` ticks.
   // And when no other scout assigned to this room is living.
