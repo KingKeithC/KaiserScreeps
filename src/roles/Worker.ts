@@ -120,9 +120,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
 
     const activeDeliveries = creep.AssignedRoom.GetAssignedTasks(TaskAction.CollectEnergy) as CollectEnergy[];
     const miners = (creep.AssignedRoom.AssignedCreepsByRoleGroup.get("Miners") ?? []).filter(m => !m.spawning);
-    const possibleSources: (CreepExtra | StructureLink | StructureStorage | StructureContainer | Resource<RESOURCE_ENERGY> | Ruin | Tombstone)[] = [];
-
-    for (const possible of [
+    const allSources = [
       /* eslint-disable @typescript-eslint/no-unnecessary-type-assertion */
       ...creep.AssignedRoom.FlatMapOverRoomsInClaimedArea(cr => cr.find(FIND_TOMBSTONES, { filter: t => t.store.getUsedCapacity(RESOURCE_ENERGY) > 0 })) as Tombstone[],
       ...creep.AssignedRoom.FlatMapOverRoomsInClaimedArea(cr => cr.find(FIND_DROPPED_RESOURCES, { filter: r => r.resourceType === RESOURCE_ENERGY })) as Resource<RESOURCE_ENERGY>[],
@@ -131,7 +129,10 @@ export class Worker extends CreepRoleBase implements CreepRole {
       ...creep.AssignedRoom.LinkReceivers as StructureLink[],
       ...miners,
       /* eslint-enable @typescript-eslint/no-unnecessary-type-assertion */
-    ]) {
+    ];
+    const possibleSources: (CreepExtra | StructureLink | StructureStorage | StructureContainer | Resource<RESOURCE_ENERGY> | Ruin | Tombstone)[] = [];
+
+    for (const possible of allSources) {
 
       // Skip Energy sources that have too little energy
       if (
@@ -215,11 +216,13 @@ export class Worker extends CreepRoleBase implements CreepRole {
       possibleSources.push(possible);
     }
 
-    this.log.info(`possibleSources: ${possibleSources.length}: ${JSON.stringify(possibleSources.map(ps => ({ idorname: "name" in ps ? ps.name : ps.id, pos: SerializeRoomPosition(ps.pos) })))}`, { "<creep>": creep });
+
+    const display = (l: (_HasRoomPosition & (_HasId | { name: string; }))[]) => JSON.stringify(l.map(ps => ({ idorname: "name" in ps ? ps.name : ps.id, pos: SerializeRoomPosition(ps.pos) })));
 
     if (possibleSources.length === 0) return null; // Nothing more to do
 
     const sameRoom = creep.pos.findClosestByPath(possibleSources.filter(s => s.pos.roomName === creep.room.name), { ignoreCreeps: true });
+    this.log.info(`allSources (${allSources.length}): ${display(allSources)} => possibleSources (${possibleSources.length}): ${display(possibleSources)} => sameRoom: ${sameRoom}`, { "<creep>": creep });
     if (sameRoom instanceof StructureContainer) return new CollectEnergy({ kind: "container", id: sameRoom.id }, { maxAttempts: 3 });
     else if (sameRoom instanceof StructureLink) return new CollectEnergy({ kind: "link", id: sameRoom.id }, { maxAttempts: 3 });
     else if (sameRoom instanceof StructureStorage) return new CollectEnergy({ kind: "storage", id: sameRoom.id }, { maxAttempts: 3 });
