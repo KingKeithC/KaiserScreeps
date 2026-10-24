@@ -1,7 +1,7 @@
 import { CreepExtra } from "Creep";
 import { RoomExtra } from "Room";
 import { Build, CollectEnergy, CreepTask, MaintainController, Mine, Repair, Supply, TaskAction, UpdateController } from "tasks";
-import { MakeBody, MyConstructionSites, MySpawnsOrExtensions, MyTowers } from "utils/Collections";
+import { MakeBody, MyConstructionSites, MySpawnsOrExtensions, MyTowers, SerializeRoomPosition } from "utils/Collections";
 import { BodyCost } from "utils/CreepUtils";
 import { CreepRoleBase, CreepRole } from "./Role";
 
@@ -105,6 +105,15 @@ export class Worker extends CreepRoleBase implements CreepRole {
   MaxIncomingPerEnergySource = 2;
   MaxIncomingPerContainer = 4;
   FindGatheringTask(creep: CreepExtra): CreepTask | null {
+    if (
+      (creep.AssignedRoom.energyAvailable / creep.AssignedRoom.energyCapacityAvailable) < 0.5
+      && creep.AssignedRoom.storage
+      && (creep.AssignedRoom.storage?.store.getUsedCapacity(RESOURCE_ENERGY) ?? 0) > creep.AssignedRoom.StorageWartimeEnergyBuffer
+    ) {
+      this.log.warn("Collecting from storage since spawn is throttled...");
+      return new CollectEnergy({ kind: "storage", id: creep.AssignedRoom.storage.id });
+    }
+
     const activeDeliveries = creep.AssignedRoom.GetAssignedTasks(TaskAction.CollectEnergy) as CollectEnergy[];
     const miners = (creep.AssignedRoom.AssignedCreepsByRoleGroup.get("Miners") ?? []).filter(m => !m.spawning);
     const possibleSources: (CreepExtra | StructureLink | StructureStorage | StructureContainer | Resource<RESOURCE_ENERGY> | Ruin | Tombstone)[] = [];
@@ -201,6 +210,8 @@ export class Worker extends CreepRoleBase implements CreepRole {
       // this.log.info(`Possibility: ${possible}`);
       possibleSources.push(possible);
     }
+
+    this.log.info(`possibleSources: ${possibleSources.length}: ${JSON.stringify(possibleSources.map(ps => ({ idorname: "name" in ps ? ps.name : ps.id, pos: SerializeRoomPosition(ps.pos) })))}`, { "<creep>": creep });
 
     if (possibleSources.length === 0) return null; // Nothing more to do
 
@@ -308,7 +319,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
       groups++;
     }
 
-    this.log.info(`Nothing needs supply${candidateName === undefined ? "" : ` in group: '${candidateName}'`}. Considered ${considered} eligible objects across ${groups} groups.`, { "<creep>": supplier });
+    this.log.info(`Nothing needs supply${candidateName === undefined ? "" : ` in group: '${candidateName}'`}. Considered ${considered}/${candidates.length} eligible objects across ${groups} groups.`, { "<creep>": supplier });
     return null;
   }
 
