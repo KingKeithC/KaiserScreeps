@@ -53,7 +53,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
       return null;
   }
 
-  MaxUpgraders = 2;
+  MaxUpgraders = 4;
   MaxSupplyForSpawns = 3;
   MaxSupplyForTowers = 2;
   MaxRepairPerRoom = 2;
