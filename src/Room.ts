@@ -3,31 +3,32 @@ import { CreepTask, Mine, Repair, TaskAction, UpdateController } from "tasks";
 import { FormatHostileInfos, GetHostileInfo, GetMiningPositions, HostileInfo, MakeRoomReport, MiningPosition } from "utils/RoomUtils";
 import { Colony } from "Colony";
 import { CreepExtra } from "Creep";
-import { FmtRatios, LerpColour } from "utils/Collections";
+import { FmtRatios, LerpColour, SerializeRoomPosition } from "utils/Collections";
 import { Colours } from "Data";
 import { CreepRole } from "roles/Role";
 import { Logger } from "utils/Logger";
+import { BodyCost } from "utils/CreepUtils";
 
 
 declare global {
   interface RoomMemory {
-    lastSpawnTick: { [roleName: string]: number; };
-    quotas?: { [roleName: string]: number; };
+    lastSpawnTick?: { [roleName: string]: number; };
+    roleLimits?: { [roleName: string]: number; };
     enableVisuals?: boolean,
     enableRepairOverlay?: boolean,
-    attackHostiles: boolean,
-    disableWarriors: boolean,
-    disableTowers: boolean,
-    disableTowerAttacks: boolean,
-    towerAttackRange: number,
+    attackHostiles?: boolean,
+    disableWarriors?: boolean,
+    disableTowers?: boolean,
+    disableTowerAttacks?: boolean,
+    towerAttackRange?: number,
     towerAttackRangeTiles?: number;
     eventCounts?: Dictionary<number>;
     eventAmounts?: Dictionary<number>;
     towerCriticalSupplyRatio?: number;
     hostileNotificationThreshold?: number;
     claimedNearby?: string[],
-    mines: MiningPosition[],
-    storageWartimeEnergyBuffer: number,
+    mines?: MiningPosition[],
+    storageWartimeEnergyBuffer?: number,
     linkGroups?: Dictionary<Id<StructureLink>[]>,
     enableCostMatrixOverlay?: boolean,
     pathfindingCostMatrixDate?: number,
@@ -351,12 +352,12 @@ export class RoomExtra extends Room {
     this.memory.lastSpawnTick[roleName] = value;
   };
 
-  Quota(roleName: string) {
-    // Return the custom quota from room memory if there is one.
-    const overridenQuota = (this.memory.quotas ?? {})[roleName];
+  GetLimitOfRole(roleName: string): number {
+    // Return the custom limit room memory
+    const overridenQuota = (this.memory.roleLimits ?? {})[roleName];
     if (overridenQuota !== undefined) return overridenQuota;
 
-    // Return the quota from the role instance
+    // Otherwise, return the quota from the role instance.
     return this.colony.GetRole(roleName).GetRoomQuota(this);
   }
 
@@ -582,36 +583,62 @@ export class RoomExtra extends Room {
 
     for (const r of Object.values(this.colony.Roles)) {
       this.log.debug(`Checking Spawns for ${r.name}`);
-      if (!this.IsRoleSpawnable(r)) continue;
-      if (!r.IsSpawnNeeded(this)) continue;
+      if (!this.IsRoleLimited(r) && r.IsSpawnNeeded(this)) {
+        const name = `${r.GetNewCreepName(this)}, ${r.name}`;
+        if (!this.TrySpawnRole(r, name)) continue;
+        this.SetLastSpawnTick(r.name, Game.time);
+        r.OnSpawnScheduled(this, name);
 
-      const name = `${r.GetNewCreepName(this)}, ${r.name}`;
-      const spawnSuccessful = r.AttemptSpawn(this, r.GetNewCreepBody(this));
-      if (!spawnSuccessful) continue;
-
-      this.SetLastSpawnTick(r.name, Game.time);
-      r.OnSpawnScheduled(this, name);
-
-      // If we used up all the spawn points, then return early.
-      if (++completedSpawns >= maxSpawns) return;
+        // If we used up all the spawn points, then return early.
+        if (++completedSpawns >= maxSpawns) return;
+      }
     }
   }
 
-  IsRoleSpawnable(role: CreepRole): boolean {
-    const roomQuota = this.Quota(role.name);
-    if (roomQuota >= 0) {
-      const roomCount = role.GetRoomCreepsInRole(this).length;
-      if (roomQuota === 0 || (roomQuota !== -1 && roomCount >= roomQuota)) {
-        this.log.debug(`Room quota satisfied: ${roomCount}/${roomQuota}`, { "<role>": role });
-        return false;
-      } else {
-        this.log.debug(`Room quota allows spawn: ${roomCount}/${roomQuota}`, { "<role>": role });
-      }
-    } else {
-      this.log.debug(`Room quota not configured.`, { "<role>": role });
+  TrySpawnRole(role: CreepRole, name: string): boolean {
+    const body = role.GetNewCreepBody(this);
+    const cost = BodyCost(body);
+
+    if (this.energyAvailable < cost) {
+      this.log.info(`Room lacks the energy to spawn (need ${cost} have ${this.energyAvailable}/${this.energyCapacityAvailable}).`, { "<role>": role, "<rate>": 10 });
+      return false; // No point proceeding
     }
 
-    return true;
+    for (const sp of this.AvailableSpawns) {
+
+      // Get directions to surrounding roads
+      const nearbyRoads = sp.pos.findInRange(this.Roads, 1)
+        .map(nr => sp.pos.getDirectionTo(nr.pos.x, nr.pos.y));
+
+      // Try to do the spawn
+      const result = sp.spawnCreep(body, name, {
+        directions: nearbyRoads.length > 0 ? nearbyRoads : undefined,
+        memory: {
+          room: this.name,
+          role: role.name,
+          stuckTicks: 0,
+          lastPos: SerializeRoomPosition(sp.pos),
+          spawning: true,
+        },
+      });
+
+
+      // Log the result
+      if (result === OK) {
+        this.log.info(`Spawning ${name} ${cost} @ ${sp}...`, { "<role>": role });
+        return true;
+      } else {
+        this.log.info(`Attempt to spawn ${name} ${cost} at ${sp} resulted in: ${result}...`, { "<role>": role });
+        return false;
+      }
+    }
+    return false;
+  }
+
+  IsRoleLimited(role: CreepRole): boolean {
+    const roomQuota = this.GetLimitOfRole(role.name);
+    const roomCount = role.GetRoomCreepsInRole(this).length;
+    return roomCount >= roomQuota;
   }
 
   RoomStateReport(): string {
@@ -629,10 +656,10 @@ export class RoomExtra extends Room {
       }
 
       const spawnNeeded = role.IsSpawnNeeded(this);
-      const spawnAble = this.IsRoleSpawnable(role);
+      const spawnAble = this.IsRoleLimited(role);
       const spawnableStr = spawnAble ? '+' : '';
       const spawnNeededStr = spawnNeeded ? '*' : '';
-      const roomQuota = this.Quota(name);
+      const roomQuota = this.GetLimitOfRole(name);
       const roomCount = role.GetRoomCreepsInRole(this).length;
 
       if (spawnNeeded || spawnAble || roomCount > 0) {

@@ -4,6 +4,7 @@ import { Logger } from "utils/Logger";
 import { Colony } from "Colony";
 import { CreepRole } from "roles/Role";
 import { CreepTask } from "tasks";
+import { DeserializeRoomPosition, RoomPositionString, SerializeRoomPosition } from "utils/Collections";
 
 declare global {
   interface CreepMemory {
@@ -11,11 +12,10 @@ declare global {
     room?: string;
     currentTask?: CreepTask | null;
     stuckTicks?: number;
-    lastPos?: { x: number, y: number, room: string; };
+    lastPos?: RoomPositionString;
     moveMode?: "long" | "avoidCreeps";
     successfulAvoidMoves?: number;
     spawning?: boolean,
-    exit?: { x: number, y: number, room: string; },
     _move?: {
       dest: { x: number, y: number, room: string; },
       time: number,
@@ -31,6 +31,9 @@ export class CreepExtra extends Creep {
   constructor(id: Id<Creep>, colony: Colony) {
     super(id);
     this.colony = colony;
+    this.memory.moveMode ??= "long";
+    this.memory.stuckTicks ??= 0;
+    this.memory.successfulAvoidMoves ??= 0;
   }
 
   get role(): CreepRole {
@@ -60,10 +63,12 @@ export class CreepExtra extends Creep {
     return this.cachedAssignedRoom;
   }
 
+  StartOfTick(): void {
+    this.MovedBetweenTicks = this.memory.lastPos !== SerializeRoomPosition(this.pos);
+  }
 
   MaxStuckTicks = 2;
-  MaxAvoidTicks = 3;
-  MaxPathfindingOps = 200;
+  MaxAvoidTicks = 4;
   MoveLong(pos: RoomPosition, opts?: MoveToOpts): number {
     this.log.debug(`Invoking MoveLong ${pos} ${JSON.stringify(opts)}...`);
 
@@ -78,7 +83,6 @@ export class CreepExtra extends Creep {
       ...opts,
       costCallback,
       visualizePathStyle: { stroke: Colours.PATH_LONG, lineStyle: "solid" },
-      maxOps: this.MaxPathfindingOps * 4,
       ignoreCreeps: true,
       reusePath: 20,
       plainCost: 2,
@@ -92,7 +96,6 @@ export class CreepExtra extends Creep {
     return this.moveTo(pos, {
       ...opts,
       visualizePathStyle: { stroke: Colours.PATH_STUCK, lineStyle: "dotted" },
-      maxOps: this.MaxPathfindingOps,
       ignoreCreeps: false,
       reusePath: 0,
       plainCost: 1,
@@ -104,26 +107,13 @@ export class CreepExtra extends Creep {
   OnMoveSucceeded(): void { return; }
 
   // Returns 1 when in range; otherwise returns the moveTo result.
+  MovedBetweenTicks = false;
   MoveCreep(target: RoomPosition | { pos: RoomPosition; }, opts?: MoveToOpts): number {
     const targetPos = target instanceof RoomPosition ? target : target.pos;
-
-    // Init movement trackers
-    this.memory.moveMode ??= "long";
-    this.memory.stuckTicks ??= 0;
-    this.memory.successfulAvoidMoves ??= 0;
-
-    // Figure out if we moved, and then update position
-    const movedBetweenTicks = this.memory.lastPos === undefined
-      || this.pos.x !== this.memory.lastPos.x
-      || this.pos.y !== this.memory.lastPos.y
-      || this.pos.roomName !== this.memory.lastPos.room;
-    this.memory.lastPos = { x: this.pos.x, y: this.pos.y, room: this.pos.roomName };
-
 
     if (this.pos.roomName === targetPos.roomName && this.pos.getRangeTo(targetPos) <= (opts?.range ?? 1)) {
       // Arrived / Base case
       // Reset to clean, long move mode
-      this.memory.exit = undefined;
       this.memory.stuckTicks = 0;
       this.memory.successfulAvoidMoves = 0;
       this.memory.moveMode = "long";
@@ -135,24 +125,24 @@ export class CreepExtra extends Creep {
     }
 
     // Increment counters
-    if (this.memory.moveMode === "avoidCreeps" && movedBetweenTicks) {
+    if (this.memory.moveMode === "avoidCreeps" && this.MovedBetweenTicks) {
       this.log.verbose(`MoveCreep: avoidCreeps && movedBetweenTicks; ${this.memory.successfulAvoidMoves} (+1)`);
-      this.memory.successfulAvoidMoves++;
-    } else if (this.memory.moveMode === "long" && !movedBetweenTicks && this.fatigue === 0) {
+      this.memory.successfulAvoidMoves = (this.memory.successfulAvoidMoves ?? 0) + 1;
+    } else if (this.memory.moveMode === "long" && !this.MovedBetweenTicks && this.fatigue === 0) {
       this.log.verbose(`MoveCreep: long && !movedBetweenTicks && this.fatigue === 0; ${this.memory.stuckTicks} (+1)`);
-      this.memory.stuckTicks++;
-    } else if (this.memory.stuckTicks && this.memory.moveMode === "long" && movedBetweenTicks) {
+      this.memory.stuckTicks = (this.memory.stuckTicks ?? 0) + 1;
+    } else if (this.memory.stuckTicks && this.memory.moveMode === "long" && this.MovedBetweenTicks) {
       this.log.verbose(`MoveCreep: long && movedBetweenTicks; Was stuck ${this.memory.stuckTicks}, now 0.`);
       this.memory.stuckTicks = 0;
     }
 
     // Switch move mode
-    if (this.memory.moveMode === "long" && this.memory.stuckTicks > this.MaxStuckTicks) {
+    if (this.memory.moveMode === "long" && (this.memory.stuckTicks ?? 0) > this.MaxStuckTicks) {
       this.OnStuck();
       this.memory.moveMode = "avoidCreeps";
       this.memory.stuckTicks = 0;
       this.memory.successfulAvoidMoves = 0;
-    } else if (this.memory.moveMode === "avoidCreeps" && this.memory.successfulAvoidMoves >= this.MaxAvoidTicks) {
+    } else if (this.memory.moveMode === "avoidCreeps" && (this.memory.successfulAvoidMoves ?? 0) >= this.MaxAvoidTicks) {
       this.OnUnstuck();
       this.memory.moveMode = "long";
       this.memory.stuckTicks = 0;
@@ -164,28 +154,31 @@ export class CreepExtra extends Creep {
       : this.MoveAvoidCreeps(targetPos, opts);
   }
 
-  JustFinishedSpawning(room: RoomExtra): void {
-    this.memory.spawning = false;
-    this.log.info(`Ready for service!`, { "<room>": room });
-    if (this.role) this.role.OnSpawn(this);
-  }
-
   CheckRoomEvents(room: RoomExtra): void {
     // If Creep is spawning, don't proceed.
-    this.memory.spawning ??= false; // If null, default to not spawning.
     if (this.spawning) return; // Do not tick spawning creeps
-    else if (!this.spawning && (this.memory.spawning ?? false))
-      this.JustFinishedSpawning(room);
-    else if (this.ticksToLive === 1)
+    else if (!this.spawning && (this.memory.spawning ?? false)) {
+      // Invoke callback when we finish spawning
+      this.memory.spawning = false;
+      this.log.info(`Ready for service!`, { "<room>": room });
+      if (this.role) this.role.OnSpawn(this);
+    } else if (this.ticksToLive === 1)
       this.OnLastTickOfLife();
 
     // Run a callback if we moved to a new room since last tick.
-    if (this.memory.lastPos && this.room.name !== this.memory.lastPos.room)
-      this.OnCreepChangedRooms(this.memory.lastPos.room);
+    if (this.LastPos && this.room.name !== this.LastPos.roomName)
+      this.OnLeaveRoom(this.LastPos.roomName);
+  }
+
+  get LastPos(): RoomPosition { return this.memory.lastPos ? DeserializeRoomPosition(this.memory.lastPos) : this.pos; };
+  set LastPos(value: RoomPosition) { this.memory.lastPos = SerializeRoomPosition(value); };
+
+  EndOfTick(): void {
+    this.memory.lastPos = SerializeRoomPosition(this.pos);
   }
 
   MovedBetweenRooms = false;
-  OnCreepChangedRooms(lastRoomName: string): void {
+  OnLeaveRoom(lastRoomName: string): void {
     this.log.info(`I moved from ${lastRoomName} to ${this.room.name}`);
     this.MovedBetweenRooms = true;
   }
