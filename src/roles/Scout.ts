@@ -21,13 +21,53 @@ export class Scout extends CreepRoleBase implements CreepRole {
 
   GetNewCreepBody(): BodyPartConstant[] { return MakeBody([MOVE, 1]); }
 
-  // Ensure a scout is only spawned once every `ScoutReportTTL` ticks.
   ScoutReportTTL = 2000;
-  IsSpawnNeeded(room: RoomExtra): boolean { return (Game.time - room.LastSpawnTick(this.name)) > this.ScoutReportTTL; }
-  OnSpawnScheduled(room: RoomExtra): void { room.SetLastSpawnTick(this.name, Game.time); }
 
-  GetGlobalQuota(): number { return 1; }
-  GetRoomQuota(): number { return 1; }
+  // 1 per owned room
+  GetRoomQuota(room: RoomExtra): number { return room.colony.MyRooms.length; }
+
+  // Ensure a scout is only spawned once every `ScoutReportTTL` ticks.
+  // And when no other scout assigned to this room is living.
+  IsSpawnNeeded(room: RoomExtra): boolean {
+    return (room.AssignedCreepsByRoleName.get("Scout") ?? []).length === 0
+      && (Game.time - room.LastSpawnTick(this.name)) > this.ScoutReportTTL;
+  }
+
+  OnSpawn(creep: CreepExtra): void { creep.notifyWhenAttacked(false); };
+
+  TickCreep(creep: CreepExtra): void {
+    if (creep.hits < creep.hitsMax)
+      this.log.warn(`I'm being attacked in ${creep.room}, Health: %${((creep.hits / creep.hitsMax) * 100).toPrecision(4)} (${creep.hits}/${creep.hitsMax})!`);
+
+    let newReport: ScoutingReport | undefined;
+
+    // Create a new scouting report for old or newly visited rooms.
+    Memory.scoutingReports ??= {};
+    if (
+      creep.MovedBetweenRooms
+      || !(creep.room.name in Memory.scoutingReports)
+      || Memory.scoutingReports[creep.room.name] === undefined
+      || Memory.scoutingReports[creep.room.name].lastSeen === undefined
+      || (Game.time - Memory.scoutingReports[creep.room.name].lastSeen ?? 0) > this.ScoutReportTTL
+    )
+      newReport = this.NewScoutingReport(creep);
+
+    if (newReport !== undefined) {
+      // If we made a new report, replace the one in memory.
+      Memory.scoutingReports[creep.room.name] = newReport;
+
+      // If the new report has hostiles, print a message.
+      if (Game.time % 10 === 0 && newReport.hostiles !== undefined) {
+        this.log.warn(`${creep.room} has hostiles: ${FormatHostileInfos(newReport.hostiles)}`);
+      }
+    }
+  }
+
+  SelectNextTask(creep: CreepExtra): CreepTask | null {
+    const newRoom = this.FindNearbyRandomRoom(creep);
+    if (newRoom) return new Move(new RoomPosition(25, 25, newRoom), 40);
+    return null;
+  }
 
   FindNearbyRandomRoom(creep: CreepExtra): string | null {
     for (let attempts = 0; attempts < this.MaxSearchAttempts; attempts++) {
@@ -80,41 +120,5 @@ export class Scout extends CreepRoleBase implements CreepRole {
       scoutedFromOutpost: creep.memory.room,
       distFromOutpost: dist,
     };
-  }
-
-  OnSpawn(creep: CreepExtra): void { creep.notifyWhenAttacked(false); };
-
-  TickCreep(creep: CreepExtra): void {
-    if (creep.hits < creep.hitsMax)
-      this.log.warn(`I'm being attacked in ${creep.room}, Health: %${((creep.hits / creep.hitsMax) * 100).toPrecision(4)} (${creep.hits}/${creep.hitsMax})!`);
-
-    let newReport: ScoutingReport | undefined;
-
-    // Create a new scouting report for old or newly visited rooms.
-    Memory.scoutingReports ??= {};
-    if (
-      creep.MovedBetweenRooms
-      || !(creep.room.name in Memory.scoutingReports)
-      || Memory.scoutingReports[creep.room.name] === undefined
-      || Memory.scoutingReports[creep.room.name].lastSeen === undefined
-      || (Game.time - Memory.scoutingReports[creep.room.name].lastSeen ?? 0) > this.ScoutReportTTL
-    )
-      newReport = this.NewScoutingReport(creep);
-
-    if (newReport !== undefined) {
-      // If we made a new report, replace the one in memory.
-      Memory.scoutingReports[creep.room.name] = newReport;
-
-      // If the new report has hostiles, print a message.
-      if (Game.time % 10 === 0 && newReport.hostiles !== undefined) {
-        this.log.warn(`${creep.room} has hostiles: ${FormatHostileInfos(newReport.hostiles)}`);
-      }
-    }
-  }
-
-  SelectNextTask(creep: CreepExtra): CreepTask<string> | null {
-    const newRoom = this.FindNearbyRandomRoom(creep);
-    if (newRoom) return new Move(new RoomPosition(25, 25, newRoom), 40);
-    return null;
   }
 }

@@ -356,14 +356,8 @@ export class RoomExtra extends Room {
     const overridenQuota = (this.memory.quotas ?? {})[roleName];
     if (overridenQuota !== undefined) return overridenQuota;
 
-    // Try to get the role instance, and return -1 if we can't
-    const role = this.colony.Roles[roleName];
-    if (!role) {
-      throw new Error(`Role is not in Registry: ${roleName}`);
-    }
-
     // Return the quota from the role instance
-    return role.GetRoomQuota(this);
+    return this.colony.GetRole(roleName).GetRoomQuota(this);
   }
 
   get SpawnsOrExtensions(): (StructureExtension | StructureSpawn)[] {
@@ -604,19 +598,6 @@ export class RoomExtra extends Room {
   }
 
   IsRoleSpawnable(role: CreepRole): boolean {
-    const globalQuota = role.GetGlobalQuota();
-    if (globalQuota >= 0) {
-      const globalCount = role.GetGlobalCreepsInRole().length;
-      if (globalQuota === 0 || (globalQuota !== -1 && globalCount >= globalQuota)) {
-        this.log.debug(`Global quota satisfied: ${globalCount}/${globalQuota}`, { "<role>": role });
-        return false;
-      } else {
-        this.log.debug(`Global quota allows spawn: ${globalCount}/${globalQuota}`, { "<role>": role });
-      }
-    } else {
-      this.log.debug(`Global quota not configured.`, { "<role>": role });
-    }
-
     const roomQuota = this.Quota(role.name);
     if (roomQuota >= 0) {
       const roomCount = role.GetRoomCreepsInRole(this).length;
@@ -652,13 +633,10 @@ export class RoomExtra extends Room {
       const spawnableStr = spawnAble ? '+' : '';
       const spawnNeededStr = spawnNeeded ? '*' : '';
       const roomQuota = this.Quota(name);
-      const globalQuota = role.GetGlobalQuota();
       const roomCount = role.GetRoomCreepsInRole(this).length;
-      const globalCount = role.GetGlobalCreepsInRole().length;
-      const globalCountStr = globalQuota > -1 && (globalCount !== roomCount || roomQuota === -1) ? ` | ${globalCount}/${globalQuota}` : "";
 
       if (spawnNeeded || spawnAble || roomCount > 0) {
-        msg += ` [${name}${spawnNeededStr}${spawnableStr} ${roomCount}/${roomQuota}${globalCountStr}]`;
+        msg += ` [${name}${spawnNeededStr}${spawnableStr} ${roomCount}/${roomQuota}]`;
         spawned++;
       }
     }

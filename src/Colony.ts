@@ -387,11 +387,6 @@ export class Colony {
           unit: "bytes",
           description: "How much memory are scripts using.",
         },
-        global_quota: {
-          labelKeys: ["role"],
-          unit: "number",
-          description: "The maximum limit of creeps that may be spawned in all owned rooms.",
-        },
         room_quota: {
           labelKeys: ["role", "room"],
           unit: "number",
@@ -515,7 +510,6 @@ export class Colony {
         },
         resources,
         meminfo,
-        global_quota: this.MapNameable(Object.values(this.Roles), ro => ro.GetGlobalQuota()),
         room_quota: this.MapNameable(Object.values(this.Roles), r => this.MapNameable(this.MyRooms, ro => r.GetRoomQuota(ro))),
         assigned_room_count: this.MapNameable(Object.values(this.Roles), r => this.MapNameable(this.MyRooms, ro => r.GetRoomCreepsInRole(ro).length)),
         my_creep_count: this.MapNameable(Object.values(Game.rooms), vr => vr.find(FIND_MY_CREEPS).length),
