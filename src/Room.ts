@@ -108,9 +108,7 @@ export class RoomExtra extends Room {
   }
 
   set ClaimedRoomNames(value: string[]) { this.memory.claimedNearby = unique(value); }
-  get ClaimedRoomNames(): string[] {
-    return unique(this.memory.claimedNearby ?? []);
-  }
+  get ClaimedRoomNames(): string[] { return unique(this.memory.claimedNearby ?? []); }
 
   private cachedClaimedRooms: Room[] = [];
   get ClaimedRooms(): Room[] {
