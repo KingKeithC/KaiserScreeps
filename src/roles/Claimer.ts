@@ -24,27 +24,24 @@ export class Claimer extends CreepRoleBase implements CreepRole {
   }
 
   IsSpawnNeeded(room: RoomExtra): boolean { return this.UnworkedClaims(room).length > 0; }
-  override GetGlobalQuota(): number { return this.AllClaims().length; }
-  override GetRoomQuota(): number { return -1; }
+  override GetRoomQuota(room: RoomExtra): number { return room.ClaimedRoomNames.length; }
 
-
-  AllClaims(): Flag[] { return Object.values(Game.flags).filter(f => f.name.startsWith("Claim")); }
   WorkedClaims(room: RoomExtra): string[] {
-    return unique(room.colony.GetAllAssignedTasks(TaskAction.Claim).map(p => (p as ClaimRoomTask).target));
+    return unique(room.GetAssignedTasks(TaskAction.Claim).map(p => (p as ClaimRoomTask).target));
   }
 
-  UnworkedClaims(room: RoomExtra): Flag[] {
+  UnworkedClaims(room: RoomExtra): string[] {
     const worked = this.WorkedClaims(room);
     const ret = [];
-    for (const claim of this.AllClaims())
-      if (worked.includes(claim.pos.roomName)) continue;
+    for (const claim of room.ClaimedRoomNames)
+      if (worked.includes(claim)) continue;
       else ret.push(claim);
     return ret;
   }
 
   override SelectNextTask(creep: CreepExtra): CreepTask | null {
     for (const c of this.UnworkedClaims(creep.AssignedRoom))
-      return new ClaimRoomTask(c.pos.roomName, c.name.includes("!CLAIM"));
+      return new ClaimRoomTask(c, false);
     return null;
   }
 }
