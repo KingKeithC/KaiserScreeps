@@ -64,6 +64,13 @@ export class Worker extends CreepRoleBase implements CreepRole {
     const spawn = this.FindSupplyByPath(creep, creep.AssignedRoom.SpawnsOrExtensions, "spawns/extensions");
     if (spawn) return new Supply(spawn.id);
 
+
+    if (creep.AssignedRoom.controller === undefined)
+      throw new Error(`Assigned room ${creep.AssignedRoom} has no controller!`);
+
+    if (creep.AssignedRoom.controller.level === 1)
+      return new UpdateController(creep.AssignedRoom.controller);
+
     const cons = this.FindConstructionByPriorityAndPath(creep, MyConstructionSites());
     if (cons) return new Build(cons.id);
 
