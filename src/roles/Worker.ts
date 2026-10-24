@@ -38,7 +38,11 @@ export class Worker extends CreepRoleBase implements CreepRole {
 
   override GetRoomQuota(room: RoomExtra) { return room.MaxMiners * 3; }
 
-  IsSpawnNeeded() { return true; }
+  MinTicksBetweenWorkers = 200;
+  IsSpawnNeeded(room: RoomExtra) {
+    return (Game.time - room.LastSpawnTick(this.name)) > this.MinTicksBetweenWorkers
+      && (room.AssignedCreepsByRoleName.get("Worker") ?? []).length < this.GetRoomQuota(room);
+  }
 
   SelectNextTask(creep: CreepExtra): CreepTask | null {
     if (creep.store.getUsedCapacity(RESOURCE_ENERGY) === 0)
@@ -63,7 +67,6 @@ export class Worker extends CreepRoleBase implements CreepRole {
     const supplyTasks = creep.AssignedRoom.GetAssignedTasks(TaskAction.Supply) as Supply[];
     const spawn = this.FindSupplyByPath(creep, creep.AssignedRoom.SpawnsOrExtensions, "spawns/extensions");
     if (spawn) return new Supply(spawn.id);
-
 
     if (creep.AssignedRoom.controller === undefined)
       throw new Error(`Assigned room ${creep.AssignedRoom} has no controller!`);
