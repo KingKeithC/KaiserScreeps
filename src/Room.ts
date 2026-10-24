@@ -200,6 +200,7 @@ export class RoomExtra extends Room {
   private UpdateCostMatrix(): void {
     this.log.info(`Updating Cost Matrix...`);
     const matrix = new PathFinder.CostMatrix();
+    const terrain = this.getTerrain();
 
     // Set roads to cheapest cost
     for (const s of this.find(FIND_STRUCTURES, { filter: st => st.structureType === STRUCTURE_ROAD }))
@@ -253,21 +254,21 @@ export class RoomExtra extends Room {
           this.PathfindingParams.SourceBiasMax - (r * this.PathfindingParams.SourceBiasFalloff)
         );
 
-        if (r === 0)
-          // Set weight of Origin Point
+        // Set weight of Origin Point
+        if (r === 0 && terrain.get(source.pos.x, source.pos.y) !== TERRAIN_MASK_WALL)
           matrix.set(source.pos.x, source.pos.y, weight);
         else {
           // Set weight of ascending left and right columns
           for (const yOff of range(-r, r + 1)) {
-            matrix.set(source.pos.x - r, source.pos.y + yOff, weight); // Left side
-            matrix.set(source.pos.x + r, source.pos.y + yOff, weight); // Right side
+            if (terrain.get(source.pos.x - r, source.pos.y + yOff) !== TERRAIN_MASK_WALL) matrix.set(source.pos.x - r, source.pos.y + yOff, weight); // Left side
+            if (terrain.get(source.pos.x + r, source.pos.y + yOff) !== TERRAIN_MASK_WALL) matrix.set(source.pos.x + r, source.pos.y + yOff, weight); // Right side
           }
 
           // Set weight of ascending top and bottom rows (except the corners)
           const xOffs = r === 1 ? [0] : range(-(r - 1), r);
           for (const xOff of xOffs) {
-            matrix.set(source.pos.x + xOff, source.pos.y - r, weight); // Top side
-            matrix.set(source.pos.x + xOff, source.pos.y + r, weight); // Bottom Side
+            if (terrain.get(source.pos.x + xOff, source.pos.y - r) !== TERRAIN_MASK_WALL) matrix.set(source.pos.x + xOff, source.pos.y - r, weight); // Top side
+            if (terrain.get(source.pos.x + xOff, source.pos.y + r) !== TERRAIN_MASK_WALL) matrix.set(source.pos.x + xOff, source.pos.y + r, weight); // Bottom Side
           }
         }
       }
