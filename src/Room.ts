@@ -147,7 +147,7 @@ export class RoomExtra extends Room {
     return this.cachedClaimedRooms;
   }
 
-  HostilesByRoom = this.MapWithRoomsInClaimedArea(mr => mr.find(FIND_HOSTILE_CREEPS));
+  HostilesByRoom = this.MapWithRoomsInClaimedArea(mr => mr instanceof Room ? mr.find(FIND_HOSTILE_CREEPS) : []);
 
   get EnableCostMatrixOverlay(): boolean { return this.memory.enableCostMatrixOverlay ?? false; }
   set EnableCostMatrixOverlay(value: boolean) { this.memory.enableCostMatrixOverlay = value; }
@@ -292,19 +292,32 @@ export class RoomExtra extends Room {
   private set EventAmounts(value: Dictionary<number>) { this.memory.eventAmounts = value; }
   get EventAmounts(): Dictionary<number> { return this.memory.eventAmounts ?? {}; }
 
-  get ClaimedMines(): [Room, MiningPosition[]][] {
+  get ClaimedMines(): [Room | string, MiningPosition[]][] {
     return this.MapWithRoomsInClaimedArea(cr => {
-      if (cr instanceof RoomExtra)
-        return cr.Mines;
+      // If it's a RoomExtra, return the Mines property from it.
+      if (cr instanceof RoomExtra) return cr.Mines;
+      const name = cr instanceof Room ? cr.name : cr;
 
-      if (Memory.scoutingReports)
-        if (Memory.scoutingReports[cr.name])
-          return Memory.scoutingReports[cr.name].mines ?? GetMiningPositions(cr);
-        else
-          return Memory.scoutingReports[cr.name].mines = GetMiningPositions(cr);
+      // Otherwise, if there is a scouting report with mines, return those
+      if (Memory.scoutingReports && Memory.scoutingReports[name] && Memory.scoutingReports[name].mines)
+        return Memory.scoutingReports[name].mines;
 
+      // Since cr must be a string, there is nothing more we can do.
+      // The room must be invisible, and we can't fetch them for invisible rooms if we don't
+      // Have them scouted already.
+      if (!(cr instanceof Room))
+        return [];
+
+      // Otherwise, update the existing scouting report's mines, and return those
+      if (Memory.scoutingReports && Memory.scoutingReports[name]) {
+        const mines = GetMiningPositions(cr);
+        Memory.scoutingReports[name].mines = mines;
+        return mines;
+      }
+
+      // Otherwise, make a whole new scouting report for the room and return the mines from that
       const report = MakeRoomReport(cr);
-      Memory.scoutingReports = { [cr.name]: report };
+      Memory.scoutingReports = { [name]: report };
       return report.mines;
     }, true);
   }
@@ -325,9 +338,6 @@ export class RoomExtra extends Room {
           ret.push(mine);
     return ret;
   }
-
-  // 1 Miner per source we claim
-  get MaxMiners(): number { return this.ClaimedSources.length; }
 
   LastSpawnTick(roleName: string): number { return (this.memory.lastSpawnTick ?? {})[roleName] ?? 0; }
 
@@ -423,12 +433,21 @@ export class RoomExtra extends Room {
     return ret;
   }
 
-  MapWithRoomsInClaimedArea<T>(mapper: (r: RoomExtra | Room) => T[], includeMainRoom = true): [Room, T[]][] {
-    const rooms = this.ClaimedRooms.concat(includeMainRoom ? [this] : []);
-    return rooms.map(r => [r, mapper(r)]);
+  MapWithRoomsInClaimedArea<T>(mapper: (r: RoomExtra | Room | string) => T[], includeMainRoom = true): [Room | string, T[]][] {
+    const allClaimedRooms = this.ClaimedRoomNames;
+    const visibleRooms = this.ClaimedRooms.concat(includeMainRoom ? [this] : []);
+    const ret: [Room | string, T[]][] = [];
+
+    for (const room of visibleRooms)
+      ret.push([room, mapper(room)]);
+
+    for (const name of allClaimedRooms)
+      ret.push([name, mapper(name)]);
+
+    return ret;
   }
 
-  FlatMapOverRoomsInClaimedArea<T>(mapper: (r: RoomExtra | Room) => T[], includeMainRoom = true): T[] {
+  FlatMapOverRoomsInClaimedArea<T>(mapper: (r: RoomExtra | Room | string) => T[], includeMainRoom = true): T[] {
     return flatten(this.MapWithRoomsInClaimedArea(mapper, includeMainRoom).map(v => v[1]));
   }
 

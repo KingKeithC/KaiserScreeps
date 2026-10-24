@@ -68,19 +68,13 @@ export class Defender extends CreepRoleBase implements CreepRole {
 
   FindNearestHostile(creep: CreepExtra): Creep | null {
     // Find Hostiles in the current room
-    for (const [room, creeps] of creep.AssignedRoom.HostilesByRoom)
-      if (room.name === creep.room.name) {
+    for (const [room, creeps] of creep.AssignedRoom.HostilesByRoom) {
+      const roomName = room instanceof Room ? room.name : room;
+      if (roomName === creep.room.name) {
         const found = creep.pos.findClosestByPath(creeps);
         if (found) return found;
       }
-
-    // Find Hostiles in any room
-    for (const [_, creeps] of creep.AssignedRoom.HostilesByRoom)
-      if (creeps.length > 0) {
-        const found = creeps.pop();
-        if (found) return found;
-      }
-
+    }
     return null;
   }
 }

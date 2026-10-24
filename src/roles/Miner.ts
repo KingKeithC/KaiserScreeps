@@ -11,8 +11,8 @@ export class Miner extends CreepRoleBase implements CreepRole {
   override readonly name: string = "Miner";
 
   IsSpawnNeeded(room: RoomExtra): boolean {
-    // We can't spawn miners until we have at least two workers.
-    return (room.AssignedCreepsByRoleName.get("Worker") ?? []).length > 2;
+    // We can't spawn miners until we have a worker.
+    return (room.AssignedCreepsByRoleName.get("Worker") ?? []).length > 0;
   }
 
   GetNewCreepBody(room: RoomExtra): BodyPartConstant[] {
@@ -33,7 +33,7 @@ export class Miner extends CreepRoleBase implements CreepRole {
     return MakeBody([CARRY, 2], [WORK, 1], [MOVE, 2]); // 300, Zygote
   }
 
-  override GetRoomQuota(room: RoomExtra) { return room.MaxMiners; }
+  override GetRoomQuota(room: RoomExtra) { return room.ClaimedSources.length; }
 
   SelectNextTask(creep: CreepExtra): CreepTask | null {
     for (const mp of creep.AssignedRoom.AvailableMiningPositions())

@@ -36,7 +36,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
     }
   }
 
-  override GetRoomQuota(room: RoomExtra) { return room.MaxMiners * 3; }
+  override GetRoomQuota(room: RoomExtra) { return room.ClaimedSources.length * 3; }
 
   MinTicksBetweenWorkers = 200;
   IsSpawnNeeded(room: RoomExtra) {
@@ -77,18 +77,18 @@ export class Worker extends CreepRoleBase implements CreepRole {
     if (creep.AssignedRoom.controller.level === 1)
       return new UpdateController(creep.AssignedRoom.controller);
 
-    const constructions = creep.AssignedRoom.FlatMapOverRoomsInClaimedArea(r => r.find(FIND_MY_CONSTRUCTION_SITES));
+    const constructions = creep.AssignedRoom.FlatMapOverRoomsInClaimedArea(r => r instanceof Room ? r.find(FIND_MY_CONSTRUCTION_SITES) : []);
     const buildTasks = creep.AssignedRoom.GetAssignedTasks(TaskAction.Build) as Build[];
     if (buildTasks.filter(b => constructions.some(c => c.id === b.target)).length < this.MaxBuildPerRoom) {
       const cons = this.FindConstructionByPriorityAndPath(creep, constructions);
       if (cons) return new Build(cons.id);
     }
 
-    const repairs = creep.AssignedRoom.MapWithRoomsInClaimedArea(r => r.find(FIND_STRUCTURES, { filter: s => s.hits < s.hitsMax }) as AnyStructure[]);
+    const repairs = creep.AssignedRoom.MapWithRoomsInClaimedArea(r => r instanceof Room ? r.find(FIND_STRUCTURES, { filter: s => s.hits < s.hitsMax }) as AnyStructure[] : []);
     const repairTasks = creep.AssignedRoom.GetAssignedTasks(TaskAction.Repair) as Repair[];
 
     for (const [room, roomRepairs] of repairs) {
-
+      if (!(room instanceof Room)) continue;
       const roomTowers = room.find(FIND_MY_STRUCTURES, { filter: s => s.structureType === STRUCTURE_TOWER });
       const ongoingRepairs = repairTasks.filter(rt => rt.repairRoom === room.name);
       const ongoingTowerSupplys = supplyTasks.filter(st => creep.AssignedRoom.Towers.some(t => t.id === st.target));
@@ -134,10 +134,10 @@ export class Worker extends CreepRoleBase implements CreepRole {
     const miners = (creep.AssignedRoom.AssignedCreepsByRoleGroup.get("Miners") ?? []).filter(m => !m.spawning);
     const allSources = [
       /* eslint-disable @typescript-eslint/no-unnecessary-type-assertion */
-      ...creep.AssignedRoom.FlatMapOverRoomsInClaimedArea(cr => cr.find(FIND_TOMBSTONES, { filter: t => t.store.getUsedCapacity(RESOURCE_ENERGY) > 0 })) as Tombstone[],
-      ...creep.AssignedRoom.FlatMapOverRoomsInClaimedArea(cr => cr.find(FIND_DROPPED_RESOURCES, { filter: r => r.resourceType === RESOURCE_ENERGY })) as Resource<RESOURCE_ENERGY>[],
-      ...creep.AssignedRoom.FlatMapOverRoomsInClaimedArea(cr => cr.find(FIND_RUINS)) as Ruin[],
-      ...creep.AssignedRoom.FlatMapOverRoomsInClaimedArea(cr => cr.find(FIND_STRUCTURES, { filter: s => s.structureType === STRUCTURE_CONTAINER })) as StructureContainer[],
+      ...creep.AssignedRoom.FlatMapOverRoomsInClaimedArea(cr => cr instanceof Room ? cr.find(FIND_TOMBSTONES, { filter: t => t.store.getUsedCapacity(RESOURCE_ENERGY) > 0 }) : []) as Tombstone[],
+      ...creep.AssignedRoom.FlatMapOverRoomsInClaimedArea(cr => cr instanceof Room ? cr.find(FIND_DROPPED_RESOURCES, { filter: r => r.resourceType === RESOURCE_ENERGY }) : []) as Resource<RESOURCE_ENERGY>[],
+      ...creep.AssignedRoom.FlatMapOverRoomsInClaimedArea(cr => cr instanceof Room ? cr.find(FIND_RUINS) : []) as Ruin[],
+      ...creep.AssignedRoom.FlatMapOverRoomsInClaimedArea(cr => cr instanceof Room ? cr.find(FIND_STRUCTURES, { filter: s => s.structureType === STRUCTURE_CONTAINER }) : []) as StructureContainer[],
       ...creep.AssignedRoom.LinkReceivers as StructureLink[],
       ...miners,
       /* eslint-enable @typescript-eslint/no-unnecessary-type-assertion */
