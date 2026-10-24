@@ -54,7 +54,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
   }
 
   MaxUpgraders = 4;
-  MaxSupplyForSpawns = 3;
+  MaxSupplyForSpawns = 2;
   MaxSupplyForTowers = 2;
   MaxRepairPerRoom = 2;
   public FindSpendingTask(creep: CreepExtra): CreepTask | null {
@@ -65,8 +65,10 @@ export class Worker extends CreepRoleBase implements CreepRole {
     }
 
     const supplyTasks = creep.AssignedRoom.GetAssignedTasks(TaskAction.Supply) as Supply[];
-    const spawn = this.FindSupplyByPath(creep, creep.AssignedRoom.SpawnsOrExtensions, "spawns/extensions");
-    if (spawn) return new Supply(spawn.id);
+    if (supplyTasks.filter(s => creep.AssignedRoom.SpawnsOrExtensions.some(sp => sp.id === s.target)).length < this.MaxSupplyForSpawns) {
+      const spawn = this.FindSupplyByPath(creep, creep.AssignedRoom.SpawnsOrExtensions, "spawns/extensions");
+      if (spawn) return new Supply(spawn.id);
+    }
 
     if (creep.AssignedRoom.controller === undefined)
       throw new Error(`Assigned room ${creep.AssignedRoom} has no controller!`);
