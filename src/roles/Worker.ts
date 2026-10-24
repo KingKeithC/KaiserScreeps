@@ -234,7 +234,6 @@ export class Worker extends CreepRoleBase implements CreepRole {
     if (possibleSources.length === 0) return null; // Nothing more to do
 
     const sameRoom = creep.pos.findClosestByPath(possibleSources.filter(s => s.pos.roomName === creep.room.name), { ignoreCreeps: true });
-    this.log.info(`allSources (${allSources.length}): ${display(allSources)} => possibleSources (${possibleSources.length}): ${display(possibleSources)} => sameRoom: ${sameRoom}`, { "<creep>": creep });
     if (sameRoom instanceof StructureContainer) return new CollectEnergy({ kind: "container", id: sameRoom.id }, { maxAttempts: 3 });
     else if (sameRoom instanceof StructureLink) return new CollectEnergy({ kind: "link", id: sameRoom.id }, { maxAttempts: 3 });
     else if (sameRoom instanceof StructureStorage) return new CollectEnergy({ kind: "storage", id: sameRoom.id }, { maxAttempts: 3 });

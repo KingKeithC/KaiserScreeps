@@ -12,7 +12,7 @@ export class Miner extends CreepRoleBase implements CreepRole {
 
   IsSpawnNeeded(room: RoomExtra): boolean {
     // We can't spawn miners until we have at least two workers.
-    return this.colony.Roles.Worker.GetRoomCreepsInRole(room).length > 2;
+    return (room.AssignedCreepsByRoleName.get("Worker") ?? []).length > 2;
   }
 
   GetNewCreepBody(room: RoomExtra): BodyPartConstant[] {

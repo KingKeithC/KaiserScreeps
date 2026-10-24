@@ -292,40 +292,27 @@ export class RoomExtra extends Room {
   private set EventAmounts(value: Dictionary<number>) { this.memory.eventAmounts = value; }
   get EventAmounts(): Dictionary<number> { return this.memory.eventAmounts ?? {}; }
 
-  private cachedClaimedMines: Dictionary<MiningPosition[]> = {};
-  get ClaimedMines(): Dictionary<MiningPosition[]> {
-    if (Object.keys(this.cachedClaimedMines).length > 0) return this.cachedClaimedMines;
+  get ClaimedMines(): [Room, MiningPosition[]][] {
+    return this.MapWithRoomsInClaimedArea(cr => {
+      this.log.info(`ClaimedMines: Processing Mines for ${cr.name}`);
 
-    // Start with the mining positions for this room
-    this.cachedClaimedMines[this.name] = this.Mines;
+      if (cr instanceof RoomExtra)
+        return cr.Mines;
 
-    // Add the mining positions for the rooms this one claims
-    for (const c of this.ClaimedRoomNames) {
+      if (Memory.scoutingReports)
+        if (Memory.scoutingReports[cr.name])
+          return Memory.scoutingReports[cr.name].mines ?? GetMiningPositions(cr);
+        else
+          return Memory.scoutingReports[cr.name].mines = GetMiningPositions(cr);
 
-      // If the room has no scouting report, create one
-      Memory.scoutingReports ??= {};
-      if (!(c in Memory.scoutingReports)) {
-        const claimedRoom = Game.rooms[c];
-        if (!claimedRoom) {
-          this.log.warn(`Cannot get Remote Mining Positions for ${this.name} because claimed room ${c} has no scouting reports and is not visible`);
-          continue;
-        }
-        Memory.scoutingReports[c] = MakeRoomReport(claimedRoom);
-      }
+      const report = MakeRoomReport(cr);
+      Memory.scoutingReports = { [cr.name]: report };
+      return report.mines;
+    }, true);
+  }
 
-      // Skip rooms without mining positions
-      if (Object.keys(Memory.scoutingReports[c].mines ?? {}).length === 0) {
-        // The existing report is empty, which is odd since we shouldn't be claiming rooms
-        // that have no mines, must be some other error.
-        this.log.warn(`Claimed room ${c} apparently has no mining positions!`);
-        continue;
-      }
-
-      // Add the room's mining positions to the Dictionary
-      this.cachedClaimedMines[c] = Memory.scoutingReports[c].mines;
-    }
-
-    return this.cachedClaimedMines;
+  get ClaimedSources(): Id<Source>[] {
+    return unique(flatten(this.ClaimedMines.map(pair => pair[1].map(mp => mp.source))));
   }
 
   // Get all MiningPositions for Mines we claim that don't have any assigned miners.
@@ -334,17 +321,15 @@ export class RoomExtra extends Room {
   AvailableMiningPositions(): MiningPosition[] {
     const ret = [];
     const assignedMiningPositions = this.colony.GetAllAssignedTasks(TaskAction.Mine).map(p => (p as Mine).target);
-    for (const mines of Object.values(this.ClaimedMines))
+    for (const [room, mines] of this.ClaimedMines)
       for (const mine of mines)
         if (!assignedMiningPositions.some(amp => amp.source === mine.source))
           ret.push(mine);
     return ret;
   }
 
-  get MaxMiners(): number {
-    // 1 Miner per source we claim
-    return unique(flatten(Object.values(this.ClaimedMines).map(rmp => rmp.map(m => m.source)))).length;
-  }
+  // 1 Miner per source we claim
+  get MaxMiners(): number { return this.ClaimedSources.length; }
 
   LastSpawnTick(roleName: string): number { return (this.memory.lastSpawnTick ?? {})[roleName] ?? 0; }
 
@@ -440,12 +425,12 @@ export class RoomExtra extends Room {
     return ret;
   }
 
-  MapWithRoomsInClaimedArea<T>(mapper: (r: RoomExtra | Room) => T[], includeMainRoom = false): [Room, T[]][] {
+  MapWithRoomsInClaimedArea<T>(mapper: (r: RoomExtra | Room) => T[], includeMainRoom = true): [Room, T[]][] {
     const rooms = this.ClaimedRooms.concat(includeMainRoom ? [this] : []);
     return rooms.map(r => [r, mapper(r)]);
   }
 
-  FlatMapOverRoomsInClaimedArea<T>(mapper: (r: RoomExtra | Room) => T[], includeMainRoom = false): T[] {
+  FlatMapOverRoomsInClaimedArea<T>(mapper: (r: RoomExtra | Room) => T[], includeMainRoom = true): T[] {
     return flatten(this.MapWithRoomsInClaimedArea(mapper, includeMainRoom).map(v => v[1]));
   }
 
@@ -684,8 +669,12 @@ export class RoomExtra extends Room {
       msg += `\t${FormatHostileInfos(this.HostileInfo)}`;
     }
 
+    // Get info about claimed sources
+    msg += `\n\tClaimedSources: ${[...this.ClaimedSources]}`;
+
     // Get info about claimed rooms
-    for (const claim of this.ClaimedRooms) msg += `\n\t${claim}`;
+    for (const claim of this.ClaimedRoomNames) msg += `\n\tClaims: ${claim}: Visible ${this.ClaimedRooms.map(r => r.name).includes(claim)}`;
+
 
     return msg;
   }
