@@ -140,7 +140,7 @@ export class RoomExtra extends Room {
           toRemove.push(name);
         }
       }
-      else this.log.info(`Claimed Room ${name} is not visible!`, { "<rate>": 10 });
+      // else this.log.info(`Claimed Room ${name} is not visible!`, { "<rate>": 10 });
     }
 
     // Remove rooms which are not claimable anymore
