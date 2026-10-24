@@ -1,7 +1,7 @@
 import { CreepExtra } from "Creep";
 import { RoomExtra } from "Room";
 import { Build, CollectEnergy, CreepTask, MaintainController, Mine, Repair, Supply, TaskAction, UpdateController } from "tasks";
-import { MakeBody, MyConstructionSites, MyTowers, SerializeRoomPosition } from "utils/Collections";
+import { MakeBody, SerializeRoomPosition } from "utils/Collections";
 import { BodyCost } from "utils/CreepUtils";
 import { CreepRoleBase, CreepRole } from "./Role";
 
@@ -74,22 +74,21 @@ export class Worker extends CreepRoleBase implements CreepRole {
     if (creep.AssignedRoom.controller.level === 1)
       return new UpdateController(creep.AssignedRoom.controller);
 
-    const cons = this.FindConstructionByPriorityAndPath(creep, MyConstructionSites());
+    const cons = this.FindConstructionByPriorityAndPath(creep, creep.AssignedRoom.FlatMapOverRoomsInClaimedArea(r => r.find(FIND_MY_CONSTRUCTION_SITES)));
     if (cons) return new Build(cons.id);
 
     // If there are no towers in this room
+    const towers = creep.AssignedRoom.FlatMapOverRoomsInClaimedArea(r => r.find(FIND_MY_STRUCTURES, { filter: s => s.structureType === STRUCTURE_TOWER }) as StructureTower[]);
     const currentRepairs = creep.AssignedRoom.GetAssignedTasks(TaskAction.Repair) as Repair[];
-    if (MyTowers().filter(t => t.pos.roomName === creep.pos.roomName).length === 0) {
+    if (towers.filter(t => t.pos.roomName === creep.pos.roomName).length === 0) {
       if (currentRepairs.filter(r => r.repairRoom === creep.pos.roomName).length < this.MaxRepairPerRoom) {
         const repair = this.FindIdealRepairByStrength(creep);
         if (repair) return new Repair(repair);
       }
     } else {
-      const towers = MyTowers();
       const existingTowerSupplyTasks = supplyTasks.filter(st => towers.some(t => t.id === st.target));
-
       if (existingTowerSupplyTasks.length < this.MaxSupplyForTowers) {
-        const tower = this.FindSupplyByPath(creep, towers, "towers");
+        const tower = this.FindSupplyByPath(creep, towers.filter(t => t.pos.roomName !== creep.pos.roomName), "towers");
         if (tower) return new Supply(tower.id);
       }
     }

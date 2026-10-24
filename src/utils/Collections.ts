@@ -94,22 +94,6 @@ export function FmtRatios(
   return "%" + ret;
 }
 
-export function MySpawnsOrExtensions(): (StructureSpawn | StructureExtension)[] {
-  return Object.values(Game.structures).filter(s => (s.structureType === STRUCTURE_SPAWN || s.structureType === STRUCTURE_EXTENSION) && s.my) as (StructureSpawn | StructureExtension)[];
-}
-
-export function MyTowers(): StructureTower[] {
-  return Object.values(Game.structures).filter(s => s.structureType === STRUCTURE_TOWER && s.my) as StructureTower[];
-}
-
-export function MyConstructionSites(): ConstructionSite[] {
-  return Object.values(Game.constructionSites).filter(s => s.my);
-}
-
-export function Sources(): Source[] {
-  return flatten(Object.values(Game.rooms).map(r => r.find(FIND_SOURCES)));
-}
-
 export function Strongest<E>(container: E[], currGetter: (e: E) => number, totalGetter: (e: E) => number, reverse = false): E | undefined {
   const sorted = container.sort((a: E, b: E) => (currGetter(a) / totalGetter(a)) - (currGetter(b) / totalGetter(b)));
   return reverse ? sorted[0] : sorted.pop();
