@@ -294,8 +294,6 @@ export class RoomExtra extends Room {
 
   get ClaimedMines(): [Room, MiningPosition[]][] {
     return this.MapWithRoomsInClaimedArea(cr => {
-      this.log.info(`ClaimedMines: Processing Mines for ${cr.name}`);
-
       if (cr instanceof RoomExtra)
         return cr.Mines;
 
