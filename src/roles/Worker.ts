@@ -53,10 +53,11 @@ export class Worker extends CreepRoleBase implements CreepRole {
       return null;
   }
 
-  MaxUpgraders = 4;
-  MaxSupplyForSpawns = 2;
+  MaxSupplyForSpawns = 3;
   MaxSupplyForTowers = 2;
-  MaxRepairPerRoom = 2;
+  MaxBuildPerRoom = 3;
+  MaxUpgraders = 1;
+  MaxRepairPerRoom = 1;
   public FindSpendingTask(creep: CreepExtra): CreepTask | null {
     if (creep.AssignedRoom.controller) {
       const downgradeMaintenanceThreshold = CONTROLLER_DOWNGRADE[creep.AssignedRoom.controller.level] * UpdateController.DowngradeMaintenanceRatio;
@@ -76,21 +77,28 @@ export class Worker extends CreepRoleBase implements CreepRole {
     if (creep.AssignedRoom.controller.level === 1)
       return new UpdateController(creep.AssignedRoom.controller);
 
-    const cons = this.FindConstructionByPriorityAndPath(creep, creep.AssignedRoom.FlatMapOverRoomsInClaimedArea(r => r.find(FIND_MY_CONSTRUCTION_SITES)));
-    if (cons) return new Build(cons.id);
+    const constructions = creep.AssignedRoom.FlatMapOverRoomsInClaimedArea(r => r.find(FIND_MY_CONSTRUCTION_SITES));
+    const buildTasks = creep.AssignedRoom.GetAssignedTasks(TaskAction.Build) as Build[];
+    if (buildTasks.filter(b => constructions.some(c => c.id === b.target)).length < this.MaxBuildPerRoom) {
+      const cons = this.FindConstructionByPriorityAndPath(creep, constructions);
+      if (cons) return new Build(cons.id);
+    }
 
-    // If there are no towers in this room
-    const towers = creep.AssignedRoom.FlatMapOverRoomsInClaimedArea(r => r.find(FIND_MY_STRUCTURES, { filter: s => s.structureType === STRUCTURE_TOWER }) as StructureTower[]);
-    const currentRepairs = creep.AssignedRoom.GetAssignedTasks(TaskAction.Repair) as Repair[];
-    if (towers.filter(t => t.pos.roomName === creep.pos.roomName).length === 0) {
-      if (currentRepairs.filter(r => r.repairRoom === creep.pos.roomName).length < this.MaxRepairPerRoom) {
-        const repair = this.FindIdealRepairByStrength(creep);
+    const repairs = creep.AssignedRoom.MapWithRoomsInClaimedArea(r => r.find(FIND_STRUCTURES, { filter: s => s.hits < s.hitsMax }) as AnyStructure[]);
+    const repairTasks = creep.AssignedRoom.GetAssignedTasks(TaskAction.Repair) as Repair[];
+
+    for (const [room, roomRepairs] of repairs) {
+
+      const roomTowers = room.find(FIND_MY_STRUCTURES, { filter: s => s.structureType === STRUCTURE_TOWER });
+      const ongoingRepairs = repairTasks.filter(rt => rt.repairRoom === room.name);
+      const ongoingTowerSupplys = supplyTasks.filter(st => creep.AssignedRoom.Towers.some(t => t.id === st.target));
+
+      // Repair if there are no available towers to do it
+      if (roomTowers.length === 0 && ongoingRepairs.length < this.MaxRepairPerRoom) {
+        const repair = this.FindIdealRepairByStrength(creep, roomRepairs);
         if (repair) return new Repair(repair);
-      }
-    } else {
-      const existingTowerSupplyTasks = supplyTasks.filter(st => towers.some(t => t.id === st.target));
-      if (existingTowerSupplyTasks.length < this.MaxSupplyForTowers) {
-        const tower = this.FindSupplyByPath(creep, towers.filter(t => t.pos.roomName !== creep.pos.roomName), "towers");
+      } else if (roomTowers.length > 0 && ongoingTowerSupplys.length < this.MaxSupplyForTowers) {
+        const tower = this.FindSupplyByPath(creep, creep.AssignedRoom.Towers, "towers");
         if (tower) return new Supply(tower.id);
       }
     }
@@ -334,7 +342,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
     return null;
   }
 
-  FindIdealRepairByStrength(creep: CreepExtra): AnyStructure | undefined | null {
+  FindIdealRepairByStrength(creep: CreepExtra, candidates: AnyStructure[]): AnyStructure | undefined | null {
     const inProgressRepairTasks = creep.AssignedRoom.GetAssignedTasks(TaskAction.Repair).filter(t => (t as Repair).repairRoom === creep.room.name);
     const targetsByCount = new Map<string, number>();
     for (const t of inProgressRepairTasks) {
@@ -344,9 +352,8 @@ export class Worker extends CreepRoleBase implements CreepRole {
       targetsByCount.set(target, existing + 1);
     }
 
-    const repairs = creep.room.find(FIND_STRUCTURES, { filter: s => s.hits < s.hitsMax });
     for (const [p, repairAt, maxRepairs] of creep.AssignedRoom.RepairPriorities) {
-      const needsRepair = repairs
+      const needsRepair = candidates
         .map(s => ({ site: s, count: targetsByCount.get(s.id) ?? 0 }))
         .filter(s => p(s.site) && (s.site.hits / s.site.hitsMax) < repairAt && s.count < maxRepairs)
         .map(c => c.site)
