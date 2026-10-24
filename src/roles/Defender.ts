@@ -25,11 +25,6 @@ export class Defender extends CreepRoleBase implements CreepRole {
     return total;
   }
 
-  override GetInitialTask(room: RoomExtra): CreepTask {
-    const hostile = this.FindLeastTargetedHostile(room);
-    return hostile ? new Attack(hostile) : new GuardTask(room.name);
-  }
-
 
   public SelectNextTask(creep: CreepExtra): CreepTask {
     const hostile = this.FindNearestHostile(creep);

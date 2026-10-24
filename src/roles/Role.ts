@@ -22,7 +22,6 @@ export interface CreepRole {
 
   GetNewCreepName(room: RoomExtra): string; // Return a new name for a newly spawned creep.
   GetNewCreepBody(room: RoomExtra): BodyPartConstant[]; // Return a new body for creeps of this role. See also https://screepspl.us/services/creep-calculator/
-  GetInitialTask(room: RoomExtra): CreepTask | null; // Return the initial task to put in the memory of a to-be-spawned creep. Given creep is not accessible yet.
   SelectNextTask(creep: CreepExtra): CreepTask | null; // Given a creep who just finished a task, find a new task for them.
 
   GetGlobalQuota(): number;
@@ -32,8 +31,8 @@ export interface CreepRole {
   GetRoomCreepsInRole(room: RoomExtra): CreepExtra[]; // Get all creeps  assigned to this role in the room
 
   IsSpawnNeeded(room: RoomExtra): boolean;      // Decide if a spawn is needed for a room.
-  AttemptSpawn(room: RoomExtra, body: BodyPartConstant[], initialTask: CreepTask | null, newName: string): boolean;       // Attempt to spawn at any spawn in a room. Return true if succeeded.
-  AttemptSpawnAt(room: RoomExtra, spawn: StructureSpawn, body: BodyPartConstant[], initialTask: CreepTask, newName: string): boolean; // Attempt to spawn at a specific spawn point.  Return true if succeeded.
+  AttemptSpawn(room: RoomExtra, body: BodyPartConstant[]): boolean;       // Attempt to spawn at any spawn in a room. Return true if succeeded.
+  AttemptSpawnAt(room: RoomExtra, spawn: StructureSpawn, body: BodyPartConstant[]): boolean; // Attempt to spawn at a specific spawn point.  Return true if succeeded.
   OnSpawnScheduled(room: RoomExtra, name: string): void; // Run after a creep is started spawning.
   OnSpawn(creep: CreepExtra): void; // Run on the first tick after a creep is spawned.
   OnCleanup(room: RoomExtra, creepName: string, creepMemory: CreepMemory): void;
@@ -46,7 +45,7 @@ export abstract class CreepRoleBase implements CreepRole {
   abstract GetNewCreepBody(room: RoomExtra): BodyPartConstant[];
   abstract GetRoomQuota(room: RoomExtra): number;
   abstract IsSpawnNeeded(room: RoomExtra): boolean;
-  abstract GetInitialTask(room: RoomExtra): CreepTask | null;
+  abstract SelectNextTask(creep: CreepExtra): CreepTask | null;
 
   // Init
   protected readonly log: Logger<CreepRoleBase> = new Logger(this, { formatArgs: { "<role>": this } });
@@ -59,20 +58,17 @@ export abstract class CreepRoleBase implements CreepRole {
   GetNewCreepName(_room: RoomExtra): string { return GetRandomName(); }
   GetRoomCreepsInRole(room: RoomExtra): CreepExtra[] { return room.AssignedCreeps.filter(c => c.memory.role === this.name); }
   OnCleanup(): void { return; }
-  OnSpawn(_creep: CreepExtra): void { return;}
-  OnSpawnScheduled(room: RoomExtra, name: string): void { return;}
-  RoomTickEnd(): void { return;}
-  RoomTickStart(): void { return;}
-  SelectNextTask(creep: CreepExtra): CreepTask | null { return this.GetInitialTask(creep.AssignedRoom); }
-  TickCreep(_creep: CreepExtra): void { return;}
-  EndOfTick(): void { return;}
-  StartOfTick(): void { return;}
+  OnSpawn(_creep: CreepExtra): void { return; }
+  OnSpawnScheduled(room: RoomExtra, name: string): void { return; }
+  RoomTickEnd(): void { return; }
+  RoomTickStart(): void { return; }
+  TickCreep(_creep: CreepExtra): void { return; }
+  EndOfTick(): void { return; }
+  StartOfTick(): void { return; }
 
   AttemptSpawn(
     room: RoomExtra,
-    body: BodyPartConstant[],
-    initialTask: CreepTask,
-    newName: string,
+    body: BodyPartConstant[]
   ): boolean {
     const cost = BodyCost(body);
     if (room.energyAvailable < cost) {
@@ -81,17 +77,17 @@ export abstract class CreepRoleBase implements CreepRole {
     }
 
     for (const sp of room.AvailableSpawns)
-      if (this.AttemptSpawnAt(room, sp, body, initialTask, newName)) return true;
+      if (this.AttemptSpawnAt(room, sp, body)) return true;
     return false;
   }
 
   AttemptSpawnAt(
     room: RoomExtra,
     spawn: StructureSpawn,
-    body: BodyPartConstant[],
-    initialTask: CreepTask,
-    name: string
+    body: BodyPartConstant[]
   ): boolean {
+    const name = GetRandomName();
+
     // Get directions to surrounding roads
     const nearbyRoads = spawn.pos.findInRange(room.Roads, 1)
       .map(nr => spawn.pos.getDirectionTo(nr.pos.x, nr.pos.y));
@@ -104,7 +100,6 @@ export abstract class CreepRoleBase implements CreepRole {
         role: this.name,
         stuckTicks: 0,
         lastPos: { x: spawn.pos.x, y: spawn.pos.y, room: room.name },
-        currentTask: initialTask,
         spawning: true,
       },
     });

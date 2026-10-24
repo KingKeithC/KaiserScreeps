@@ -112,7 +112,6 @@ export class Scout extends CreepRoleBase implements CreepRole {
     }
   }
 
-  GetInitialTask(): CreepTask<string> | null { return null }
   SelectNextTask(creep: CreepExtra): CreepTask<string> | null {
     const newRoom = this.FindNearbyRandomRoom(creep);
     if (newRoom) return new Move(new RoomPosition(25, 25, newRoom), 40);

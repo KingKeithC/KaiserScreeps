@@ -1,3 +1,4 @@
+import { CreepExtra } from "Creep";
 import { unique } from "lodash";
 import type { RoomExtra } from "Room";
 import { ClaimRoomTask, CreepTask, TaskAction } from "tasks";
@@ -41,8 +42,8 @@ export class Claimer extends CreepRoleBase implements CreepRole {
     return ret;
   }
 
-  override GetInitialTask(room: RoomExtra): CreepTask | null {
-    for (const c of this.UnworkedClaims(room))
+  override SelectNextTask(creep: CreepExtra): CreepTask | null {
+    for (const c of this.UnworkedClaims(creep.AssignedRoom))
       return new ClaimRoomTask(c.pos.roomName, c.name.includes("!CLAIM"));
     return null;
   }

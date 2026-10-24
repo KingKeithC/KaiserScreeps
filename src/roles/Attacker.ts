@@ -121,7 +121,10 @@ export class Attacker extends CreepRoleBase implements CreepRole {
     this.AttackEnemies(creep);
   }
 
-  override GetInitialTask(): CreepTask | null {
+  override GetGlobalQuota(): number { return this.AttackSize; }
+  override GetRoomQuota(): number { return this.AttackSize; }
+  IsSpawnNeeded(): boolean { return this.GetCurrentStep() != null; }
+  SelectNextTask(creep: CreepExtra): CreepTask | null {
     const curr = this.GetCurrentStep();
     if (!curr) return null;
     if (!curr.memory.attackType) return null;
@@ -138,19 +141,5 @@ export class Attacker extends CreepRoleBase implements CreepRole {
     }
 
     return null;
-  }
-  override GetGlobalQuota(): number { return this.AttackSize; }
-  override GetRoomQuota(): number { return this.AttackSize; }
-  IsSpawnNeeded(): boolean { return this.GetCurrentStep() != null; }
-  SelectNextTask(creep: CreepExtra): CreepTask | null {
-    const nextTask = this.GetInitialTask();
-    // Ignore Move if it's the same
-    if (
-      creep.currentTask instanceof Move
-      && nextTask instanceof Move
-      && creep.currentTask.target === nextTask.target
-    )
-      return null;
-    else return nextTask;
   }
 }

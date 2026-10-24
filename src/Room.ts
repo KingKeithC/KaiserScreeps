@@ -592,7 +592,7 @@ export class RoomExtra extends Room {
       if (!r.IsSpawnNeeded(this)) continue;
 
       const name = `${r.GetNewCreepName(this)}, ${r.name}`;
-      const spawnSuccessful = r.AttemptSpawn(this, r.GetNewCreepBody(this), r.GetInitialTask(this), name);
+      const spawnSuccessful = r.AttemptSpawn(this, r.GetNewCreepBody(this));
       if (!spawnSuccessful) continue;
 
       this.SetLastSpawnTick(r.name, Game.time);

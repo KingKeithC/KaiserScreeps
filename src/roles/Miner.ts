@@ -36,13 +36,12 @@ export class Miner extends CreepRoleBase implements CreepRole {
   override GetRoomQuota(room: RoomExtra) { return room.MaxMiners; }
   GetGlobalQuota(): number { return -1; }
 
-  GetInitialTask(room: RoomExtra): CreepTask | null {
-    const miningPosition = room.AvailableMiningPositions().pop();
-    if (miningPosition) return new Mine(miningPosition);
-    this.log.warn(`No suitable mining position found.`);
+  SelectNextTask(creep: CreepExtra): CreepTask | null {
+    for (const mp of creep.AssignedRoom.AvailableMiningPositions())
+      return new Mine(mp);
+    this.log.warn(`No suitable mining position found.`, { "<creep>": creep });
     return null;
   }
-  SelectNextTask(creep: CreepExtra): CreepTask | null { return this.GetInitialTask(creep.AssignedRoom); }
 
   TickCreep(creep: CreepExtra): void {
     // If we have space for energy, and there is energy below us, pick it up

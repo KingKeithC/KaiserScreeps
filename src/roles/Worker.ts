@@ -40,12 +40,9 @@ export class Worker extends CreepRoleBase implements CreepRole {
 
   IsSpawnNeeded() { return true; }
 
-  GetInitialTask(): CreepTask<string> | null { return null; }
   SelectNextTask(creep: CreepExtra): CreepTask | null {
     if (creep.store.getUsedCapacity(RESOURCE_ENERGY) === 0)
       return this.FindGatheringTask(creep);
-    // else if (creep.AssignedRoom.Hostiles.length > 0)
-    //   return this.FindWartimeSpendingTask(creep);
     else if (creep.store.getUsedCapacity(RESOURCE_ENERGY) > 0)
       return this.FindSpendingTask(creep);
     else
