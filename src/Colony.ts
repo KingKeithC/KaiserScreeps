@@ -379,6 +379,16 @@ export class Colony {
       unit: "number",
       description: "The living number of creeps currently spawned by assigned room.",
     },
+    lifetime_idle_ticks: {
+      labelKeys: ["role", "room"],
+      unit: "ticks",
+      description: "The total number of ticks the creep spent idle over its lifetime.",
+    },
+    lifetime_stuck_ticks: {
+      labelKeys: ["role", "room"],
+      unit: "ticks",
+      description: "The total number of ticks the creep intended to move but failed to over its lifetime.",
+    },
     my_creep_count: {
       labelKeys: ["room"],
       unit: "number",
@@ -513,6 +523,8 @@ export class Colony {
         meminfo,
         room_quota: this.MapNameable(Object.values(this.Roles), r => this.MapNameable(this.MyRooms, ro => r.GetRoomQuota(ro))),
         assigned_room_count: this.MapNameable(Object.values(this.Roles), r => this.MapNameable(this.MyRooms, ro => r.GetRoomCreepsInRole(ro).length)),
+        lifetime_idle_ticks: this.MapNameable(Object.values(this.Roles), r => this.MapNameable(this.MyRooms, ro => sum(r.GetRoomCreepsInRole(ro), cir => cir.LifetimeIdle))),
+        lifetime_stuck_ticks: this.MapNameable(Object.values(this.Roles), r => this.MapNameable(this.MyRooms, ro => sum(r.GetRoomCreepsInRole(ro), cir => cir.LifetimeStuck))),
         my_creep_count: this.MapNameable(Object.values(Game.rooms), vr => vr.find(FIND_MY_CREEPS).length),
         neutral_structure_count: this.MapNameable(Object.values(Game.rooms), vr => vr.find(FIND_STRUCTURES, { filter: s => !("owner" in s) }).length),
         hostile_creep_count: this.MapNameable(Object.values(Game.rooms), vr => vr.find(FIND_HOSTILE_CREEPS).length),

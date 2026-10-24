@@ -14,9 +14,12 @@ declare global {
     stuckTicks?: number;
     lastPos?: RoomPositionString;
     moveMode?: "long" | "avoidCreeps";
-    successfulAvoidMoves?: number;
-    spawning?: boolean,
-    _move?: {
+    successfulAvoidMoves?: number; // In avoidCreeps mode, how many times did we successfully avoid them?
+    spawning?: boolean,      // Whether or not we were spawning on the LAST tick.
+    lifetimeIdle?: number,   // How many ticks have we gone without moving or performing an action (and not due to fatigue)?
+    lifetimeStuck?: number,  // For how many ticks have we tried to move, but ended up not (and not due to fatigue)?
+    intendToMove?: boolean,  // Whether or not we intended to move on the LAST tick.
+    _move?: { // Move object tracked by screeps' internal moveTo method.
       dest: { x: number, y: number, room: string; },
       time: number,
       path: string,
@@ -64,7 +67,23 @@ export class CreepExtra extends Creep {
   }
 
   StartOfTick(): void {
-    this.MovedBetweenTicks = this.memory.lastPos !== SerializeRoomPosition(this.pos);
+    if (this.spawning) return; // Ignore spawning creeps.
+
+
+    // Invoke callback is we just finished spawning
+    if (!this.spawning && (this.memory.spawning ?? false)) {
+      this.memory.spawning = false;
+      this.log.info(`Ready for service!`);
+      if (this.role) this.role.OnSpawn(this);
+    } else if (this.ticksToLive === 1)
+      this.OnLastTickOfLife();
+
+    // Update state based on last tick's expectations.
+    this.MovedBetweenTicks = !this.LastPos.isEqualTo(this.pos);
+    if (this.MovedBetweenTicks && this.room.name !== this.LastPos.roomName)
+      this.OnLeaveRoom(this.LastPos.roomName);
+    if (this.IntendedToMove && !this.MovedBetweenTicks)
+      this.LifetimeStuck++;
   }
 
   MaxStuckTicks = 2;
@@ -102,13 +121,10 @@ export class CreepExtra extends Creep {
     });
   }
 
-  OnUnstuck(): void { return; }
-  OnStuck(): void { return; }
-  OnMoveSucceeded(): void { return; }
-
   // Returns 1 when in range; otherwise returns the moveTo result.
   MovedBetweenTicks = false;
   MoveCreep(target: RoomPosition | { pos: RoomPosition; }, opts?: MoveToOpts): number {
+    this.IntendedToMove = true;
     const targetPos = target instanceof RoomPosition ? target : target.pos;
 
     if (this.pos.roomName === targetPos.roomName && this.pos.getRangeTo(targetPos) <= (opts?.range ?? 1)) {
@@ -120,7 +136,6 @@ export class CreepExtra extends Creep {
       // eslint-disable-next-line no-underscore-dangle
       delete this.memory._move; // Clear out saved path
       this.log.verbose("MoveCreep: Move complete, arrived and reset stuck tracking.");
-      this.OnMoveSucceeded();
       return 1;
     }
 
@@ -138,12 +153,10 @@ export class CreepExtra extends Creep {
 
     // Switch move mode
     if (this.memory.moveMode === "long" && (this.memory.stuckTicks ?? 0) > this.MaxStuckTicks) {
-      this.OnStuck();
       this.memory.moveMode = "avoidCreeps";
       this.memory.stuckTicks = 0;
       this.memory.successfulAvoidMoves = 0;
     } else if (this.memory.moveMode === "avoidCreeps" && (this.memory.successfulAvoidMoves ?? 0) >= this.MaxAvoidTicks) {
-      this.OnUnstuck();
       this.memory.moveMode = "long";
       this.memory.stuckTicks = 0;
       this.memory.successfulAvoidMoves = 0;
@@ -154,27 +167,28 @@ export class CreepExtra extends Creep {
       : this.MoveAvoidCreeps(targetPos, opts);
   }
 
-  CheckRoomEvents(room: RoomExtra): void {
-    // If Creep is spawning, don't proceed.
-    if (this.spawning) return; // Do not tick spawning creeps
-    else if (!this.spawning && (this.memory.spawning ?? false)) {
-      // Invoke callback when we finish spawning
-      this.memory.spawning = false;
-      this.log.info(`Ready for service!`, { "<room>": room });
-      if (this.role) this.role.OnSpawn(this);
-    } else if (this.ticksToLive === 1)
-      this.OnLastTickOfLife();
-
-    // Run a callback if we moved to a new room since last tick.
-    if (this.LastPos && this.room.name !== this.LastPos.roomName)
-      this.OnLeaveRoom(this.LastPos.roomName);
-  }
-
   get LastPos(): RoomPosition { return this.memory.lastPos ? DeserializeRoomPosition(this.memory.lastPos) : this.pos; };
   set LastPos(value: RoomPosition) { this.memory.lastPos = SerializeRoomPosition(value); };
 
+  private set LifetimeIdle(value: number) { this.memory.lifetimeIdle = value; }
+  get LifetimeIdle(): number { return this.memory.lifetimeIdle ?? 0; }
+
+  private set LifetimeStuck(value: number) { this.memory.lifetimeStuck = value; }
+  get LifetimeStuck(): number { return this.memory.lifetimeStuck ?? 0; }
+
+  private set IntendedToMove(value: boolean) { this.memory.intendToMove = value; }
+  get IntendedToMove(): boolean { return this.memory.intendToMove ?? false; }
+
+  ActedThisTick = false;
   EndOfTick(): void {
     this.memory.lastPos = SerializeRoomPosition(this.pos);
+
+    if (this.fatigue === 0 || this.spawning)
+      return; // Nothing more to do, these situations don't count as idle
+
+    // If we didn't move and didn't act, and aren't tired, increment the idle counter
+    if (!(this.MovedBetweenRooms || this.MovedBetweenTicks || this.ActedThisTick))
+      this.LifetimeIdle++;
   }
 
   MovedBetweenRooms = false;
@@ -184,7 +198,7 @@ export class CreepExtra extends Creep {
   }
 
   OnLastTickOfLife(): void {
-    this.log.info("Goodbye cruel world :(");
+    this.log.info(`Goodbye cruel world :(  (LifetimeIdle: ${this.LifetimeIdle}, LifetimeStuck: ${this.LifetimeStuck})`);
     this.say('☠️☠️☠️', true);
   }
 
@@ -213,6 +227,7 @@ export class CreepExtra extends Creep {
     if (task === null) return; // Nothing more to do
     const outcome = task.act(this); // Act on the task
     this.currentTask = task;
+    this.ActedThisTick = true;
     const outcomeSummary = `[target.pos: ${outcome?.target.pos} result: ${outcome?.result}, range: ${outcome?.range}]`;
     this.log.verbose(`Task.act: ${JSON.stringify(task)} Outcome ${outcomeSummary}`, { "<role>": this.role });
 
@@ -253,5 +268,10 @@ export class CreepExtra extends Creep {
       this.move(TOP);
     else if (this.pos.x === 0) // LEFT
       this.move(RIGHT);
+    else
+      return;
+
+    this.ActedThisTick = true;
+    this.IntendedToMove = true;
   }
 }
