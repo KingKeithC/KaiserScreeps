@@ -49,7 +49,7 @@ export class ClaimRoomTask extends TargetTask<typeof TaskAction.Claim, string> {
       outcome = { range: 1, result: creep.reserveController(controller), target: controller };
 
     // Ensure this room is added to the claim list for our assigned room
-    if (outcome != null && outcome.result === OK && !(creep.room.name in creep.AssignedRoom.ClaimedRoomNames))
+    if (outcome != null && outcome.result === OK && !(creep.room.name in creep.AssignedRoom.colony.AllClaimedRoomNames) && !(creep.room.name in Memory.rooms))
       creep.AssignedRoom.ClaimedRoomNames = unique([...creep.AssignedRoom.ClaimedRoomNames, creep.room.name]);
 
     if (outcome != null && outcome.result === ERR_TIRED)

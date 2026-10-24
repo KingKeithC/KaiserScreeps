@@ -1,5 +1,5 @@
 import { CreepExtra } from "Creep";
-import { Dictionary, sum } from "lodash";
+import { Dictionary, flatten, sum, unique } from "lodash";
 import { Attacker } from "roles/Attacker";
 import { Claimer } from "roles/Claimer";
 import { Defender } from "roles/Defender";
@@ -271,6 +271,10 @@ export class Colony {
       r.ClearCostMatrix();
       this.log.report(`Regenerated ${r.name} PathfindingCostMatrix ${r.PathfindingCostMatrix !== null ? "Yes" : "Error"}`);
     });
+  }
+
+  get AllClaimedRoomNames(): string[] {
+    return unique(flatten(this.MyRooms.map(mr => mr.ClaimedRoomNames)));
   }
 
   TickOtherVisibleRoom(room: Room): void {
