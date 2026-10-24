@@ -1,14 +1,5 @@
 import { flatten } from "lodash";
 
-export function Strongest<E>(container: E[], currGetter: (e: E) => number, totalGetter: (e: E) => number, reverse = false): E | undefined {
-  const sorter = (a: E, b: E) => (currGetter(a) / totalGetter(a)) - (currGetter(b) / totalGetter(b));
-  const sorted = container.sort(sorter);
-  if (reverse)
-    return sorted[0];
-  else
-    return sorted.pop();
-}
-
 export function UnpackColour(colour: string): [number, number, number] {
   return [
     Number.parseInt(colour.slice(1, 3), 16),
@@ -117,4 +108,42 @@ export function MyConstructionSites(): ConstructionSite[] {
 
 export function Sources(): Source[] {
   return flatten(Object.values(Game.rooms).map(r => r.find(FIND_SOURCES)));
+}
+
+export function Strongest<E>(container: E[], currGetter: (e: E) => number, totalGetter: (e: E) => number, reverse = false): E | undefined {
+  const sorted = container.sort((a: E, b: E) => (currGetter(a) / totalGetter(a)) - (currGetter(b) / totalGetter(b)));
+  return reverse ? sorted[0] : sorted.pop();
+}
+
+export function Weakest<E>(container: E[], currGetter: (e: E) => number, totalGetter: (e: E) => number): E | undefined {
+  return Strongest(container, currGetter, totalGetter, true);
+}
+
+export function SearchLocalByPathThenRemoteByStrength(
+  start: _HasRoomPosition,
+  candidates: _HasRoomPosition[],
+  strengthSorter: (a: _HasRoomPosition, b: _HasRoomPosition) => number
+): _HasRoomPosition | null {
+  const inThisRoom = [];
+  const notInThisRoom = [];
+
+  // Split the candidates into groups based on whether
+  // they are in the same room as the start.
+  for (const p of candidates)
+    if (p.pos.roomName === start.pos.roomName)
+      inThisRoom.push(p);
+    else
+      notInThisRoom.push(p);
+
+  // Filter the candidate in this room by path
+  let found: _HasRoomPosition | undefined | null;
+
+  found = start.pos.findClosestByPath(inThisRoom, { ignoreCreeps: true });
+  if (found) return found;
+
+  // Filter the remaining candidates by the strength function
+  found = notInThisRoom.sort(strengthSorter).pop();
+  if (found) return found;
+
+  return null;
 }

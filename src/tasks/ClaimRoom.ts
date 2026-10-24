@@ -49,8 +49,8 @@ export class ClaimRoomTask extends TargetTask<typeof TaskAction.Claim, string> {
       outcome = { range: 1, result: creep.reserveController(controller), target: controller };
 
     // Ensure this room is added to the claim list for our assigned room
-    if (outcome != null && outcome.result === OK && !(creep.room.name in creep.AssignedRoom.colony.AllClaimedRoomNames) && !(creep.room.name in Memory.rooms))
-      creep.AssignedRoom.ClaimedRoomNames = unique([...creep.AssignedRoom.ClaimedRoomNames, creep.room.name]);
+    if (outcome != null && outcome.result === OK)
+      creep.colony.StakeClaimOnRoom(creep, creep.pos.roomName);
 
     if (outcome != null && outcome.result === ERR_TIRED)
       outcome.result = ERR_NOT_IN_RANGE; // Ignore ERR_TIRED, which occurs if the "Upgrade blocked" timer is running, use ERR_NOT_IN_RANGE to force a move

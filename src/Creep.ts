@@ -27,7 +27,7 @@ declare global {
 
 export class CreepExtra extends Creep {
   private readonly log = new Logger(this, { formatArgs: { "<creep>": this } });
-  private readonly colony: Colony;
+  readonly colony: Colony;
   constructor(id: Id<Creep>, colony: Colony) {
     super(id);
     this.colony = colony;

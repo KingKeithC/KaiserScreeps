@@ -298,6 +298,24 @@ export class Colony {
     }
   }
 
+  StakeClaimOnRoom(claimer: CreepExtra, newRoom: string): void {
+    if (newRoom in claimer.AssignedRoom.ClaimedRoomNames)
+      return;
+
+    if (newRoom in this.AllClaimedRoomNames) {
+      this.log.info(`Sorry ${claimer} but ${newRoom} is claimed elsewhere.`);
+      return;
+    }
+
+    const room = Game.rooms[newRoom];
+    if (!newRoom) throw new Error(`${claimer} Tried claiming room ${newRoom} we cannot see!`);
+
+    if (room.controller?.owner?.username !== this.username)
+      return;
+
+    claimer.AssignedRoom.ClaimedRoomNames.push(newRoom);
+  }
+
   TryGeneratingPixel(): void {
     if (Game.cpu.bucket >= 10000) {
       const res = Game.cpu.generatePixel();
