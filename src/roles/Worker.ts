@@ -141,7 +141,6 @@ export class Worker extends CreepRoleBase implements CreepRole {
 
   MinUsedCapacityPerNonCreepSource = 150;
   MaxIncomingPerEnergySource = 3;
-  MaxIncomingPerContainer = 3;
   RelyOnMinersAt = 1000;
   FindGatheringTask(creep: CreepExtra): CreepTask | null {
     if (
@@ -230,11 +229,14 @@ export class Worker extends CreepRoleBase implements CreepRole {
           continue;
         }
       } else if (possible instanceof StructureContainer) {
+        const acceptibleDeliveryCount = Math.floor(
+          possible.store.getUsedCapacity(RESOURCE_ENERGY) / creep.store.getCapacity(RESOURCE_ENERGY),
+        );
+        const currentDeliveryCount = activeDeliveries.filter(
+          ad => ad.source.kind === 'container' && ad.source.id === possible.id,
+        ).length;
         // Skip source if it has too many incoming deliveries already
-        if (
-          activeDeliveries.filter(ad => ad.source.kind === 'container' && ad.source.id === possible.id).length >
-          this.MaxIncomingPerContainer
-        ) {
+        if (currentDeliveryCount >= acceptibleDeliveryCount) {
           continue;
         }
       } else if (possible instanceof Creep) {
