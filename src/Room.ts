@@ -10,7 +10,7 @@ import {
 } from 'utils/RoomUtils';
 import { Colony } from 'Colony';
 import { CreepExtra } from 'Creep';
-import { FmtRatios, LerpColour, SerializeRoomPosition } from 'utils/Collections';
+import { DeserializeRoomPosition, FmtRatios, LerpColour, SerializeRoomPosition } from 'utils/Collections';
 import { Colours } from 'Data';
 import { CreepRole } from 'roles/Role';
 import { Logger } from 'utils/Logger';
@@ -415,9 +415,8 @@ export class RoomExtra extends Room {
 
   UnfilledMiningPositions(): MiningPosition[] {
     const ret = [];
-    const assignedMiningPositions = this.colony.GetAllAssignedTasks(TaskAction.Mine).map(p => (p as Mine).target);
     for (const [_room, mines] of this.ClaimedMines)
-      for (const mine of mines) if (!assignedMiningPositions.some(amp => amp.pos === mine.pos)) ret.push(mine);
+      for (const mine of mines) if (DeserializeRoomPosition(mine.pos).lookFor(LOOK_CREEPS).length === 0) ret.push(mine);
     return ret;
   }
 
