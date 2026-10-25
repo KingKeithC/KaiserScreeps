@@ -135,7 +135,6 @@ export class Worker extends CreepRoleBase implements CreepRole {
     if (creep.AssignedRoom.storage && creep.AssignedRoom.storage.store.getFreeCapacity(RESOURCE_ENERGY))
       return new Supply(creep.AssignedRoom.storage.id as Id<AnyStoreStructure>);
 
-    // this.log.warn("No spending tasks found!");
     return null;
   }
 
@@ -149,7 +148,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
       (creep.AssignedRoom.storage?.store.getUsedCapacity(RESOURCE_ENERGY) ?? 0) >
         creep.AssignedRoom.StorageWartimeEnergyBuffer
     ) {
-      this.log.warn('Collecting from storage since spawn is throttled...');
+      this.log.warn('Collecting from storage since spawn is throttled...', { '<creep>': creep });
       return new CollectEnergy({ kind: 'storage', id: creep.AssignedRoom.storage.id });
     }
 
@@ -180,7 +179,6 @@ export class Worker extends CreepRoleBase implements CreepRole {
           !(possible instanceof Creep) &&
           possible.store.getUsedCapacity(RESOURCE_ENERGY) < this.MinUsedCapacityPerNonCreepSource) // Skip other stores that are not full enough
       ) {
-        // this.log.info(`!Possibility: too little energy ${possible}`);
         continue;
       }
 
@@ -188,7 +186,6 @@ export class Worker extends CreepRoleBase implements CreepRole {
       if (possible instanceof StructureStorage) {
         // Skip Storage if it has less than the wartime amount
         if (possible.store.getUsedCapacity(RESOURCE_ENERGY) <= creep.AssignedRoom.StorageWartimeEnergyBuffer) {
-          // this.log.info(`!Possibility: StructureStorage: less than the wartime amount ${possible}`);
           continue;
         }
 
@@ -197,7 +194,6 @@ export class Worker extends CreepRoleBase implements CreepRole {
           activeDeliveries.filter(ad => ad.source.kind === 'storage' && ad.source.id === possible.id).length >
           this.MaxIncomingPerEnergySource
         ) {
-          // this.log.info(`!Possibility: StructureStorage: too many incoming deliveries already ${possible}`);
           continue;
         }
       } else if (possible instanceof Resource && possible.resourceType === RESOURCE_ENERGY) {
@@ -206,7 +202,6 @@ export class Worker extends CreepRoleBase implements CreepRole {
           activeDeliveries.filter(ad => ad.source.kind === 'dropped' && ad.source.id === possible.id).length >
           this.MaxIncomingPerEnergySource
         ) {
-          // this.log.info(`!Possibility: Resource: too many incoming deliveries already`);
           continue;
         }
 
@@ -215,14 +210,12 @@ export class Worker extends CreepRoleBase implements CreepRole {
         // const distance = path.length;
         // const approxAmtRemaining = Math.ceil(res.amount / 1000) * distance;
         // const collect = approxAmtRemaining > this.IgnoreDroppedResourcesLessThan;
-        // this.log.debug(`${collect ? "Collecting" : "Ignoring"} Dropped ${res} that is ${distance} steps away, currently has ${res.amount} remaining, we expect ${approxAmtRemaining} by the time we get there.`);
       } else if (possible instanceof Ruin) {
         // Skip source if it has too many incoming deliveries already
         if (
           activeDeliveries.filter(ad => ad.source.kind === 'ruin' && ad.source.id === possible.id).length >
           this.MaxIncomingPerEnergySource
         ) {
-          // this.log.info(`!Possibility: Ruin: too many incoming deliveries already`);
           continue;
         }
       } else if (possible instanceof Tombstone) {
@@ -231,7 +224,6 @@ export class Worker extends CreepRoleBase implements CreepRole {
           activeDeliveries.filter(ad => ad.source.kind === 'tomb' && ad.source.id === possible.id).length >
           this.MaxIncomingPerEnergySource
         ) {
-          // this.log.info(`!Possibility: Tombstone: too many incoming deliveries already`);
           continue;
         }
       } else if (possible instanceof StructureContainer) {
@@ -240,7 +232,6 @@ export class Worker extends CreepRoleBase implements CreepRole {
           activeDeliveries.filter(ad => ad.source.kind === 'container' && ad.source.id === possible.id).length >
           this.MaxIncomingPerContainer
         ) {
-          // this.log.info(`!Possibility: StructureContainer: too many incoming deliveries already`);
           continue;
         }
       } else if (possible instanceof Creep) {
@@ -249,7 +240,6 @@ export class Worker extends CreepRoleBase implements CreepRole {
           activeDeliveries.filter(ad => ad.source.kind === 'creep' && ad.source.name === possible.name).length >
           this.MaxIncomingPerEnergySource
         ) {
-          // this.log.info(`!Possibility: Creep: too many incoming deliveries already`);
           continue;
         }
       } else if (possible instanceof StructureLink) {
@@ -258,7 +248,6 @@ export class Worker extends CreepRoleBase implements CreepRole {
           activeDeliveries.filter(ad => ad.source.kind === 'link' && ad.source.id === possible.id).length >
           this.MaxIncomingPerEnergySource
         ) {
-          // this.log.info(`!Possibility: StructureLink: too many incoming deliveries already`);
           continue;
         }
       } else {
@@ -266,7 +255,6 @@ export class Worker extends CreepRoleBase implements CreepRole {
         continue;
       }
 
-      // this.log.info(`Possibility: ${possible}`);
       possibleSources.push(possible);
     }
 
