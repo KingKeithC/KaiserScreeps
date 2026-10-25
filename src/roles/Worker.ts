@@ -1,4 +1,5 @@
 import { CreepExtra } from 'Creep';
+import { sum } from 'lodash';
 import { RoomExtra } from 'Room';
 import {
   Build,
@@ -139,8 +140,9 @@ export class Worker extends CreepRoleBase implements CreepRole {
   }
 
   MinUsedCapacityPerNonCreepSource = 150;
-  MaxIncomingPerEnergySource = 2;
-  MaxIncomingPerContainer = 4;
+  MaxIncomingPerEnergySource = 3;
+  MaxIncomingPerContainer = 3;
+  RelyOnMinersAt = 1000;
   FindGatheringTask(creep: CreepExtra): CreepTask | null {
     if (
       creep.AssignedRoom.energyAvailable / creep.AssignedRoom.energyCapacityAvailable < 0.5 &&
@@ -153,7 +155,8 @@ export class Worker extends CreepRoleBase implements CreepRole {
     }
 
     const activeDeliveries = creep.AssignedRoom.GetAssignedTasks(TaskAction.CollectEnergy) as CollectEnergy[];
-    const miners = (creep.AssignedRoom.AssignedCreepsByRoleGroup.get('Miners') ?? []).filter(m => !m.spawning);
+    // const miners = (creep.AssignedRoom.AssignedCreepsByRoleGroup.get('Miners') ?? []).filter(m => !m.spawning);
+    const miners = creep.AssignedRoom.AssignedCreeps.filter(m => !m.spawning && m.currentTask instanceof Mine);
     // prettier-ignore
     const allSources = [
       /* eslint-disable @typescript-eslint/no-unnecessary-type-assertion */
@@ -258,7 +261,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
       possibleSources.push(possible);
     }
 
-    if (possibleSources.length === 0) return null; // Nothing more to do
+    // if (possibleSources.length === 0) return null; // Nothing more to do
 
     const sameRoom = creep.pos.findClosestByPath(
       possibleSources.filter(s => s.pos.roomName === creep.room.name),
@@ -278,6 +281,9 @@ export class Worker extends CreepRoleBase implements CreepRole {
     else if (sameRoom instanceof Resource)
       return new CollectEnergy({ kind: 'dropped', id: sameRoom.id }, { maxAttempts: 3 });
 
+    const totalMinerBodies = sum(miners, m => BodyCost(m.body));
+    this.log.info(`Total Miner Body Cost in ${creep.AssignedRoom.name}'s Area: ${totalMinerBodies}`);
+
     const amountMapper = (a: Resource | { store: StoreDefinition }) =>
       a instanceof Resource ? a.amount : a.store.getUsedCapacity(RESOURCE_ENERGY);
     const mostInNeed = possibleSources.sort((b, a) => amountMapper(a) - amountMapper(b))[0];
@@ -295,9 +301,12 @@ export class Worker extends CreepRoleBase implements CreepRole {
       return new CollectEnergy({ kind: 'tomb', id: mostInNeed.id }, { maxAttempts: 3 });
     else if (mostInNeed instanceof Resource)
       return new CollectEnergy({ kind: 'dropped', id: mostInNeed.id }, { maxAttempts: 3 });
-    else if (miners.length === 0) {
-      this.log.warn(`Emergency mining since no miners are available...`, { '<creep>': creep });
-      const source = creep.AssignedRoom.AvailableMiningPositions().pop();
+    else if (totalMinerBodies < this.RelyOnMinersAt) {
+      this.log.warn(
+        `Emergency mining since too few miners are available (${totalMinerBodies}/${this.RelyOnMinersAt})...`,
+        { '<creep>': creep },
+      );
+      const source = creep.AssignedRoom.UnfilledMiningPositions().pop();
       if (source) return new Mine(source);
     } else if (mostInNeed === null || mostInNeed === undefined)
       throw new Error(`We only sorted the target ${mostInNeed}, yet seem to have lost it.`);

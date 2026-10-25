@@ -413,6 +413,14 @@ export class RoomExtra extends Room {
     return ret;
   }
 
+  UnfilledMiningPositions(): MiningPosition[] {
+    const ret = [];
+    const assignedMiningPositions = this.colony.GetAllAssignedTasks(TaskAction.Mine).map(p => (p as Mine).target);
+    for (const [_room, mines] of this.ClaimedMines)
+      for (const mine of mines) if (!assignedMiningPositions.some(amp => amp.pos === mine.pos)) ret.push(mine);
+    return ret;
+  }
+
   LastSpawnTick(roleName: string): number {
     return (this.memory.lastSpawnTick ?? {})[roleName] ?? 0;
   }
