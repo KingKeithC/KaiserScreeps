@@ -261,8 +261,6 @@ export class Worker extends CreepRoleBase implements CreepRole {
       possibleSources.push(possible);
     }
 
-    // if (possibleSources.length === 0) return null; // Nothing more to do
-
     const sameRoom = creep.pos.findClosestByPath(
       possibleSources.filter(s => s.pos.roomName === creep.room.name),
       { ignoreCreeps: true },
@@ -308,8 +306,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
       );
       const source = creep.AssignedRoom.UnfilledMiningPositions().pop();
       if (source) return new Mine(source);
-    } else if (mostInNeed === null || mostInNeed === undefined)
-      throw new Error(`We only sorted the target ${mostInNeed}, yet seem to have lost it.`);
+    }
 
     if (creep.AssignedRoom.storage !== undefined) {
       const warning = 'Too few energy sources, need to collect from room storage!';
