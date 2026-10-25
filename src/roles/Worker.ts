@@ -1,5 +1,5 @@
-import { CreepExtra } from "Creep";
-import { RoomExtra } from "Room";
+import { CreepExtra } from 'Creep';
+import { RoomExtra } from 'Room';
 import {
   Build,
   CollectEnergy,
@@ -9,21 +9,21 @@ import {
   Repair,
   Supply,
   TaskAction,
-  UpdateController
-} from "tasks";
-import { MakeBody } from "utils/Collections";
-import { BodyCost } from "utils/CreepUtils";
-import { CreepRoleBase, CreepRole } from "./Role";
+  UpdateController,
+} from 'tasks';
+import { MakeBody } from 'utils/Collections';
+import { BodyCost } from 'utils/CreepUtils';
+import { CreepRoleBase, CreepRole } from './Role';
 
 export class Worker extends CreepRoleBase implements CreepRole {
-  readonly groupName = "Workers";
-  readonly name: string = "Worker";
+  readonly groupName = 'Workers';
+  readonly name: string = 'Worker';
 
   GetNewCreepBody(room: RoomExtra): BodyPartConstant[] {
     const tiers = [
       // MakeBody([WORK, 11], [CARRY, 6], [MOVE, 8]), // 1800
       MakeBody([WORK, 6], [CARRY, 7], [MOVE, 7]), // 1300
-      MakeBody([WORK, 2], [CARRY, 4], [MOVE, 3]) // 550
+      MakeBody([WORK, 2], [CARRY, 4], [MOVE, 3]), // 550
     ];
 
     const measure = room.AssignedCreeps.length < 3 ? room.energyAvailable : room.energyCapacityAvailable;
@@ -36,13 +36,13 @@ export class Worker extends CreepRoleBase implements CreepRole {
     if (creep.store.getFreeCapacity(RESOURCE_ENERGY) > 0) {
       // If we run across a tombstone containing energy, pick it up
       const tomb = creep.pos.findInRange(FIND_TOMBSTONES, 1, {
-        filter: t => t.store.getUsedCapacity(RESOURCE_ENERGY) > 0
+        filter: t => t.store.getUsedCapacity(RESOURCE_ENERGY) > 0,
       });
       for (const t of tomb) creep.withdraw(t, RESOURCE_ENERGY);
 
       // If there is energy next to us, pick it up
       const dropped = creep.pos.findInRange(FIND_DROPPED_RESOURCES, 1, {
-        filter: r => r.resourceType === RESOURCE_ENERGY && r.amount > 0
+        filter: r => r.resourceType === RESOURCE_ENERGY && r.amount > 0,
       });
       for (const d of dropped) creep.pickup(d);
     }
@@ -56,7 +56,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
   IsSpawnNeeded(room: RoomExtra) {
     return (
       Game.time - room.LastSpawnTick(this.name) > this.MinTicksBetweenWorkers &&
-      (room.AssignedCreepsByRoleName.get("Worker") ?? []).length < this.GetRoomQuota(room)
+      (room.AssignedCreepsByRoleName.get('Worker') ?? []).length < this.GetRoomQuota(room)
     );
   }
 
@@ -84,7 +84,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
       supplyTasks.filter(s => creep.AssignedRoom.SpawnsOrExtensions.some(sp => sp.id === s.target)).length <
       this.MaxSupplyForSpawns
     ) {
-      const spawn = this.FindSupplyByPath(creep, creep.AssignedRoom.SpawnsOrExtensions, "spawns/extensions");
+      const spawn = this.FindSupplyByPath(creep, creep.AssignedRoom.SpawnsOrExtensions, 'spawns/extensions');
       if (spawn) return new Supply(spawn.id);
     }
 
@@ -94,7 +94,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
     if (creep.AssignedRoom.controller.level === 1) return new UpdateController(creep.AssignedRoom.controller);
 
     const constructions = creep.AssignedRoom.FlatMapOverRoomsInClaimedArea(r =>
-      r instanceof Room ? r.find(FIND_MY_CONSTRUCTION_SITES) : []
+      r instanceof Room ? r.find(FIND_MY_CONSTRUCTION_SITES) : [],
     );
     const buildTasks = creep.AssignedRoom.GetAssignedTasks(TaskAction.Build) as Build[];
     if (buildTasks.filter(b => constructions.some(c => c.id === b.target)).length < this.MaxBuildPerRoom) {
@@ -103,7 +103,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
     }
 
     const repairs = creep.AssignedRoom.MapWithRoomsInClaimedArea(r =>
-      r instanceof Room ? r.find(FIND_STRUCTURES, { filter: s => s.hits < s.hitsMax }) : []
+      r instanceof Room ? r.find(FIND_STRUCTURES, { filter: s => s.hits < s.hitsMax }) : [],
     );
     const repairTasks = creep.AssignedRoom.GetAssignedTasks(TaskAction.Repair) as Repair[];
 
@@ -118,7 +118,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
         const repair = this.FindIdealRepairByStrength(creep, roomRepairs);
         if (repair) return new Repair(repair);
       } else if (roomTowers.length > 0 && ongoingTowerSupplys.length < this.MaxSupplyForTowers) {
-        const tower = this.FindSupplyByPath(creep, creep.AssignedRoom.Towers, "towers");
+        const tower = this.FindSupplyByPath(creep, creep.AssignedRoom.Towers, 'towers');
         if (tower) return new Supply(tower.id);
       }
     }
@@ -126,7 +126,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
     const currentUpgradeCount = creep.AssignedRoom.GetAssignedTasks(TaskAction.UpgradeController).length;
     if (currentUpgradeCount < this.MaxUpgraders) {
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      return new UpdateController(creep.AssignedRoom.controller, { mode: "upgrade" });
+      return new UpdateController(creep.AssignedRoom.controller, { mode: 'upgrade' });
     }
 
     // If room has storage with room, put it there
@@ -147,12 +147,12 @@ export class Worker extends CreepRoleBase implements CreepRole {
       (creep.AssignedRoom.storage?.store.getUsedCapacity(RESOURCE_ENERGY) ?? 0) >
         creep.AssignedRoom.StorageWartimeEnergyBuffer
     ) {
-      this.log.warn("Collecting from storage since spawn is throttled...");
-      return new CollectEnergy({ kind: "storage", id: creep.AssignedRoom.storage.id });
+      this.log.warn('Collecting from storage since spawn is throttled...');
+      return new CollectEnergy({ kind: 'storage', id: creep.AssignedRoom.storage.id });
     }
 
     const activeDeliveries = creep.AssignedRoom.GetAssignedTasks(TaskAction.CollectEnergy) as CollectEnergy[];
-    const miners = (creep.AssignedRoom.AssignedCreepsByRoleGroup.get("Miners") ?? []).filter(m => !m.spawning);
+    const miners = (creep.AssignedRoom.AssignedCreepsByRoleGroup.get('Miners') ?? []).filter(m => !m.spawning);
     // prettier-ignore
     const allSources = [
       /* eslint-disable @typescript-eslint/no-unnecessary-type-assertion */
@@ -192,7 +192,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
 
         // Skip source if it has too many incoming deliveries already
         if (
-          activeDeliveries.filter(ad => ad.source.kind === "storage" && ad.source.id === possible.id).length >
+          activeDeliveries.filter(ad => ad.source.kind === 'storage' && ad.source.id === possible.id).length >
           this.MaxIncomingPerEnergySource
         ) {
           // this.log.info(`!Possibility: StructureStorage: too many incoming deliveries already ${possible}`);
@@ -201,7 +201,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
       } else if (possible instanceof Resource && possible.resourceType === RESOURCE_ENERGY) {
         // Skip source if it has too many incoming deliveries already
         if (
-          activeDeliveries.filter(ad => ad.source.kind === "dropped" && ad.source.id === possible.id).length >
+          activeDeliveries.filter(ad => ad.source.kind === 'dropped' && ad.source.id === possible.id).length >
           this.MaxIncomingPerEnergySource
         ) {
           // this.log.info(`!Possibility: Resource: too many incoming deliveries already`);
@@ -217,7 +217,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
       } else if (possible instanceof Ruin) {
         // Skip source if it has too many incoming deliveries already
         if (
-          activeDeliveries.filter(ad => ad.source.kind === "ruin" && ad.source.id === possible.id).length >
+          activeDeliveries.filter(ad => ad.source.kind === 'ruin' && ad.source.id === possible.id).length >
           this.MaxIncomingPerEnergySource
         ) {
           // this.log.info(`!Possibility: Ruin: too many incoming deliveries already`);
@@ -226,7 +226,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
       } else if (possible instanceof Tombstone) {
         // Skip source if it has too many incoming deliveries already
         if (
-          activeDeliveries.filter(ad => ad.source.kind === "tomb" && ad.source.id === possible.id).length >
+          activeDeliveries.filter(ad => ad.source.kind === 'tomb' && ad.source.id === possible.id).length >
           this.MaxIncomingPerEnergySource
         ) {
           // this.log.info(`!Possibility: Tombstone: too many incoming deliveries already`);
@@ -235,7 +235,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
       } else if (possible instanceof StructureContainer) {
         // Skip source if it has too many incoming deliveries already
         if (
-          activeDeliveries.filter(ad => ad.source.kind === "container" && ad.source.id === possible.id).length >
+          activeDeliveries.filter(ad => ad.source.kind === 'container' && ad.source.id === possible.id).length >
           this.MaxIncomingPerContainer
         ) {
           // this.log.info(`!Possibility: StructureContainer: too many incoming deliveries already`);
@@ -244,7 +244,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
       } else if (possible instanceof Creep) {
         // Skip source if it has too many incoming deliveries already
         if (
-          activeDeliveries.filter(ad => ad.source.kind === "creep" && ad.source.name === possible.name).length >
+          activeDeliveries.filter(ad => ad.source.kind === 'creep' && ad.source.name === possible.name).length >
           this.MaxIncomingPerEnergySource
         ) {
           // this.log.info(`!Possibility: Creep: too many incoming deliveries already`);
@@ -253,14 +253,14 @@ export class Worker extends CreepRoleBase implements CreepRole {
       } else if (possible instanceof StructureLink) {
         // Skip source if it has too many incoming deliveries already
         if (
-          activeDeliveries.filter(ad => ad.source.kind === "link" && ad.source.id === possible.id).length >
+          activeDeliveries.filter(ad => ad.source.kind === 'link' && ad.source.id === possible.id).length >
           this.MaxIncomingPerEnergySource
         ) {
           // this.log.info(`!Possibility: StructureLink: too many incoming deliveries already`);
           continue;
         }
       } else {
-        this.log.warn(`Unknown Energy Possibility: ${possible}`, { "<creep>": creep });
+        this.log.warn(`Unknown Energy Possibility: ${possible}`, { '<creep>': creep });
         continue;
       }
 
@@ -272,63 +272,63 @@ export class Worker extends CreepRoleBase implements CreepRole {
 
     const sameRoom = creep.pos.findClosestByPath(
       possibleSources.filter(s => s.pos.roomName === creep.room.name),
-      { ignoreCreeps: true }
+      { ignoreCreeps: true },
     );
     if (sameRoom instanceof StructureContainer)
-      return new CollectEnergy({ kind: "container", id: sameRoom.id }, { maxAttempts: 3 });
+      return new CollectEnergy({ kind: 'container', id: sameRoom.id }, { maxAttempts: 3 });
     else if (sameRoom instanceof StructureLink)
-      return new CollectEnergy({ kind: "link", id: sameRoom.id }, { maxAttempts: 3 });
+      return new CollectEnergy({ kind: 'link', id: sameRoom.id }, { maxAttempts: 3 });
     else if (sameRoom instanceof StructureStorage)
-      return new CollectEnergy({ kind: "storage", id: sameRoom.id }, { maxAttempts: 3 });
+      return new CollectEnergy({ kind: 'storage', id: sameRoom.id }, { maxAttempts: 3 });
     else if (sameRoom instanceof Creep || sameRoom instanceof CreepExtra)
-      return new CollectEnergy({ kind: "creep", name: sameRoom.name }, { maxAttempts: 8 });
-    else if (sameRoom instanceof Ruin) return new CollectEnergy({ kind: "ruin", id: sameRoom.id }, { maxAttempts: 3 });
+      return new CollectEnergy({ kind: 'creep', name: sameRoom.name }, { maxAttempts: 8 });
+    else if (sameRoom instanceof Ruin) return new CollectEnergy({ kind: 'ruin', id: sameRoom.id }, { maxAttempts: 3 });
     else if (sameRoom instanceof Tombstone)
-      return new CollectEnergy({ kind: "tomb", id: sameRoom.id }, { maxAttempts: 3 });
+      return new CollectEnergy({ kind: 'tomb', id: sameRoom.id }, { maxAttempts: 3 });
     else if (sameRoom instanceof Resource)
-      return new CollectEnergy({ kind: "dropped", id: sameRoom.id }, { maxAttempts: 3 });
+      return new CollectEnergy({ kind: 'dropped', id: sameRoom.id }, { maxAttempts: 3 });
 
     const amountMapper = (a: Resource | { store: StoreDefinition }) =>
       a instanceof Resource ? a.amount : a.store.getUsedCapacity(RESOURCE_ENERGY);
     const mostInNeed = possibleSources.sort((b, a) => amountMapper(a) - amountMapper(b))[0];
     if (mostInNeed instanceof StructureContainer)
-      return new CollectEnergy({ kind: "container", id: mostInNeed.id }, { maxAttempts: 3 });
+      return new CollectEnergy({ kind: 'container', id: mostInNeed.id }, { maxAttempts: 3 });
     else if (mostInNeed instanceof StructureLink)
-      return new CollectEnergy({ kind: "link", id: mostInNeed.id }, { maxAttempts: 3 });
+      return new CollectEnergy({ kind: 'link', id: mostInNeed.id }, { maxAttempts: 3 });
     else if (mostInNeed instanceof StructureStorage)
-      return new CollectEnergy({ kind: "storage", id: mostInNeed.id }, { maxAttempts: 3 });
+      return new CollectEnergy({ kind: 'storage', id: mostInNeed.id }, { maxAttempts: 3 });
     else if (mostInNeed instanceof Creep || mostInNeed instanceof CreepExtra)
-      return new CollectEnergy({ kind: "creep", name: mostInNeed.name }, { maxAttempts: 8 });
+      return new CollectEnergy({ kind: 'creep', name: mostInNeed.name }, { maxAttempts: 8 });
     else if (mostInNeed instanceof Ruin)
-      return new CollectEnergy({ kind: "ruin", id: mostInNeed.id }, { maxAttempts: 3 });
+      return new CollectEnergy({ kind: 'ruin', id: mostInNeed.id }, { maxAttempts: 3 });
     else if (mostInNeed instanceof Tombstone)
-      return new CollectEnergy({ kind: "tomb", id: mostInNeed.id }, { maxAttempts: 3 });
+      return new CollectEnergy({ kind: 'tomb', id: mostInNeed.id }, { maxAttempts: 3 });
     else if (mostInNeed instanceof Resource)
-      return new CollectEnergy({ kind: "dropped", id: mostInNeed.id }, { maxAttempts: 3 });
+      return new CollectEnergy({ kind: 'dropped', id: mostInNeed.id }, { maxAttempts: 3 });
     else if (miners.length === 0) {
-      this.log.warn(`Emergency mining since no miners are available...`, { "<creep>": creep });
+      this.log.warn(`Emergency mining since no miners are available...`, { '<creep>': creep });
       const source = creep.AssignedRoom.AvailableMiningPositions().pop();
       if (source) return new Mine(source);
     } else if (mostInNeed === null || mostInNeed === undefined)
       throw new Error(`We only sorted the target ${mostInNeed}, yet seem to have lost it.`);
 
     if (creep.AssignedRoom.storage !== undefined) {
-      const warning = "Too few energy sources, need to collect from room storage!";
+      const warning = 'Too few energy sources, need to collect from room storage!';
 
       const stored = creep.AssignedRoom.storage.store.getUsedCapacity(RESOURCE_ENERGY);
       if (stored <= creep.AssignedRoom.StorageWartimeEnergyBuffer) {
         this.log.warn(
           `${warning} !!! Except Storage is below Emergency Reservation ${stored} < !${creep.AssignedRoom.StorageWartimeEnergyBuffer}`,
-          { "<creep>": creep }
+          { '<creep>': creep },
         );
         return null;
       }
 
-      this.log.warn(warning, { "<creep>": creep });
-      return new CollectEnergy({ kind: "storage", id: creep.AssignedRoom.storage.id });
+      this.log.warn(warning, { '<creep>': creep });
+      return new CollectEnergy({ kind: 'storage', id: creep.AssignedRoom.storage.id });
     }
 
-    this.log.warn(`FindGatheringTask no tasks found!`, { "<creep>": creep });
+    this.log.warn(`FindGatheringTask no tasks found!`, { '<creep>': creep });
     return null;
   }
 
@@ -356,14 +356,14 @@ export class Worker extends CreepRoleBase implements CreepRole {
 
   FindConstructionByPriorityAndPath(
     supplier: CreepExtra,
-    candidates: ConstructionSite[] = supplier.AssignedRoom.ConstructionSites
+    candidates: ConstructionSite[] = supplier.AssignedRoom.ConstructionSites,
   ): ConstructionSite | null {
     for (const p of this.ConstructionPriorities) {
       const group = candidates.filter(p);
 
       const sameRoom = supplier.pos.findClosestByPath(
         group.filter(s => s.pos.roomName === supplier.room.name),
-        { ignoreCreeps: true }
+        { ignoreCreeps: true },
       );
       if (sameRoom) return sameRoom;
 
@@ -379,7 +379,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
   FindSupplyByPath(
     supplier: CreepExtra,
     candidates: AnyStoreStructure[],
-    candidateName?: string
+    candidateName?: string,
   ): AnyStoreStructure | null {
     const inProgressSupplyTasks = supplier.AssignedRoom.GetAssignedTasks(TaskAction.Supply) as Supply[];
     let considered = 0;
@@ -388,14 +388,14 @@ export class Worker extends CreepRoleBase implements CreepRole {
       const group = candidates
         .map(s => ({ structure: s, suppliers: inProgressSupplyTasks.filter(ist => ist.target === s.id).length }))
         .filter(
-          s => s.structure.store.getFreeCapacity(RESOURCE_ENERGY) > 0 && p(s.structure) && s.suppliers < maxSuppliers
+          s => s.structure.store.getFreeCapacity(RESOURCE_ENERGY) > 0 && p(s.structure) && s.suppliers < maxSuppliers,
         )
         .map(s => s.structure);
       considered += group.length;
 
       const sameRoom = supplier.pos.findClosestByPath(
         group.filter(s => s.room.name === supplier.room.name),
-        { ignoreCreeps: true }
+        { ignoreCreeps: true },
       );
       if (sameRoom) return sameRoom;
 
@@ -404,7 +404,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
         .sort(
           (a, b) =>
             a.store.getUsedCapacity(RESOURCE_ENERGY) / a.store.getCapacity(RESOURCE_ENERGY) -
-            b.store.getUsedCapacity(RESOURCE_ENERGY) / b.store.getCapacity(RESOURCE_ENERGY)
+            b.store.getUsedCapacity(RESOURCE_ENERGY) / b.store.getCapacity(RESOURCE_ENERGY),
         )
         .pop();
       if (remoteRoom) return remoteRoom;
@@ -412,19 +412,19 @@ export class Worker extends CreepRoleBase implements CreepRole {
     }
 
     this.log.info(
-      `Nothing needs supply${candidateName === undefined ? "" : ` in group: '${candidateName}'`}. Considered ${considered}/${candidates.length} eligible objects across ${groups} groups.`,
-      { "<creep>": supplier }
+      `Nothing needs supply${candidateName === undefined ? '' : ` in group: '${candidateName}'`}. Considered ${considered}/${candidates.length} eligible objects across ${groups} groups.`,
+      { '<creep>': supplier },
     );
     return null;
   }
 
   FindIdealRepairByStrength(creep: CreepExtra, candidates: AnyStructure[]): AnyStructure | undefined | null {
     const inProgressRepairTasks = creep.AssignedRoom.GetAssignedTasks(TaskAction.Repair).filter(
-      t => (t as Repair).repairRoom === creep.room.name
+      t => (t as Repair).repairRoom === creep.room.name,
     );
     const targetsByCount = new Map<string, number>();
     for (const t of inProgressRepairTasks) {
-      const target = "target" in t ? (t.target as string | undefined) : undefined;
+      const target = 'target' in t ? (t.target as string | undefined) : undefined;
       if (!target) continue;
       const existing = targetsByCount.get(target) ?? 0;
       targetsByCount.set(target, existing + 1);
@@ -448,7 +448,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
     const inProgressRepairTasks = supplier.AssignedRoom.GetAssignedTasks(TaskAction.Repair);
     const targetsByCount = new Map<string, number>();
     for (const t of inProgressRepairTasks) {
-      const target = "target" in t ? (t.target as string | undefined) : undefined;
+      const target = 'target' in t ? (t.target as string | undefined) : undefined;
       if (!target) continue;
       const existing = targetsByCount.get(target) ?? 0;
       targetsByCount.set(target, existing + 1);

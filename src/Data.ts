@@ -66,35 +66,30 @@ export const LastNames = [
 ].map(n => n[0] + n.toLowerCase().substring(1));
 
 export const Salutations = {
-  COMMON: ["Mr", "Master", "Ms", "Miss", "Mrs", "Mx"],
-  SCIENCE: ["Dr", "Prof"],
-  FORMAL: ["Sir", "Madam", "Dame", "Lord", "Lady", "Viscount"],
-  RELIGION: ["Br", "Sr", "Fr", "Rev", "Pr", "Elder", "Revd Father", "Revd Canon"],
-  POLITICS: ["The Hon", "The Hon Mrs", "Rt Hon Lord"],
-  LAW: ["Judge"],
+  COMMON: ['Mr', 'Master', 'Ms', 'Miss', 'Mrs', 'Mx'],
+  SCIENCE: ['Dr', 'Prof'],
+  FORMAL: ['Sir', 'Madam', 'Dame', 'Lord', 'Lady', 'Viscount'],
+  RELIGION: ['Br', 'Sr', 'Fr', 'Rev', 'Pr', 'Elder', 'Revd Father', 'Revd Canon'],
+  POLITICS: ['The Hon', 'The Hon Mrs', 'Rt Hon Lord'],
+  LAW: ['Judge'],
   MILITARY: [
-    "Capt",
-    "Major",
-    "Lt-Col",
-    "Col",
-    "Lt-Cmdr",
-    "Cmdr",
-    "Flt Lt",
-    "Brgdr",
-    "Wng Cmdr",
-    "Group Capt",
-    "Maj-Gen",
-    "Air Cdre",
-    "Rear Admrl"
-  ]
+    'Capt',
+    'Major',
+    'Lt-Col',
+    'Col',
+    'Lt-Cmdr',
+    'Cmdr',
+    'Flt Lt',
+    'Brgdr',
+    'Wng Cmdr',
+    'Group Capt',
+    'Maj-Gen',
+    'Air Cdre',
+    'Rear Admrl',
+  ],
 };
 
-export const Colours = {
-  PATH_SHORT: "#08ed04",
-  PATH_LONG: "#cb06c5",
-  PATH_STUCK: "#fff700",
-  ATTACK_RANGE: "#ac5f5f"
-};
+export const Colours = { PATH_SHORT: '#08ed04', PATH_LONG: '#cb06c5', PATH_STUCK: '#fff700', ATTACK_RANGE: '#ac5f5f' };
 
 export function GetRandomName() {
   const salutationGroups = Object.values(Salutations);
@@ -105,12 +100,12 @@ export function GetRandomName() {
     ? FirstNamesMale[Math.floor(Math.random() * FirstNamesMale.length)]
     : FirstNamesFemale[Math.floor(Math.random() * FirstNamesFemale.length)];
   const ln = LastNames[Math.floor(Math.random() * LastNames.length)];
-  return [salutation, fn, ln].join(" ");
+  return [salutation, fn, ln].join(' ');
 }
 
 export function GetRandomSuffix() {
   const adj1 = Adjectives[Math.floor(Math.random() * Adjectives.length)];
   const adj2 = Adjectives[Math.floor(Math.random() * Adjectives.length)];
   const noun = Nouns[Math.floor(Math.random() * Nouns.length)];
-  return [adj1, adj2, noun].join(" ");
+  return [adj1, adj2, noun].join(' ');
 }

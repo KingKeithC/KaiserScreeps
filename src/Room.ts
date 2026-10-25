@@ -1,20 +1,20 @@
-import { Dictionary, filter, flatten, range, unique } from "lodash";
-import { CreepTask, Mine, Repair, TaskAction, UpdateController } from "tasks";
+import { Dictionary, filter, flatten, range, unique } from 'lodash';
+import { CreepTask, Mine, Repair, TaskAction, UpdateController } from 'tasks';
 import {
   FormatHostileInfos,
   GetHostileInfo,
   GetMiningPositions,
   HostileInfo,
   MakeRoomReport,
-  MiningPosition
-} from "utils/RoomUtils";
-import { Colony } from "Colony";
-import { CreepExtra } from "Creep";
-import { FmtRatios, LerpColour, SerializeRoomPosition } from "utils/Collections";
-import { Colours } from "Data";
-import { CreepRole } from "roles/Role";
-import { Logger } from "utils/Logger";
-import { BodyCost } from "utils/CreepUtils";
+  MiningPosition,
+} from 'utils/RoomUtils';
+import { Colony } from 'Colony';
+import { CreepExtra } from 'Creep';
+import { FmtRatios, LerpColour, SerializeRoomPosition } from 'utils/Collections';
+import { Colours } from 'Data';
+import { CreepRole } from 'roles/Role';
+import { Logger } from 'utils/Logger';
+import { BodyCost } from 'utils/CreepUtils';
 
 declare global {
   interface RoomMemory {
@@ -44,7 +44,7 @@ declare global {
 
 export class RoomExtra extends Room {
   readonly colony: Colony;
-  readonly log: Logger<RoomExtra> = new Logger(this, { formatArgs: { "<room>": this } });
+  readonly log: Logger<RoomExtra> = new Logger(this, { formatArgs: { '<room>': this } });
   readonly AssignedCreeps: CreepExtra[];
   readonly AssignedCreepsByRoleName: Map<string, CreepExtra[]>;
   readonly AssignedCreepsByRoleGroup: Map<string, CreepExtra[]>;
@@ -72,7 +72,7 @@ export class RoomExtra extends Room {
       this.AssignedCreepsByRoleName.set(c.role.name, [...(this.AssignedCreepsByRoleName.get(c.role.name) ?? []), c]);
       this.AssignedCreepsByRoleGroup.set(c.role.groupName, [
         ...(this.AssignedCreepsByRoleGroup.get(c.role.groupName) ?? []),
-        c
+        c,
       ]);
     }
   }
@@ -176,11 +176,11 @@ export class RoomExtra extends Room {
         if (room.controller === undefined || room.controller.owner === undefined)
           // Neutral Room
           this.cachedClaimedRooms.push(room);
-        else if (room.controller.owner.username === "KeyserSozayme")
+        else if (room.controller.owner.username === 'KeyserSozayme')
           // My Room
           if (room.find(FIND_MY_SPAWNS).length === 0) {
             // Not Self-Sufficient
-            this.log.info(`Claimed Room ${name} is still under support by ${this.name}!`, { "<rate>": 20 });
+            this.log.info(`Claimed Room ${name} is still under support by ${this.name}!`, { '<rate>': 20 });
             this.cachedClaimedRooms.push(room);
           } else {
             // Self-Sufficient
@@ -229,7 +229,7 @@ export class RoomExtra extends Room {
 
     // If still undefined, then there was an error
     if (this.memory.pathfindingCostMatrix === undefined)
-      throw new Error("Cost Matrix was undefined after calling UpdateCostMatrix().");
+      throw new Error('Cost Matrix was undefined after calling UpdateCostMatrix().');
 
     // Return from memory, and update cache
     this.cachedDeserializedCostMatrix = PathFinder.CostMatrix.deserialize(this.memory.pathfindingCostMatrix);
@@ -255,7 +255,7 @@ export class RoomExtra extends Room {
     SourceBiasMax: 5, // Start biasing at Sources with this cost (since sources are unwalkable so only applies for Radius >= 1 )
     SourceBiasMin: 3, // Do not bias lower than this cost around Sources
     SourceBiasFalloff: 1, // Decrease the cost by this much per additional radius
-    Unwalkable: 0xff
+    Unwalkable: 0xff,
   };
 
   private UpdateCostMatrix(): void {
@@ -311,7 +311,7 @@ export class RoomExtra extends Room {
         // Determine a bias weight for this ring
         const weight = Math.max(
           this.PathfindingParams.SourceBiasMin,
-          this.PathfindingParams.SourceBiasMax - r * this.PathfindingParams.SourceBiasFalloff
+          this.PathfindingParams.SourceBiasMax - r * this.PathfindingParams.SourceBiasFalloff,
         );
 
         // Set weight of Origin Point
@@ -343,7 +343,7 @@ export class RoomExtra extends Room {
       filter: st =>
         st.structureType !== STRUCTURE_ROAD &&
         st.structureType !== STRUCTURE_CONTAINER &&
-        (st.structureType !== STRUCTURE_RAMPART || !st.my)
+        (st.structureType !== STRUCTURE_RAMPART || !st.my),
     }))
       matrix.set(s.pos.x, s.pos.y, this.PathfindingParams.Unwalkable);
 
@@ -433,7 +433,7 @@ export class RoomExtra extends Room {
 
   get SpawnsOrExtensions(): (StructureExtension | StructureSpawn)[] {
     return this.find(FIND_MY_STRUCTURES, {
-      filter: s => s.structureType === STRUCTURE_SPAWN || s.structureType === STRUCTURE_EXTENSION
+      filter: s => s.structureType === STRUCTURE_SPAWN || s.structureType === STRUCTURE_EXTENSION,
     });
   }
 
@@ -509,7 +509,7 @@ export class RoomExtra extends Room {
 
   MapWithRoomsInClaimedArea<T>(
     mapper: (r: RoomExtra | Room | string) => T[],
-    includeMainRoom = true
+    includeMainRoom = true,
   ): [Room | string, T[]][] {
     const allClaimedRooms = this.ClaimedRoomNames;
     const visibleRooms = this.ClaimedRooms.concat(includeMainRoom ? [this] : []);
@@ -551,29 +551,29 @@ export class RoomExtra extends Room {
   EventToName(e: EventConstant): string {
     switch (e) {
       case EVENT_ATTACK:
-        return "EVENT_ATTACK";
+        return 'EVENT_ATTACK';
       case EVENT_OBJECT_DESTROYED:
-        return "EVENT_OBJECT_DESTROYED";
+        return 'EVENT_OBJECT_DESTROYED';
       case EVENT_ATTACK_CONTROLLER:
-        return "EVENT_ATTACK_CONTROLLER";
+        return 'EVENT_ATTACK_CONTROLLER';
       case EVENT_BUILD:
-        return "EVENT_BUILD";
+        return 'EVENT_BUILD';
       case EVENT_HARVEST:
-        return "EVENT_HARVEST";
+        return 'EVENT_HARVEST';
       case EVENT_HEAL:
-        return "EVENT_HEAL";
+        return 'EVENT_HEAL';
       case EVENT_REPAIR:
-        return "EVENT_REPAIR";
+        return 'EVENT_REPAIR';
       case EVENT_RESERVE_CONTROLLER:
-        return "EVENT_RESERVE_CONTROLLER";
+        return 'EVENT_RESERVE_CONTROLLER';
       case EVENT_UPGRADE_CONTROLLER:
-        return "EVENT_UPGRADE_CONTROLLER";
+        return 'EVENT_UPGRADE_CONTROLLER';
       case EVENT_EXIT:
-        return "EVENT_EXIT";
+        return 'EVENT_EXIT';
       case EVENT_POWER:
-        return "EVENT_POWER";
+        return 'EVENT_POWER';
       case EVENT_TRANSFER:
-        return "EVENT_TRANSFER";
+        return 'EVENT_TRANSFER';
       default:
         throw new Error(`Invalid EventConstant: ${e}`);
     }
@@ -638,7 +638,7 @@ export class RoomExtra extends Room {
     const ret = sender.transferEnergy(receiver);
     if (ret !== OK)
       this.log.warn(
-        `Link Transfer from ${sender} (Used: ${sender.store.getUsedCapacity()}) -> ${receiver} (Free: ${receiver.store.getFreeCapacity()}) failed: ${ret}`
+        `Link Transfer from ${sender} (Used: ${sender.store.getUsedCapacity()}) -> ${receiver} (Free: ${receiver.store.getFreeCapacity()}) failed: ${ret}`,
       );
   }
 
@@ -677,7 +677,7 @@ export class RoomExtra extends Room {
     if (this.energyAvailable < cost) {
       this.log.info(
         `Room lacks the energy to spawn (need ${cost} have ${this.energyAvailable}/${this.energyCapacityAvailable}).`,
-        { "<role>": role, "<rate>": 10 }
+        { '<role>': role, '<rate>': 10 },
       );
       return false; // No point proceeding
     }
@@ -694,16 +694,16 @@ export class RoomExtra extends Room {
           role: role.name,
           stuckTicks: 0,
           lastPos: SerializeRoomPosition(sp.pos),
-          spawning: true
-        }
+          spawning: true,
+        },
       });
 
       // Log the result
       if (result === OK) {
-        this.log.info(`Spawning ${name} ${cost} @ ${sp}...`, { "<role>": role });
+        this.log.info(`Spawning ${name} ${cost} @ ${sp}...`, { '<role>': role });
         return true;
       } else {
-        this.log.info(`Attempt to spawn ${name} ${cost} at ${sp} resulted in: ${result}...`, { "<role>": role });
+        this.log.info(`Attempt to spawn ${name} ${cost} at ${sp} resulted in: ${result}...`, { '<role>': role });
         return false;
       }
     }
@@ -717,7 +717,7 @@ export class RoomExtra extends Room {
   }
 
   RoomStateReport(): string {
-    let msg = "";
+    let msg = '';
     let totalRoles = 0;
     let spawned = 0;
 
@@ -732,8 +732,8 @@ export class RoomExtra extends Room {
 
       const spawnNeeded = role.IsSpawnNeeded(this);
       const spawnAble = this.IsRoleLimited(role);
-      const spawnableStr = spawnAble ? "+" : "";
-      const spawnNeededStr = spawnNeeded ? "*" : "";
+      const spawnableStr = spawnAble ? '+' : '';
+      const spawnNeededStr = spawnNeeded ? '*' : '';
       const roomQuota = this.GetLimitOfRole(name);
       const roomCount = role.GetRoomCreepsInRole(this).length;
 
@@ -751,18 +751,18 @@ export class RoomExtra extends Room {
       msg;
 
     if (this.storage)
-      msg += ` ENERGY IN STORAGE: ${FmtRatios(this.storage.store.getUsedCapacity(RESOURCE_ENERGY), this.storage.store.getCapacity(RESOURCE_ENERGY), true, [], 3, "K", 1000)}`;
+      msg += ` ENERGY IN STORAGE: ${FmtRatios(this.storage.store.getUsedCapacity(RESOURCE_ENERGY), this.storage.store.getCapacity(RESOURCE_ENERGY), true, [], 3, 'K', 1000)}`;
 
     if (!this.controller) throw new Error(`RoomExtra is an owned room, therefore should never not have a controller.`);
 
-    const nextLevelStr = this.controller.level === 8 ? "" : ` -> ${this.controller.level + 1}`;
+    const nextLevelStr = this.controller.level === 8 ? '' : ` -> ${this.controller.level + 1}`;
     const downgradeMaintenanceThreshold =
       CONTROLLER_DOWNGRADE[this.controller.level] * UpdateController.DowngradeMaintenanceRatio;
     const downgradeStr =
       this.controller.ticksToDowngrade < downgradeMaintenanceThreshold
         ? ` , Downgrade in ${this.controller.ticksToDowngrade}`
-        : "";
-    msg += ` CONTROLLER ${this.controller.level}${nextLevelStr} ${FmtRatios(this.controller.progress, this.controller.progressTotal, true, [], 3, "K", 1000)}${downgradeStr}`;
+        : '';
+    msg += ` CONTROLLER ${this.controller.level}${nextLevelStr} ${FmtRatios(this.controller.progress, this.controller.progressTotal, true, [], 3, 'K', 1000)}${downgradeStr}`;
 
     // Append hostile details
     if (this.HostileInfo.length) {
@@ -783,7 +783,7 @@ export class RoomExtra extends Room {
   DrawRepairOverlay(): void {
     for (const d of this.Repairs)
       this.visual.rect(d.pos.x - 0.5, d.pos.y - 0.5, 1, 1, {
-        fill: LerpColour("#ff0000", "#00ff00", d.hits / d.hitsMax)
+        fill: LerpColour('#ff0000', '#00ff00', d.hits / d.hitsMax),
       });
   }
 
@@ -793,7 +793,7 @@ export class RoomExtra extends Room {
         const weight = this.PathfindingCostMatrix.get(x, y);
         if (weight > 0)
           this.visual
-            .rect(x - 0.5, y - 0.5, 1, 1, { fill: LerpColour("#00ff00", "#ff0000", weight / 255) })
+            .rect(x - 0.5, y - 0.5, 1, 1, { fill: LerpColour('#00ff00', '#ff0000', weight / 255) })
             .text(weight.toString(10), x, y);
       }
   }
@@ -818,7 +818,7 @@ export class RoomExtra extends Room {
       limitToRoom === undefined || (limitToRoom !== undefined && s.pos.roomName === limitToRoom.name);
     for (const [predicate, repairAt, maxWorkers] of this.RepairPriorities) {
       const candidates = this.Repairs.filter(
-        s => roomLimit(s) && predicate(s) && s.hits / s.hitsMax < repairAt && incoming(s) < maxWorkers
+        s => roomLimit(s) && predicate(s) && s.hits / s.hitsMax < repairAt && incoming(s) < maxWorkers,
       );
 
       let selected;
@@ -849,7 +849,7 @@ export class RoomExtra extends Room {
         radius: this.TowerAttackRange,
         stroke: Colours.ATTACK_RANGE,
         opacity: 0.1,
-        strokeWidth: 0.5
+        strokeWidth: 0.5,
       });
 
       // Find lowest health hostile in range
@@ -860,7 +860,7 @@ export class RoomExtra extends Room {
       if (weakestHostile) {
         const res = tower.attack(weakestHostile);
         this.log.debug(
-          `!!! Tower Attacked ${weakestHostile.name} from ${weakestHostile.owner.username} (${weakestHostile.hits}/${weakestHostile.hits}) with result ${res}!`
+          `!!! Tower Attacked ${weakestHostile.name} from ${weakestHostile.owner.username} (${weakestHostile.hits}/${weakestHostile.hits}) with result ${res}!`,
         );
         return;
       }
@@ -873,7 +873,7 @@ export class RoomExtra extends Room {
     if (weakestFriendly) {
       const res = tower.heal(weakestFriendly);
       this.log.debug(
-        `Tower Healed ${weakestFriendly.name} (${weakestFriendly.hits}/${weakestFriendly.hitsMax}) with result ${res}!`
+        `Tower Healed ${weakestFriendly.name} (${weakestFriendly.hits}/${weakestFriendly.hitsMax}) with result ${res}!`,
       );
       return;
     }
