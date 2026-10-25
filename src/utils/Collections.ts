@@ -1,5 +1,3 @@
-import { flatten } from "lodash";
-
 export function UnpackColour(colour: string): [number, number, number] {
   return [
     Number.parseInt(colour.slice(1, 3), 16),

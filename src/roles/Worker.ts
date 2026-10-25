@@ -1,7 +1,7 @@
 import { CreepExtra } from "Creep";
 import { RoomExtra } from "Room";
 import { Build, CollectEnergy, CreepTask, MaintainController, Mine, Repair, Supply, TaskAction, UpdateController } from "tasks";
-import { MakeBody, SerializeRoomPosition } from "utils/Collections";
+import { MakeBody } from "utils/Collections";
 import { BodyCost } from "utils/CreepUtils";
 import { CreepRoleBase, CreepRole } from "./Role";
 
@@ -84,7 +84,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
       if (cons) return new Build(cons.id);
     }
 
-    const repairs = creep.AssignedRoom.MapWithRoomsInClaimedArea(r => r instanceof Room ? r.find(FIND_STRUCTURES, { filter: s => s.hits < s.hitsMax }) as AnyStructure[] : []);
+    const repairs = creep.AssignedRoom.MapWithRoomsInClaimedArea(r => r instanceof Room ? r.find(FIND_STRUCTURES, { filter: s => s.hits < s.hitsMax }) : []);
     const repairTasks = creep.AssignedRoom.GetAssignedTasks(TaskAction.Repair) as Repair[];
 
     for (const [room, roomRepairs] of repairs) {
@@ -227,9 +227,6 @@ export class Worker extends CreepRoleBase implements CreepRole {
       // this.log.info(`Possibility: ${possible}`);
       possibleSources.push(possible);
     }
-
-
-    const display = (l: (_HasRoomPosition & (_HasId | { name: string; }))[]) => JSON.stringify(l.map(ps => ({ idorname: "name" in ps ? ps.name : ps.id, pos: SerializeRoomPosition(ps.pos) })));
 
     if (possibleSources.length === 0) return null; // Nothing more to do
 

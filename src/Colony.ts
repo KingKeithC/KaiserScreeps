@@ -341,6 +341,7 @@ export class Colony {
   }
 
   StatsSchema = {
+    /* eslint-disable camelcase */
     time: { unit: "ticks", description: "Monotonicly increasing tick counter, the current 'time' of the Game.", },
     last_reset_time: { unit: "ticks", description: "Last time the Program was Reset (happens on code push, or semi-rarely by the platform)" },
     visible_rooms_count: { unit: "number", description: "The total number of visible rooms this tick." },
@@ -479,6 +480,7 @@ export class Colony {
       unit: "number",
       description: "Total amount for all occurences of event.",
     },
+    /* eslint-enable camelcase */
   };
 
   GetCurrentStats(): ColonyStats {

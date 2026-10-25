@@ -332,7 +332,7 @@ export class RoomExtra extends Room {
   AvailableMiningPositions(): MiningPosition[] {
     const ret = [];
     const assignedMiningPositions = this.colony.GetAllAssignedTasks(TaskAction.Mine).map(p => (p as Mine).target);
-    for (const [room, mines] of this.ClaimedMines)
+    for (const [_room, mines] of this.ClaimedMines)
       for (const mine of mines)
         if (!assignedMiningPositions.some(amp => amp.source === mine.source))
           ret.push(mine);
@@ -528,7 +528,7 @@ export class RoomExtra extends Room {
 
   RunCreeps(): void {
     // Run each creep in the room.
-    for (const c of this.AssignedCreeps.filter(c => !c.spawning)) {
+    for (const c of this.AssignedCreeps.filter(ac => !ac.spawning)) {
       if (c.currentTask === null || c.currentTask.isComplete(c)) c.ChangeTask();
       c.role.TickCreep(c);
       c.DoTask();
