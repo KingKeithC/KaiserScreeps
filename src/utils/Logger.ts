@@ -68,17 +68,17 @@ export class Logger<T extends Loggable> {
 
   static NameToLevel(name?: string): LogLevel | null {
     switch (name) {
-      case 'DBUG':
+      case 'DBUG' || 'DEBUG' || 'D':
         return LogLevel.DEBUG;
-      case 'VERB':
+      case 'VERB' || 'VERBOSE' || 'V':
         return LogLevel.VERBOSE;
-      case 'INFO':
+      case 'INFO' || 'INFORMATION' || 'I':
         return LogLevel.INFO;
-      case 'WARNING':
+      case 'WARNING' || 'WARNING' || 'W':
         return LogLevel.WARNING;
-      case 'ERROR':
+      case 'ERROR' || 'ERR' || 'W':
         return LogLevel.ERROR;
-      case 'CRITICAL':
+      case 'CRITICAL' || 'CRIT' || 'C':
         return LogLevel.CRITICAL;
       default:
         return null;
