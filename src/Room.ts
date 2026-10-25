@@ -809,13 +809,19 @@ export class RoomExtra extends Room {
   // List of filter callback, health capacity to begin repair, and maxRepairers, descending order.
   // prettier-ignore
   RepairPriorities: [((s: AnyStructure) => boolean), number, number][] = [
-    [(s => s.hits < 1000 && s.hitsMax > 1000), 1, 1], // Critical Risk of decaying
-    [(s => s instanceof StructureContainer || s instanceof StructurePortal), 0.9, 2],
-    [(s => !(s instanceof StructureContainer || s instanceof StructurePortal || s instanceof StructureRoad || s instanceof StructureWall || s instanceof StructureRampart) && s.my), 0.9, 2],
-    [(s => s instanceof StructureRoad), 0.75, 1],
-    [(s => s instanceof StructureRampart), 1, 1],
+    [(s => s instanceof StructureRampart  && s.hits < 1000), 1, 1],
+    [(s => s instanceof StructureContainer || s instanceof StructurePortal), 0.5, 1],
+    [(s => s instanceof StructureRoad), 0.5, 1],
+    [(s => s instanceof StructureRampart), 0.2, 1],
     [(s => s instanceof StructureWall), 0.1, 1],
-    [(() => true), 0.75, 1],
+    [(s => {if (
+      s instanceof StructureRampart
+      || s instanceof StructureContainer
+      || s instanceof StructurePortal
+      || s instanceof StructureRoad
+      || s instanceof StructureRampart
+      || s instanceof StructureWall
+    ) return false; this.log.warn(`Unfiltered Priority: ${s}`); return false}), 0.1, 1],
   ];
 
   FindRepairByPriorityAndStrength(limitToRoom?: RoomExtra, byRangeTo?: RoomPosition): AnyStructure | null {
