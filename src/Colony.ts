@@ -248,7 +248,7 @@ export class Colony {
   }
 
   // Stats are only fetched evey ~90 seconds, so we only need to update them infrequently
-  StatsFrequency = 30;
+  StatsFrequency = 8;
 
   // This is the effectively the loop function invoked each tick.
   private MainLoop(): void {
