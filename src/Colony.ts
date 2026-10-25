@@ -476,6 +476,13 @@ export class Colony {
       unit: 'number',
       description: 'Total amount of all energy sources in the room.',
     },
+    rcl_level: { labelKeys: ['room'], unit: 'number', description: 'The current Room Control Level.' },
+    rcl_progress: { labelKeys: ['room'], unit: 'number', description: 'Progress toward the next Room Control Level.' },
+    rcl_progressTotal: {
+      labelKeys: ['room'],
+      unit: 'number',
+      description: 'The Room Control Level will increase when Progress reaches this amount.',
+    },
     capacity_of_spawns: {
       labelKeys: ['room'],
       unit: 'number',
@@ -601,6 +608,9 @@ export class Colony {
           Object.values(Game.rooms),
           vr => vr.find(FIND_MY_SPAWNS).filter(s => s.spawning !== null && s.spawning !== undefined).length,
         ),
+        rcl_progressTotal: this.MapNameable(this.MyRooms, mr => mr.controller?.progressTotal ?? 0),
+        rcl_progress: this.MapNameable(this.MyRooms, mr => mr.controller?.progress ?? 0),
+        rcl_level: this.MapNameable(this.MyRooms, mr => mr.controller?.level ?? 0),
         event_counts: this.MapNameable(this.MyRooms, mr => mr.EventCounts),
         event_amounts: this.MapNameable(this.MyRooms, mr => mr.EventAmounts),
       },
