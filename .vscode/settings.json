@@ -1,6 +1,6 @@
 {
   "js/ts.tsdk.path": "node_modules/typescript/lib",
-  "js/ts.preferences.quoteStyle": "double",
+  "js/ts.preferences.quoteStyle": "single",
   "js/ts.format.semicolons": "insert",
   "js/ts.tsserver.experimental.enableProjectDiagnostics": true,
   "js/ts.implicitProjectConfig.target": "ES2018",
@@ -9,9 +9,9 @@
   "nixEnvSelector.useFlakes": true,
   "nixEnvSelector.flakeShell": "default",
   "editor.defaultFormatter": "rvest.vs-code-prettier-eslint",
-  "eslint.format.enable": true,
+  // "eslint.format.enable": false,
   "eslint.run": "onSave",
-  "vs-code-prettier-eslint.prettierLast": false, // set as "true" to run 'prettier' last not first
+  "vs-code-prettier-eslint.prettierLast": true, // set as "true" to run 'prettier' last not first
   "[typescript]": {
     "editor.formatOnType": false, // required
     "editor.formatOnPaste": false, // optional
