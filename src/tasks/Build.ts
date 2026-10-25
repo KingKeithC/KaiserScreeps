@@ -1,11 +1,13 @@
-import type { CreepExtra } from "Creep";
-import { TargetTask } from "./TargetTask";
-import { TaskAction } from "./TaskAction";
+import type { CreepExtra } from 'Creep';
+import { TargetTask } from './TargetTask';
+import { TaskAction } from './TaskAction';
 
 export class Build extends TargetTask<typeof TaskAction.Build, Id<ConstructionSite<BuildableStructureConstant>>> {
-  public readonly kind = "build" as const;
+  public readonly kind = 'build' as const;
 
-  public constructor(target: Id<ConstructionSite<BuildableStructureConstant>>) { super(TaskAction.Build, target, "construction site"); }
+  public constructor(target: Id<ConstructionSite<BuildableStructureConstant>>) {
+    super(TaskAction.Build, target, 'construction site');
+  }
 
   public override act(creep: CreepExtra) {
     const target = Game.getObjectById(this.target);

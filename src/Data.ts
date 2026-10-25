@@ -1,3 +1,4 @@
+// prettier-ignore
 export const Adjectives = [
   "aglow", "ago", "ahead", "aided", "airy", "ajar", "akin", "alert", "alien",
   "batty", "bay", "beady", "beamy", "beat", "beefy", "beery", "cyan", "daft",
@@ -6,6 +7,7 @@ export const Adjectives = [
   "sleek", "slick", "slim", "waxed", "waxen",
 ];
 
+// prettier-ignore
 export const Nouns = [
   "add", "adder", "adept", "advil", "beret", "berry", "bet", "beta", "bevel",
   "bevy", "bias", "cage", "cager", "cake", "dirt", "disc", "disco", "futon",
@@ -17,6 +19,7 @@ export const Nouns = [
   "sag", "saga",
 ];
 
+// prettier-ignore
 export const FirstNamesMale = [
   "John", "William", "James", "George", "Charles", "Frank", "Joseph", "Henry",
   "Robert", "Thomas", "Edward", "Harry", "Walter", "Fred", "Arthur", "Albert",
@@ -32,6 +35,7 @@ export const FirstNamesMale = [
   "Julius", "Cleveland", "Leon", "Victor", "Eddie",
 ];
 
+// prettier-ignore
 export const FirstNamesFemale = [
   "Mary", "Anna", "Emma", "Elizabeth", "Margaret", "Minnie", "Clara", "Bertha", "Ida",
   "Annie", "Alice", "Florence", "Bessie", "Grace", "Ethel", "Nellie", "Martha", "Sarah",
@@ -46,6 +50,7 @@ export const FirstNamesFemale = [
   "Kathryn", "Charlotte", "Willie", "Beulah", "Kate", "Ollie", "Rebecca", "Susan", "Eliza",
 ];
 
+// prettier-ignore
 export const LastNames = [
   "SMITH", "JOHNSON", "WILLIAMS", "BROWN", "JONES", "GARCIA", "RODRIGUEZ", "MILLER", "MARTINEZ",
   "DAVIS", "HERNANDEZ", "LOPEZ", "GONZALEZ", "WILSON", "ANDERSON", "THOMAS", "TAYLOR", "LEE",
@@ -68,19 +73,27 @@ export const Salutations = {
   POLITICS: ["The Hon", "The Hon Mrs", "Rt Hon Lord"],
   LAW: ["Judge"],
   MILITARY: [
-    "Capt", "Major", "Lt-Col", "Col", "Lt-Cmdr",
-    "Cmdr", "Flt Lt", "Brgdr", "Wng Cmdr", "Group Capt",
-    "Maj-Gen", "Air Cdre", "Rear Admrl"
-  ],
+    "Capt",
+    "Major",
+    "Lt-Col",
+    "Col",
+    "Lt-Cmdr",
+    "Cmdr",
+    "Flt Lt",
+    "Brgdr",
+    "Wng Cmdr",
+    "Group Capt",
+    "Maj-Gen",
+    "Air Cdre",
+    "Rear Admrl"
+  ]
 };
-
-
 
 export const Colours = {
   PATH_SHORT: "#08ed04",
   PATH_LONG: "#cb06c5",
   PATH_STUCK: "#fff700",
-  ATTACK_RANGE: "#ac5f5f",
+  ATTACK_RANGE: "#ac5f5f"
 };
 
 export function GetRandomName() {
@@ -88,7 +101,9 @@ export function GetRandomName() {
   const salutationGroup = salutationGroups[Math.floor(Math.random() * salutationGroups.length)];
   const salutation = salutationGroup[Math.floor(Math.random() * salutationGroup.length)];
   const male = Math.random() > 0.5;
-  const fn = male ? FirstNamesMale[Math.floor(Math.random() * FirstNamesMale.length)] : FirstNamesFemale[Math.floor(Math.random() * FirstNamesFemale.length)];
+  const fn = male
+    ? FirstNamesMale[Math.floor(Math.random() * FirstNamesMale.length)]
+    : FirstNamesFemale[Math.floor(Math.random() * FirstNamesFemale.length)];
   const ln = LastNames[Math.floor(Math.random() * LastNames.length)];
   return [salutation, fn, ln].join(" ");
 }

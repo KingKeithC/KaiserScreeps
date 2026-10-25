@@ -1,16 +1,16 @@
-import { CreepExtra } from "Creep";
-import { TargetTask } from "./TargetTask";
-import { TaskAction } from "./TaskAction";
-import { TaskActionResult } from "./types";
+import { CreepExtra } from 'Creep';
+import { TargetTask } from './TargetTask';
+import { TaskAction } from './TaskAction';
+import { TaskActionResult } from './types';
 
 export class Move extends TargetTask<typeof TaskAction.Move, RoomPosition> {
-  public readonly kind = "move" as const;
+  public readonly kind = 'move' as const;
 
   public constructor(
     public readonly targetPos: RoomPosition,
     public minDistance: number = 5,
   ) {
-    super(TaskAction.Move, targetPos, "roomPosition");
+    super(TaskAction.Move, targetPos, 'roomPosition');
   }
 
   public toString(): string {

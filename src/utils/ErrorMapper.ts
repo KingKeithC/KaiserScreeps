@@ -1,6 +1,6 @@
 /* eslint-disable */
-import { SourceMapConsumer } from "source-map";
-import { Logger } from "./Logger";
+import { SourceMapConsumer } from 'source-map';
+import { Logger } from './Logger';
 
 export class ErrorMapper {
   private static readonly log = new Logger(ErrorMapper);
@@ -9,14 +9,14 @@ export class ErrorMapper {
 
   public static get consumer(): SourceMapConsumer {
     if (this._consumer == null) {
-      this._consumer = new SourceMapConsumer(require("main.js.map"));
+      this._consumer = new SourceMapConsumer(require('main.js.map'));
     }
 
     return this._consumer;
   }
 
   // Cache previously mapped traces to improve performance
-  public static cache: { [key: string]: string; } = {};
+  public static cache: { [key: string]: string } = {};
 
   /**
    * Generates a stack trace using a source map generate original symbol names.
@@ -39,11 +39,8 @@ export class ErrorMapper {
     let outStack = error.toString();
 
     while ((match = re.exec(stack))) {
-      if (match[2] === "main") {
-        const pos = this.consumer.originalPositionFor({
-          column: parseInt(match[4], 10),
-          line: parseInt(match[3], 10)
-        });
+      if (match[2] === 'main') {
+        const pos = this.consumer.originalPositionFor({ column: parseInt(match[4], 10), line: parseInt(match[3], 10) });
 
         if (pos.line != null) {
           if (pos.name) {
@@ -77,7 +74,7 @@ export class ErrorMapper {
         loop();
       } catch (e) {
         if (e instanceof Error) {
-          if ("sim" in Game.rooms) {
+          if ('sim' in Game.rooms) {
             const message = `Source maps don't work in the simulator - displaying original error`;
             ErrorMapper.log.error(this.withStack(e, `${message}\n${e.stack ?? e.toString()}`));
           } else {

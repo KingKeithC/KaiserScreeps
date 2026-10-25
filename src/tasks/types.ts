@@ -1,7 +1,7 @@
-import type { CreepExtra } from "Creep";
+import type { CreepExtra } from 'Creep';
 
 export interface TaskActionResult {
-  target: { pos: RoomPosition; };
+  target: { pos: RoomPosition };
   result: number;
   range: number;
 }
@@ -14,12 +14,12 @@ export interface CreepTask<Action extends string = string> {
   act(creep: CreepExtra): TaskActionResult | null;
 }
 
-export type TravelPath = { exit: ExitConstant; room: string; }[];
+export type TravelPath = { exit: ExitConstant; room: string }[];
 export type EnergySource =
-  | { kind: "creep"; name: string; }
-  | { kind: "container"; id: Id<StructureContainer>; }
-  | { kind: "storage"; id: Id<StructureStorage>; }
-  | { kind: "link"; id: Id<StructureLink>; }
-  | { kind: "dropped"; id: Id<Resource<RESOURCE_ENERGY>>; }
-  | { kind: "tomb"; id: Id<Tombstone>; }
-  | { kind: "ruin"; id: Id<Ruin>; };
+  | { kind: 'creep'; name: string }
+  | { kind: 'container'; id: Id<StructureContainer> }
+  | { kind: 'storage'; id: Id<StructureStorage> }
+  | { kind: 'link'; id: Id<StructureLink> }
+  | { kind: 'dropped'; id: Id<Resource<RESOURCE_ENERGY>> }
+  | { kind: 'tomb'; id: Id<Tombstone> }
+  | { kind: 'ruin'; id: Id<Ruin> };

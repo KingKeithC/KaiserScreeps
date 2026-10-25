@@ -1,6 +1,6 @@
-import { Colony } from "Colony";
+import { Colony } from 'Colony';
 
-export const loop = (new Colony()).GetMainLoop();
+export const loop = new Colony().GetMainLoop();
 
 // Commands to reset memory if it is wiped.
 //

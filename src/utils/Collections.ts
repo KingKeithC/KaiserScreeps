@@ -7,7 +7,7 @@ export function UnpackColour(colour: string): [number, number, number] {
 }
 
 export function PackColour(r: number, g: number, b: number): string {
-  return "#" + [r, g, b].map(value => Math.max(0, Math.min(255, value)).toString(16).padStart(2, "0")).join("");
+  return '#' + [r, g, b].map(value => Math.max(0, Math.min(255, value)).toString(16).padStart(2, '0')).join('');
 }
 
 export function LerpColour(from: string, to: string, ratio: number): string {
@@ -19,8 +19,7 @@ export function LerpColour(from: string, to: string, ratio: number): string {
 
 export function MakeBody(...opts: [BodyPartConstant, number][]): BodyPartConstant[] {
   let result: BodyPartConstant[] = [];
-  for (const [part, qty] of opts)
-    result = result.concat(Array(qty).fill(part));
+  for (const [part, qty] of opts) result = result.concat(Array(qty).fill(part));
   return result;
 }
 
@@ -31,7 +30,7 @@ export function SerializeRoomPosition(pos: RoomPosition): RoomPositionString {
 }
 
 export function DeserializeRoomPosition(str: RoomPositionString): RoomPosition {
-  const [roomName, xStr, yStr] = str.split(":");
+  const [roomName, xStr, yStr] = str.split(':');
   const x = Number.parseInt(xStr, 10);
   const y = Number.parseInt(yStr, 10);
   return new RoomPosition(x, y, roomName);
@@ -39,7 +38,7 @@ export function DeserializeRoomPosition(str: RoomPositionString): RoomPosition {
 
 export function FormatStructureHits(s: AnyStructure, precision = 3, includeUnits = true): string {
   const health = ((s.hits / s.hitsMax) * 100).toPrecision(precision);
-  return `Hits: %${health}${includeUnits ? ` (${s.hits}/${s.hitsMax})` : ""}`;
+  return `Hits: %${health}${includeUnits ? ` (${s.hits}/${s.hitsMax})` : ''}`;
 }
 
 /**
@@ -62,10 +61,10 @@ export function FmtRatios(
   withTotal = false,
   extraTotals: number[] = [],
   precision = 2,
-  units = "",
+  units = '',
   unitsPlaceValue = 1,
 ): string {
-  if (denominator === 0) return "Cant Div By Zero!!!";
+  if (denominator === 0) return 'Cant Div By Zero!!!';
 
   // Start with the main ratio
   let ret = ((numerator / denominator) * 100).toFixed(precision);
@@ -84,16 +83,21 @@ export function FmtRatios(
     ];
 
     ret += ' (';
-    ret += ratios.map(curr => `${(curr).toFixed(precision)}${units}`).join(" / ");
+    ret += ratios.map(curr => `${curr.toFixed(precision)}${units}`).join(' / ');
     ret += ')';
   }
 
   // Return string prepended with a percent sign
-  return "%" + ret;
+  return '%' + ret;
 }
 
-export function Strongest<E>(container: E[], currGetter: (e: E) => number, totalGetter: (e: E) => number, reverse = false): E | undefined {
-  const sorted = container.sort((a: E, b: E) => (currGetter(a) / totalGetter(a)) - (currGetter(b) / totalGetter(b)));
+export function Strongest<E>(
+  container: E[],
+  currGetter: (e: E) => number,
+  totalGetter: (e: E) => number,
+  reverse = false,
+): E | undefined {
+  const sorted = container.sort((a: E, b: E) => currGetter(a) / totalGetter(a) - currGetter(b) / totalGetter(b));
   return reverse ? sorted[0] : sorted.pop();
 }
 
@@ -104,7 +108,7 @@ export function Weakest<E>(container: E[], currGetter: (e: E) => number, totalGe
 export function SearchLocalByPathThenRemoteByStrength(
   start: _HasRoomPosition,
   candidates: _HasRoomPosition[],
-  strengthSorter: (a: _HasRoomPosition, b: _HasRoomPosition) => number
+  strengthSorter: (a: _HasRoomPosition, b: _HasRoomPosition) => number,
 ): _HasRoomPosition | null {
   const inThisRoom = [];
   const notInThisRoom = [];
@@ -112,10 +116,8 @@ export function SearchLocalByPathThenRemoteByStrength(
   // Split the candidates into groups based on whether
   // they are in the same room as the start.
   for (const p of candidates)
-    if (p.pos.roomName === start.pos.roomName)
-      inThisRoom.push(p);
-    else
-      notInThisRoom.push(p);
+    if (p.pos.roomName === start.pos.roomName) inThisRoom.push(p);
+    else notInThisRoom.push(p);
 
   // Filter the candidate in this room by path
   let found: _HasRoomPosition | undefined | null;

@@ -1,15 +1,21 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
-import { CreepExtra } from "Creep";
-import type { CreepTask, TaskActionResult } from "./types";
+import { CreepExtra } from 'Creep';
+import type { CreepTask, TaskActionResult } from './types';
 
 export abstract class BaseTask<Action extends string> implements CreepTask<Action> {
-  public constructor(public readonly action: Action) { }
+  public constructor(public readonly action: Action) {}
 
-  public toString(): string { return this.action; }
+  public toString(): string {
+    return this.action;
+  }
 
-  public isComplete(_creep: CreepExtra): boolean { return false; }
+  public isComplete(_creep: CreepExtra): boolean {
+    return false;
+  }
 
-  public act(_creep: CreepExtra): TaskActionResult | null { return null; }
+  public act(_creep: CreepExtra): TaskActionResult | null {
+    return null;
+  }
 
   protected perform<Target extends RoomObject>(
     target: Target | null,

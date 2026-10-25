@@ -1,30 +1,26 @@
-import { CreepExtra } from "Creep";
-import { unique } from "lodash";
-import type { RoomExtra } from "Room";
-import { ClaimRoomTask, CreepTask, TaskAction } from "tasks";
-import { MakeBody } from "utils/Collections";
-import { CreepRole, CreepRoleBase } from "./Role";
-
+import { CreepExtra } from 'Creep';
+import { unique } from 'lodash';
+import type { RoomExtra } from 'Room';
+import { ClaimRoomTask, CreepTask, TaskAction } from 'tasks';
+import { MakeBody } from 'utils/Collections';
+import { CreepRole, CreepRoleBase } from './Role';
 
 export class Claimer extends CreepRoleBase implements CreepRole {
-  readonly groupName = "Warriors";
-  readonly name = "Claimer";
+  readonly groupName = 'Warriors';
+  readonly name = 'Claimer';
 
   GetNewCreepBody(room: RoomExtra): BodyPartConstant[] {
-    if (room.energyCapacityAvailable >= 1300)
-      return MakeBody(
-        [MOVE, 2],
-        [CLAIM, 2],
-      );
+    if (room.energyCapacityAvailable >= 1300) return MakeBody([MOVE, 2], [CLAIM, 2]);
 
-    return MakeBody(
-      [MOVE, 1],
-      [CLAIM, 1],
-    );
+    return MakeBody([MOVE, 1], [CLAIM, 1]);
   }
 
-  IsSpawnNeeded(room: RoomExtra): boolean { return this.UnworkedClaims(room).length > 0; }
-  override GetRoomQuota(room: RoomExtra): number { return room.ClaimedRoomNames.length; }
+  IsSpawnNeeded(room: RoomExtra): boolean {
+    return this.UnworkedClaims(room).length > 0;
+  }
+  override GetRoomQuota(room: RoomExtra): number {
+    return room.ClaimedRoomNames.length;
+  }
 
   WorkedClaims(room: RoomExtra): string[] {
     return unique(room.GetAssignedTasks(TaskAction.Claim).map(p => (p as ClaimRoomTask).target));
@@ -40,8 +36,7 @@ export class Claimer extends CreepRoleBase implements CreepRole {
   }
 
   override SelectNextTask(creep: CreepExtra): CreepTask | null {
-    for (const c of this.UnworkedClaims(creep.AssignedRoom))
-      return new ClaimRoomTask(c, false);
+    for (const c of this.UnworkedClaims(creep.AssignedRoom)) return new ClaimRoomTask(c, false);
     return null;
   }
 }

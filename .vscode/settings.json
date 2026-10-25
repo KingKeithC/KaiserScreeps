@@ -4,24 +4,19 @@
   "js/ts.format.semicolons": "insert",
   "js/ts.tsserver.experimental.enableProjectDiagnostics": true,
   "js/ts.implicitProjectConfig.target": "ES2018",
-  "chat.tools.terminal.autoApprove": {
-    "/^pnpm exec tsc --noEmit$/": {
-      "approve": true,
-      "matchCommandLine": true
-    }
-  },
+  "chat.tools.terminal.autoApprove": { "/^pnpm exec tsc --noEmit$/": { "approve": true, "matchCommandLine": true } },
   "nixEnvSelector.nixFile": "${workspaceFolder}/flake.nix",
   "nixEnvSelector.useFlakes": true,
   "nixEnvSelector.flakeShell": "default",
+  "editor.defaultFormatter": "rvest.vs-code-prettier-eslint",
+  "eslint.format.enable": true,
+  "eslint.run": "onSave",
+  "vs-code-prettier-eslint.prettierLast": false, // set as "true" to run 'prettier' last not first
   "[typescript]": {
-    "eslint.format.enable": true,
-    "eslint.run": "onSave",
-    "editor.defaultFormatter": "rvest.vs-code-prettier-eslint",
     "editor.formatOnType": false, // required
     "editor.formatOnPaste": false, // optional
     "editor.formatOnSave": true, // optional
     "editor.formatOnSaveMode": "file", // required to format on save
-    "files.autoSave": "onFocusChange", // optional but recommended
-    "vs-code-prettier-eslint.prettierLast": false // set as "true" to run 'prettier' last not first
+    "files.autoSave": "onFocusChange" // optional but recommended
   }
 }

@@ -1,10 +1,10 @@
-import { BaseTask } from "./BaseTask";
+import { BaseTask } from './BaseTask';
 
 export abstract class TargetTask<Action extends string, Target> extends BaseTask<Action> {
   public constructor(
     action: Action,
     public readonly target: Target,
-    private readonly targetType = "target",
+    private readonly targetType = 'target',
   ) {
     super(action);
   }

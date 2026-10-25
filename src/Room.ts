@@ -1,6 +1,13 @@
 import { Dictionary, filter, flatten, range, unique } from "lodash";
 import { CreepTask, Mine, Repair, TaskAction, UpdateController } from "tasks";
-import { FormatHostileInfos, GetHostileInfo, GetMiningPositions, HostileInfo, MakeRoomReport, MiningPosition } from "utils/RoomUtils";
+import {
+  FormatHostileInfos,
+  GetHostileInfo,
+  GetMiningPositions,
+  HostileInfo,
+  MakeRoomReport,
+  MiningPosition
+} from "utils/RoomUtils";
 import { Colony } from "Colony";
 import { CreepExtra } from "Creep";
 import { FmtRatios, LerpColour, SerializeRoomPosition } from "utils/Collections";
@@ -9,30 +16,29 @@ import { CreepRole } from "roles/Role";
 import { Logger } from "utils/Logger";
 import { BodyCost } from "utils/CreepUtils";
 
-
 declare global {
   interface RoomMemory {
-    lastSpawnTick?: { [roleName: string]: number; };
-    roleLimits?: { [roleName: string]: number; };
-    enableVisuals?: boolean,
-    enableRepairOverlay?: boolean,
-    attackHostiles?: boolean,
-    disableWarriors?: boolean,
-    disableTowers?: boolean,
-    disableTowerAttacks?: boolean,
-    towerAttackRange?: number,
+    lastSpawnTick?: { [roleName: string]: number };
+    roleLimits?: { [roleName: string]: number };
+    enableVisuals?: boolean;
+    enableRepairOverlay?: boolean;
+    attackHostiles?: boolean;
+    disableWarriors?: boolean;
+    disableTowers?: boolean;
+    disableTowerAttacks?: boolean;
+    towerAttackRange?: number;
     towerAttackRangeTiles?: number;
     eventCounts?: Dictionary<number>;
     eventAmounts?: Dictionary<number>;
     towerCriticalSupplyRatio?: number;
     hostileNotificationThreshold?: number;
-    claimedNearby?: string[],
-    mines?: MiningPosition[],
-    storageWartimeEnergyBuffer?: number,
-    linkGroups?: Dictionary<Id<StructureLink>[]>,
-    enableCostMatrixOverlay?: boolean,
-    pathfindingCostMatrixDate?: number,
-    pathfindingCostMatrix?: number[],
+    claimedNearby?: string[];
+    mines?: MiningPosition[];
+    storageWartimeEnergyBuffer?: number;
+    linkGroups?: Dictionary<Id<StructureLink>[]>;
+    enableCostMatrixOverlay?: boolean;
+    pathfindingCostMatrixDate?: number;
+    pathfindingCostMatrix?: number[];
   }
 }
 
@@ -63,53 +69,101 @@ export class RoomExtra extends Room {
     this.AssignedCreepsByRoleGroup = new Map();
     for (const c of this.AssignedCreeps) {
       if (!c.role) continue;
-      this.AssignedCreepsByRoleName.set(c.role.name, [...this.AssignedCreepsByRoleName.get(c.role.name) ?? [], c]);
-      this.AssignedCreepsByRoleGroup.set(c.role.groupName, [...this.AssignedCreepsByRoleGroup.get(c.role.groupName) ?? [], c]);
+      this.AssignedCreepsByRoleName.set(c.role.name, [...(this.AssignedCreepsByRoleName.get(c.role.name) ?? []), c]);
+      this.AssignedCreepsByRoleGroup.set(c.role.groupName, [
+        ...(this.AssignedCreepsByRoleGroup.get(c.role.groupName) ?? []),
+        c
+      ]);
     }
   }
 
   GetAssignedTasks(taskAction?: string): CreepTask[] {
     const ret = [];
 
-    for (const c of this.AssignedCreeps)
-      if (c.currentTask)
-        ret.push(c.currentTask);
+    for (const c of this.AssignedCreeps) if (c.currentTask) ret.push(c.currentTask);
 
     if (!taskAction) return ret;
     return ret.filter(t => t.action === taskAction);
   }
 
-  get EnableVisuals(): boolean { return this.memory.enableVisuals ?? true; }
-  set EnableVisuals(value: boolean) { this.memory.enableVisuals = value; }
-  get EnableRepairOverlay(): boolean { return this.memory.enableRepairOverlay ?? false; }
-  set EnableRepairOverlay(value: boolean) { this.memory.enableRepairOverlay = value; }
-  get AttackHostiles(): boolean { return this.memory.attackHostiles ?? true; }
-  set AttackHostiles(value: boolean) { this.memory.attackHostiles = value; }
-  get DisableWarriors(): boolean { return this.memory.disableWarriors ?? false; }
-  set DisableWarriors(value: boolean) { this.memory.disableWarriors = value; }
-  get DisableTowers(): boolean { return this.memory.disableTowers ?? false; }
-  set DisableTowers(value: boolean) { this.memory.disableTowers = value; }
-  get DisableTowerAttacks(): boolean { return this.memory.disableTowerAttacks ?? false; }
-  set DisableTowerAttacks(value: boolean) { this.memory.disableTowerAttacks = value; }
-  get TowerAttackRange(): number { return this.memory.towerAttackRange ?? 20; }
-  set TowerAttackRange(value: number) { this.memory.towerAttackRange = value; }
-  get TowerCriticalSupplyRatio(): number { return this.memory.towerCriticalSupplyRatio ?? 0.75; }
-  set TowerCriticalSupplyRatio(value: number) { this.memory.towerCriticalSupplyRatio = value; }
-  get HostileNotificationThreshold(): number { return this.memory.hostileNotificationThreshold ?? 2; }
-  set HostileNotificationThreshold(value: number) { this.memory.hostileNotificationThreshold = value; }
-  get StorageWartimeEnergyBuffer(): number { return this.memory.storageWartimeEnergyBuffer ?? 5000; }
-  get LinkGroups(): { [key: string]: Id<StructureLink>[]; } { return this.memory.linkGroups ?? {}; }
-  set LinkGroups(value: { [key: string]: Id<StructureLink>[]; }) { this.memory.linkGroups = value; }
+  get EnableVisuals(): boolean {
+    return this.memory.enableVisuals ?? true;
+  }
+  set EnableVisuals(value: boolean) {
+    this.memory.enableVisuals = value;
+  }
+  get EnableRepairOverlay(): boolean {
+    return this.memory.enableRepairOverlay ?? false;
+  }
+  set EnableRepairOverlay(value: boolean) {
+    this.memory.enableRepairOverlay = value;
+  }
+  get AttackHostiles(): boolean {
+    return this.memory.attackHostiles ?? true;
+  }
+  set AttackHostiles(value: boolean) {
+    this.memory.attackHostiles = value;
+  }
+  get DisableWarriors(): boolean {
+    return this.memory.disableWarriors ?? false;
+  }
+  set DisableWarriors(value: boolean) {
+    this.memory.disableWarriors = value;
+  }
+  get DisableTowers(): boolean {
+    return this.memory.disableTowers ?? false;
+  }
+  set DisableTowers(value: boolean) {
+    this.memory.disableTowers = value;
+  }
+  get DisableTowerAttacks(): boolean {
+    return this.memory.disableTowerAttacks ?? false;
+  }
+  set DisableTowerAttacks(value: boolean) {
+    this.memory.disableTowerAttacks = value;
+  }
+  get TowerAttackRange(): number {
+    return this.memory.towerAttackRange ?? 20;
+  }
+  set TowerAttackRange(value: number) {
+    this.memory.towerAttackRange = value;
+  }
+  get TowerCriticalSupplyRatio(): number {
+    return this.memory.towerCriticalSupplyRatio ?? 0.75;
+  }
+  set TowerCriticalSupplyRatio(value: number) {
+    this.memory.towerCriticalSupplyRatio = value;
+  }
+  get HostileNotificationThreshold(): number {
+    return this.memory.hostileNotificationThreshold ?? 2;
+  }
+  set HostileNotificationThreshold(value: number) {
+    this.memory.hostileNotificationThreshold = value;
+  }
+  get StorageWartimeEnergyBuffer(): number {
+    return this.memory.storageWartimeEnergyBuffer ?? 5000;
+  }
+  get LinkGroups(): { [key: string]: Id<StructureLink>[] } {
+    return this.memory.linkGroups ?? {};
+  }
+  set LinkGroups(value: { [key: string]: Id<StructureLink>[] }) {
+    this.memory.linkGroups = value;
+  }
 
-  set Mines(value: MiningPosition[]) { this.memory.mines = value; }
+  set Mines(value: MiningPosition[]) {
+    this.memory.mines = value;
+  }
   get Mines(): MiningPosition[] {
-    if (this.memory.mines === undefined || this.memory.mines.length === 0)
-      this.memory.mines = GetMiningPositions(this); // Update memoized
+    if (this.memory.mines === undefined || this.memory.mines.length === 0) this.memory.mines = GetMiningPositions(this); // Update memoized
     return this.memory.mines; // Return memoized
   }
 
-  set ClaimedRoomNames(value: string[]) { this.memory.claimedNearby = unique(value); }
-  get ClaimedRoomNames(): string[] { return unique(this.memory.claimedNearby ?? []); }
+  set ClaimedRoomNames(value: string[]) {
+    this.memory.claimedNearby = unique(value);
+  }
+  get ClaimedRoomNames(): string[] {
+    return unique(this.memory.claimedNearby ?? []);
+  }
 
   private cachedClaimedRooms: Room[] = [];
   get ClaimedRooms(): Room[] {
@@ -147,10 +201,14 @@ export class RoomExtra extends Room {
     return this.cachedClaimedRooms;
   }
 
-  HostilesByRoom = this.MapWithRoomsInClaimedArea(mr => mr instanceof Room ? mr.find(FIND_HOSTILE_CREEPS) : []);
+  HostilesByRoom = this.MapWithRoomsInClaimedArea(mr => (mr instanceof Room ? mr.find(FIND_HOSTILE_CREEPS) : []));
 
-  get EnableCostMatrixOverlay(): boolean { return this.memory.enableCostMatrixOverlay ?? false; }
-  set EnableCostMatrixOverlay(value: boolean) { this.memory.enableCostMatrixOverlay = value; }
+  get EnableCostMatrixOverlay(): boolean {
+    return this.memory.enableCostMatrixOverlay ?? false;
+  }
+  set EnableCostMatrixOverlay(value: boolean) {
+    this.memory.enableCostMatrixOverlay = value;
+  }
 
   // We return the cached matrix from the property if it is defined,
   // Otherwise we check memory and deserialize it from there,
@@ -158,8 +216,7 @@ export class RoomExtra extends Room {
   private cachedDeserializedCostMatrix?: CostMatrix;
   get PathfindingCostMatrix(): CostMatrix {
     // Return from cached property
-    if (this.cachedDeserializedCostMatrix !== undefined)
-      return this.cachedDeserializedCostMatrix;
+    if (this.cachedDeserializedCostMatrix !== undefined) return this.cachedDeserializedCostMatrix;
 
     // Return from memory, and update cache
     if (this.memory.pathfindingCostMatrix !== undefined) {
@@ -185,16 +242,20 @@ export class RoomExtra extends Room {
     this.memory.pathfindingCostMatrixDate = undefined;
   }
 
-  get PathfindingCostMatrixDate(): number { return this.memory.pathfindingCostMatrixDate ?? 0; }
-  private set PathfindingCostMatrixDate(value: number) { this.memory.pathfindingCostMatrixDate = value; }
+  get PathfindingCostMatrixDate(): number {
+    return this.memory.pathfindingCostMatrixDate ?? 0;
+  }
+  private set PathfindingCostMatrixDate(value: number) {
+    this.memory.pathfindingCostMatrixDate = value;
+  }
 
   PathfindingParams = {
     RoadCost: 1,
-    SourceRadius: 3,      // The radius around each source to apply a bias
-    SourceBiasMax: 5,     // Start biasing at Sources with this cost (since sources are unwalkable so only applies for Radius >= 1 )
-    SourceBiasMin: 3,     // Do not bias lower than this cost around Sources
+    SourceRadius: 3, // The radius around each source to apply a bias
+    SourceBiasMax: 5, // Start biasing at Sources with this cost (since sources are unwalkable so only applies for Radius >= 1 )
+    SourceBiasMin: 3, // Do not bias lower than this cost around Sources
     SourceBiasFalloff: 1, // Decrease the cost by this much per additional radius
-    Unwalkable: 0xff,
+    Unwalkable: 0xff
   };
 
   private UpdateCostMatrix(): void {
@@ -247,11 +308,10 @@ export class RoomExtra extends Room {
 
       // For each 'ring' in the radii
       for (let r = 0; r < this.PathfindingParams.SourceRadius; r++) {
-
         // Determine a bias weight for this ring
         const weight = Math.max(
           this.PathfindingParams.SourceBiasMin,
-          this.PathfindingParams.SourceBiasMax - (r * this.PathfindingParams.SourceBiasFalloff)
+          this.PathfindingParams.SourceBiasMax - r * this.PathfindingParams.SourceBiasFalloff
         );
 
         // Set weight of Origin Point
@@ -260,22 +320,31 @@ export class RoomExtra extends Room {
         else {
           // Set weight of ascending left and right columns
           for (const yOff of range(-r, r + 1)) {
-            if (terrain.get(source.pos.x - r, source.pos.y + yOff) !== TERRAIN_MASK_WALL) matrix.set(source.pos.x - r, source.pos.y + yOff, weight); // Left side
-            if (terrain.get(source.pos.x + r, source.pos.y + yOff) !== TERRAIN_MASK_WALL) matrix.set(source.pos.x + r, source.pos.y + yOff, weight); // Right side
+            if (terrain.get(source.pos.x - r, source.pos.y + yOff) !== TERRAIN_MASK_WALL)
+              matrix.set(source.pos.x - r, source.pos.y + yOff, weight); // Left side
+            if (terrain.get(source.pos.x + r, source.pos.y + yOff) !== TERRAIN_MASK_WALL)
+              matrix.set(source.pos.x + r, source.pos.y + yOff, weight); // Right side
           }
 
           // Set weight of ascending top and bottom rows (except the corners)
           const xOffs = r === 1 ? [0] : range(-(r - 1), r);
           for (const xOff of xOffs) {
-            if (terrain.get(source.pos.x + xOff, source.pos.y - r) !== TERRAIN_MASK_WALL) matrix.set(source.pos.x + xOff, source.pos.y - r, weight); // Top side
-            if (terrain.get(source.pos.x + xOff, source.pos.y + r) !== TERRAIN_MASK_WALL) matrix.set(source.pos.x + xOff, source.pos.y + r, weight); // Bottom Side
+            if (terrain.get(source.pos.x + xOff, source.pos.y - r) !== TERRAIN_MASK_WALL)
+              matrix.set(source.pos.x + xOff, source.pos.y - r, weight); // Top side
+            if (terrain.get(source.pos.x + xOff, source.pos.y + r) !== TERRAIN_MASK_WALL)
+              matrix.set(source.pos.x + xOff, source.pos.y + r, weight); // Bottom Side
           }
         }
       }
     });
 
     // Blot out unwalkable structures
-    for (const s of this.find(FIND_STRUCTURES, { filter: st => st.structureType !== STRUCTURE_ROAD && st.structureType !== STRUCTURE_CONTAINER && (st.structureType !== STRUCTURE_RAMPART || !st.my) }))
+    for (const s of this.find(FIND_STRUCTURES, {
+      filter: st =>
+        st.structureType !== STRUCTURE_ROAD &&
+        st.structureType !== STRUCTURE_CONTAINER &&
+        (st.structureType !== STRUCTURE_RAMPART || !st.my)
+    }))
       matrix.set(s.pos.x, s.pos.y, this.PathfindingParams.Unwalkable);
 
     // Cache
@@ -286,11 +355,19 @@ export class RoomExtra extends Room {
     this.PathfindingCostMatrixDate = Game.time;
   }
 
-  private set EventCounts(value: Dictionary<number>) { this.memory.eventCounts = value; }
-  get EventCounts(): Dictionary<number> { return this.memory.eventCounts ?? {}; }
+  private set EventCounts(value: Dictionary<number>) {
+    this.memory.eventCounts = value;
+  }
+  get EventCounts(): Dictionary<number> {
+    return this.memory.eventCounts ?? {};
+  }
 
-  private set EventAmounts(value: Dictionary<number>) { this.memory.eventAmounts = value; }
-  get EventAmounts(): Dictionary<number> { return this.memory.eventAmounts ?? {}; }
+  private set EventAmounts(value: Dictionary<number>) {
+    this.memory.eventAmounts = value;
+  }
+  get EventAmounts(): Dictionary<number> {
+    return this.memory.eventAmounts ?? {};
+  }
 
   get ClaimedMines(): [Room | string, MiningPosition[]][] {
     return this.MapWithRoomsInClaimedArea(cr => {
@@ -305,8 +382,7 @@ export class RoomExtra extends Room {
       // Since cr must be a string, there is nothing more we can do.
       // The room must be invisible, and we can't fetch them for invisible rooms if we don't
       // Have them scouted already.
-      if (!(cr instanceof Room))
-        return [];
+      if (!(cr instanceof Room)) return [];
 
       // Otherwise, update the existing scouting report's mines, and return those
       if (Memory.scoutingReports && Memory.scoutingReports[name]) {
@@ -333,18 +409,18 @@ export class RoomExtra extends Room {
     const ret = [];
     const assignedMiningPositions = this.colony.GetAllAssignedTasks(TaskAction.Mine).map(p => (p as Mine).target);
     for (const [_room, mines] of this.ClaimedMines)
-      for (const mine of mines)
-        if (!assignedMiningPositions.some(amp => amp.source === mine.source))
-          ret.push(mine);
+      for (const mine of mines) if (!assignedMiningPositions.some(amp => amp.source === mine.source)) ret.push(mine);
     return ret;
   }
 
-  LastSpawnTick(roleName: string): number { return (this.memory.lastSpawnTick ?? {})[roleName] ?? 0; }
+  LastSpawnTick(roleName: string): number {
+    return (this.memory.lastSpawnTick ?? {})[roleName] ?? 0;
+  }
 
   SetLastSpawnTick(roleName: string, value: number): void {
     this.memory.lastSpawnTick ??= {};
     this.memory.lastSpawnTick[roleName] = value;
-  };
+  }
 
   GetLimitOfRole(roleName: string): number {
     // Return the custom limit room memory
@@ -368,8 +444,7 @@ export class RoomExtra extends Room {
   get ConstructionSites(): ConstructionSite[] {
     const constructionGetter = (r: Room) => r.find(FIND_MY_CONSTRUCTION_SITES);
     let ret = [...constructionGetter(this)];
-    for (const claimed of this.ClaimedRooms)
-      ret = ret.concat(...constructionGetter(claimed));
+    for (const claimed of this.ClaimedRooms) ret = ret.concat(...constructionGetter(claimed));
     return ret;
   }
 
@@ -390,18 +465,17 @@ export class RoomExtra extends Room {
   }
 
   get Containers(): StructureContainer[] {
-    const containerGetter = (r: Room) => r.find(FIND_STRUCTURES, { filter: s => s.structureType === STRUCTURE_CONTAINER });
+    const containerGetter = (r: Room) =>
+      r.find(FIND_STRUCTURES, { filter: s => s.structureType === STRUCTURE_CONTAINER });
     let ret = [...containerGetter(this)];
-    for (const claimed of this.ClaimedRooms)
-      ret = ret.concat(...containerGetter(claimed));
+    for (const claimed of this.ClaimedRooms) ret = ret.concat(...containerGetter(claimed));
     return ret as StructureContainer[];
   }
 
   get Repairs(): AnyStructure[] {
     const repairGetter = (r: Room) => r.find(FIND_STRUCTURES, { filter: s => s.hits < s.hitsMax });
     let ret = [...repairGetter(this)];
-    for (const claimed of this.ClaimedRooms)
-      ret = ret.concat(...repairGetter(claimed));
+    for (const claimed of this.ClaimedRooms) ret = ret.concat(...repairGetter(claimed));
     return ret;
   }
 
@@ -433,16 +507,17 @@ export class RoomExtra extends Room {
     return ret;
   }
 
-  MapWithRoomsInClaimedArea<T>(mapper: (r: RoomExtra | Room | string) => T[], includeMainRoom = true): [Room | string, T[]][] {
+  MapWithRoomsInClaimedArea<T>(
+    mapper: (r: RoomExtra | Room | string) => T[],
+    includeMainRoom = true
+  ): [Room | string, T[]][] {
     const allClaimedRooms = this.ClaimedRoomNames;
     const visibleRooms = this.ClaimedRooms.concat(includeMainRoom ? [this] : []);
     const ret: [Room | string, T[]][] = [];
 
-    for (const room of visibleRooms)
-      ret.push([room, mapper(room)]);
+    for (const room of visibleRooms) ret.push([room, mapper(room)]);
 
-    for (const name of allClaimedRooms)
-      ret.push([name, mapper(name)]);
+    for (const name of allClaimedRooms) ret.push([name, mapper(name)]);
 
     return ret;
   }
@@ -475,18 +550,30 @@ export class RoomExtra extends Room {
 
   EventToName(e: EventConstant): string {
     switch (e) {
-      case EVENT_ATTACK: return "EVENT_ATTACK";
-      case EVENT_OBJECT_DESTROYED: return "EVENT_OBJECT_DESTROYED";
-      case EVENT_ATTACK_CONTROLLER: return "EVENT_ATTACK_CONTROLLER";
-      case EVENT_BUILD: return "EVENT_BUILD";
-      case EVENT_HARVEST: return "EVENT_HARVEST";
-      case EVENT_HEAL: return "EVENT_HEAL";
-      case EVENT_REPAIR: return "EVENT_REPAIR";
-      case EVENT_RESERVE_CONTROLLER: return "EVENT_RESERVE_CONTROLLER";
-      case EVENT_UPGRADE_CONTROLLER: return "EVENT_UPGRADE_CONTROLLER";
-      case EVENT_EXIT: return "EVENT_EXIT";
-      case EVENT_POWER: return "EVENT_POWER";
-      case EVENT_TRANSFER: return "EVENT_TRANSFER";
+      case EVENT_ATTACK:
+        return "EVENT_ATTACK";
+      case EVENT_OBJECT_DESTROYED:
+        return "EVENT_OBJECT_DESTROYED";
+      case EVENT_ATTACK_CONTROLLER:
+        return "EVENT_ATTACK_CONTROLLER";
+      case EVENT_BUILD:
+        return "EVENT_BUILD";
+      case EVENT_HARVEST:
+        return "EVENT_HARVEST";
+      case EVENT_HEAL:
+        return "EVENT_HEAL";
+      case EVENT_REPAIR:
+        return "EVENT_REPAIR";
+      case EVENT_RESERVE_CONTROLLER:
+        return "EVENT_RESERVE_CONTROLLER";
+      case EVENT_UPGRADE_CONTROLLER:
+        return "EVENT_UPGRADE_CONTROLLER";
+      case EVENT_EXIT:
+        return "EVENT_EXIT";
+      case EVENT_POWER:
+        return "EVENT_POWER";
+      case EVENT_TRANSFER:
+        return "EVENT_TRANSFER";
       default:
         throw new Error(`Invalid EventConstant: ${e}`);
     }
@@ -502,22 +589,14 @@ export class RoomExtra extends Room {
       existingCount[name] = (existingCount[name] ?? 0) + 1;
 
       let amount;
-      if (e.event === EVENT_ATTACK)
-        amount = e.data.damage;
-      if (e.event === EVENT_BUILD)
-        amount = e.data.amount;
-      if (e.event === EVENT_HARVEST)
-        amount = e.data.amount;
-      if (e.event === EVENT_HEAL)
-        amount = e.data.amount;
-      if (e.event === EVENT_REPAIR)
-        amount = e.data.amount;
-      if (e.event === EVENT_RESERVE_CONTROLLER)
-        amount = e.data.amount;
-      if (e.event === EVENT_UPGRADE_CONTROLLER)
-        amount = e.data.amount;
-      if (e.event === EVENT_TRANSFER)
-        amount = e.data.amount;
+      if (e.event === EVENT_ATTACK) amount = e.data.damage;
+      if (e.event === EVENT_BUILD) amount = e.data.amount;
+      if (e.event === EVENT_HARVEST) amount = e.data.amount;
+      if (e.event === EVENT_HEAL) amount = e.data.amount;
+      if (e.event === EVENT_REPAIR) amount = e.data.amount;
+      if (e.event === EVENT_RESERVE_CONTROLLER) amount = e.data.amount;
+      if (e.event === EVENT_UPGRADE_CONTROLLER) amount = e.data.amount;
+      if (e.event === EVENT_TRANSFER) amount = e.data.amount;
 
       if (amount) existingAmount[name] = (existingAmount[name] ?? 0) + amount;
       else continue; // Skip events with no 'amount' field.
@@ -538,16 +617,12 @@ export class RoomExtra extends Room {
 
   RunTowers(): void {
     // Run each tower in the room
-    if (!this.DisableTowers)
-      for (const tower of this.Towers)
-        this.TickTower(tower);
+    if (!this.DisableTowers) for (const tower of this.Towers) this.TickTower(tower);
   }
 
   RunLinks(): void {
     // Send energy across links
-    for (const sender of this.LinkSenders)
-      for (const receiver of this.LinkReceivers)
-        this.SendLink(sender, receiver);
+    for (const sender of this.LinkSenders) for (const receiver of this.LinkReceivers) this.SendLink(sender, receiver);
   }
 
   DrawVisuals(): void {
@@ -561,7 +636,10 @@ export class RoomExtra extends Room {
     if (sender.store.getUsedCapacity(RESOURCE_ENERGY) === 0 || sender.cooldown > 0) return; // Can't / Nothing to send
     if (receiver.store.getFreeCapacity(RESOURCE_ENERGY) === 0) return; // No ability to receive
     const ret = sender.transferEnergy(receiver);
-    if (ret !== OK) this.log.warn(`Link Transfer from ${sender} (Used: ${sender.store.getUsedCapacity()}) -> ${receiver} (Free: ${receiver.store.getFreeCapacity()}) failed: ${ret}`);
+    if (ret !== OK)
+      this.log.warn(
+        `Link Transfer from ${sender} (Used: ${sender.store.getUsedCapacity()}) -> ${receiver} (Free: ${receiver.store.getFreeCapacity()}) failed: ${ret}`
+      );
   }
 
   ReportHostiles(): void {
@@ -597,15 +675,16 @@ export class RoomExtra extends Room {
     const cost = BodyCost(body);
 
     if (this.energyAvailable < cost) {
-      this.log.info(`Room lacks the energy to spawn (need ${cost} have ${this.energyAvailable}/${this.energyCapacityAvailable}).`, { "<role>": role, "<rate>": 10 });
+      this.log.info(
+        `Room lacks the energy to spawn (need ${cost} have ${this.energyAvailable}/${this.energyCapacityAvailable}).`,
+        { "<role>": role, "<rate>": 10 }
+      );
       return false; // No point proceeding
     }
 
     for (const sp of this.AvailableSpawns) {
-
       // Get directions to surrounding roads
-      const nearbyRoads = sp.pos.findInRange(this.Roads, 1)
-        .map(nr => sp.pos.getDirectionTo(nr.pos.x, nr.pos.y));
+      const nearbyRoads = sp.pos.findInRange(this.Roads, 1).map(nr => sp.pos.getDirectionTo(nr.pos.x, nr.pos.y));
 
       // Try to do the spawn
       const result = sp.spawnCreep(body, name, {
@@ -615,10 +694,9 @@ export class RoomExtra extends Room {
           role: role.name,
           stuckTicks: 0,
           lastPos: SerializeRoomPosition(sp.pos),
-          spawning: true,
-        },
+          spawning: true
+        }
       });
-
 
       // Log the result
       if (result === OK) {
@@ -654,8 +732,8 @@ export class RoomExtra extends Room {
 
       const spawnNeeded = role.IsSpawnNeeded(this);
       const spawnAble = this.IsRoleLimited(role);
-      const spawnableStr = spawnAble ? '+' : '';
-      const spawnNeededStr = spawnNeeded ? '*' : '';
+      const spawnableStr = spawnAble ? "+" : "";
+      const spawnNeededStr = spawnNeeded ? "*" : "";
       const roomQuota = this.GetLimitOfRole(name);
       const roomCount = role.GetRoomCreepsInRole(this).length;
 
@@ -668,7 +746,9 @@ export class RoomExtra extends Room {
     const ownedStatus = this.parent !== undefined ? `Claimed by ${this.parent.name}` : `HQ`;
 
     // Prepend a leader to the populations string.
-    msg = `${this.name} (${ownedStatus}) ::: ${spawned}/${totalRoles} Roles, ${this.AssignedCreeps.length} Assigned Creeps` + msg;
+    msg =
+      `${this.name} (${ownedStatus}) ::: ${spawned}/${totalRoles} Roles, ${this.AssignedCreeps.length} Assigned Creeps` +
+      msg;
 
     if (this.storage)
       msg += ` ENERGY IN STORAGE: ${FmtRatios(this.storage.store.getUsedCapacity(RESOURCE_ENERGY), this.storage.store.getCapacity(RESOURCE_ENERGY), true, [], 3, "K", 1000)}`;
@@ -676,8 +756,12 @@ export class RoomExtra extends Room {
     if (!this.controller) throw new Error(`RoomExtra is an owned room, therefore should never not have a controller.`);
 
     const nextLevelStr = this.controller.level === 8 ? "" : ` -> ${this.controller.level + 1}`;
-    const downgradeMaintenanceThreshold = CONTROLLER_DOWNGRADE[this.controller.level] * UpdateController.DowngradeMaintenanceRatio;
-    const downgradeStr = this.controller.ticksToDowngrade < downgradeMaintenanceThreshold ? ` , Downgrade in ${this.controller.ticksToDowngrade}` : "";
+    const downgradeMaintenanceThreshold =
+      CONTROLLER_DOWNGRADE[this.controller.level] * UpdateController.DowngradeMaintenanceRatio;
+    const downgradeStr =
+      this.controller.ticksToDowngrade < downgradeMaintenanceThreshold
+        ? ` , Downgrade in ${this.controller.ticksToDowngrade}`
+        : "";
     msg += ` CONTROLLER ${this.controller.level}${nextLevelStr} ${FmtRatios(this.controller.progress, this.controller.progressTotal, true, [], 3, "K", 1000)}${downgradeStr}`;
 
     // Append hostile details
@@ -690,16 +774,18 @@ export class RoomExtra extends Room {
     msg += `\n\tClaimedSources: ${[...this.ClaimedSources]}`;
 
     // Get info about claimed rooms
-    for (const claim of this.ClaimedRoomNames) msg += `\n\tClaims: ${claim}: Visible ${this.ClaimedRooms.map(r => r.name).includes(claim)}`;
-
+    for (const claim of this.ClaimedRoomNames)
+      msg += `\n\tClaims: ${claim}: Visible ${this.ClaimedRooms.map(r => r.name).includes(claim)}`;
 
     return msg;
   }
 
   DrawRepairOverlay(): void {
     for (const d of this.Repairs)
-      this.visual.rect(d.pos.x - 0.5, d.pos.y - 0.5, 1, 1, { fill: LerpColour("#ff0000", "#00ff00", d.hits / d.hitsMax) });
-  };
+      this.visual.rect(d.pos.x - 0.5, d.pos.y - 0.5, 1, 1, {
+        fill: LerpColour("#ff0000", "#00ff00", d.hits / d.hitsMax)
+      });
+  }
 
   DrawCostMatrixOverlay(): void {
     for (let x = 0; x < 50; x++)
@@ -710,9 +796,10 @@ export class RoomExtra extends Room {
             .rect(x - 0.5, y - 0.5, 1, 1, { fill: LerpColour("#00ff00", "#ff0000", weight / 255) })
             .text(weight.toString(10), x, y);
       }
-  };
+  }
 
   // List of filter callback, health capacity to begin repair, and maxRepairers, descending order.
+  // prettier-ignore
   RepairPriorities: [((s: AnyStructure) => boolean), number, number][] = [
     [(s => s.hits < 1000 && s.hitsMax > 1000), 1, 1], // Critical Risk of decaying
     [(s => s instanceof StructureContainer || s instanceof StructurePortal), 0.9, 2],
@@ -727,16 +814,17 @@ export class RoomExtra extends Room {
     let priorityIndex = 0;
     const ongoingRepairs = this.GetAssignedTasks(TaskAction.Repair) as Repair[];
     const incoming = (s: AnyStructure) => ongoingRepairs.filter(or => or.target === s.id).length;
-    const roomLimit = (s: AnyStructure) => limitToRoom === undefined || (limitToRoom !== undefined && s.pos.roomName === limitToRoom.name);
+    const roomLimit = (s: AnyStructure) =>
+      limitToRoom === undefined || (limitToRoom !== undefined && s.pos.roomName === limitToRoom.name);
     for (const [predicate, repairAt, maxWorkers] of this.RepairPriorities) {
-      const candidates = this.Repairs.filter(s => roomLimit(s) && predicate(s) && (s.hits / s.hitsMax) < repairAt && incoming(s) < maxWorkers);
+      const candidates = this.Repairs.filter(
+        s => roomLimit(s) && predicate(s) && s.hits / s.hitsMax < repairAt && incoming(s) < maxWorkers
+      );
 
       let selected;
       if (byRangeTo === undefined)
         // Sort by most needed
-        selected = candidates
-          .sort((b, a) => (a.hits / a.hitsMax) - (b.hits / b.hitsMax))
-          .pop();
+        selected = candidates.sort((b, a) => a.hits / a.hitsMax - b.hits / b.hitsMax).pop();
       else
         // Sort by range to given point
         selected = byRangeTo.findClosestByRange(candidates);
@@ -757,28 +845,36 @@ export class RoomExtra extends Room {
 
     // Attacks
     if (this.Hostiles.length && this.AttackHostiles && !this.DisableTowerAttacks) {
-      this.visual.circle(tower.pos, { radius: this.TowerAttackRange, stroke: Colours.ATTACK_RANGE, opacity: 0.1, strokeWidth: 0.5 });
+      this.visual.circle(tower.pos, {
+        radius: this.TowerAttackRange,
+        stroke: Colours.ATTACK_RANGE,
+        opacity: 0.1,
+        strokeWidth: 0.5
+      });
 
       // Find lowest health hostile in range
       const weakestHostile = tower.pos
         .findInRange(this.Hostiles, this.TowerAttackRange)
-        .sort((b, a) => (a.hits / a.hitsMax) - (b.hits / b.hitsMax))
+        .sort((b, a) => a.hits / a.hitsMax - b.hits / b.hitsMax)
         .pop();
       if (weakestHostile) {
         const res = tower.attack(weakestHostile);
-        this.log.debug(`!!! Tower Attacked ${weakestHostile.name} from ${weakestHostile.owner.username} (${weakestHostile.hits}/${weakestHostile.hits}) with result ${res}!`);
+        this.log.debug(
+          `!!! Tower Attacked ${weakestHostile.name} from ${weakestHostile.owner.username} (${weakestHostile.hits}/${weakestHostile.hits}) with result ${res}!`
+        );
         return;
       }
     }
 
     // My creeps in need of healing, weakest first
-    const weakestFriendly = this.colony.MyCreeps
-      .filter(c => c.hits < c.hitsMax)
-      .sort((b, a) => (a.hits / a.hitsMax) - (b.hits / b.hitsMax))
+    const weakestFriendly = this.colony.MyCreeps.filter(c => c.hits < c.hitsMax)
+      .sort((b, a) => a.hits / a.hitsMax - b.hits / b.hitsMax)
       .pop();
     if (weakestFriendly) {
       const res = tower.heal(weakestFriendly);
-      this.log.debug(`Tower Healed ${weakestFriendly.name} (${weakestFriendly.hits}/${weakestFriendly.hitsMax}) with result ${res}!`);
+      this.log.debug(
+        `Tower Healed ${weakestFriendly.name} (${weakestFriendly.hits}/${weakestFriendly.hitsMax}) with result ${res}!`
+      );
       return;
     }
 
