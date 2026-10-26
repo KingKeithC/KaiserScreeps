@@ -80,6 +80,14 @@ export class Worker extends CreepRoleBase implements CreepRole {
           return null;
         }
 
+        // Don't fallback to collecting from storage if we had no previous task
+        if (creep.currentTask === null) return null;
+
+        // Don't fallback to collecting from storage if we just supplied it
+        if (creep.currentTask.action === TaskAction.Supply)
+          if ((creep.currentTask as Supply).target === creep.AssignedRoom.storage.id) return null;
+
+        // Should be okay to collect from storage
         this.log.info(msg, { '<creep>': creep });
         return new CollectEnergy({ kind: 'storage', id: creep.AssignedRoom.storage.id });
       } else {
@@ -100,7 +108,9 @@ export class Worker extends CreepRoleBase implements CreepRole {
         this.log.info(`No spending Tasks, and nowhere to put energy...`, { '<creep>': creep });
         return null;
       }
-    } else return null;
+    }
+
+    return null;
   }
 
   MaxSupplyForSpawns = 3;
@@ -169,8 +179,6 @@ export class Worker extends CreepRoleBase implements CreepRole {
     return null;
   }
 
-  MinUsedCapacityPerNonCreepSource = 150;
-  MaxIncomingPerEnergySource = 3;
   RelyOnMinersAt = 1000;
   FindGatheringTask(creep: CreepExtra): CreepTask | null {
     const activeDeliveries = creep.AssignedRoom.GetAssignedTasks(TaskAction.CollectEnergy) as CollectEnergy[];
@@ -192,82 +200,22 @@ export class Worker extends CreepRoleBase implements CreepRole {
     )[] = [];
 
     for (const possible of allSources) {
-      // Skip Energy sources that have too little energy
-      if (
-        (possible instanceof Resource && possible.amount < this.IgnoreDroppedResourcesLessThan) || // Skip resources that are too small
-        (possible instanceof CreepExtra && possible.store.getFreeCapacity(RESOURCE_ENERGY) !== 0) || // Skip miners that aren't full
-        (!(possible instanceof Resource) &&
-          !(possible instanceof CreepExtra) &&
-          !(possible instanceof Creep) &&
-          possible.store.getUsedCapacity(RESOURCE_ENERGY) < this.MinUsedCapacityPerNonCreepSource) // Skip other stores that are not full enough
-      ) {
-        continue;
-      }
+      const sourceEnergyAvailable =
+        possible instanceof Resource ? possible.amount : possible.store.getUsedCapacity(RESOURCE_ENERGY);
 
-      // Skip energy sources based on type, and incomining collection tasks
-      if (possible instanceof Resource && possible.resourceType === RESOURCE_ENERGY) {
-        // Skip source if it has too many incoming deliveries already
-        if (
-          activeDeliveries.filter(ad => ad.source.kind === 'dropped' && ad.source.id === possible.id).length >
-          this.MaxIncomingPerEnergySource
-        ) {
-          continue;
-        }
+      const acceptibleDeliveryCount = Math.floor(sourceEnergyAvailable / creep.store.getCapacity(RESOURCE_ENERGY));
 
-        // Calculate amount remaining by time we get there:
-        // const path = creep.pos.findPathTo(res, { ignoreCreeps: true });
-        // const distance = path.length;
-        // const approxAmtRemaining = Math.ceil(res.amount / 1000) * distance;
-        // const collect = approxAmtRemaining > this.IgnoreDroppedResourcesLessThan;
-      } else if (possible instanceof Ruin) {
-        // Skip source if it has too many incoming deliveries already
-        if (
-          activeDeliveries.filter(ad => ad.source.kind === 'ruin' && ad.source.id === possible.id).length >
-          this.MaxIncomingPerEnergySource
-        ) {
-          continue;
-        }
-      } else if (possible instanceof Tombstone) {
-        // Skip source if it has too many incoming deliveries already
-        if (
-          activeDeliveries.filter(ad => ad.source.kind === 'tomb' && ad.source.id === possible.id).length >
-          this.MaxIncomingPerEnergySource
-        ) {
-          continue;
-        }
-      } else if (possible instanceof StructureContainer) {
-        const acceptibleDeliveryCount = Math.floor(
-          possible.store.getUsedCapacity(RESOURCE_ENERGY) / creep.store.getCapacity(RESOURCE_ENERGY),
-        );
-        const currentDeliveryCount = activeDeliveries.filter(
-          ad => ad.source.kind === 'container' && ad.source.id === possible.id,
-        ).length;
-        // Skip source if it has too many incoming deliveries already
-        if (currentDeliveryCount >= acceptibleDeliveryCount) {
-          continue;
-        }
-      } else if (possible instanceof Creep) {
-        // Skip source if it has too many incoming deliveries already
-        if (
-          activeDeliveries.filter(ad => ad.source.kind === 'creep' && ad.source.name === possible.name).length >
-          this.MaxIncomingPerEnergySource
-        ) {
-          continue;
-        }
-      } else if (possible instanceof StructureLink) {
-        // Skip source if it has too many incoming deliveries already
-        if (
-          activeDeliveries.filter(ad => ad.source.kind === 'link' && ad.source.id === possible.id).length >
-          this.MaxIncomingPerEnergySource
-        ) {
-          continue;
-        }
-      } else {
-        this.log.warn(`Unknown Energy Possibility: ${possible}`, { '<creep>': creep });
-        continue;
-      }
+      const currentDeliveryCount = activeDeliveries.filter(ad => {
+        if (ad.source.kind === 'container') return ad.source.id === possible.id;
+        else if (ad.source.kind === 'creep' && possible instanceof CreepExtra) return ad.source.name === possible.name;
+        else if (ad.source.kind === 'dropped') return ad.source.id === possible.id;
+        else if (ad.source.kind === 'link') return ad.source.id === possible.id;
+        else if (ad.source.kind === 'ruin') return ad.source.id === possible.id;
+        else if (ad.source.kind === 'tomb') return ad.source.id === possible.id;
+        else return false;
+      }).length;
 
-      possibleSources.push(possible);
+      if (currentDeliveryCount < acceptibleDeliveryCount) possibleSources.push(possible);
     }
 
     const sameRoom = creep.pos.findClosestByPath(
