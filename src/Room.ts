@@ -407,9 +407,9 @@ export class RoomExtra extends Room {
     return unique(flatten(this.ClaimedMines.map(pair => pair[1].map(mp => mp.source))));
   }
 
-  // Get all MiningPositions for Mines we claim that don't have any assigned miners.
-  // Each mine only really needs one miner, but may have multiple positions to mine
-  // from around it.
+  /**
+   * Get positions next to Sources that are not the target of any other miners in the colony.
+   */
   AvailableMiningPositions(): MiningPosition[] {
     const ret = [];
     const assignedMiningPositions = this.colony.GetAllAssignedTasks(TaskAction.Mine).map(p => (p as Mine).target);
@@ -418,6 +418,9 @@ export class RoomExtra extends Room {
     return ret;
   }
 
+  /**
+   * Get unoccupied positions next to Sources. Positions may already have miners allocated to them.
+   */
   UnfilledMiningPositions(): MiningPosition[] {
     const ret = [];
     for (const [_room, mines] of this.ClaimedMines)

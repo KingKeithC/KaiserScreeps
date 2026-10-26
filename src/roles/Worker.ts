@@ -120,6 +120,10 @@ export class Worker extends CreepRoleBase implements CreepRole {
       let gather = this.FindGatheringTask(creep);
       // In case no normal gathering task was found, try gthering from storage
       if (!gather && !creep.AssignedRoom.StoreOverUpgrade) gather = this.CollectFromRoomStorage(creep);
+      // In case still nothing found, try a random miner
+      if (!gather) gather = this.CollectFromRandomMiner(creep);
+      // In case still nothing found, mine ourselves
+      if (!gather) gather = this.MineAnyFreePosition(creep);
       // If we found a gathering task, return it
       if (gather) return gather;
     }
@@ -145,6 +149,12 @@ export class Worker extends CreepRoleBase implements CreepRole {
     // Didn't need or Can't find, gathering or spending task
 
     this.log.warn('SelectNextTask: Literally nothing for me to do, are we overspawned?', { '<creep>': creep });
+    return null;
+  }
+
+  MineAnyFreePosition(creep: CreepExtra): Mine | null {
+    const source = creep.AssignedRoom.UnfilledMiningPositions().pop();
+    if (source) return new Mine(source);
     return null;
   }
 
@@ -287,8 +297,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
         `Emergency mining since too few miners are available (${totalMinerBodies}/${this.RelyOnMinersAt})...`,
         { '<creep>': creep },
       );
-      const source = creep.AssignedRoom.UnfilledMiningPositions().pop();
-      if (source) return new Mine(source);
+      return this.MineAnyFreePosition(creep);
     }
     return null;
   }
