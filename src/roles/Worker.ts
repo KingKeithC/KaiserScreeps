@@ -167,24 +167,27 @@ export class Worker extends CreepRoleBase implements CreepRole {
       if (cons) return new Build(cons.id);
     }
 
-    const repairs = creep.AssignedRoom.MapWithRoomsInClaimedArea(r =>
-      r instanceof Room ? r.find(FIND_STRUCTURES, { filter: s => s.hits < s.hitsMax }) : [],
-    );
-    const repairTasks = creep.AssignedRoom.GetAssignedTasks(TaskAction.Repair) as Repair[];
+    // Don't bother with repairs below RCL3
+    if (creep.AssignedRoom.controller.level >= 3) {
+      const repairs = creep.AssignedRoom.MapWithRoomsInClaimedArea(r =>
+        r instanceof Room ? r.find(FIND_STRUCTURES, { filter: s => s.hits < s.hitsMax }) : [],
+      );
+      const repairTasks = creep.AssignedRoom.GetAssignedTasks(TaskAction.Repair) as Repair[];
 
-    for (const [room, roomRepairs] of repairs) {
-      if (!(room instanceof Room)) continue;
-      const roomTowers = room.find(FIND_MY_STRUCTURES, { filter: s => s.structureType === STRUCTURE_TOWER });
-      const ongoingRepairs = repairTasks.filter(rt => rt.repairRoom === room.name);
-      const ongoingTowerSupplys = supplyTasks.filter(st => creep.AssignedRoom.Towers.some(t => t.id === st.target));
+      for (const [room, roomRepairs] of repairs) {
+        if (!(room instanceof Room)) continue;
+        const roomTowers = room.find(FIND_MY_STRUCTURES, { filter: s => s.structureType === STRUCTURE_TOWER });
+        const ongoingRepairs = repairTasks.filter(rt => rt.repairRoom === room.name);
+        const ongoingTowerSupplys = supplyTasks.filter(st => creep.AssignedRoom.Towers.some(t => t.id === st.target));
 
-      // Repair if there are no available towers to do it
-      if (roomTowers.length === 0 && ongoingRepairs.length < this.MaxRepairPerRoom) {
-        const repair = this.FindIdealRepairByStrength(creep, roomRepairs);
-        if (repair) return new Repair(repair);
-      } else if (roomTowers.length > 0 && ongoingTowerSupplys.length < this.MaxSupplyForTowers) {
-        const tower = this.FindSupplyByPath(creep, creep.AssignedRoom.Towers, 'towers');
-        if (tower) return new Supply(tower.id);
+        // Repair if there are no available towers to do it
+        if (roomTowers.length === 0 && ongoingRepairs.length < this.MaxRepairPerRoom) {
+          const repair = this.FindIdealRepairByStrength(creep, roomRepairs);
+          if (repair) return new Repair(repair);
+        } else if (roomTowers.length > 0 && ongoingTowerSupplys.length < this.MaxSupplyForTowers) {
+          const tower = this.FindSupplyByPath(creep, creep.AssignedRoom.Towers, 'towers');
+          if (tower) return new Supply(tower.id);
+        }
       }
     }
 
