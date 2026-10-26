@@ -63,8 +63,11 @@ export class Worker extends CreepRoleBase implements CreepRole {
     );
   }
 
+  FillRatioToSwitch = 0.5;
   SelectNextTask(creep: CreepExtra): CreepTask | null {
-    if (creep.store.getUsedCapacity(RESOURCE_ENERGY) === 0) {
+    const currentFillRatio = creep.store.getUsedCapacity(RESOURCE_ENERGY) / creep.store.getCapacity(RESOURCE_ENERGY);
+
+    if (currentFillRatio < this.FillRatioToSwitch) {
       const gather = this.FindGatheringTask(creep);
       if (gather) return gather;
 
@@ -109,29 +112,29 @@ export class Worker extends CreepRoleBase implements CreepRole {
       } else {
         return null;
       }
-    } else if (creep.store.getUsedCapacity(RESOURCE_ENERGY) > 0) {
+    } else if (creep.store.getUsedCapacity(RESOURCE_ENERGY) >= this.FillRatioToSwitch) {
       const spend = this.FindSpendingTask(creep);
       if (spend) return spend;
 
-      if (creep.AssignedRoom.storage !== undefined) {
-        this.log.info(`No spending Tasks, storing...`, { '<creep>': creep });
+      if (
+        creep.AssignedRoom.storage !== undefined &&
+        (creep.AssignedRoom.StoreOverUpgrade || creep.AssignedRoom.controller === undefined)
+      ) {
         return new Supply(creep.AssignedRoom.storage.id);
       } else if (creep.AssignedRoom.controller !== undefined) {
-        this.log.info(`No spending Tasks, and nowhere to put energy, so upgrading...`, { '<creep>': creep });
         return new UpdateController(creep.AssignedRoom.controller);
       } else {
         this.log.info(`No spending Tasks, and no storage and no controller, so nothing to do...`, { '<creep>': creep });
         return null;
       }
+    } else {
+      return null;
     }
-
-    return null;
   }
 
   MaxSupplyForSpawns = 3;
   MaxSupplyForTowers = 2;
   MaxBuildPerRoom = 3;
-  MaxUpgraders = 1;
   MaxRepairPerRoom = 1;
   public FindSpendingTask(creep: CreepExtra): CreepTask | null {
     if (creep.AssignedRoom.controller) {
@@ -183,12 +186,6 @@ export class Worker extends CreepRoleBase implements CreepRole {
         const tower = this.FindSupplyByPath(creep, creep.AssignedRoom.Towers, 'towers');
         if (tower) return new Supply(tower.id);
       }
-    }
-
-    const currentUpgradeCount = creep.AssignedRoom.GetAssignedTasks(TaskAction.UpgradeController).length;
-    if (currentUpgradeCount < this.MaxUpgraders) {
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      return new UpdateController(creep.AssignedRoom.controller, { mode: 'upgrade' });
     }
 
     return null;

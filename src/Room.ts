@@ -39,6 +39,7 @@ declare global {
     enableCostMatrixOverlay?: boolean;
     pathfindingCostMatrixDate?: number;
     pathfindingCostMatrix?: number[];
+    storeOverUpgrade?: boolean;
   }
 }
 
@@ -84,6 +85,10 @@ export class RoomExtra extends Room {
 
     if (!taskAction) return ret;
     return ret.filter(t => t.action === taskAction);
+  }
+
+  get StoreOverUpgrade() {
+    return this.memory.storeOverUpgrade ?? true;
   }
 
   get EnableVisuals(): boolean {
