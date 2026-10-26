@@ -55,7 +55,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
     return room.ClaimedSources.length * 3;
   }
 
-  MinTicksBetweenWorkers = 200;
+  MinTicksBetweenWorkers = 100;
   IsSpawnNeeded(room: RoomExtra) {
     return (
       Game.time - room.LastSpawnTick(this.name) > this.MinTicksBetweenWorkers &&
