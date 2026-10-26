@@ -80,12 +80,28 @@ export class Worker extends CreepRoleBase implements CreepRole {
           return null;
         }
 
+        const miners = creep.AssignedRoom.AssignedCreepsByRoleName.get('Miner') ?? [];
+
         // Don't fallback to collecting from storage if we had no previous task
-        if (creep.currentTask === null) return null;
+        if (creep.currentTask === null) {
+          if (miners.length > 0) {
+            const randomMiner = miners[Math.floor(miners.length * Math.random())];
+            return new CollectEnergy({ kind: 'creep', name: randomMiner.name });
+          } else {
+            return null;
+          }
+        }
 
         // Don't fallback to collecting from storage if we just supplied it
         if (creep.currentTask.action === TaskAction.Supply)
-          if ((creep.currentTask as Supply).target === creep.AssignedRoom.storage.id) return null;
+          if ((creep.currentTask as Supply).target === creep.AssignedRoom.storage.id) {
+            if (miners.length > 0) {
+              const randomMiner = miners[Math.floor(miners.length * Math.random())];
+              return new CollectEnergy({ kind: 'creep', name: randomMiner.name });
+            } else {
+              return null;
+            }
+          }
 
         // Should be okay to collect from storage
         this.log.info(msg, { '<creep>': creep });
