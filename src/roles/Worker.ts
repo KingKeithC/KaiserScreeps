@@ -137,8 +137,12 @@ export class Worker extends CreepRoleBase implements CreepRole {
       const spend = this.FindSpendingTask(creep);
       if (spend) return spend;
 
-      // If no spending task, and controller upgrade is the priority, then do upgrade
-      if (creep.AssignedRoom.controller !== undefined && !creep.AssignedRoom.StoreOverUpgrade)
+      // If no spending task, and controller upgrade is the priority (given no storage alternative), then do upgrade
+      if (
+        creep.AssignedRoom.controller !== undefined &&
+        (creep.AssignedRoom.storage === undefined ||
+          (creep.AssignedRoom.storage !== undefined && !creep.AssignedRoom.StoreOverUpgrade))
+      )
         return new UpdateController(creep.AssignedRoom.controller);
 
       // If still no spending task, and there is storage, then store
