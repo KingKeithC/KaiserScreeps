@@ -30,9 +30,6 @@ export class Mine extends TargetTask<typeof TaskAction.Mine, MiningPosition> {
 
     if (creep.store.getFreeCapacity(RESOURCE_ENERGY) === 0) return true;
 
-    if (creep.pos.findInRange(FIND_MY_CREEPS, 4, { filter: c => c.memory.role?.startsWith('Miner') }).length > 0)
-      return true;
-
     const source = Game.getObjectById(this.target.source);
     return !(source instanceof Source) || source.energy === 0;
   }
