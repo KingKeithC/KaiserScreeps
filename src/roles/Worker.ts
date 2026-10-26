@@ -64,9 +64,43 @@ export class Worker extends CreepRoleBase implements CreepRole {
   }
 
   SelectNextTask(creep: CreepExtra): CreepTask | null {
-    if (creep.store.getUsedCapacity(RESOURCE_ENERGY) === 0) return this.FindGatheringTask(creep);
-    else if (creep.store.getUsedCapacity(RESOURCE_ENERGY) > 0) return this.FindSpendingTask(creep);
-    else return null;
+    if (creep.store.getUsedCapacity(RESOURCE_ENERGY) === 0) {
+      const gather = this.FindGatheringTask(creep);
+      if (gather) return gather;
+
+      if (creep.AssignedRoom.storage !== undefined) {
+        const stored = creep.AssignedRoom.storage.store.getUsedCapacity(RESOURCE_ENERGY);
+        const msg = `No gather tasks, taking from storage...`;
+
+        if (stored < creep.AssignedRoom.StorageWartimeEnergyBuffer) {
+          this.log.warn(
+            `${msg} !!! Except storage is below Emergency amount (${stored} < !${creep.AssignedRoom.StorageWartimeEnergyBuffer})`,
+            { '<creep>': creep },
+          );
+          return null;
+        }
+
+        this.log.info(msg, { '<creep>': creep });
+        return new CollectEnergy({ kind: 'storage', id: creep.AssignedRoom.storage.id });
+      } else {
+        this.log.info(`No gather Tasks, and no buffer in storage...`, { '<creep>': creep });
+        return null;
+      }
+    } else if (creep.store.getUsedCapacity(RESOURCE_ENERGY) > 0) {
+      const spend = this.FindSpendingTask(creep);
+      if (spend) return spend;
+
+      if (creep.AssignedRoom.storage !== undefined) {
+        this.log.info(`No spending Tasks, storing...`, { '<creep>': creep });
+        return new Supply(creep.AssignedRoom.storage.id);
+      } else if (creep.AssignedRoom.controller !== undefined) {
+        this.log.info(`No spending Tasks, and nowhere to put energy, so upgrading...`, { '<creep>': creep });
+        return new UpdateController(creep.AssignedRoom.controller);
+      } else {
+        this.log.info(`No spending Tasks, and nowhere to put energy...`, { '<creep>': creep });
+        return null;
+      }
+    } else return null;
   }
 
   MaxSupplyForSpawns = 3;
@@ -132,26 +166,6 @@ export class Worker extends CreepRoleBase implements CreepRole {
       return new UpdateController(creep.AssignedRoom.controller, { mode: 'upgrade' });
     }
 
-    // If room has storage with room, put it there
-    // Except if the last task was null or to pickup from storage
-    if (
-      creep.currentTask !== null &&
-      creep.AssignedRoom.storage &&
-      creep.AssignedRoom.storage.store.getFreeCapacity(RESOURCE_ENERGY)
-    ) {
-      if (
-        creep.currentTask.action === TaskAction.CollectEnergy &&
-        (creep.currentTask as CollectEnergy).source.kind === 'storage' &&
-        ((creep.currentTask as CollectEnergy).source as { kind: string; id: Id<StructureStorage> }).id ===
-          creep.AssignedRoom.storage.id
-      ) {
-        this.log.warn(`Storage loop detected...`, { '<creep>': creep });
-        return null;
-      } else {
-        return new Supply(creep.AssignedRoom.storage.id as Id<AnyStoreStructure>);
-      }
-    }
-
     return null;
   }
 
@@ -159,16 +173,6 @@ export class Worker extends CreepRoleBase implements CreepRole {
   MaxIncomingPerEnergySource = 3;
   RelyOnMinersAt = 1000;
   FindGatheringTask(creep: CreepExtra): CreepTask | null {
-    if (
-      creep.AssignedRoom.energyAvailable / creep.AssignedRoom.energyCapacityAvailable < 0.5 &&
-      creep.AssignedRoom.storage &&
-      (creep.AssignedRoom.storage?.store.getUsedCapacity(RESOURCE_ENERGY) ?? 0) >
-        creep.AssignedRoom.StorageWartimeEnergyBuffer
-    ) {
-      this.log.warn('Collecting from storage since spawn is throttled...', { '<creep>': creep });
-      return new CollectEnergy({ kind: 'storage', id: creep.AssignedRoom.storage.id });
-    }
-
     const activeDeliveries = creep.AssignedRoom.GetAssignedTasks(TaskAction.CollectEnergy) as CollectEnergy[];
     // const miners = (creep.AssignedRoom.AssignedCreepsByRoleGroup.get('Miners') ?? []).filter(m => !m.spawning);
     const miners = creep.AssignedRoom.AssignedCreeps.filter(m => !m.spawning && m.currentTask instanceof Mine);
@@ -184,7 +188,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
       /* eslint-enable @typescript-eslint/no-unnecessary-type-assertion */
     ];
     const possibleSources: (
-      CreepExtra | StructureLink | StructureStorage | StructureContainer | Resource<RESOURCE_ENERGY> | Ruin | Tombstone
+      CreepExtra | StructureLink | StructureContainer | Resource<RESOURCE_ENERGY> | Ruin | Tombstone
     )[] = [];
 
     for (const possible of allSources) {
@@ -201,20 +205,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
       }
 
       // Skip energy sources based on type, and incomining collection tasks
-      if (possible instanceof StructureStorage) {
-        // Skip Storage if it has less than the wartime amount
-        if (possible.store.getUsedCapacity(RESOURCE_ENERGY) <= creep.AssignedRoom.StorageWartimeEnergyBuffer) {
-          continue;
-        }
-
-        // Skip source if it has too many incoming deliveries already
-        if (
-          activeDeliveries.filter(ad => ad.source.kind === 'storage' && ad.source.id === possible.id).length >
-          this.MaxIncomingPerEnergySource
-        ) {
-          continue;
-        }
-      } else if (possible instanceof Resource && possible.resourceType === RESOURCE_ENERGY) {
+      if (possible instanceof Resource && possible.resourceType === RESOURCE_ENERGY) {
         // Skip source if it has too many incoming deliveries already
         if (
           activeDeliveries.filter(ad => ad.source.kind === 'dropped' && ad.source.id === possible.id).length >
@@ -287,8 +278,6 @@ export class Worker extends CreepRoleBase implements CreepRole {
       return new CollectEnergy({ kind: 'container', id: sameRoom.id }, { maxAttempts: 3 });
     else if (sameRoom instanceof StructureLink)
       return new CollectEnergy({ kind: 'link', id: sameRoom.id }, { maxAttempts: 3 });
-    else if (sameRoom instanceof StructureStorage)
-      return new CollectEnergy({ kind: 'storage', id: sameRoom.id }, { maxAttempts: 3 });
     else if (sameRoom instanceof Creep || sameRoom instanceof CreepExtra)
       return new CollectEnergy({ kind: 'creep', name: sameRoom.name }, { maxAttempts: 8 });
     else if (sameRoom instanceof Ruin) return new CollectEnergy({ kind: 'ruin', id: sameRoom.id }, { maxAttempts: 3 });
@@ -307,8 +296,6 @@ export class Worker extends CreepRoleBase implements CreepRole {
       return new CollectEnergy({ kind: 'container', id: mostInNeed.id }, { maxAttempts: 3 });
     else if (mostInNeed instanceof StructureLink)
       return new CollectEnergy({ kind: 'link', id: mostInNeed.id }, { maxAttempts: 3 });
-    else if (mostInNeed instanceof StructureStorage)
-      return new CollectEnergy({ kind: 'storage', id: mostInNeed.id }, { maxAttempts: 3 });
     else if (mostInNeed instanceof Creep || mostInNeed instanceof CreepExtra)
       return new CollectEnergy({ kind: 'creep', name: mostInNeed.name }, { maxAttempts: 8 });
     else if (mostInNeed instanceof Ruin)
@@ -325,24 +312,6 @@ export class Worker extends CreepRoleBase implements CreepRole {
       const source = creep.AssignedRoom.UnfilledMiningPositions().pop();
       if (source) return new Mine(source);
     }
-
-    if (creep.AssignedRoom.storage !== undefined) {
-      const warning = 'Too few energy sources, need to collect from room storage!';
-
-      const stored = creep.AssignedRoom.storage.store.getUsedCapacity(RESOURCE_ENERGY);
-      if (stored <= creep.AssignedRoom.StorageWartimeEnergyBuffer) {
-        this.log.warn(
-          `${warning} !!! Except Storage is below Emergency Reservation ${stored} < !${creep.AssignedRoom.StorageWartimeEnergyBuffer}`,
-          { '<creep>': creep },
-        );
-        return null;
-      }
-
-      this.log.warn(warning, { '<creep>': creep });
-      return new CollectEnergy({ kind: 'storage', id: creep.AssignedRoom.storage.id });
-    }
-
-    this.log.warn(`FindGatheringTask no tasks found!`, { '<creep>': creep });
     return null;
   }
 
