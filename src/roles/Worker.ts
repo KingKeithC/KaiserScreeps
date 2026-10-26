@@ -235,7 +235,6 @@ export class Worker extends CreepRoleBase implements CreepRole {
       return new CollectEnergy({ kind: 'dropped', id: sameRoom.id }, { maxAttempts: 3 });
 
     const totalMinerBodies = sum(miners, m => BodyCost(m.body));
-    this.log.info(`Total Miner Body Cost in ${creep.AssignedRoom.name}'s Area: ${totalMinerBodies}`);
 
     const amountMapper = (a: Resource | { store: StoreDefinition }) =>
       a instanceof Resource ? a.amount : a.store.getUsedCapacity(RESOURCE_ENERGY);
