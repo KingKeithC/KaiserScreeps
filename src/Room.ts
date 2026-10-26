@@ -814,10 +814,9 @@ export class RoomExtra extends Room {
   // prettier-ignore
   RepairPriorities: [((s: AnyStructure) => boolean), number, number][] = [
     [(s => s instanceof StructureRampart  && s.hits < 1000), 1, 1],
-    [(s => s instanceof StructureContainer || s instanceof StructurePortal), 0.5, 1],
-    [(s => s instanceof StructureRoad), 0.5, 1],
-    [(s => s instanceof StructureRampart), 0.2, 1],
-    [(s => s instanceof StructureWall), 0.1, 1],
+    [(s => s instanceof StructureRoad || s instanceof StructureContainer || s instanceof StructurePortal), 0.5, 1],
+    [(s => s instanceof StructureRampart && s.hits < 1_000_000), 1, 1],
+    [(s => s instanceof StructureWall && s.hits < 1_000_000), 1, 1],
     [(s => {if (
       s instanceof StructureRampart
       || s instanceof StructureContainer
@@ -825,7 +824,7 @@ export class RoomExtra extends Room {
       || s instanceof StructureRoad
       || s instanceof StructureRampart
       || s instanceof StructureWall
-    ) return false; this.log.warn(`Unfiltered Priority: ${s}`); return false}), 0.1, 1],
+    ) return false; this.log.warn(`Unfiltered Repair Priority: ${s}`); return false}), 1, 1],
   ];
 
   FindRepairByPriorityAndStrength(limitToRoom?: RoomExtra, byRangeTo?: RoomPosition): AnyStructure | null {
