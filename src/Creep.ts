@@ -242,7 +242,10 @@ export class CreepExtra extends Creep {
 
   DoTask(): void {
     const task = this.currentTask;
-    if (task === null) return; // Nothing more to do
+    if (task === null) {
+      this.say('🤷');
+      return; // Nothing more to do
+    }
     const outcome = task.act(this); // Act on the task
     this.currentTask = task;
     this.ActedThisTick = true;

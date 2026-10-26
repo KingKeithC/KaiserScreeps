@@ -93,47 +93,58 @@ export class Worker extends CreepRoleBase implements CreepRole {
     )
       return new CollectEnergy({ kind: 'storage', id: creep.AssignedRoom.storage.id });
 
+    // We log a warning becaue the conditions above should already have been checked, and
+    // if this function disagrees, it means the calling logic is incomplete or mis-implemented.
     this.log.warn('Collect from Room Storage not possible.', { '<creep>': creep });
     return null;
   }
 
-  FillRatioToSwitch = 0.5;
+  // If we're looking for a new job and have less than this energy, look for a collection job
+  // Higher values means the creep prioritizes picking up energy when partially loaded, which might cause less throughput
+  RefillBelowCarryCapacity = 0.5;
+
+  // If we're looking for a new job and have more than this energy (after checking if we need to refill first), look for a spending job
+  SpendAboveCarryCapacity = 0;
+
   SelectNextTask(creep: CreepExtra): CreepTask | null {
+    // if (this.RefillBelowCarryCapacity - this.SpendAboveCarryCapacity < 0)
+    //   throw new Error(
+    //     `Worker: this.RefillBelowCarryCapacity (${this.RefillBelowCarryCapacity}) should be ` +
+    //       `greater than or equal to this.SpendAboveCarryCapacity (${this.SpendAboveCarryCapacity})`,
+    //   );
+
     const currentFillRatio = creep.store.getUsedCapacity(RESOURCE_ENERGY) / creep.store.getCapacity(RESOURCE_ENERGY);
 
-    if (currentFillRatio < this.FillRatioToSwitch) {
-      const gather = this.FindGatheringTask(creep);
+    if (currentFillRatio <= this.RefillBelowCarryCapacity) {
+      // Try to find a gathering task
+      let gather = this.FindGatheringTask(creep);
+      // In case no normal gathering task was found, try gthering from storage
+      if (!gather && !creep.AssignedRoom.StoreOverUpgrade) gather = this.CollectFromRoomStorage(creep);
+      // If we found a gathering task, return it
       if (gather) return gather;
+    }
 
-      // Don't fallback to collecting from storage if we had no previous task
-      if (creep.currentTask === null) return this.CollectFromRandomMiner(creep);
+    // Either don't need to gather, or couldn't find a gathering task
 
-      const stored = creep.AssignedRoom.storage?.store.getUsedCapacity(RESOURCE_ENERGY) ?? 0;
-      if (creep.AssignedRoom.storage !== undefined && stored < creep.AssignedRoom.StorageWartimeEnergyBuffer) {
-        // Don't fallback to collecting from storage if we just supplied it
-        if (creep.currentTask.action === TaskAction.Supply)
-          if ((creep.currentTask as Supply).target === creep.AssignedRoom.storage.id)
-            return this.CollectFromRandomMiner(creep);
+    if (currentFillRatio >= this.SpendAboveCarryCapacity) {
+      // Need to spend hauled energy
 
-        if (!creep.AssignedRoom.StoreOverUpgrade)
-          // Should be okay to collect from storage
-          return this.CollectFromRoomStorage(creep);
-        else
-          // We want to prioritize storage for the room, so don't collect from it
-          return this.CollectFromRandomMiner(creep);
-      } else return this.CollectFromRandomMiner(creep);
-    } else if (creep.store.getUsedCapacity(RESOURCE_ENERGY) >= this.FillRatioToSwitch) {
+      // Look for a spending task amongst typical targets
       const spend = this.FindSpendingTask(creep);
       if (spend) return spend;
 
-      if (
-        creep.AssignedRoom.storage !== undefined &&
-        (creep.AssignedRoom.StoreOverUpgrade || creep.AssignedRoom.controller === undefined)
-      )
+      // If no spending task, and controller upgrade is the priority, then do upgrade
+      if (creep.AssignedRoom.controller !== undefined && !creep.AssignedRoom.StoreOverUpgrade)
+        return new UpdateController(creep.AssignedRoom.controller);
+
+      // If still no spending task, and there is storage, then store
+      if (creep.AssignedRoom.storage !== undefined && creep.AssignedRoom.StoreOverUpgrade)
         return new Supply(creep.AssignedRoom.storage.id);
-      else if (creep.AssignedRoom.controller !== undefined) return new UpdateController(creep.AssignedRoom.controller);
     }
 
+    // Didn't need or Can't find, gathering or spending task
+
+    this.log.warn('SelectNextTask: Literally nothing for me to do, are we overspawned?', { '<creep>': creep });
     return null;
   }
 
