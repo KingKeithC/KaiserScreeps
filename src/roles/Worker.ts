@@ -133,8 +133,24 @@ export class Worker extends CreepRoleBase implements CreepRole {
     }
 
     // If room has storage with room, put it there
-    if (creep.AssignedRoom.storage && creep.AssignedRoom.storage.store.getFreeCapacity(RESOURCE_ENERGY))
-      return new Supply(creep.AssignedRoom.storage.id as Id<AnyStoreStructure>);
+    // Except if the last task was null or to pickup from storage
+    if (
+      creep.currentTask !== null &&
+      creep.AssignedRoom.storage &&
+      creep.AssignedRoom.storage.store.getFreeCapacity(RESOURCE_ENERGY)
+    ) {
+      if (
+        creep.currentTask.action === TaskAction.CollectEnergy &&
+        (creep.currentTask as CollectEnergy).source.kind === 'storage' &&
+        ((creep.currentTask as CollectEnergy).source as { kind: string; id: Id<StructureStorage> }).id ===
+          creep.AssignedRoom.storage.id
+      ) {
+        this.log.warn(`Storage loop detected...`, { '<creep>': creep });
+        return null;
+      } else {
+        return new Supply(creep.AssignedRoom.storage.id as Id<AnyStoreStructure>);
+      }
+    }
 
     return null;
   }
