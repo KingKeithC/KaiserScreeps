@@ -257,7 +257,7 @@ export class Colony {
     this.TryGeneratingPixel();
 
     for (const role of Object.values(this.Roles)) role.StartOfTick();
-    for (const creep of Object.values(this.MyCreeps)) creep.StartOfTick();
+    for (const creep of this.MyCreeps) creep.StartOfTick();
 
     // Perform Actions
     for (const room of this.MyRooms) {
@@ -275,8 +275,8 @@ export class Colony {
     // Tick all other rooms I can see but don't own
     for (const room of this.OtherRooms) this.TickOtherVisibleRoom(room);
 
+    for (const creep of this.MyCreeps) creep.EndOfTick();
     for (const role of Object.values(this.Roles)) role.EndOfTick();
-    for (const creep of Object.values(this.MyCreeps)) creep.EndOfTick();
 
     // Delete stale cost matrices
     this.MyRooms.filter(r => Game.time - r.PathfindingCostMatrixDate > this.CostMatrixRefreshTTL).forEach(r =>
