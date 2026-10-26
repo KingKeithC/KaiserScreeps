@@ -104,7 +104,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
   RefillBelowCarryCapacity = 0.5;
 
   // If we're looking for a new job and have more than this energy (after checking if we need to refill first), look for a spending job
-  SpendAboveCarryCapacity = 0;
+  SpendAboveCarryCapacity = 0.1;
 
   SelectNextTask(creep: CreepExtra): CreepTask | null {
     // if (this.RefillBelowCarryCapacity - this.SpendAboveCarryCapacity < 0)
