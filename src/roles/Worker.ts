@@ -63,6 +63,40 @@ export class Worker extends CreepRoleBase implements CreepRole {
     );
   }
 
+  // Dispatch a collection task if possible.
+  // This function is expected to return a value, and logs a warning when it cannot.
+  // Call this function in a section of code where it is already confirmed that this is the right type of task to return,
+  // i.e. where you expect it to succeed, the null return is more of a fallback so an error is not thrown.
+  CollectFromRandomMiner(creep: CreepExtra): CollectEnergy | null {
+    // Just dispatch to a random miner in the room regardless of fill state
+    // By the time they get there, the miner should hopefully have something to collect,
+    // and it should prevent them from searching for new tasks ever idle tick
+    // this does make them less responsive however
+    const miners = creep.AssignedRoom.AssignedCreepsByRoleName.get('Miner') ?? [];
+    if (miners.length > 0) {
+      const randomMiner = miners[Math.floor(miners.length * Math.random())];
+      return new CollectEnergy({ kind: 'creep', name: randomMiner.name });
+    }
+
+    this.log.warn('Room has no miners to collect from.', { '<creep>': creep });
+    return null;
+  }
+
+  // Dispatch a collection task if possible.
+  // This function is expected to return a value, and logs a warning when it cannot.
+  CollectFromRoomStorage(creep: CreepExtra): CollectEnergy | null {
+    const stored = creep.AssignedRoom.storage?.store.getUsedCapacity(RESOURCE_ENERGY) ?? 0;
+    if (
+      creep.AssignedRoom.storage !== undefined &&
+      stored < creep.AssignedRoom.StorageWartimeEnergyBuffer &&
+      !creep.AssignedRoom.StoreOverUpgrade
+    )
+      return new CollectEnergy({ kind: 'storage', id: creep.AssignedRoom.storage.id });
+
+    this.log.warn('Collect from Room Storage not possible.', { '<creep>': creep });
+    return null;
+  }
+
   FillRatioToSwitch = 0.5;
   SelectNextTask(creep: CreepExtra): CreepTask | null {
     const currentFillRatio = creep.store.getUsedCapacity(RESOURCE_ENERGY) / creep.store.getCapacity(RESOURCE_ENERGY);
@@ -71,47 +105,23 @@ export class Worker extends CreepRoleBase implements CreepRole {
       const gather = this.FindGatheringTask(creep);
       if (gather) return gather;
 
-      if (creep.AssignedRoom.storage !== undefined) {
-        const stored = creep.AssignedRoom.storage.store.getUsedCapacity(RESOURCE_ENERGY);
-        const msg = `No gather tasks, taking from storage...`;
+      // Don't fallback to collecting from storage if we had no previous task
+      if (creep.currentTask === null) return this.CollectFromRandomMiner(creep);
 
-        if (stored < creep.AssignedRoom.StorageWartimeEnergyBuffer) {
-          this.log.warn(
-            `${msg} !!! Except storage is below Emergency amount (${stored} < !${creep.AssignedRoom.StorageWartimeEnergyBuffer})`,
-            { '<creep>': creep },
-          );
-          return null;
-        }
-
-        const miners = creep.AssignedRoom.AssignedCreepsByRoleName.get('Miner') ?? [];
-
-        // Don't fallback to collecting from storage if we had no previous task
-        if (creep.currentTask === null) {
-          if (miners.length > 0) {
-            const randomMiner = miners[Math.floor(miners.length * Math.random())];
-            return new CollectEnergy({ kind: 'creep', name: randomMiner.name });
-          } else {
-            return null;
-          }
-        }
-
+      const stored = creep.AssignedRoom.storage?.store.getUsedCapacity(RESOURCE_ENERGY) ?? 0;
+      if (creep.AssignedRoom.storage !== undefined && stored < creep.AssignedRoom.StorageWartimeEnergyBuffer) {
         // Don't fallback to collecting from storage if we just supplied it
         if (creep.currentTask.action === TaskAction.Supply)
-          if ((creep.currentTask as Supply).target === creep.AssignedRoom.storage.id) {
-            if (miners.length > 0) {
-              const randomMiner = miners[Math.floor(miners.length * Math.random())];
-              return new CollectEnergy({ kind: 'creep', name: randomMiner.name });
-            } else {
-              return null;
-            }
-          }
+          if ((creep.currentTask as Supply).target === creep.AssignedRoom.storage.id)
+            return this.CollectFromRandomMiner(creep);
 
-        // Should be okay to collect from storage
-        this.log.info(msg, { '<creep>': creep });
-        return new CollectEnergy({ kind: 'storage', id: creep.AssignedRoom.storage.id });
-      } else {
-        return null;
-      }
+        if (!creep.AssignedRoom.StoreOverUpgrade)
+          // Should be okay to collect from storage
+          return this.CollectFromRoomStorage(creep);
+        else
+          // We want to prioritize storage for the room, so don't collect from it
+          return this.CollectFromRandomMiner(creep);
+      } else return this.CollectFromRandomMiner(creep);
     } else if (creep.store.getUsedCapacity(RESOURCE_ENERGY) >= this.FillRatioToSwitch) {
       const spend = this.FindSpendingTask(creep);
       if (spend) return spend;
@@ -119,17 +129,12 @@ export class Worker extends CreepRoleBase implements CreepRole {
       if (
         creep.AssignedRoom.storage !== undefined &&
         (creep.AssignedRoom.StoreOverUpgrade || creep.AssignedRoom.controller === undefined)
-      ) {
+      )
         return new Supply(creep.AssignedRoom.storage.id);
-      } else if (creep.AssignedRoom.controller !== undefined) {
-        return new UpdateController(creep.AssignedRoom.controller);
-      } else {
-        this.log.info(`No spending Tasks, and no storage and no controller, so nothing to do...`, { '<creep>': creep });
-        return null;
-      }
-    } else {
-      return null;
+      else if (creep.AssignedRoom.controller !== undefined) return new UpdateController(creep.AssignedRoom.controller);
     }
+
+    return null;
   }
 
   MaxSupplyForSpawns = 3;
