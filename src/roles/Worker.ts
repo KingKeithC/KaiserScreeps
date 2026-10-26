@@ -91,7 +91,6 @@ export class Worker extends CreepRoleBase implements CreepRole {
         this.log.info(msg, { '<creep>': creep });
         return new CollectEnergy({ kind: 'storage', id: creep.AssignedRoom.storage.id });
       } else {
-        this.log.info(`No gather Tasks, and no buffer in storage...`, { '<creep>': creep });
         return null;
       }
     } else if (creep.store.getUsedCapacity(RESOURCE_ENERGY) > 0) {
@@ -105,7 +104,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
         this.log.info(`No spending Tasks, and nowhere to put energy, so upgrading...`, { '<creep>': creep });
         return new UpdateController(creep.AssignedRoom.controller);
       } else {
-        this.log.info(`No spending Tasks, and nowhere to put energy...`, { '<creep>': creep });
+        this.log.info(`No spending Tasks, and no storage and no controller, so nothing to do...`, { '<creep>': creep });
         return null;
       }
     }
