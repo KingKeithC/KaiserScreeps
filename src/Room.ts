@@ -80,11 +80,18 @@ export class RoomExtra extends Room {
 
   GetAssignedTasks(taskAction?: string): CreepTask[] {
     const ret = [];
-
     for (const c of this.AssignedCreeps) if (c.currentTask) ret.push(c.currentTask);
-
     if (!taskAction) return ret;
     return ret.filter(t => t.action === taskAction);
+  }
+
+  GetAssignedTasksWithCreep(taskAction?: string): [CreepExtra, CreepTask][] {
+    const ret: [CreepExtra, CreepTask][] = [];
+    for (const c of this.AssignedCreeps)
+      if (c.currentTask !== null)
+        if (taskAction === undefined || (taskAction !== undefined && c.currentTask.action === taskAction))
+          ret.push([c, c.currentTask]);
+    return ret;
   }
 
   get StoreOverUpgrade() {

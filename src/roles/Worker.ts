@@ -126,6 +126,18 @@ export class Worker extends CreepRoleBase implements CreepRole {
         // If still no spending task, and there is storage, then store
         return new Supply(creep.AssignedRoom.storage.id);
     } else {
+      // If there aren't enough miners, then do mining
+      const totalMinerBodies = sum(creep.AssignedRoom.GetAssignedTasksWithCreep(TaskAction.Mine), m =>
+        BodyCost(m[0].body),
+      );
+      if (totalMinerBodies < this.RelyOnMinersAt) {
+        this.log.warn(
+          `Emergency mining since too few miners are available (${totalMinerBodies}/${this.RelyOnMinersAt})...`,
+          { '<creep>': creep },
+        );
+        return this.MineAnyFreePosition(creep);
+      }
+
       // Try to find a gathering task
       let gather = this.FindGatheringTask(creep);
       // In case no normal gathering task was found, try gthering from storage
@@ -232,28 +244,48 @@ export class Worker extends CreepRoleBase implements CreepRole {
       /* eslint-enable @typescript-eslint/no-unnecessary-type-assertion */
     ].map(ps => [ps, ps instanceof Resource ? ps.amount : ps.store.getUsedCapacity(RESOURCE_ENERGY)]);
 
-    // Find the nearest source in the same room as us
-    const sameRoom = creep.pos.findClosestByPath(
-      possibleSources.filter(s => s[0].pos.roomName === creep.room.name).map(s => s[0]),
-      { ignoreCreeps: true },
-    );
-    if (sameRoom) return new CollectEnergy(sameRoom);
-
-    // Find the most in need source across all rooms
-    const mostInNeed = possibleSources.sort((a, b) => a[1] - b[1]).pop();
-    if (mostInNeed) return new CollectEnergy(mostInNeed[0]);
-
-    // If all else fails, and there aren't enough miners alive, do mining ourselves
-    const totalMinerBodies = sum(miners, m => BodyCost(m.body));
-    if (totalMinerBodies < this.RelyOnMinersAt) {
-      this.log.warn(
-        `Emergency mining since too few miners are available (${totalMinerBodies}/${this.RelyOnMinersAt})...`,
-        { '<creep>': creep },
+    const sourcesWhoCanFullySupplyUs = [];
+    for (const possible of possibleSources) {
+      // Who else is coming to collect from this source already
+      const incomingCollectors = creep.AssignedRoom.GetAssignedTasksWithCreep(TaskAction.CollectEnergy).filter(
+        ce => (ce[1] as CollectEnergy).targetId === possible[0].id,
       );
-      return this.MineAnyFreePosition(creep);
+
+      // How much energy is scheduled to be withdrawn currently
+      const totalWithdrawls = sum(incomingCollectors, collector => collector[0].store.getFreeCapacity(RESOURCE_ENERGY));
+
+      // If we expect to be able to fully collect from this source if we attempted to go for it,
+      // then add it to the 'best' list.
+      if (possible[1] - totalWithdrawls >= creep.store.getFreeCapacity(RESOURCE_ENERGY))
+        sourcesWhoCanFullySupplyUs.push(possible);
     }
 
-    return null;
+    const canFullySupplyUs = sourcesWhoCanFullySupplyUs.map(s => s[0]);
+    const canFullySupplyUsInSameRoomAsCreep = creep.pos.findClosestByPath(canFullySupplyUs, { ignoreCreeps: true });
+    const canFullySupplyUsAnywhere = canFullySupplyUs.pop();
+
+    const anySourceInMyRoom = creep.pos.findClosestByPath(
+      possibleSources.map(s => s[0]),
+      { ignoreCreeps: true },
+    );
+    const anySourceAnywhere = possibleSources.map(s => s[0]).pop();
+    const best =
+      canFullySupplyUsInSameRoomAsCreep ?? canFullySupplyUsAnywhere ?? anySourceInMyRoom ?? anySourceAnywhere;
+
+    this.log.info(
+      `FindGatheringTask: ${JSON.stringify({
+        best: String(best),
+        countCanFullySupplyUs: canFullySupplyUs.length,
+        canFullySupplyUsInSameRoomAsCreep: String(canFullySupplyUsInSameRoomAsCreep),
+        canFullySupplyUsAnywhere: String(canFullySupplyUsAnywhere),
+        countAnyPossibleSource: possibleSources.length,
+        anySourceInMyRoom: String(anySourceInMyRoom),
+        anySourceAnywhere: String(anySourceAnywhere),
+      })}`,
+    );
+
+    if (best) return new CollectEnergy(best);
+    else return null;
   }
 
   IgnoreDroppedResourcesLessThan = 30;
