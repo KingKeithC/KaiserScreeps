@@ -19,46 +19,48 @@ export class Collect extends TargetTask<typeof TaskAction.Collect, ResourceConta
     super(TaskAction.Collect, target);
   }
 
-  public extraToString(): string {
-    const resourceType = this.resourceType === RESOURCE_ENERGY ? '' : ` (of ${this.resourceType})`;
-    return this.maxAttempts === undefined ? '' : ` (${resourceType}, ${this.attempts}/${this.maxAttempts} attempts)`;
+  public extraToString(target: ResourceContainer): string {
+    const remaining =
+      'store' in target
+        ? '%' +
+          (
+            (target.store.getUsedCapacity(this.resourceType) ??
+              0 / (target.store.getCapacity(this.resourceType) ?? 1)) * 100
+          ).toFixed(2)
+        : `${target.amount} / Unlimited`;
+    return `${this.attempts}/${this.maxAttempts} attempts, ${remaining} stored`;
   }
 
-  public override act(creep: CreepExtra): TaskActionResult | null {
-    // Ruins can have null capacity so return early on them
-    if (
-      this.target === null ||
-      ('store' in this.target && this.target.store.getUsedCapacity(this.resourceType) === null)
-    ) {
-      this.attempts++;
-      return null;
-    }
+  public actWhenTargetInvalid(): TaskActionResult | null {
+    this.attempts++;
+    return null;
+  }
 
-    const currentInventory = creep.store.getUsedCapacity(this.resourceType);
-
+  actWhenTargetValid(creep: CreepExtra, target: ResourceContainer): TaskActionResult | null {
+    const inventoryChange = creep.store.getUsedCapacity(this.resourceType) - this.lastInventory;
     const result =
-      this.target instanceof Creep
-        ? this.target.transfer(creep, this.resourceType)
-        : this.target instanceof Resource
-          ? creep.pickup(this.target)
-          : creep.withdraw(this.target, this.resourceType);
-    this.lastInventory = currentInventory;
+      target instanceof Creep
+        ? target.transfer(creep, this.resourceType)
+        : target instanceof Resource
+          ? creep.pickup(target)
+          : creep.withdraw(target, this.resourceType);
 
-    if (result === OK && currentInventory - this.lastInventory <= this.smallPickupThreshold) this.attempts++;
+    if (result === OK && inventoryChange <= this.smallPickupThreshold) this.attempts++;
     else if (result !== OK && result !== ERR_NOT_IN_RANGE) this.attempts++;
-
-    return { target: this.target, range: 1, result };
+    this.lastInventory = inventoryChange;
+    return { target, range: 1, result };
   }
 
-  public override isComplete(creep: CreepExtra): boolean {
-    if (creep.store.getFreeCapacity(this.resourceType) === 0) return true;
-    if (this.attempts >= this.maxAttempts) return true;
-    const source = Game.getObjectById(this.targetId);
+  public isCreepAbleToContinue(creep: CreepExtra): boolean {
+    if (this.attempts > this.maxAttempts) return false;
+    return creep.store.getFreeCapacity(this.resourceType) > 0;
+  }
+
+  public isCompleteWhenTargetValid(creep: CreepExtra, target: NonNullable<ResourceContainer>): boolean {
     return (
-      source === null ||
-      ('store' in source && source.store.getUsedCapacity(this.resourceType) === null) ||
-      ('store' in source && source.store.getUsedCapacity(this.resourceType) === 0) ||
-      ('amount' in source && source.amount === 0)
+      ('store' in target && target.store.getUsedCapacity(this.resourceType) === null) ||
+      ('store' in target && target.store.getUsedCapacity(this.resourceType) === 0) ||
+      ('amount' in target && target.amount === 0)
     );
   }
 }

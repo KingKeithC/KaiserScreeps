@@ -23,10 +23,11 @@ export class Supply extends TargetTask<typeof TaskAction.Supply, AnyStoreStructu
     return { range: 1, result: creep.transfer(target, RESOURCE_ENERGY), target };
   }
 
-  public override isComplete(creep: CreepExtra): boolean {
-    if (creep.store.getUsedCapacity(RESOURCE_ENERGY) === 0) return true;
-    return (
-      this.target === null || this.target.store.getFreeCapacity(RESOURCE_ENERGY) < this.freeCapacityToConsiderComplete
-    );
+  public isCreepAbleToContinue(creep: CreepExtra): boolean {
+    return creep.store.getUsedCapacity(RESOURCE_ENERGY) > 0;
+  }
+
+  public isCompleteWhenTargetValid(_creep: CreepExtra, target: NonNullable<AnyStoreStructure>): boolean {
+    return target.store.getFreeCapacity(RESOURCE_ENERGY) < this.freeCapacityToConsiderComplete;
   }
 }

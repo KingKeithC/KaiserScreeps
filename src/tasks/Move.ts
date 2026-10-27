@@ -1,34 +1,36 @@
 import { CreepExtra } from 'Creep';
-import { TargetTask } from './TargetTask';
+import { DeserializeRoomPosition, SerializeRoomPosition } from 'utils/Collections';
+import { BaseTask } from './BaseTask';
 import { TaskAction } from './TaskAction';
 import { TaskActionResult } from './types';
 
-export class Move extends TargetTask<typeof TaskAction.Move, RoomPosition> {
+export class Move extends BaseTask<typeof TaskAction.Move> {
   public readonly kind = 'move' as const;
 
+  public readonly targetPos: string;
+
   public constructor(
-    public readonly targetPos: RoomPosition,
-    public minDistance: number = 5,
+    targetPos: RoomPosition | { pos: RoomPosition },
+    public readonly minDistance: number = 5,
   ) {
-    super(TaskAction.Move, targetPos, 'roomPosition');
+    super(TaskAction.Move);
+    this.targetPos = SerializeRoomPosition('pos' in targetPos ? targetPos.pos : targetPos);
+  }
+
+  public toRoomPosition(): RoomPosition {
+    return DeserializeRoomPosition(this.targetPos);
   }
 
   public toString(): string {
-    return `${this.action} on ${this.GetTargetPosition()} (minDistance: ${this.minDistance})`;
-  }
-
-  private GetTargetPosition(): RoomPosition {
-    return new RoomPosition(this.targetPos.x, this.targetPos.y, this.targetPos.roomName);
+    return `${this.action} on ${this.toRoomPosition()} (minDistance: ${this.minDistance})`;
   }
 
   public override act(): TaskActionResult | null {
-    const target = this.GetTargetPosition();
-    return { range: this.minDistance, result: ERR_NOT_IN_RANGE, target: { pos: target } };
+    return { range: this.minDistance, result: ERR_NOT_IN_RANGE, target: { pos: this.toRoomPosition() } };
   }
 
   public override isComplete(creep: CreepExtra): boolean {
-    const target = this.GetTargetPosition();
-    if (creep.room.name !== target.roomName) return false;
-    return creep.pos.inRangeTo(target, this.minDistance);
+    if (creep.room.name !== this.toRoomPosition().roomName) return false;
+    return creep.pos.inRangeTo(this.toRoomPosition(), this.minDistance);
   }
 }

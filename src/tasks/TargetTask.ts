@@ -3,10 +3,9 @@ import { DeserializeRoomPosition, SerializeRoomPosition } from 'utils/Collection
 import { BaseTask } from './BaseTask';
 import { TaskActionResult } from './types';
 
-export abstract class TargetTask<
-  Action extends string,
-  Target extends _HasId & _HasRoomPosition,
-> extends BaseTask<Action> {
+export type Targetable = _HasId & _HasRoomPosition;
+
+export abstract class TargetTask<Action extends string, Target extends Targetable> extends BaseTask<Action> {
   public readonly targetId: Id<Target>;
   public readonly targetPos: string;
 
