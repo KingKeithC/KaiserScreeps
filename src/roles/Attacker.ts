@@ -18,7 +18,7 @@ export class Attacker extends CreepRoleBase implements CreepRole {
   readonly name = 'Attacker';
 
   RallyDistance = 2;
-  AttackSize = 1;
+  AttackSize = 3;
 
   GetNewCreepBody(): BodyPartConstant[] {
     return MakeBody([MOVE, 5], [WORK, 6], [ATTACK, 2], [HEAL, 1]);
