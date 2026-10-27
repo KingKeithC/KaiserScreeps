@@ -3,31 +3,33 @@ import { TargetTask } from './TargetTask';
 import { TaskAction } from './TaskAction';
 import { TaskActionResult } from './types';
 
-export class Supply extends TargetTask<typeof TaskAction.Supply, Id<AnyStoreStructure>> {
+export class Supply extends TargetTask<typeof TaskAction.Supply, AnyStoreStructure> {
   public readonly kind = 'supply' as const;
 
   public constructor(
-    target: Id<AnyStoreStructure>,
+    target: AnyStoreStructure,
     public readonly resourceType: ResourceConstant = RESOURCE_ENERGY,
     public freeCapacityToConsiderComplete: number = 0,
   ) {
-    super(TaskAction.Supply, target, 'structure');
+    super(TaskAction.Supply, target);
+  }
+
+  extraToString(): string {
+    if (this.target === null) return 'null';
+    const capacity =
+      this.target?.store.getUsedCapacity(RESOURCE_ENERGY) ?? 0 / this.target?.store.getCapacity(RESOURCE_ENERGY) ?? 1;
+    return '%' + capacity.toFixed(2);
   }
 
   public override act(creep: CreepExtra): TaskActionResult | null {
-    const target = Game.getObjectById(this.target);
-    if (!target) return null;
-    return { range: 1, result: creep.transfer(target, this.resourceType), target };
+    if (this.target === null) return null;
+    return { range: 1, result: creep.transfer(this.target, RESOURCE_ENERGY), target: this.target };
   }
 
   public override isComplete(creep: CreepExtra): boolean {
-    if (creep.store.energy === 0) return true;
-    const target = this.resolveTarget();
+    if (creep.store.getUsedCapacity(RESOURCE_ENERGY) === 0) return true;
     return (
-      !target ||
-      !('store' in target) ||
-      ((target as AnyStoreStructure).store.getFreeCapacity(this.resourceType) ?? 0) <=
-        this.freeCapacityToConsiderComplete
+      this.target === null || this.target.store.getFreeCapacity(RESOURCE_ENERGY) < this.freeCapacityToConsiderComplete
     );
   }
 }
