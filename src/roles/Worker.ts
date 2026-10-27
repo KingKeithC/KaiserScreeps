@@ -108,7 +108,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
 
     const currentFillRatio = creep.store.getUsedCapacity(RESOURCE_ENERGY) / creep.store.getCapacity(RESOURCE_ENERGY);
 
-    if (currentFillRatio >= 0) {
+    if (currentFillRatio > 0) {
       // Need to spend hauled energy
 
       // Look for a spending task amongst typical targets
