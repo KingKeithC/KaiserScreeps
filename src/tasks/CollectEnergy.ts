@@ -24,13 +24,18 @@ export class CollectEnergy extends BaseTask<typeof TaskAction.CollectEnergy> {
   }
 
   public toString(): string {
-    const attempts = this.maxAttempts === undefined ? '' : ` (${this.maxAttempts} attempts)`;
-    return `${this.action} on ${this.targetId}${attempts}`;
+    const attempts = this.maxAttempts === undefined ? '' : ` (${this.attempts}/${this.maxAttempts} attempts)`;
+    const tgt = Game.getObjectById(this.targetId);
+    return `${this.action} on ${tgt !== null ? String(tgt) : this.targetId}${attempts}`;
   }
 
   public override act(creep: CreepExtra): TaskActionResult | null {
     const source = Game.getObjectById(this.targetId);
-    if (source === null) return null;
+    // Ruins can have null capacity so return early on them
+    if (source === null || ('store' in source && source.store.getUsedCapacity(RESOURCE_ENERGY) === null)) {
+      this.attempts++;
+      return null;
+    }
 
     const currentInventory = creep.store.getUsedCapacity(RESOURCE_ENERGY);
     const result =
