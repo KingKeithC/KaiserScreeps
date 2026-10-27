@@ -215,11 +215,13 @@ export class Worker extends CreepRoleBase implements CreepRole {
 
   RelyOnMinersAt = 1000;
   FindGatheringTask(creep: CreepExtra): CreepTask | null {
-    const activeDeliveries = creep.AssignedRoom.GetAssignedTasks(TaskAction.CollectEnergy) as CollectEnergy[];
     // const miners = (creep.AssignedRoom.AssignedCreepsByRoleGroup.get('Miners') ?? []).filter(m => !m.spawning);
     const miners = creep.AssignedRoom.AssignedCreeps.filter(m => !m.spawning && m.currentTask instanceof Mine);
     // prettier-ignore
-    const allSources = [
+    const possibleSources: [
+      CreepExtra | StructureLink | StructureContainer | Resource<RESOURCE_ENERGY> | Ruin | Tombstone,
+      number,
+    ][] = [
       /* eslint-disable @typescript-eslint/no-unnecessary-type-assertion */
       ...creep.AssignedRoom.FlatMapOverRoomsInClaimedArea(cr => cr instanceof Room ? cr.find(FIND_TOMBSTONES, { filter: t => t.store.getUsedCapacity(RESOURCE_ENERGY) > 0 }) : []) as Tombstone[],
       ...creep.AssignedRoom.FlatMapOverRoomsInClaimedArea(cr => cr instanceof Room ? cr.find(FIND_DROPPED_RESOURCES, { filter: r => r.resourceType === RESOURCE_ENERGY && r.amount > 0 }) : []) as Resource<RESOURCE_ENERGY>[],
@@ -228,21 +230,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
       ...creep.AssignedRoom.LinkReceivers.filter(lr => lr.store.getUsedCapacity(RESOURCE_ENERGY) > 0) as StructureLink[],
       ...miners.filter(m => m.store.getUsedCapacity(RESOURCE_ENERGY) > 0),
       /* eslint-enable @typescript-eslint/no-unnecessary-type-assertion */
-    ];
-
-    const possibleSources: [
-      CreepExtra | StructureLink | StructureContainer | Resource<RESOURCE_ENERGY> | Ruin | Tombstone,
-      number,
-    ][] = [];
-
-    // Filter out sources that have too many incoming deliveries
-    for (const possible of allSources) {
-      const sourceEnergyAvailable =
-        possible instanceof Resource ? possible.amount : possible.store.getUsedCapacity(RESOURCE_ENERGY);
-      const acceptibleDeliveryCount = Math.floor(sourceEnergyAvailable / creep.store.getCapacity(RESOURCE_ENERGY)) + 1;
-      const currentDeliveryCount = activeDeliveries.filter(ad => ad.targetId === possible.id).length;
-      if (currentDeliveryCount < acceptibleDeliveryCount) possibleSources.push([possible, sourceEnergyAvailable]);
-    }
+    ].map(ps => [ps, ps instanceof Resource ? ps.amount : ps.store.getUsedCapacity(RESOURCE_ENERGY)]);
 
     // Find the nearest source in the same room as us
     const sameRoom = creep.pos.findClosestByPath(
