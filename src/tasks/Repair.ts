@@ -3,26 +3,27 @@ import { TargetTask } from './TargetTask';
 import { TaskAction } from './TaskAction';
 import { TaskActionResult } from './types';
 
-export class Repair extends TargetTask<typeof TaskAction.Repair, Id<AnyStructure>> {
+export class Repair extends TargetTask<typeof TaskAction.Repair, AnyStructure> {
   public readonly kind = 'repair' as const;
 
-  public repairRoom: string;
-
   public constructor(target: AnyStructure) {
-    super(TaskAction.Repair, target.id, 'structure');
-    this.repairRoom = target.pos.roomName;
+    super(TaskAction.Repair, target);
   }
 
-  public override act(creep: CreepExtra): TaskActionResult | null {
-    const target = Game.getObjectById(this.target);
+  public extraToString(target: AnyStructure): string {
+    const health = (target.hits / target.hitsMax) * 100;
+    return `%${health.toFixed(2)}`;
+  }
 
-    if (!target) return null;
+  public actWhenTargetValid(creep: CreepExtra, target: NonNullable<AnyStructure>): TaskActionResult | null {
     return { range: 1, result: creep.repair(target), target };
   }
 
-  public override isComplete(creep: CreepExtra): boolean {
-    if (creep.store.energy === 0) return true;
-    const target = this.resolveTarget();
-    return !(target instanceof Structure) || target.hits === target.hitsMax;
+  public isCreepAbleToContinue(creep: CreepExtra): boolean {
+    return creep.store.getUsedCapacity(RESOURCE_ENERGY) > 0;
+  }
+
+  public isCompleteWhenTargetValid(creep: CreepExtra, target: NonNullable<AnyStructure>): boolean {
+    return target.hits >= target.hitsMax;
   }
 }

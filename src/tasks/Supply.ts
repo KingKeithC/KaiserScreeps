@@ -14,16 +14,13 @@ export class Supply extends TargetTask<typeof TaskAction.Supply, AnyStoreStructu
     super(TaskAction.Supply, target);
   }
 
-  extraToString(): string {
-    if (this.target === null) return 'null';
-    const capacity =
-      this.target?.store.getUsedCapacity(RESOURCE_ENERGY) ?? 0 / this.target?.store.getCapacity(RESOURCE_ENERGY) ?? 1;
-    return '%' + capacity.toFixed(2);
+  extraToString(target: AnyStoreStructure): string {
+    const capacity = (target.store.getUsedCapacity(RESOURCE_ENERGY) / target.store.getCapacity(RESOURCE_ENERGY)) * 100;
+    return `%${capacity.toFixed(2)}`;
   }
 
-  public override act(creep: CreepExtra): TaskActionResult | null {
-    if (this.target === null) return null;
-    return { range: 1, result: creep.transfer(this.target, RESOURCE_ENERGY), target: this.target };
+  public actWhenTargetValid(creep: CreepExtra, target: NonNullable<AnyStoreStructure>): TaskActionResult | null {
+    return { range: 1, result: creep.transfer(target, RESOURCE_ENERGY), target };
   }
 
   public override isComplete(creep: CreepExtra): boolean {

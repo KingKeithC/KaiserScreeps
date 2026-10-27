@@ -3,22 +3,27 @@ import { TargetTask } from './TargetTask';
 import { TaskAction } from './TaskAction';
 import { TaskActionResult } from './types';
 
-export class Build extends TargetTask<typeof TaskAction.Build, Id<ConstructionSite<BuildableStructureConstant>>> {
+export class Build extends TargetTask<typeof TaskAction.Build, ConstructionSite<BuildableStructureConstant>> {
   public readonly kind = 'build' as const;
 
-  public constructor(target: Id<ConstructionSite<BuildableStructureConstant>>) {
-    super(TaskAction.Build, target, 'construction site');
+  public constructor(target: ConstructionSite<BuildableStructureConstant>) {
+    super(TaskAction.Build, target);
   }
 
-  public override act(creep: CreepExtra): TaskActionResult | null {
-    const target = Game.getObjectById(this.target);
-    if (target !== null) return { range: 3, result: creep.build(target), target };
-    return null;
+  extraToString(target: ConstructionSite<BuildableStructureConstant>): string {
+    const progress = (target.progress / target.progressTotal) * 100;
+    return `%${progress.toExponential(2)}`;
   }
 
-  public override isComplete(creep: CreepExtra): boolean {
-    if (creep.store.energy === 0) return true;
-    const target = this.resolveTarget();
-    return !(target instanceof ConstructionSite) || target.progress === target.progressTotal;
+  actWhenTargetValid(creep: CreepExtra, target: ConstructionSite<BuildableStructureConstant>): TaskActionResult | null {
+    return { range: 3, result: creep.build(target), target };
+  }
+
+  public isCreepAbleToContinue(creep: CreepExtra): boolean {
+    return creep.store.getUsedCapacity(RESOURCE_ENERGY) > 0;
+  }
+
+  public isCompleteWhenTargetValid(creep: CreepExtra, target: ConstructionSite<BuildableStructureConstant>): boolean {
+    return target.progress >= target.progressTotal;
   }
 }
