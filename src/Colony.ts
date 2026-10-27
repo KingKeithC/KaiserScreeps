@@ -280,21 +280,13 @@ export class Colony {
     for (const role of Object.values(this.Roles)) role.EndOfTick();
 
     // Delete stale cost matrices
-    this.MyRooms.filter(r => r.CostMatrixIsStale).forEach(r => r.ClearCostMatrix());
-
-    // Update stats
-    if (Game.time % this.StatsFrequency === 0) this.stats = this.GetCurrentStats();
+    this.MyRooms.filter(r => r.CostMatrixIsStale).forEach(r => r.ClearStructureDependentData());
 
     // Periodically print a report with the state of the colony.
     if (Game.time % this.ColonyStateReportFrequency === 0) this.ColonyStateReport();
 
     // Update colony stats
     if (Game.time % this.StatsFrequency === 0) this.stats = this.GetCurrentStats();
-
-    // Delete stale data to be generated on next tick's access
-    this.MyRooms.filter(r => Game.time - r.PathfindingCostMatrixDate > this.CostMatrixRefreshTTL).forEach(r =>
-      r.ClearStructureDependentData(),
-    );
   }
 
   CleanupStaleFlags(): void {
