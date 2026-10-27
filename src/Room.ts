@@ -263,6 +263,8 @@ export class RoomExtra extends Room {
     Unwalkable: 0xff,
   };
 
+  CostMatrixIsStale = false;
+
   private UpdateCostMatrix(): void {
     this.log.info(`Updating Cost Matrix...`);
     const matrix = new PathFinder.CostMatrix();
@@ -358,6 +360,7 @@ export class RoomExtra extends Room {
     // Memoize
     this.memory.pathfindingCostMatrix = matrix.serialize();
     this.PathfindingCostMatrixDate = Game.time;
+    this.CostMatrixIsStale = false;
   }
 
   private set EventCounts(value: Dictionary<number>) {
@@ -601,8 +604,10 @@ export class RoomExtra extends Room {
     for (const e of events) {
       const name = this.EventToName(e.event);
 
+      // Increment Count of Event Type
       existingCount[name] = (existingCount[name] ?? 0) + 1;
 
+      // Fetch amount
       let amount;
       if (e.event === EVENT_ATTACK) amount = e.data.damage;
       if (e.event === EVENT_BUILD) amount = e.data.amount;
@@ -613,8 +618,17 @@ export class RoomExtra extends Room {
       if (e.event === EVENT_UPGRADE_CONTROLLER) amount = e.data.amount;
       if (e.event === EVENT_TRANSFER) amount = e.data.amount;
 
+      // Acumuate Amount of Event Type if it had one
       if (amount) existingAmount[name] = (existingAmount[name] ?? 0) + amount;
-      else continue; // Skip events with no 'amount' field.
+
+      // Mark cost matrix as stale for events that change room structures
+      if (
+        e.event === EVENT_ATTACK_TYPE_NUKE ||
+        (e.event === EVENT_OBJECT_DESTROYED && e.data.type !== 'creep') ||
+        (e.event === EVENT_BUILD && !e.data.incomplete) ||
+        (e.event === EVENT_ATTACK_TYPE_DISMANTLE && !e.data.incomplete)
+      )
+        this.CostMatrixIsStale = true;
     }
     this.EventCounts = existingCount;
     this.EventAmounts = existingAmount;

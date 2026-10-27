@@ -215,7 +215,6 @@ export class Colony {
     return Memory.colonyStateReportFrequency ?? 1000;
   }
 
-  CostMatrixRefreshTTL = 500;
   OnGlobalReset(): void {
     Memory.creeps ??= {};
     Memory.rooms ??= {};
@@ -279,9 +278,7 @@ export class Colony {
     for (const role of Object.values(this.Roles)) role.EndOfTick();
 
     // Delete stale cost matrices
-    this.MyRooms.filter(r => Game.time - r.PathfindingCostMatrixDate > this.CostMatrixRefreshTTL).forEach(r =>
-      r.ClearCostMatrix(),
-    );
+    this.MyRooms.filter(r => r.CostMatrixIsStale).forEach(r => r.ClearCostMatrix());
 
     // Update stats
     if (Game.time % this.StatsFrequency === 0) this.stats = this.GetCurrentStats();
