@@ -414,7 +414,9 @@ export class RoomExtra extends Room {
   }
 
   get ClaimedMinePositions(): string[] {
-    return unique(flatten(this.ClaimedMines.map(pair => pair[1].map(mp => mp.pos))));
+    const ret = [];
+    for (const [_room, mines] of this.ClaimedMines) for (const mine of mines) ret.push(mine.pos);
+    return ret;
   }
 
   /**

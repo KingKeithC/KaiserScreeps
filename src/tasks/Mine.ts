@@ -25,7 +25,7 @@ export class Mine extends TargetTask<typeof TaskAction.Mine, MiningPosition> {
 
   public override isComplete(creep: CreepExtra): boolean {
     // If the target is no longer claimed, we're done
-    if (!(this.target.pos in creep.AssignedRoom.ClaimedMinePositions)) return true;
+    if (!creep.AssignedRoom.ClaimedMinePositions.some(p => p === this.target.pos)) return true;
 
     // Otherwise, a miner's work is never done
     const isAMiner = creep.role?.groupName === 'Miners';
