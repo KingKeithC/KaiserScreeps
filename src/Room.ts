@@ -245,6 +245,9 @@ export class RoomExtra extends Room {
     this.cachedDeserializedCostMatrix = undefined;
     this.memory.pathfindingCostMatrix = undefined;
     this.memory.pathfindingCostMatrixDate = undefined;
+
+    // Also clear the list of mining positions
+    this.memory.mines = undefined;
   }
 
   get PathfindingCostMatrixDate(): number {
@@ -408,6 +411,10 @@ export class RoomExtra extends Room {
 
   get ClaimedSources(): Id<Source>[] {
     return unique(flatten(this.ClaimedMines.map(pair => pair[1].map(mp => mp.source))));
+  }
+
+  get ClaimedMinePositions(): string[] {
+    return unique(flatten(this.ClaimedMines.map(pair => pair[1].map(mp => mp.pos))));
   }
 
   /**
