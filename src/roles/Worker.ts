@@ -136,10 +136,6 @@ export class Worker extends CreepRoleBase implements CreepRole {
     let gather = this.FindGatheringTask(creep);
     // In case no normal gathering task was found, try gthering from storage
     if (!gather && !creep.AssignedRoom.StoreOverUpgrade) gather = this.CollectFromRoomStorage(creep);
-    // In case still nothing found, try a random miner
-    if (!gather) gather = this.CollectFromRandomMiner(creep);
-    // In case still nothing found, mine ourselves
-    if (!gather) gather = this.MineAnyFreePosition(creep);
     // If we found a gathering task, return it
     if (gather) return gather;
 
@@ -226,11 +222,11 @@ export class Worker extends CreepRoleBase implements CreepRole {
     const allSources = [
       /* eslint-disable @typescript-eslint/no-unnecessary-type-assertion */
       ...creep.AssignedRoom.FlatMapOverRoomsInClaimedArea(cr => cr instanceof Room ? cr.find(FIND_TOMBSTONES, { filter: t => t.store.getUsedCapacity(RESOURCE_ENERGY) > 0 }) : []) as Tombstone[],
-      ...creep.AssignedRoom.FlatMapOverRoomsInClaimedArea(cr => cr instanceof Room ? cr.find(FIND_DROPPED_RESOURCES, { filter: r => r.resourceType === RESOURCE_ENERGY }) : []) as Resource<RESOURCE_ENERGY>[],
-      ...creep.AssignedRoom.FlatMapOverRoomsInClaimedArea(cr => cr instanceof Room ? cr.find(FIND_RUINS) : []) as Ruin[],
-      ...creep.AssignedRoom.FlatMapOverRoomsInClaimedArea(cr => cr instanceof Room ? cr.find(FIND_STRUCTURES, { filter: s => s.structureType === STRUCTURE_CONTAINER }) : []) as StructureContainer[],
-      ...creep.AssignedRoom.LinkReceivers as StructureLink[],
-      ...miners,
+      ...creep.AssignedRoom.FlatMapOverRoomsInClaimedArea(cr => cr instanceof Room ? cr.find(FIND_DROPPED_RESOURCES, { filter: r => r.resourceType === RESOURCE_ENERGY && r.amount > 0 }) : []) as Resource<RESOURCE_ENERGY>[],
+      ...creep.AssignedRoom.FlatMapOverRoomsInClaimedArea(cr => cr instanceof Room ? cr.find(FIND_RUINS, {filter: r=> r.store.getUsedCapacity(RESOURCE_ENERGY) > 0}) : []) as Ruin[],
+      ...creep.AssignedRoom.FlatMapOverRoomsInClaimedArea(cr => cr instanceof Room ? cr.find(FIND_STRUCTURES, { filter: s => s.structureType === STRUCTURE_CONTAINER && s.store.getUsedCapacity(RESOURCE_ENERGY) > 0}) : []) as StructureContainer[],
+      ...creep.AssignedRoom.LinkReceivers.filter(lr => lr.store.getUsedCapacity(RESOURCE_ENERGY) > 0) as StructureLink[],
+      ...miners.filter(m => m.store.getUsedCapacity(RESOURCE_ENERGY) > 0),
       /* eslint-enable @typescript-eslint/no-unnecessary-type-assertion */
     ];
 
@@ -239,6 +235,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
       number,
     ][] = [];
 
+    // Filter out sources that have too many incoming deliveries
     for (const possible of allSources) {
       const sourceEnergyAvailable =
         possible instanceof Resource ? possible.amount : possible.store.getUsedCapacity(RESOURCE_ENERGY);
@@ -247,16 +244,19 @@ export class Worker extends CreepRoleBase implements CreepRole {
       if (currentDeliveryCount < acceptibleDeliveryCount) possibleSources.push([possible, sourceEnergyAvailable]);
     }
 
+    // Find the nearest source in the same room as us
     const sameRoom = creep.pos.findClosestByPath(
       possibleSources.filter(s => s[0].pos.roomName === creep.room.name).map(s => s[0]),
       { ignoreCreeps: true },
     );
     if (sameRoom) return new CollectEnergy(sameRoom);
 
-    const totalMinerBodies = sum(miners, m => BodyCost(m.body));
+    // Find the most in need source across all rooms
     const mostInNeed = possibleSources.sort((a, b) => a[1] - b[1]).pop();
     if (mostInNeed) return new CollectEnergy(mostInNeed[0]);
 
+    // If all else fails, and there aren't enough miners alive, do mining ourselves
+    const totalMinerBodies = sum(miners, m => BodyCost(m.body));
     if (totalMinerBodies < this.RelyOnMinersAt) {
       this.log.warn(
         `Emergency mining since too few miners are available (${totalMinerBodies}/${this.RelyOnMinersAt})...`,
