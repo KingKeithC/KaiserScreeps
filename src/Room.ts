@@ -198,11 +198,11 @@ export class RoomExtra extends Room {
             this.log.warn(`Claimed Room ${name} is up and running, no longer supported by ${this.name}, disowning!`);
             this.ClaimedRoomNames = this.ClaimedRoomNames.filter(cr => cr !== name);
           }
-        else {
-          this.log.warn(`Claimed Room ${name} is hostile!`);
-        }
+        else if (room.find(FIND_HOSTILE_SPAWNS).length > 0)
+          this.log.warn(`Claimed Room ${name} is hostile!`, { '<rate>': 10 });
+        else this.log.warn(`Claimed Room ${name} is ripe for the taking!`, { '<rate>': 10 });
       } else {
-        this.log.warn(`Claimed Room ${name} is not visible!`);
+        this.log.warn(`Claimed Room ${name} is not visible!`, { '<rate>': 30 });
       }
     }
 
