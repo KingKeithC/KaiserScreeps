@@ -228,7 +228,6 @@ export class Worker extends CreepRoleBase implements CreepRole {
   RelyOnMinersAt = 1000;
   FindGatheringTask(creep: CreepExtra): CreepTask | null {
     // const miners = (creep.AssignedRoom.AssignedCreepsByRoleGroup.get('Miners') ?? []).filter(m => !m.spawning);
-    const miners = creep.AssignedRoom.AssignedCreeps.filter(m => !m.spawning && m.currentTask instanceof Mine);
     // prettier-ignore
     const possibleSources: [
       CreepExtra | StructureLink | StructureContainer | Resource<RESOURCE_ENERGY> | Ruin | Tombstone,
@@ -240,7 +239,6 @@ export class Worker extends CreepRoleBase implements CreepRole {
       ...creep.AssignedRoom.FlatMapOverRoomsInClaimedArea(cr => cr instanceof Room ? cr.find(FIND_RUINS, {filter: r=> r.store.getUsedCapacity(RESOURCE_ENERGY) > 0}) : []) as Ruin[],
       ...creep.AssignedRoom.FlatMapOverRoomsInClaimedArea(cr => cr instanceof Room ? cr.find(FIND_STRUCTURES, { filter: s => s.structureType === STRUCTURE_CONTAINER && s.store.getUsedCapacity(RESOURCE_ENERGY) > 0}) : []) as StructureContainer[],
       ...creep.AssignedRoom.LinkReceivers.filter(lr => lr.store.getUsedCapacity(RESOURCE_ENERGY) > 0) as StructureLink[],
-      ...miners.filter(m => m.store.getUsedCapacity(RESOURCE_ENERGY) > 0),
       /* eslint-enable @typescript-eslint/no-unnecessary-type-assertion */
     ].map(ps => [ps, ps instanceof Resource ? ps.amount : ps.store.getUsedCapacity(RESOURCE_ENERGY)]);
 
@@ -286,7 +284,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
     );
 
     if (best) return new CollectEnergy(best);
-    else return null;
+    else return this.CollectFromRandomMiner(creep);
   }
 
   IgnoreDroppedResourcesLessThan = 30;
