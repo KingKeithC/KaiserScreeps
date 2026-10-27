@@ -272,7 +272,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
     const best =
       canFullySupplyUsInSameRoomAsCreep ?? canFullySupplyUsAnywhere ?? anySourceInMyRoom ?? anySourceAnywhere;
 
-    this.log.info(
+    this.log.debug(
       `FindGatheringTask: ${JSON.stringify({
         best: String(best),
         countCanFullySupplyUs: canFullySupplyUs.length,
@@ -282,6 +282,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
         anySourceInMyRoom: String(anySourceInMyRoom),
         anySourceAnywhere: String(anySourceAnywhere),
       })}`,
+      { '<creep>': creep },
     );
 
     if (best) return new CollectEnergy(best);
