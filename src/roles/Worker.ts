@@ -141,7 +141,12 @@ export class Worker extends CreepRoleBase implements CreepRole {
 
     // Didn't need or Can't find, gathering or spending task
 
-    this.log.warn('SelectNextTask: Literally nothing for me to do, are we overspawned?', { '<creep>': creep });
+    // Log a warning if we found nothing to do
+    // Ignore the warning if all the sources are out of energy, as
+    // that can cause it to spam when everything is running at peak efficiency
+    if (creep.AssignedRoom.find(FIND_SOURCES_ACTIVE).length > 0)
+      this.log.warn('SelectNextTask: Literally nothing for me to do, are we overspawned?', { '<creep>': creep });
+
     return null;
   }
 
