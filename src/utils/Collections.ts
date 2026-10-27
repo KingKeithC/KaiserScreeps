@@ -26,7 +26,11 @@ export function MakeBody(...opts: [BodyPartConstant, number][]): BodyPartConstan
 export type RoomPositionString = string;
 
 export function SerializeRoomPosition(pos: RoomPosition): RoomPositionString {
-  return `${pos.roomName}:${pos.x}:${pos.y}`;
+  return SerializeRoomPositionTriple(pos.x, pos.y, pos.roomName);
+}
+
+export function SerializeRoomPositionTriple(x: number, y: number, roomName: string): RoomPositionString {
+  return `${roomName}:${x}:${y}`;
 }
 
 export function DeserializeRoomPosition(str: RoomPositionString): RoomPosition {
