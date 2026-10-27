@@ -1,15 +1,14 @@
 import { CreepExtra } from 'Creep';
 import { ResourceContainer } from 'utils/RoomUtils';
-import { BaseTask } from './BaseTask';
+import { TargetTask } from './TargetTask';
 import { TaskAction } from './TaskAction';
 import { TaskActionResult } from './types';
 
-export class Collect extends BaseTask<typeof TaskAction.Collect> {
+export class Collect extends TargetTask<typeof TaskAction.Collect, ResourceContainer> {
   public readonly kind = 'collectEnergy' as const;
 
   private attempts = 0;
   private lastInventory = 0;
-  public readonly targetId: Id<ResourceContainer>;
 
   public constructor(
     target: ResourceContainer,
@@ -17,38 +16,38 @@ export class Collect extends BaseTask<typeof TaskAction.Collect> {
     public readonly maxAttempts = 5,
     public readonly smallPickupThreshold = 50,
   ) {
-    super(TaskAction.Collect);
-    this.targetId = target.id;
+    super(TaskAction.Collect, target);
   }
 
-  public toString(): string {
-    const attempts = this.maxAttempts === undefined ? '' : ` (${this.attempts}/${this.maxAttempts} attempts)`;
-    const tgt = Game.getObjectById(this.targetId);
+  public extraToString(): string {
     const resourceType = this.resourceType === RESOURCE_ENERGY ? '' : ` (of ${this.resourceType})`;
-    return `${this.action}${resourceType} on ${tgt !== null ? String(tgt) : this.targetId}${attempts}`;
+    return this.maxAttempts === undefined ? '' : ` (${resourceType}, ${this.attempts}/${this.maxAttempts} attempts)`;
   }
 
   public override act(creep: CreepExtra): TaskActionResult | null {
-    const source = Game.getObjectById(this.targetId);
     // Ruins can have null capacity so return early on them
-    if (source === null || ('store' in source && source.store.getUsedCapacity(this.resourceType) === null)) {
+    if (
+      this.target === null ||
+      ('store' in this.target && this.target.store.getUsedCapacity(this.resourceType) === null)
+    ) {
       this.attempts++;
       return null;
     }
 
     const currentInventory = creep.store.getUsedCapacity(this.resourceType);
+
     const result =
-      source instanceof Creep
-        ? source.transfer(creep, this.resourceType)
-        : source instanceof Resource
-          ? creep.pickup(source)
-          : creep.withdraw(source, this.resourceType);
+      this.target instanceof Creep
+        ? this.target.transfer(creep, this.resourceType)
+        : this.target instanceof Resource
+          ? creep.pickup(this.target)
+          : creep.withdraw(this.target, this.resourceType);
     this.lastInventory = currentInventory;
 
     if (result === OK && currentInventory - this.lastInventory <= this.smallPickupThreshold) this.attempts++;
     else if (result !== OK && result !== ERR_NOT_IN_RANGE) this.attempts++;
 
-    return { target: source, range: 1, result };
+    return { target: this.target, range: 1, result };
   }
 
   public override isComplete(creep: CreepExtra): boolean {
