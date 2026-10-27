@@ -241,7 +241,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
       const sourceEnergyAvailable =
         possible instanceof Resource ? possible.amount : possible.store.getUsedCapacity(RESOURCE_ENERGY);
 
-      const acceptibleDeliveryCount = Math.floor(sourceEnergyAvailable / creep.store.getCapacity(RESOURCE_ENERGY));
+      const acceptibleDeliveryCount = Math.floor(sourceEnergyAvailable / creep.store.getCapacity(RESOURCE_ENERGY)) + 1;
 
       const currentDeliveryCount = activeDeliveries.filter(ad => {
         if (ad.source.kind === 'container') return ad.source.id === possible.id;
