@@ -115,14 +115,22 @@ export function GetMiningPositions(room: Room): MiningPosition[] {
     // get the positions of all the surrounding spaces
     for (let x = s.pos.x - 1; x <= s.pos.x + 1; x++)
       for (let y = s.pos.y - 1; y <= s.pos.y + 1; y++) {
-        if (x === s.pos.x && y === s.pos.y) continue; // Skip centre point
-        if (terrain.get(x, y) !== TERRAIN_MASK_WALL) {
-          const pos = room.getPositionAt(x, y);
-          if (!pos) continue;
-          ret.push({ source: s.id, pos: SerializeRoomPosition(pos) });
-          found++;
-        }
         searched++;
+        const pos = room.getPositionAt(x, y);
+        if (!pos) continue; // Skip invalid positions (in case we are near an edge)
+        if (x === s.pos.x && y === s.pos.y) continue; // Skip centre point
+        if (terrain.get(x, y) === TERRAIN_MASK_WALL) continue; // Skip non-walkable terrain
+        if (
+          room
+            .lookForAt(LOOK_STRUCTURES, x, y)
+            .some(st => st.structureType !== STRUCTURE_RAMPART && st.structureType !== STRUCTURE_ROAD)
+        )
+          continue; // Skip non-walkable structures
+        if (room.lookForAt(LOOK_CONSTRUCTION_SITES, x, y).length > 0) continue; // Skip non-walkable construction sites
+
+        // Must be a valid spot for a creep to sit
+        ret.push({ source: s.id, pos: SerializeRoomPosition(pos) });
+        found++;
       }
 
   Logger.info(`GetMinerPositions: ${sources.length} Sources have ${found} positions (${searched} searched).`, {
