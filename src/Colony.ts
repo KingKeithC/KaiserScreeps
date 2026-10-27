@@ -149,9 +149,7 @@ export class Colony {
 
   // creep.memory.currentTask from all MyCreeps, optionally filtered by a type of action
   private cachedAllAssignedTasks: CreepTask[] = [];
-  GetAllAssignedTasks<Action extends string = CreepTask['action']>(
-    taskAction?: Action,
-  ): CreepTask[] | CreepTask<Action>[] {
+  GetAllAssignedTasks(taskAction?: CreepTask['action']): CreepTask[] {
     if (taskAction === undefined && this.cachedAllAssignedTasks.length > 0) return this.cachedAllAssignedTasks;
     if (taskAction !== undefined && this.cachedAllAssignedTasks.length > 0)
       return this.cachedAllAssignedTasks.filter(t => t.action === taskAction);

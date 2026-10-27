@@ -1,6 +1,6 @@
 import { groupBy } from 'lodash';
 import { RoomPositionString, SerializeRoomPosition, SerializeRoomPositionTriple } from './Collections';
-import { BodyCost as CrrepBodyCost, PartCounts as CreepBodypartCounts } from './CreepUtils';
+import { BodyCost, PartCounts } from './CreepUtils';
 import { Logger } from './Logger';
 
 /*
@@ -73,8 +73,8 @@ export function GetHostileInfo(room: Room): HostileInfo[] {
       id: c.id,
       ownerUsername: c.owner.username,
       pos: SerializeRoomPosition(c.pos),
-      bodyCost: CrrepBodyCost(c.body.map(p => p.type)),
-      partCounts: CreepBodypartCounts(c.body),
+      bodyCost: BodyCost(c.body.map(p => p.type)),
+      partCounts: PartCounts(c.body),
     }));
 
   const hostileStructures: HostileInfo[] = room

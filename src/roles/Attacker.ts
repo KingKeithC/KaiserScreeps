@@ -1,9 +1,12 @@
 import { CreepExtra } from 'Creep';
-import { CreepTask, Dismantle, Move } from 'tasks';
-import { FormatStructureHits, MakeBody } from 'utils/Collections';
-import { CreepRole, CreepRoleBase } from './Role';
+import { CreepTask, Move, Dismantle } from 'tasks';
+import { Attack } from 'tasks/Attack';
+import { MakeBody, FormatStructureHits, SerializeRoomPosition } from 'utils/Collections';
+import { BodyCost, PartCounts } from 'utils/CreepUtils';
+import { FormatHostileInfos } from 'utils/RoomUtils';
+import { CreepRoleBase, CreepRole } from './Role';
 
-type AttackType = 'Rally' | 'NearestStructure';
+type AttackType = 'Rally' | 'NearestStructure' | 'Creeps';
 
 declare global {
   interface FlagMemory {
@@ -87,9 +90,40 @@ export class Attacker extends CreepRoleBase implements CreepRole {
         step.memory.done = true;
         return;
       } else {
-        if (Game.time % 10 === 0)
+        if (Game.time % 10 === 0) {
           this.log.info(
             `Attack ${step.memory.attackIndex}: ${step.memory.attackType} in progress on (${nearby}), ${FormatStructureHits(nearby)}...`,
+          );
+        }
+        step.memory.done = false;
+        return;
+      }
+    } else if (
+      step.memory.attackType === 'Creeps' ||
+      step.memory.attackType === '' ||
+      step.memory.attackType === undefined
+    ) {
+      // Default is to attack nearby creeps
+      const nearby = step.pos.findInRange(FIND_HOSTILE_CREEPS, 3).pop();
+      if (!nearby) {
+        this.log.warn(`Attack ${step.memory.attackIndex}: Creeps completed.`);
+        step.memory.done = true;
+        return;
+      } else {
+        if (Game.time % 10 === 0)
+          this.log.info(
+            `Attack ${step.memory.attackIndex}: ${step.memory.attackType} in progress on (${nearby}), ${FormatHostileInfos(
+              [
+                {
+                  type: 'creep',
+                  id: nearby.id,
+                  ownerUsername: nearby.owner.username,
+                  pos: SerializeRoomPosition(nearby.pos),
+                  bodyCost: BodyCost(nearby.body.map(p => p.type)),
+                  partCounts: PartCounts(nearby.body),
+                },
+              ],
+            )}...`,
           );
         step.memory.done = false;
         return;
@@ -129,7 +163,6 @@ export class Attacker extends CreepRoleBase implements CreepRole {
   SelectNextTask(): CreepTask | null {
     const curr = this.GetCurrentStep();
     if (!curr) return null;
-    if (!curr.memory.attackType) return null;
 
     // If room is not visible, or next step is a rally, do a move.
     if (!(curr.pos.roomName in Game.rooms) || curr.memory.attackType === 'Rally')
@@ -140,6 +173,13 @@ export class Attacker extends CreepRoleBase implements CreepRole {
       const structure = curr.pos.lookFor(LOOK_STRUCTURES).pop();
       if (!structure) return null;
       return new Dismantle(structure.id);
+    }
+
+    if (curr.memory.attackType === 'Creeps' || curr.memory.attackType === '' || curr.memory.attackType === undefined) {
+      for (const nearby of curr.pos.findInRange(FIND_HOSTILE_CREEPS, 3)) {
+        if (!nearby) return null;
+        return new Attack(nearby);
+      }
     }
 
     return null;

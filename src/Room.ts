@@ -1,4 +1,4 @@
-import { Dictionary, filter, flatten, range, unique } from 'lodash';
+import { Dictionary, flatten, range, unique } from 'lodash';
 import { CreepTask, Mine, Repair, TaskAction, UpdateController } from 'tasks';
 import {
   FormatHostileInfos,
