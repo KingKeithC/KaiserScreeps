@@ -80,6 +80,7 @@ export class CollectEnergy extends BaseTask<typeof TaskAction.CollectEnergy> {
 
     return (
       sourceIsWrongType ||
+      ('store' in source && source.store.getUsedCapacity(RESOURCE_ENERGY) === null) ||
       ('store' in source && source.store.getUsedCapacity(RESOURCE_ENERGY) === 0) ||
       ('amount' in source && source.amount === 0)
     );
