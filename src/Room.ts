@@ -170,41 +170,36 @@ export class RoomExtra extends Room {
     return unique(this.memory.claimedNearby ?? []);
   }
 
-  private cachedClaimedRooms: Room[] = [];
-  get ClaimedRooms(): Room[] {
-    const toRemove: string[] = [];
+  private cachedWorkableClaimedRooms: Room[] = [];
+  get WorkableClaimedRooms(): Room[] {
+    if (this.cachedWorkableClaimedRooms.length > 0) return this.cachedWorkableClaimedRooms;
 
-    if (this.cachedClaimedRooms.length > 0) return this.cachedClaimedRooms;
     for (const name of this.ClaimedRoomNames) {
-      const room = Game.rooms[name];
-      if (room !== undefined) {
+      if (name in Game.rooms) {
+        const room = Game.rooms[name];
         if (room.controller === undefined || room.controller.owner === undefined)
-          // Neutral Room
-          this.cachedClaimedRooms.push(room);
-        else if (room.controller.owner.username === 'KeyserSozayme')
-          // My Room
+          // Neutral Room - safe to work
+          this.cachedWorkableClaimedRooms.push(room);
+        else if (room.controller.owner.username === this.colony.username)
+          //  My room
           if (room.find(FIND_MY_SPAWNS).length === 0) {
-            // Not Self-Sufficient
+            // Not Self-Sufficient - keep working
             this.log.info(`Claimed Room ${name} is still under support by ${this.name}!`, { '<rate>': 20 });
-            this.cachedClaimedRooms.push(room);
+            this.cachedWorkableClaimedRooms.push(room);
           } else {
-            // Self-Sufficient
-            this.log.warn(`Claimed Room ${name} is up and running, no longer supported by ${this.name}!`);
-            toRemove.push(name);
+            // Self-Sufficient - disown
+            this.log.warn(`Claimed Room ${name} is up and running, no longer supported by ${this.name}, disowning!`);
+            this.ClaimedRoomNames = this.ClaimedRoomNames.filter(cr => cr !== name);
           }
-        // Hostile Room
         else {
-          this.log.warn(`Claimed Room ${room} is now hostile and will be removed from the claim list of ${this.name}!`);
-          toRemove.push(name);
+          this.log.warn(`Claimed Room ${name} is hostile!`);
         }
+      } else {
+        this.log.warn(`Claimed Room ${name} is not visible!`);
       }
-      // else this.log.info(`Claimed Room ${name} is not visible!`, { "<rate>": 10 });
     }
 
-    // Log rooms which are not claimable anymore
-    if (toRemove.length > 0) this.log.warn(`Some of our claims are no longer valid: ${toRemove}`);
-
-    return this.cachedClaimedRooms;
+    return this.cachedWorkableClaimedRooms;
   }
 
   HostilesByRoom = this.MapWithRoomsInClaimedArea(mr => (mr instanceof Room ? mr.find(FIND_HOSTILE_CREEPS) : []));
@@ -475,7 +470,7 @@ export class RoomExtra extends Room {
   get ConstructionSites(): ConstructionSite[] {
     const constructionGetter = (r: Room) => r.find(FIND_MY_CONSTRUCTION_SITES);
     let ret = [...constructionGetter(this)];
-    for (const claimed of this.ClaimedRooms) ret = ret.concat(...constructionGetter(claimed));
+    for (const claimed of this.WorkableClaimedRooms) ret = ret.concat(...constructionGetter(claimed));
     return ret;
   }
 
@@ -499,14 +494,14 @@ export class RoomExtra extends Room {
     const containerGetter = (r: Room) =>
       r.find(FIND_STRUCTURES, { filter: s => s.structureType === STRUCTURE_CONTAINER });
     let ret = [...containerGetter(this)];
-    for (const claimed of this.ClaimedRooms) ret = ret.concat(...containerGetter(claimed));
+    for (const claimed of this.WorkableClaimedRooms) ret = ret.concat(...containerGetter(claimed));
     return ret as StructureContainer[];
   }
 
   get Repairs(): AnyStructure[] {
     const repairGetter = (r: Room) => r.find(FIND_STRUCTURES, { filter: s => s.hits < s.hitsMax });
     let ret = [...repairGetter(this)];
-    for (const claimed of this.ClaimedRooms) ret = ret.concat(...repairGetter(claimed));
+    for (const claimed of this.WorkableClaimedRooms) ret = ret.concat(...repairGetter(claimed));
     return ret;
   }
 
@@ -813,7 +808,7 @@ export class RoomExtra extends Room {
 
     // Get info about claimed rooms
     for (const claim of this.ClaimedRoomNames)
-      msg += `\n\tClaims: ${claim}: Visible ${this.ClaimedRooms.map(r => r.name).includes(claim)}`;
+      msg += `\n\tClaims: ${claim}: Visible ${this.WorkableClaimedRooms.map(r => r.name).includes(claim)}`;
 
     return msg;
   }
