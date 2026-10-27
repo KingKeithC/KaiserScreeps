@@ -201,8 +201,9 @@ export class RoomExtra extends Room {
       // else this.log.info(`Claimed Room ${name} is not visible!`, { "<rate>": 10 });
     }
 
-    // Remove rooms which are not claimable anymore
-    this.ClaimedRoomNames = filter(this.ClaimedRoomNames, n => !toRemove.includes(n));
+    // Log rooms which are not claimable anymore
+    if (toRemove.length > 0) this.log.warn(`Some of our claims are no longer valid: ${toRemove}`);
+
     return this.cachedClaimedRooms;
   }
 
