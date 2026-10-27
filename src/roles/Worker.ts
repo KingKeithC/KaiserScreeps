@@ -99,10 +99,6 @@ export class Worker extends CreepRoleBase implements CreepRole {
     return null;
   }
 
-  // If we're looking for a new job and have this much energy, look for a spending job.
-  // If we can't find a spending job, or don't have enough energy to spend, we look for a gathering job
-  SpendAtCarryCapacity = 1;
-
   SelectNextTask(creep: CreepExtra): CreepTask | null {
     // if (this.RefillBelowCarryCapacity - this.SpendAboveCarryCapacity < 0)
     //   throw new Error(
@@ -112,7 +108,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
 
     const currentFillRatio = creep.store.getUsedCapacity(RESOURCE_ENERGY) / creep.store.getCapacity(RESOURCE_ENERGY);
 
-    if (currentFillRatio >= this.SpendAtCarryCapacity) {
+    if (currentFillRatio >= 0) {
       // Need to spend hauled energy
 
       // Look for a spending task amongst typical targets
@@ -126,18 +122,17 @@ export class Worker extends CreepRoleBase implements CreepRole {
           (creep.AssignedRoom.storage !== undefined && !creep.AssignedRoom.StoreOverUpgrade))
       )
         return new UpdateController(creep.AssignedRoom.controller);
-
-      // If still no spending task, and there is storage, then store
-      if (creep.AssignedRoom.storage !== undefined && creep.AssignedRoom.StoreOverUpgrade)
+      else if (creep.AssignedRoom.storage !== undefined && creep.AssignedRoom.StoreOverUpgrade)
+        // If still no spending task, and there is storage, then store
         return new Supply(creep.AssignedRoom.storage.id);
+    } else {
+      // Try to find a gathering task
+      let gather = this.FindGatheringTask(creep);
+      // In case no normal gathering task was found, try gthering from storage
+      if (!gather && !creep.AssignedRoom.StoreOverUpgrade) gather = this.CollectFromRoomStorage(creep);
+      // If we found a gathering task, return it
+      if (gather) return gather;
     }
-
-    // Try to find a gathering task
-    let gather = this.FindGatheringTask(creep);
-    // In case no normal gathering task was found, try gthering from storage
-    if (!gather && !creep.AssignedRoom.StoreOverUpgrade) gather = this.CollectFromRoomStorage(creep);
-    // If we found a gathering task, return it
-    if (gather) return gather;
 
     // Didn't need or Can't find, gathering or spending task
 
