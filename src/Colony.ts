@@ -251,7 +251,8 @@ export class Colony {
 
   // This is the effectively the loop function invoked each tick.
   private MainLoop(): void {
-    this.ClearCaches();
+    this.ClearCaches(); // Must be called before any Creep/Room access on the colony
+
     this.CleanupStaleFlags();
     this.TryGeneratingPixel();
 
@@ -261,7 +262,7 @@ export class Colony {
     // Perform Actions
     for (const room of this.MyRooms) {
       room.AcumulateEvents();
-      room.CleanupDeadCreeps();
+      room.CleanupDeadCreeps(); // Should be done before RunCreeps
       room.ReportHostiles();
       room.RunLinks();
       room.RunTowers();
@@ -274,6 +275,7 @@ export class Colony {
     // Tick all other rooms I can see but don't own
     for (const room of this.OtherRooms) this.TickOtherVisibleRoom(room);
 
+    // Call end of tick for bookkeeping
     for (const creep of this.MyCreeps) creep.EndOfTick();
     for (const role of Object.values(this.Roles)) role.EndOfTick();
 
@@ -285,6 +287,14 @@ export class Colony {
 
     // Periodically print a report with the state of the colony.
     if (Game.time % this.ColonyStateReportFrequency === 0) this.ColonyStateReport();
+
+    // Update colony stats
+    if (Game.time % this.StatsFrequency === 0) this.stats = this.GetCurrentStats();
+
+    // Delete stale data to be generated on next tick's access
+    this.MyRooms.filter(r => Game.time - r.PathfindingCostMatrixDate > this.CostMatrixRefreshTTL).forEach(r =>
+      r.ClearStructureDependentData(),
+    );
   }
 
   CleanupStaleFlags(): void {
@@ -301,7 +311,7 @@ export class Colony {
 
   RegenerateCostMatrixes(): void {
     this.MyRooms.forEach(r => {
-      r.ClearCostMatrix();
+      r.ClearStructureDependentData();
       this.log.report(
         `Regenerated ${r.name} PathfindingCostMatrix ${r.PathfindingCostMatrix !== null ? 'Yes' : 'Error'}`,
       );

@@ -241,7 +241,10 @@ export class RoomExtra extends Room {
     return this.cachedDeserializedCostMatrix;
   }
 
-  public ClearCostMatrix(): void {
+  public ClearStructureDependentData(): void {
+    this.log.warn(`ClearStructureDependentData...`);
+
+    // Clear cost matricies
     this.cachedDeserializedCostMatrix = undefined;
     this.memory.pathfindingCostMatrix = undefined;
     this.memory.pathfindingCostMatrixDate = undefined;
@@ -380,7 +383,7 @@ export class RoomExtra extends Room {
     return this.memory.eventAmounts ?? {};
   }
 
-  get ClaimedMines(): [Room | string, MiningPosition[]][] {
+  get ClaimedMines(): [RoomExtra | Room | string, MiningPosition[]][] {
     return this.MapWithRoomsInClaimedArea(cr => {
       // If it's a RoomExtra, return the Mines property from it.
       if (cr instanceof RoomExtra) return cr.Mines;
@@ -538,14 +541,10 @@ export class RoomExtra extends Room {
     mapper: (r: RoomExtra | Room | string) => T[],
     includeMainRoom = true,
   ): [Room | string, T[]][] {
-    const allClaimedRooms = this.ClaimedRoomNames;
-    const visibleRooms = this.ClaimedRooms.concat(includeMainRoom ? [this] : []);
-    const ret: [Room | string, T[]][] = [];
-
-    for (const room of visibleRooms) ret.push([room, mapper(room)]);
-
-    for (const name of allClaimedRooms) ret.push([name, mapper(name)]);
-
+    const ret: [RoomExtra | Room | string, T[]][] = includeMainRoom ? [[this, mapper(this)]] : [];
+    for (const name of this.ClaimedRoomNames)
+      if (name in Game.rooms) ret.push([Game.rooms[name], mapper(Game.rooms[name])]);
+      else ret.push([name, mapper(name)]);
     return ret;
   }
 
