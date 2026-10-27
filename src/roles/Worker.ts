@@ -75,7 +75,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
     const miners = creep.AssignedRoom.AssignedCreepsByRoleName.get('Miner') ?? [];
     if (miners.length > 0) {
       const randomMiner = miners[Math.floor(miners.length * Math.random())];
-      return new CollectEnergy({ kind: 'creep', name: randomMiner.name });
+      return new CollectEnergy(randomMiner);
     }
 
     this.log.warn('Room has no miners to collect from.', { '<creep>': creep });
@@ -91,7 +91,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
       stored < creep.AssignedRoom.StorageWartimeEnergyBuffer &&
       !creep.AssignedRoom.StoreOverUpgrade
     )
-      return new CollectEnergy({ kind: 'storage', id: creep.AssignedRoom.storage.id });
+      return new CollectEnergy(creep.AssignedRoom.storage.id);
 
     // We log a warning becaue the conditions above should already have been checked, and
     // if this function disagrees, it means the calling logic is incomplete or mis-implemented.
@@ -233,69 +233,38 @@ export class Worker extends CreepRoleBase implements CreepRole {
       ...miners,
       /* eslint-enable @typescript-eslint/no-unnecessary-type-assertion */
     ];
-    const possibleSources: (
-      CreepExtra | StructureLink | StructureContainer | Resource<RESOURCE_ENERGY> | Ruin | Tombstone
-    )[] = [];
+
+    const possibleSources: [
+      CreepExtra | StructureLink | StructureContainer | Resource<RESOURCE_ENERGY> | Ruin | Tombstone,
+      number,
+    ][] = [];
 
     for (const possible of allSources) {
       const sourceEnergyAvailable =
         possible instanceof Resource ? possible.amount : possible.store.getUsedCapacity(RESOURCE_ENERGY);
-
       const acceptibleDeliveryCount = Math.floor(sourceEnergyAvailable / creep.store.getCapacity(RESOURCE_ENERGY)) + 1;
-
-      const currentDeliveryCount = activeDeliveries.filter(ad => {
-        if (ad.source.kind === 'container') return ad.source.id === possible.id;
-        else if (ad.source.kind === 'creep' && possible instanceof CreepExtra) return ad.source.name === possible.name;
-        else if (ad.source.kind === 'dropped') return ad.source.id === possible.id;
-        else if (ad.source.kind === 'link') return ad.source.id === possible.id;
-        else if (ad.source.kind === 'ruin') return ad.source.id === possible.id;
-        else if (ad.source.kind === 'tomb') return ad.source.id === possible.id;
-        else return false;
-      }).length;
-
-      if (currentDeliveryCount < acceptibleDeliveryCount) possibleSources.push(possible);
+      const currentDeliveryCount = activeDeliveries.filter(ad => ad.targetId === possible.id).length;
+      if (currentDeliveryCount < acceptibleDeliveryCount) possibleSources.push([possible, sourceEnergyAvailable]);
     }
 
     const sameRoom = creep.pos.findClosestByPath(
-      possibleSources.filter(s => s.pos.roomName === creep.room.name),
+      possibleSources.filter(s => s[0].pos.roomName === creep.room.name).map(s => s[0]),
       { ignoreCreeps: true },
     );
-    if (sameRoom instanceof StructureContainer)
-      return new CollectEnergy({ kind: 'container', id: sameRoom.id }, { maxAttempts: 3 });
-    else if (sameRoom instanceof StructureLink)
-      return new CollectEnergy({ kind: 'link', id: sameRoom.id }, { maxAttempts: 3 });
-    else if (sameRoom instanceof Creep || sameRoom instanceof CreepExtra)
-      return new CollectEnergy({ kind: 'creep', name: sameRoom.name }, { maxAttempts: 8 });
-    else if (sameRoom instanceof Ruin) return new CollectEnergy({ kind: 'ruin', id: sameRoom.id }, { maxAttempts: 3 });
-    else if (sameRoom instanceof Tombstone)
-      return new CollectEnergy({ kind: 'tomb', id: sameRoom.id }, { maxAttempts: 3 });
-    else if (sameRoom instanceof Resource)
-      return new CollectEnergy({ kind: 'dropped', id: sameRoom.id }, { maxAttempts: 3 });
+    if (sameRoom) return new CollectEnergy(sameRoom);
 
     const totalMinerBodies = sum(miners, m => BodyCost(m.body));
+    const mostInNeed = possibleSources.sort((a, b) => a[1] - b[1]).pop();
+    if (mostInNeed) return new CollectEnergy(mostInNeed[0]);
 
-    const amountMapper = (a: Resource | { store: StoreDefinition }) =>
-      a instanceof Resource ? a.amount : a.store.getUsedCapacity(RESOURCE_ENERGY);
-    const mostInNeed = possibleSources.sort((b, a) => amountMapper(a) - amountMapper(b))[0];
-    if (mostInNeed instanceof StructureContainer)
-      return new CollectEnergy({ kind: 'container', id: mostInNeed.id }, { maxAttempts: 3 });
-    else if (mostInNeed instanceof StructureLink)
-      return new CollectEnergy({ kind: 'link', id: mostInNeed.id }, { maxAttempts: 3 });
-    else if (mostInNeed instanceof Creep || mostInNeed instanceof CreepExtra)
-      return new CollectEnergy({ kind: 'creep', name: mostInNeed.name }, { maxAttempts: 8 });
-    else if (mostInNeed instanceof Ruin)
-      return new CollectEnergy({ kind: 'ruin', id: mostInNeed.id }, { maxAttempts: 3 });
-    else if (mostInNeed instanceof Tombstone)
-      return new CollectEnergy({ kind: 'tomb', id: mostInNeed.id }, { maxAttempts: 3 });
-    else if (mostInNeed instanceof Resource)
-      return new CollectEnergy({ kind: 'dropped', id: mostInNeed.id }, { maxAttempts: 3 });
-    else if (totalMinerBodies < this.RelyOnMinersAt) {
+    if (totalMinerBodies < this.RelyOnMinersAt) {
       this.log.warn(
         `Emergency mining since too few miners are available (${totalMinerBodies}/${this.RelyOnMinersAt})...`,
         { '<creep>': creep },
       );
       return this.MineAnyFreePosition(creep);
     }
+
     return null;
   }
 

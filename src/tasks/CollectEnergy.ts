@@ -1,53 +1,37 @@
 import { CreepExtra } from 'Creep';
 import { BaseTask } from './BaseTask';
 import { TaskAction } from './TaskAction';
-import { EnergySource } from './types';
+import { TaskActionResult } from './types';
 
-export interface CollectEnergyOptions {
-  maxAttempts?: number;
-  lastInventory?: number;
-}
+type HasEnergy =
+  CreepExtra | StructureLink | StructureStorage | StructureContainer | Resource<RESOURCE_ENERGY> | Ruin | Tombstone;
 
 export class CollectEnergy extends BaseTask<typeof TaskAction.CollectEnergy> {
   public readonly kind = 'collectEnergy' as const;
-  public readonly source: EnergySource;
-  public attempts = 0;
-  public lastInventory?: number;
-  public readonly maxAttempts?: number;
 
-  SmallPickupThreshold = 50;
+  private attempts = 0;
+  private lastInventory = 0;
+  public readonly targetId: Id<HasEnergy>;
 
-  public constructor(source: string | EnergySource, options: CollectEnergyOptions = {}) {
+  public constructor(
+    targetOrId: Id<HasEnergy> | HasEnergy,
+    public readonly maxAttempts = 5,
+    public readonly smallPickupThreshold = 50,
+  ) {
     super(TaskAction.CollectEnergy);
-    this.source = typeof source === 'string' ? { kind: 'creep', name: source } : source;
-    this.maxAttempts = options.maxAttempts;
-    this.lastInventory = options.lastInventory;
+    if ('id' in targetOrId) this.targetId = targetOrId.id;
+    else this.targetId = targetOrId;
   }
 
   public toString(): string {
-    const target =
-      this.source.kind === 'creep'
-        ? `[creep ${this.source.name}]`
-        : (Game.getObjectById(this.source.id)?.toString() ?? `[??? ${this.source.id}]`);
     const attempts = this.maxAttempts === undefined ? '' : ` (${this.maxAttempts} attempts)`;
-    return `${this.action} on ${target}${attempts}`;
+    return `${this.action} on ${this.targetId}${attempts}`;
   }
 
-  public override act(creep: CreepExtra) {
-    const source =
-      this.source.kind === 'creep' ? (Game.creeps[this.source.name] ?? null) : Game.getObjectById(this.source.id);
-    if (
-      !(source instanceof Creep) &&
-      !(source instanceof StructureContainer) &&
-      !(source instanceof StructureStorage) &&
-      !(source instanceof StructureLink) &&
-      !(source instanceof Resource) &&
-      !(source instanceof Tombstone) &&
-      !(source instanceof Ruin)
-    )
-      return null;
+  public override act(creep: CreepExtra): TaskActionResult | null {
+    const source = Game.getObjectById(this.targetId);
+    if (source === null) return null;
 
-    const lastInventory = this.lastInventory ?? 0;
     const currentInventory = creep.store.getUsedCapacity(RESOURCE_ENERGY);
     const result =
       source instanceof Creep
@@ -57,7 +41,7 @@ export class CollectEnergy extends BaseTask<typeof TaskAction.CollectEnergy> {
           : creep.withdraw(source, RESOURCE_ENERGY);
     this.lastInventory = currentInventory;
 
-    if (result === OK && currentInventory - lastInventory <= this.SmallPickupThreshold) this.attempts++;
+    if (result === OK && currentInventory - this.lastInventory <= this.smallPickupThreshold) this.attempts++;
     else if (result !== OK && result !== ERR_NOT_IN_RANGE) this.attempts++;
 
     return { target: source, range: 1, result };
@@ -65,21 +49,10 @@ export class CollectEnergy extends BaseTask<typeof TaskAction.CollectEnergy> {
 
   public override isComplete(creep: CreepExtra): boolean {
     if (creep.store.getFreeCapacity(RESOURCE_ENERGY) === 0) return true;
-    if (this.maxAttempts !== undefined && (this.attempts ?? 0) >= this.maxAttempts) return true;
-    const source =
-      this.source.kind === 'creep' ? (Game.creeps[this.source.name] ?? null) : Game.getObjectById(this.source.id);
-    const sourceIsWrongType =
-      source === null ||
-      (!(source instanceof Creep) &&
-        !(source instanceof StructureContainer) &&
-        !(source instanceof StructureStorage) &&
-        !(source instanceof StructureLink) &&
-        !(source instanceof Tombstone) &&
-        !(source instanceof Resource) &&
-        !(source instanceof Ruin));
-
+    if (this.attempts >= this.maxAttempts) return true;
+    const source = Game.getObjectById(this.targetId);
     return (
-      sourceIsWrongType ||
+      source === null ||
       ('store' in source && source.store.getUsedCapacity(RESOURCE_ENERGY) === null) ||
       ('store' in source && source.store.getUsedCapacity(RESOURCE_ENERGY) === 0) ||
       ('amount' in source && source.amount === 0)
