@@ -129,14 +129,14 @@ export function CouldCreepStandAt(x: number, y: number, room: Room, terrain: Roo
   if (terrain.get(x, y) === TERRAIN_MASK_WALL) return false;
 
   for (const structure of pos.lookFor(LOOK_STRUCTURES)) {
-    if (structure.structureType === STRUCTURE_CONTAINER) return true; // Can stand on containers.
-    if (structure.structureType === STRUCTURE_ROAD) return true; // Can stand on roads.
-    if (structure.structureType === STRUCTURE_RAMPART && structure.my) return true; // Can stand on my ramparts.
+    if (structure.structureType === STRUCTURE_CONTAINER) continue; // Can stand on containers.
+    if (structure.structureType === STRUCTURE_ROAD) continue; // Can stand on roads.
+    if (structure.structureType === STRUCTURE_RAMPART && structure.my) continue; // Can stand on my ramparts.
     return false; // Can't stand on any other structure
   }
 
   // Can't stand on construction sites (or maybe just shouldn't)
-  if (pos.lookFor(LOOK_CONSTRUCTION_SITES)) return true;
+  if (pos.lookFor(LOOK_CONSTRUCTION_SITES).length > 0) return false;
 
   // No other blockers, must be okay to stand there
   return true;
@@ -165,10 +165,11 @@ export function GetMiningPositions(room: Room): MiningPosition[] {
       for (let y = s.pos.y - 1; y <= s.pos.y + 1; y++) {
         searched++;
         if (x === s.pos.x && y === s.pos.y) continue; // Skip centre point
-        if (!CouldCreepStandAt(x, y, room, terrain)) continue;
-        // Must be a valid spot for a creep to sit
-        ret.push({ source: s.id, pos: SerializeRoomPositionTriple(x, y, room.name) });
-        found++;
+        if (CouldCreepStandAt(x, y, room, terrain)) {
+          // Must be a valid spot for a creep to sit
+          ret.push({ source: s.id, pos: SerializeRoomPositionTriple(x, y, room.name) });
+          found++;
+        }
       }
 
   Logger.info(`GetMinerPositions: ${sources.length} Sources have ${found} positions (${searched} searched).`, {
