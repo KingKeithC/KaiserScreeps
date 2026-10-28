@@ -386,42 +386,65 @@ export class RoomExtra extends Room {
     return this.memory.eventAmounts ?? {};
   }
 
-  get ClaimedMines(): [RoomExtra | Room | string, MiningPosition[]][] {
+  get WorkableClaimedMiningPositions(): [RoomExtra | Room | string, MiningPosition[]][] {
     return this.MapWithRoomsInClaimedArea(cr => {
-      // If it's a RoomExtra, return the Mines property from it.
-      if (cr instanceof RoomExtra) return cr.Mines;
       const name = cr instanceof Room ? cr.name : cr;
+      let mines: MiningPosition[] = [];
+
+      // If it's a RoomExtra, return the Mines property from it.
+      if (cr instanceof RoomExtra) mines = cr.Mines;
+
+      // Any other room is unowned, and may or may not be visible
 
       // Otherwise, if there is a scouting report with mines, return those
-      if (Memory.scoutingReports && Memory.scoutingReports[name] && Memory.scoutingReports[name].mines)
-        return Memory.scoutingReports[name].mines;
+      if (
+        mines.length === 0 &&
+        Memory.scoutingReports &&
+        Memory.scoutingReports[name] &&
+        Memory.scoutingReports[name].mines
+      )
+        mines = Memory.scoutingReports[name].mines;
 
       // Since cr must be a string, there is nothing more we can do.
       // The room must be invisible, and we can't fetch them for invisible rooms if we don't
       // Have them scouted already.
-      if (!(cr instanceof Room)) return [];
+      if (mines.length === 0 && !(cr instanceof Room)) mines = [];
 
-      // Otherwise, update the existing scouting report's mines, and return those
-      if (Memory.scoutingReports && Memory.scoutingReports[name]) {
-        const mines = GetMiningPositions(cr);
+      // Otherwise, update the existing scouting report's mines, and get those
+      if (mines.length === 0 && cr instanceof Room && Memory.scoutingReports && Memory.scoutingReports[name]) {
+        mines = GetMiningPositions(cr);
         Memory.scoutingReports[name].mines = mines;
-        return mines;
       }
 
-      // Otherwise, make a whole new scouting report for the room and return the mines from that
-      const report = MakeRoomReport(cr);
-      Memory.scoutingReports = { [name]: report };
-      return report.mines;
+      // Otherwise, make a whole new scouting report for the room and get the mines from that
+      if (mines.length === 0 && cr instanceof Room) {
+        const report = MakeRoomReport(cr);
+        Memory.scoutingReports = { [name]: report };
+        mines = report.mines;
+      }
+
+      // If we have visibility on the room and it's not neutral and not owned by us
+      // Then skip it, since we can't work any of the sources in that room
+      if (cr instanceof Room && cr.controller?.owner?.username !== this.colony.username) {
+        this.log.warn('Skipping ${miningPositionCount} Mining Positions in room we claim but do not own: ${roomName}', {
+          '<rate>': 20,
+          miningPositionCount: mines.length,
+          roomName: name,
+        });
+        return [];
+      }
+
+      return mines;
     }, true);
   }
 
   get ClaimedSources(): Id<Source>[] {
-    return unique(flatten(this.ClaimedMines.map(pair => pair[1].map(mp => mp.source))));
+    return unique(flatten(this.WorkableClaimedMiningPositions.map(pair => pair[1].map(mp => mp.source))));
   }
 
   get ClaimedMinePositions(): string[] {
     const ret = [];
-    for (const [_room, mines] of this.ClaimedMines) for (const mine of mines) ret.push(mine.pos);
+    for (const [_room, mines] of this.WorkableClaimedMiningPositions) for (const mine of mines) ret.push(mine.pos);
     return ret;
   }
 
@@ -431,7 +454,7 @@ export class RoomExtra extends Room {
   AvailableMiningPositions(): MiningPosition[] {
     const ret = [];
     const assignedMiningPositions = this.colony.GetAllAssignedTasks(TaskAction.Mine).map(p => (p as Mine).target);
-    for (const [_room, mines] of this.ClaimedMines)
+    for (const [_room, mines] of this.WorkableClaimedMiningPositions)
       for (const mine of mines) if (!assignedMiningPositions.some(amp => amp.source === mine.source)) ret.push(mine);
     return ret;
   }
@@ -441,7 +464,7 @@ export class RoomExtra extends Room {
    */
   UnfilledMiningPositions(): MiningPosition[] {
     const ret = [];
-    for (const [_room, mines] of this.ClaimedMines)
+    for (const [_room, mines] of this.WorkableClaimedMiningPositions)
       for (const mine of mines) if (DeserializeRoomPosition(mine.pos).lookFor(LOOK_CREEPS).length === 0) ret.push(mine);
     return ret;
   }
