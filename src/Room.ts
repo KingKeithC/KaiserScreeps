@@ -896,10 +896,11 @@ export class RoomExtra extends Room {
   // List of filter callback, health capacity to begin repair, and maxRepairers, descending order.
   // prettier-ignore
   RepairPriorities: [((s: AnyStructure) => boolean), number, number][] = [
-    [(s => s instanceof StructureRampart  && s.hits < 1000), 1, 1],
-    [(s => s instanceof StructureRoad || s instanceof StructureContainer || s instanceof StructurePortal), 0.5, 1],
-    [(s => s instanceof StructureRampart && s.hits < 1_000_000), 1, 1],
-    [(s => s instanceof StructureWall && s.hits < 1_000_000), 1, 1],
+    [(s => (s instanceof StructureRampart || s instanceof StructureWall) && s.hits < 10_000), 1, 1],
+    [(s => s instanceof StructureRoad), 0.75, 1],
+    [(s => (s instanceof StructureRoad || s instanceof StructureRampart || s instanceof StructureWall)), 0.75, 1],
+    [(s => (s instanceof StructureRampart || s instanceof StructureWall) && s.hits < 1_000_000), 1, 1],
+    [(s => s.hits < s.hitsMax), 1, 1],
     [(s => {if (
       s instanceof StructureRampart
       || s instanceof StructureContainer
