@@ -394,10 +394,27 @@ export class RoomExtra extends Room {
     // Owned room, just return it's Mines property.
     if (cr instanceof RoomExtra) return cr.Mines;
 
+    let existingReport;
+    if (typeof cr === 'string') {
+      // Not owned, and not visible room.
+
+      // Lookup the existing report for the room, and
+      // if the report has mines, and the room is neutral,
+      // then return those mines.
+      existingReport = Memory.scoutingReports[cr];
+      if (!existingReport) return [];
+      if (!existingReport.mines) return [];
+
+      // Don't return mines for hostile rooms, since we can
+      // only mine neutral or owned rooms.
+      if (existingReport.owner !== undefined && existingReport.owner !== this.colony.username) return [];
+
+      return existingReport.mines;
+    }
+
     // Not an owned room
     // Get mines from the room's scouting report, and if there is
     // no scouting report, create a new one and return the mines from that.
-    let existingReport;
     if (cr instanceof Room) {
       existingReport = Memory.scoutingReports[cr.name];
 
@@ -418,26 +435,14 @@ export class RoomExtra extends Room {
           return mines;
         }
       else {
-        const report = MakeRoomReport(cr);
-        Memory.scoutingReports[cr.name] = report;
-        return report.mines;
+        // Broken - Causes Type Error, tried to lookup a non-visible room
+        // const report = MakeRoomReport(cr);
+        // Memory.scoutingReports[cr.name] = report;
+        // return report.mines;
       }
     }
 
-    // Not owned, and not visible room.
-
-    // Lookup the existing report for the room, and
-    // if the report has mines, and the room is neutral,
-    // then return those mines.
-    existingReport = Memory.scoutingReports[cr];
-    if (!existingReport) return [];
-    if (!existingReport.mines) return [];
-
-    // Don't return mines for hostile rooms, since we can
-    // only mine neutral or owned rooms.
-    if (existingReport.owner !== undefined && existingReport.owner !== this.colony.username) return [];
-
-    return existingReport.mines;
+    return [];
   }
 
   get WorkableClaimedMiningPositions(): [RoomExtra | Room | string, MiningPosition[]][] {
