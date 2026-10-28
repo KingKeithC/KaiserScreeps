@@ -1,6 +1,6 @@
 /* eslint-disable no-underscore-dangle */
 import { CreepExtra } from 'Creep';
-import { CreepRole, CreepRoleBase } from 'roles/Role';
+import { CreepRole } from 'roles/Role';
 
 declare global {
   interface Memory {
@@ -24,7 +24,7 @@ export enum LogLevel {
 }
 
 type FormatProperty =
-  '<date>' | '<time>' | '<wrapped>' | '<level>' | '<msg>' | '<room>' | '<role>' | '<creep>' | '<creep>' | '<rate>';
+  '<time>' | '<wrapped>' | '<level>' | '<msg>' | '<room>' | '<role>' | '<creep>' | '<creep>' | '<rate>';
 type Loggable = string | number | boolean | CreepExtra | Room | CreepRole | { toString(): string };
 type LogArg = Partial<Record<FormatProperty, Loggable>>;
 
@@ -94,7 +94,6 @@ export class Logger<T extends Loggable> {
 
   private GetFormatArgs(args: LogArg[]): Map<string, Loggable> {
     const formatArgs = new Map<string, Loggable>();
-    formatArgs.set('<date>', Game.time);
     formatArgs.set('<time>', Game.time);
     formatArgs.set('<room>', '');
     formatArgs.set('<creep>', '');
