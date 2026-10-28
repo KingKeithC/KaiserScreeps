@@ -240,18 +240,24 @@ export class CreepExtra extends Creep {
   }
 
   DoTask(): void {
+    // Act on our task
     const task = this.currentTask;
     if (task === null) {
       this.say('🤷');
-      return; // Nothing more to do
+      return;
     }
-    const outcome = task.act(this); // Act on the task
+    const outcome = task.act(this);
     this.currentTask = task;
-    this.ActedThisTick = true;
-    this.log.debug('Task.act: ${task} Outcome ${outcome}', { '<role>': this.role, task, outcome });
 
-    // Handle no result
+    // Update non-idle flag since we acted
+    this.ActedThisTick = true;
+
+    // Early return for no result
     if (outcome === null || outcome === undefined) return;
+
+    // Log non-ok ScreepsReturnCode
+    if (outcome.result !== OK)
+      this.log.debug('Task ${task} Outcome not OK ${outcome}', { '<role>': this.role, task, outcome });
 
     // Handle ScreepsReturnCode
     switch (outcome.result) {
@@ -274,8 +280,7 @@ export class CreepExtra extends Creep {
         return;
       }
       default: {
-        // Generic print all
-        this.log.warn(`Act: Task ${task} was not successful: ${JSON.stringify(outcome)}`);
+        this.log.crit('Task ${task} has unhandled outcome ${outcome}', { '<role>': this.role, task, outcome });
         return;
       }
     }
