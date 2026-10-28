@@ -121,7 +121,6 @@ export class Logger<T extends Loggable> {
   log(level: LogLevel, msg: string, ...args: LogArg[]): void {
     const formatArgs = this.GetFormatArgs(args);
     formatArgs.set('<level>', Logger.LevelToName(level));
-    formatArgs.set('<msg>', msg);
 
     // If we have a creep but not a room, get the room from the creep
     if (formatArgs.get('<creep>') && !formatArgs.get('<room>'))
@@ -150,6 +149,8 @@ export class Logger<T extends Loggable> {
       this.writeMessage(`<span style="color: DodgerBlue">${msg}</span>`, true, undefined);
       return;
     }
+
+    format.set('<msg>', msg);
 
     // Render the FormatProperties into the log line.
     let finalLine = this._fmt;
