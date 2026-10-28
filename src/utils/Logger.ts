@@ -24,8 +24,8 @@ export enum LogLevel {
 }
 
 type FormatProperty =
-  '<time>' | '<wrapped>' | '<level>' | '<msg>' | '<room>' | '<role>' | '<creep>' | '<creep>' | '<rate>';
-type Loggable = string | number | boolean | CreepExtra | Room | CreepRole | { toString(): string };
+  '<time>' | '<wrapped>' | '<level>' | '<msg>' | '<room>' | '<role>' | '<creep>' | '<creep>' | '<rate>' | string;
+type Loggable = string | object | number | boolean | CreepExtra | Room | null | CreepRole | { toString(): string };
 type LogArg = Partial<Record<FormatProperty, Loggable>>;
 
 export interface LoggerOptions {
@@ -101,8 +101,10 @@ export class Logger<T extends Loggable> {
     formatArgs.set('<rate>', '');
 
     // Overwrite with common and provided args
-    for (const [key, value] of Object.entries(this._commonArgs)) formatArgs.set(key, value);
-    for (const arg of args) for (const [key, value] of Object.entries(arg)) formatArgs.set(key, value);
+    for (const [key, value] of Object.entries(this._commonArgs)) if (value !== undefined) formatArgs.set(key, value);
+
+    for (const arg of args)
+      for (const [key, value] of Object.entries(arg)) if (value !== undefined) formatArgs.set(key, value);
 
     return formatArgs;
   }

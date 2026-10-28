@@ -229,9 +229,9 @@ export class CreepExtra extends Creep {
     this.currentTask = newTask;
 
     // Log the transition as long as it's not Idle -> Idle.
-    if (!newTask && oldTask) this.log.info(`Unassigned ${oldTask}`);
-    else if (newTask && !oldTask) this.log.info(`Assigned ${newTask}`);
-    else if (oldTask && newTask) this.log.info(`Reassigned ${oldTask} -> ${newTask}`);
+    if (!newTask && oldTask) this.log.info('Unassigned ${oldTask}', { oldTask });
+    else if (newTask && !oldTask) this.log.info('Assigned ${newTask}', { newTask });
+    else if (oldTask && newTask) this.log.info('Reassigned ${oldTask} -> ${newTask}', { oldTask, newTask });
 
     // If the transition was to nothing, end here
     if (!newTask) return;
@@ -249,8 +249,7 @@ export class CreepExtra extends Creep {
     const outcome = task.act(this); // Act on the task
     this.currentTask = task;
     this.ActedThisTick = true;
-    const outcomeSummary = `[target.pos: ${outcome?.target.pos} result: ${outcome?.result}, range: ${outcome?.range}]`;
-    this.log.verbose(`Task.act: ${JSON.stringify(task)} Outcome ${outcomeSummary}`, { '<role>': this.role });
+    this.log.verbose('Task.act: ${task} Outcome ${outcome}', { '<role>': this.role, task, outcome });
 
     // Handle no result
     if (outcome === null || outcome === undefined) return;
@@ -266,7 +265,11 @@ export class CreepExtra extends Creep {
         const moveResult = this.MoveCreep(outcome.target.pos, { range: outcome.range });
         if (moveResult === ERR_NO_PATH) {
           // If pathfinding fails, select a new task
-          this.log.warn(` Outcome ${outcomeSummary}, Pathfinding from ${this.pos} to ${outcome.target.pos} failed.`);
+          this.log.warn('Outcome ${outcome}, Pathfinding from ${thisPos} to ${targetPos} failed.', {
+            outcome,
+            thisPos: this.pos,
+            targetPos: outcome.target.pos,
+          });
           this.ChangeTask();
         }
         return;
