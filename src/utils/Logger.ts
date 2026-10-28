@@ -240,24 +240,24 @@ export class Logger<T extends Loggable> {
   }
 
   static debug(msg: string, ...args: LogArg[]): void {
-    new Logger(new Object()).debug(msg, ...args);
+    new Logger(Logger).debug(msg, ...args);
   }
   static verbose(msg: string, ...args: LogArg[]): void {
-    new Logger(new Object()).verbose(msg, ...args);
+    new Logger(Logger).verbose(msg, ...args);
   }
   static info(msg: string, ...args: LogArg[]): void {
-    new Logger(new Object()).info(msg, ...args);
+    new Logger(Logger).info(msg, ...args);
   }
   static report(msg: string, ...args: LogArg[]): void {
-    new Logger(new Object()).report(msg, ...args);
+    new Logger(Logger).report(msg, ...args);
   }
   static warn(msg: string, ...args: LogArg[]): void {
-    new Logger(new Object()).warn(msg, ...args);
+    new Logger(Logger).warn(msg, ...args);
   }
   static error(error: Error, ...args: LogArg[]): void {
-    new Logger(new Object()).error(error, ...args);
+    new Logger(Logger).error(error, ...args);
   }
   static crit(msg: string, ...args: LogArg[]): void {
-    new Logger(new Object()).crit(msg, ...args);
+    new Logger(Logger).crit(msg, ...args);
   }
 }
