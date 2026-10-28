@@ -119,25 +119,25 @@ export class Worker extends CreepRoleBase implements CreepRole {
         return new Supply(creep.AssignedRoom.storage.id);
     }
 
-      // If there aren't enough miners, then do mining
-    const miningTask = this.MineAnyFreePosition(creep);
-      const totalMinerBodies = sum(creep.AssignedRoom.GetAssignedTasksWithCreep(TaskAction.Mine), m =>
-        BodyCost(m[0].body),
-      );
-    if (miningTask !== null && totalMinerBodies < this.RelyOnMinersAt) {
-        this.log.warn(
-          `Emergency mining since too few miners are available (${totalMinerBodies}/${this.RelyOnMinersAt})...`,
-          { '<creep>': creep },
-        );
-      return miningTask;
-      }
+    // Try to find a gathering task
+    let gather = this.FindGatheringTask(creep);
+    // In case no normal gathering task was found, try gthering from storage
+    if (!gather && !creep.AssignedRoom.StoreOverUpgrade) gather = this.CollectFromRoomStorage(creep);
+    // If we found a gathering task, return it
+    if (gather) return gather;
 
-      // Try to find a gathering task
-      let gather = this.FindGatheringTask(creep);
-      // In case no normal gathering task was found, try gthering from storage
-      if (!gather && !creep.AssignedRoom.StoreOverUpgrade) gather = this.CollectFromRoomStorage(creep);
-      // If we found a gathering task, return it
-      if (gather) return gather;
+    // If there aren't enough miners, then do mining
+    const miningTask = this.MineAnyFreePosition(creep);
+    const totalMinerBodies = sum(creep.AssignedRoom.GetAssignedTasksWithCreep(TaskAction.Mine), m =>
+      BodyCost(m[0].body),
+    );
+    if (miningTask !== null && totalMinerBodies < this.RelyOnMinersAt) {
+      this.log.warn(
+        `Emergency mining since too few miners are available (${totalMinerBodies}/${this.RelyOnMinersAt})...`,
+        { '<creep>': creep },
+      );
+      return miningTask;
+    }
 
     // Didn't need or Can't find, gathering or spending task
 
