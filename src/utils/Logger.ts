@@ -131,7 +131,7 @@ export class Logger<T extends Loggable> {
       formatArgs.set('<role>', (formatArgs.get('<creep>') as CreepExtra).role);
 
     // Delete empty/invalid format args
-    for (const k in formatArgs)
+    for (const k of formatArgs.keys())
       if (formatArgs.get(k) === '' || formatArgs.get(k) === undefined || formatArgs.get(k) === null)
         formatArgs.delete(k);
 
@@ -151,8 +151,19 @@ export class Logger<T extends Loggable> {
     // Custom objects like CreepExtra and CreepRole will cause loops in the JSON serializer.
 
     const cleanedFormatArgs: { [key: string]: Loggable } = {};
-    for (const [k, v] of format.entries()) cleanedFormatArgs[k.slice(1, -1)] = v; // Strip the "<" and ">" chars from the keys.
-    this.writeMessage(JSON.stringify({ level, msg, ...cleanedFormatArgs }));
+    for (const [k, v] of format.entries()) {
+      let key = k;
+      // Strip the "<" and ">" chars from the keys.
+      if (key.startsWith('<')) key = key.slice(1);
+      if (key.endsWith('>')) key = key.slice(0, -1);
+
+      cleanedFormatArgs[key] = v;
+    }
+    this.writeMessage(JSON.stringify({ level: Logger.LevelToName(level), msg, ...cleanedFormatArgs }));
+  }
+
+  private interpolate(text: string, values: Map<string, Loggable>): string {
+    return text.replace(/\$\{(\w+)\}/g, (_, key: string) => String(values.get(key) ?? `{${key}}`));
   }
 
   logFlat(level: LogLevel, msg: string, format: Map<string, Loggable>): void {
@@ -165,11 +176,13 @@ export class Logger<T extends Loggable> {
       return;
     }
 
-    format.set('<msg>', msg);
+    format.set('<msg>', this.interpolate(msg, format));
 
     // Render the FormatProperties into the log line.
     let finalLine = this._fmt;
-    for (const [key, value] of format.entries()) finalLine = finalLine.replace(key, (value ?? 'null').toString());
+    for (const [key, value] of format.entries()) finalLine = finalLine.replace(key, String(value));
+
+    // TODO - Replace ${...} placeholders in the msg as well with values from `format`
 
     // Handle padding specifiers
     const paddingMatch = '%(';
