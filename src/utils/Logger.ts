@@ -121,7 +121,7 @@ export class Logger<T extends Loggable> {
     formatArgs.set('<level>', Logger.LevelToName(level));
 
     // If we have a creep but not a room, get the room from the creep
-    if (typeof formatArgs.get('<room>') === 'object' && formatArgs.get('<room>') === '')
+    if (typeof formatArgs.get('<creep>') === 'object' && formatArgs.get('<room>') === '')
       formatArgs.set('<room>', (formatArgs.get('<creep>') as CreepExtra).AssignedRoom);
 
     // If we have a creep but not a role, get the role from the creep
