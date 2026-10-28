@@ -690,7 +690,7 @@ export class RoomExtra extends Room {
   CheckSpawns(): void {
     const maxSpawns = this.AvailableSpawns.length;
     if (maxSpawns === 0) {
-      this.log.warn(`Room has no available spawn points.`);
+      this.log.info(`All spawns in use.`, { '<rate>': 20 });
       return;
     }
 
