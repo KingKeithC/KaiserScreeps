@@ -1,6 +1,6 @@
 /* eslint-disable no-underscore-dangle */
 import { CreepExtra } from 'Creep';
-import { CreepRole } from 'roles/Role';
+import { CreepRole, CreepRoleBase } from 'roles/Role';
 
 declare global {
   interface Memory {
@@ -96,7 +96,6 @@ export class Logger<T extends Loggable> {
     const formatArgs = new Map<string, Loggable>();
     formatArgs.set('<date>', Game.time);
     formatArgs.set('<time>', Game.time);
-    formatArgs.set('<wrapped>', this._wrapped);
     formatArgs.set('<room>', '');
     formatArgs.set('<creep>', '');
     formatArgs.set('<role>', '');
@@ -124,11 +123,23 @@ export class Logger<T extends Loggable> {
 
     // If we have a creep but not a room, get the room from the creep
     if (formatArgs.get('<creep>') && !formatArgs.get('<room>'))
-      formatArgs.set('<room>', (formatArgs.get('<creep>') as CreepExtra)?.AssignedRoom);
+      formatArgs.set('<room>', String((formatArgs.get('<creep>') as CreepExtra)?.AssignedRoom));
+    else if (formatArgs.get('<room>') instanceof Room)
+      // Stringify the room if we have it
+      formatArgs.set('<room>', String(formatArgs.get('<room>')));
 
     // If we have a creep but not a role, get the role from the creep
     if (formatArgs.get('<creep>') && !formatArgs.get('<role>'))
-      formatArgs.set('<role>', (formatArgs.get('<creep>') as CreepExtra)?.role);
+      formatArgs.set('<role>', String((formatArgs.get('<creep>') as CreepExtra)?.role));
+    else if (formatArgs.get('<role>') instanceof CreepRoleBase)
+      // Stringify the role if we have it
+      formatArgs.set('<role>', String(formatArgs.get('<role>')));
+
+    // If we still have a creep, stringify it
+    if (formatArgs.get('<creep>') instanceof CreepExtra) formatArgs.set('<creep>', String(formatArgs.get('<creep>')));
+
+    // Delete empty format args
+    for (const k in formatArgs) if (formatArgs.get(k) === '') formatArgs.delete(k);
 
     if (this.EnableStructuredLogs) this.logStructured(level, msg, formatArgs);
     else this.logFlat(level, msg, formatArgs);
