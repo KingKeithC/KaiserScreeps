@@ -50,9 +50,9 @@ export class Logger<T extends Loggable> {
   static LevelToName(level: LogLevel): string {
     switch (level) {
       case LogLevel.DEBUG:
-        return 'DBUG';
+        return 'DEBUG';
       case LogLevel.VERBOSE:
-        return 'VERB';
+        return 'VERBOSE';
       case LogLevel.INFO:
         return 'INFO';
       case LogLevel.WARNING:
@@ -117,7 +117,7 @@ export class Logger<T extends Loggable> {
     else console.log(msg);
   }
 
-  EnableStructuredLogs = false;
+  EnableStructuredLogs = true;
   log(level: LogLevel, msg: string, ...args: LogArg[]): void {
     const formatArgs = this.GetFormatArgs(args);
     formatArgs.set('<level>', Logger.LevelToName(level));
