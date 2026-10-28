@@ -70,7 +70,7 @@ export class Miner extends CreepRoleBase implements CreepRole {
           ...(creep.AssignedRoom.AssignedCreepsByRoleName.get('Worker') ?? []),
           ...(creep.AssignedRoom.AssignedCreepsByRoleName.get('Settler') ?? []),
           ...creep.pos.findInRange(FIND_STRUCTURES, 1, {
-            filter: s => s.structureType === STRUCTURE_CONTAINER && s.store.getFreeCapacity(RESOURCE_ENERGY),
+            filter: s => 'store' in s && s.store.getFreeCapacity(RESOURCE_ENERGY) > 0,
           }),
           ...creep.AssignedRoom.LinkSenders,
         ] as EnergyCarrier[],
@@ -80,11 +80,7 @@ export class Miner extends CreepRoleBase implements CreepRole {
             'store' in target && target.store.getFreeCapacity(RESOURCE_ENERGY) > 0,
         },
       )
-      .sort((a, b) => {
-        const aRatio = a.store.getUsedCapacity(RESOURCE_ENERGY) / a.store.getCapacity(RESOURCE_ENERGY);
-        const bRatio = b.store.getUsedCapacity(RESOURCE_ENERGY) / b.store.getCapacity(RESOURCE_ENERGY);
-        return aRatio - bRatio;
-      })
+      .sort((b, a) => a.store.getFreeCapacity(RESOURCE_ENERGY) - b.store.getFreeCapacity(RESOURCE_ENERGY))
       .pop();
     if (closeNeedsEnergy) creep.transfer(closeNeedsEnergy, RESOURCE_ENERGY);
   }
