@@ -53,6 +53,8 @@ export class Logger<T extends Loggable> {
         return 'DEBUG';
       case LogLevel.INFO:
         return 'INFO';
+      case LogLevel.REPORT:
+        return 'REPORT';
       case LogLevel.WARNING:
         return 'WARNING';
       case LogLevel.ERROR:
@@ -70,6 +72,8 @@ export class Logger<T extends Loggable> {
         return LogLevel.DEBUG;
       case 'INFO' || 'INFORMATION' || 'I':
         return LogLevel.INFO;
+      case 'REPORT':
+        return LogLevel.REPORT;
       case 'WARNING' || 'WARNING' || 'W':
         return LogLevel.WARNING;
       case 'ERROR' || 'ERR' || 'W':
@@ -153,6 +157,7 @@ export class Logger<T extends Loggable> {
 
       cleanedFormatArgs[key] = v;
     }
+
     this.writeMessage(JSON.stringify({ level: Logger.LevelToName(level), msg, ...cleanedFormatArgs }));
   }
 
