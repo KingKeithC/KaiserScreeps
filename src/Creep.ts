@@ -95,15 +95,13 @@ export class CreepExtra extends Creep {
   MaxStuckTicks = 2;
   MaxAvoidTicks = 4;
   MoveLong(pos: RoomPosition, opts?: MoveToOpts): number {
-    this.log.debug(`Invoking MoveLong ${pos} ${JSON.stringify(opts)}...`);
-
+    this.log.debug('Invoking MoveLong to ${pos} with ${opts}', { pos, opts });
     const costCallback = (rn: string, cm: CostMatrix) => {
       if (!(rn in Game.rooms)) return cm;
       const myRoom = this.colony.MyRooms.filter(mr => mr.name === rn).pop();
       if (myRoom) return myRoom.PathfindingCostMatrix;
       return cm;
     };
-
     return this.moveTo(pos, {
       ...opts,
       costCallback,
@@ -115,7 +113,7 @@ export class CreepExtra extends Creep {
   }
 
   MoveAvoidCreeps(pos: RoomPosition, opts?: MoveToOpts): number {
-    this.log.debug(`Invoking MoveAvoidCreeps ${pos} ${JSON.stringify(opts)}...`);
+    this.log.debug('Invoking MoveAvoidCreeps to ${pos} with ${opts}', { pos, opts });
     // eslint-disable-next-line no-underscore-dangle
     delete this.memory._move; // Clear out any cached path
     return this.moveTo(pos, {
