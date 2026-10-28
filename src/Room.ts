@@ -389,8 +389,12 @@ export class RoomExtra extends Room {
   GetMinesForRoom(cr: RoomExtra | Room | string): MiningPosition[] {
     Memory.scoutingReports ??= {};
 
+    // Owned room, just return it's Mines property.
     if (cr instanceof RoomExtra) return cr.Mines;
 
+    // Not an owned room
+    // Get mines from the room's scouting report, and if there is
+    // no scouting report, create a new one and return the mines from that.
     if (cr instanceof Room) {
       const existingReport = Memory.scoutingReports[cr.name];
 
@@ -417,8 +421,20 @@ export class RoomExtra extends Room {
       }
     }
 
-    this.log.crit('GetMinesForRoom: Unexpected scenario finding Mines for ${roomName}');
-    return [];
+    // Not owned, and not visible room.
+
+    // Lookup the existing report for the room, and
+    // if the report has mines, and the room is neutral,
+    // then return those mines.
+    const existingReport = Memory.scoutingReports[cr];
+    if (!existingReport) return [];
+    if (!existingReport.mines) return [];
+
+    // Don't return mines for hostile rooms, since we can
+    // only mine neutral or owned rooms.
+    if (existingReport.owner !== undefined && existingReport.owner !== this.colony.username) return [];
+
+    return existingReport.mines;
   }
 
   get WorkableClaimedMiningPositions(): [RoomExtra | Room | string, MiningPosition[]][] {
