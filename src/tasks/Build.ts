@@ -1,6 +1,7 @@
 import type { CreepExtra } from 'Creep';
 import { TargetTask } from './TargetTask';
 import { TaskAction } from './TaskAction';
+import { TaskActionResult } from './types';
 
 export class Build extends TargetTask<typeof TaskAction.Build, Id<ConstructionSite<BuildableStructureConstant>>> {
   public readonly kind = 'build' as const;
@@ -9,9 +10,10 @@ export class Build extends TargetTask<typeof TaskAction.Build, Id<ConstructionSi
     super(TaskAction.Build, target, 'construction site');
   }
 
-  public override act(creep: CreepExtra) {
+  public override act(creep: CreepExtra): TaskActionResult | null {
     const target = Game.getObjectById(this.target);
-    return this.perform(target instanceof ConstructionSite ? target : null, 3, site => creep.build(site));
+    if (target !== null) return { range: 3, result: creep.build(target), target };
+    return null;
   }
 
   public override isComplete(creep: CreepExtra): boolean {

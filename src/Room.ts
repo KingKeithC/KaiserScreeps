@@ -386,60 +386,43 @@ export class RoomExtra extends Room {
     return this.memory.eventAmounts ?? {};
   }
 
-  get WorkableClaimedMiningPositions(): [RoomExtra | Room | string, MiningPosition[]][] {
-    return this.MapWithRoomsInClaimedArea(cr => {
-      const name = cr instanceof Room ? cr.name : cr;
-      let mines: MiningPosition[] = [];
+  GetMinesForRoom(cr: RoomExtra | Room | string): MiningPosition[] {
+    Memory.scoutingReports ??= {};
 
-      // If it's a RoomExtra, return the Mines property from it.
-      if (cr instanceof RoomExtra) mines = cr.Mines;
+    if (cr instanceof RoomExtra) return cr.Mines;
 
-      // Any other room is unowned, and may or may not be visible
+    if (cr instanceof Room) {
+      const existingReport = Memory.scoutingReports[cr.name];
 
-      // Otherwise, if there is a scouting report with mines, return those
-      if (
-        mines.length === 0 &&
-        Memory.scoutingReports &&
-        Memory.scoutingReports[name] &&
-        Memory.scoutingReports[name].mines
-      )
-        mines = Memory.scoutingReports[name].mines;
+      if (existingReport !== undefined)
+        if (existingReport.mines !== undefined && existingReport.mines.length > 0) return existingReport.mines;
+        else {
+          if (
+            cr.controller !== undefined &&
+            cr.controller.owner !== undefined &&
+            cr.controller.owner.username === this.colony.username
+          ) {
+            this.log.warn('Skipping unminable hostile room: ${roomName}', { '<rate>': 20, roomName: cr.name });
+            return [];
+          }
 
-      // Since cr must be a string, there is nothing more we can do.
-      // The room must be invisible, and we can't fetch them for invisible rooms if we don't
-      // Have them scouted already.
-      if (mines.length === 0 && !(cr instanceof Room)) mines = [];
-
-      // Otherwise, update the existing scouting report's mines, and get those
-      if (mines.length === 0 && cr instanceof Room && Memory.scoutingReports && Memory.scoutingReports[name]) {
-        mines = GetMiningPositions(cr);
-        Memory.scoutingReports[name].mines = mines;
-      }
-
-      // Otherwise, make a whole new scouting report for the room and get the mines from that
-      if (mines.length === 0 && cr instanceof Room) {
+          const mines = GetMiningPositions(cr);
+          Memory.scoutingReports[cr.name].mines = mines;
+          return mines;
+        }
+      else {
         const report = MakeRoomReport(cr);
-        Memory.scoutingReports = { [name]: report };
-        mines = report.mines;
+        Memory.scoutingReports[cr.name] = report;
+        return report.mines;
       }
+    }
 
-      // If we have visibility on the room and confirm it's hostile,
-      // Then skip it, since we can't work any of the sources in that room
-      if (
-        typeof cr === 'object' &&
-        cr.controller !== undefined &&
-        cr.controller.owner !== undefined &&
-        cr.controller.owner.username !== this.colony.username
-      ) {
-        this.log.warn(
-          'Skipping ${miningPositionCount} Mining Positions in unminable hostile room: ${roomName} ${ourUsername}',
-          { '<rate>': 20, miningPositionCount: mines.length, roomName: name, ourUsername: this.colony.username },
-        );
-        return [];
-      }
+    this.log.crit('GetMinesForRoom: Unexpected scenario finding Mines for ${roomName}');
+    return [];
+  }
 
-      return mines;
-    }, true);
+  get WorkableClaimedMiningPositions(): [RoomExtra | Room | string, MiningPosition[]][] {
+    return this.MapWithRoomsInClaimedArea(cr => this.GetMinesForRoom(cr), true);
   }
 
   get ClaimedSources(): Id<Source>[] {
@@ -575,6 +558,8 @@ export class RoomExtra extends Room {
     for (const name of this.ClaimedRoomNames)
       if (name in Game.rooms) ret.push([Game.rooms[name], mapper(Game.rooms[name])]);
       else ret.push([name, mapper(name)]);
+
+    // this.log.crit('MapWithRoomsInClaimedArea: ${retLen}', { retLen: ret.length });
     return ret;
   }
 
@@ -752,7 +737,7 @@ export class RoomExtra extends Room {
 
         const success = this.TrySpawnRole(role, name, body);
         if (!success) {
-          this.log.error(new Error(msg + 'Spawn failed despite having enough energy (${available}/${needed}).'), {
+          this.log.crit(msg + 'Spawn failed despite having enough energy (${available}/${needed}).', {
             '<role>': role,
             roomCount,
             roomQuota,
