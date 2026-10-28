@@ -141,19 +141,18 @@ export class CreepExtra extends Creep {
       this.memory.moveMode = 'long';
       // eslint-disable-next-line no-underscore-dangle
       delete this.memory._move; // Clear out saved path
-      this.log.verbose('MoveCreep: Move complete, arrived and reset stuck tracking.');
       return 1;
     }
 
     // Increment counters
     if (this.memory.moveMode === 'avoidCreeps' && this.MovedBetweenTicks) {
-      this.log.verbose(`MoveCreep: avoidCreeps && movedBetweenTicks; ${this.memory.successfulAvoidMoves} (+1)`);
+      this.log.debug(`MoveCreep: avoidCreeps && movedBetweenTicks; ${this.memory.successfulAvoidMoves} (+1)`);
       this.memory.successfulAvoidMoves = (this.memory.successfulAvoidMoves ?? 0) + 1;
     } else if (this.memory.moveMode === 'long' && !this.MovedBetweenTicks && this.fatigue === 0) {
-      this.log.verbose(`MoveCreep: long && !movedBetweenTicks && this.fatigue === 0; ${this.memory.stuckTicks} (+1)`);
+      this.log.debug(`MoveCreep: long && !movedBetweenTicks && this.fatigue === 0; ${this.memory.stuckTicks} (+1)`);
       this.memory.stuckTicks = (this.memory.stuckTicks ?? 0) + 1;
     } else if (this.memory.stuckTicks && this.memory.moveMode === 'long' && this.MovedBetweenTicks) {
-      this.log.verbose(`MoveCreep: long && movedBetweenTicks; Was stuck ${this.memory.stuckTicks}, now 0.`);
+      this.log.debug(`MoveCreep: long && movedBetweenTicks; Was stuck ${this.memory.stuckTicks}, now 0.`);
       this.memory.stuckTicks = 0;
     }
 
@@ -249,7 +248,7 @@ export class CreepExtra extends Creep {
     const outcome = task.act(this); // Act on the task
     this.currentTask = task;
     this.ActedThisTick = true;
-    this.log.verbose('Task.act: ${task} Outcome ${outcome}', { '<role>': this.role, task, outcome });
+    this.log.debug('Task.act: ${task} Outcome ${outcome}', { '<role>': this.role, task, outcome });
 
     // Handle no result
     if (outcome === null || outcome === undefined) return;

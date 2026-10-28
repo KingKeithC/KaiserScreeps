@@ -51,8 +51,6 @@ export class Logger<T extends Loggable> {
     switch (level) {
       case LogLevel.DEBUG:
         return 'DEBUG';
-      case LogLevel.VERBOSE:
-        return 'VERBOSE';
       case LogLevel.INFO:
         return 'INFO';
       case LogLevel.WARNING:
@@ -70,8 +68,6 @@ export class Logger<T extends Loggable> {
     switch (name) {
       case 'DBUG' || 'DEBUG' || 'D':
         return LogLevel.DEBUG;
-      case 'VERB' || 'VERBOSE' || 'V':
-        return LogLevel.VERBOSE;
       case 'INFO' || 'INFORMATION' || 'I':
         return LogLevel.INFO;
       case 'WARNING' || 'WARNING' || 'W':
@@ -220,9 +216,6 @@ export class Logger<T extends Loggable> {
   debug(msg: string, ...args: LogArg[]): void {
     this.log(LogLevel.DEBUG, msg, ...args);
   }
-  verbose(msg: string, ...args: LogArg[]): void {
-    this.log(LogLevel.VERBOSE, msg, ...args);
-  }
   info(msg: string, ...args: LogArg[]): void {
     this.log(LogLevel.INFO, msg, ...args);
   }
@@ -241,9 +234,6 @@ export class Logger<T extends Loggable> {
 
   static debug(msg: string, ...args: LogArg[]): void {
     new Logger(Logger).debug(msg, ...args);
-  }
-  static verbose(msg: string, ...args: LogArg[]): void {
-    new Logger(Logger).verbose(msg, ...args);
   }
   static info(msg: string, ...args: LogArg[]): void {
     new Logger(Logger).info(msg, ...args);
