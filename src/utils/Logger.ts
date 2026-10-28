@@ -117,19 +117,8 @@ export class Logger<T extends Loggable> {
     else console.log(msg);
   }
 
+  EnableStructuredLogs = true;
   log(level: LogLevel, msg: string, ...args: LogArg[]): void {
-    if (level < this._level) {
-      // Provided log level is too low for us to handle
-      return;
-    } else if (level === LogLevel.REPORT) {
-      // REPORT messages are filtered by level, but not formatted aside from colour, so log it directly, and don't rate limit it.
-      this.writeMessage(`<span style="color: DodgerBlue">${msg}</span>`, true, undefined);
-      return;
-    }
-
-    // Needs to be formatted
-
-    // Get the format args for this instance, and populate with immediate log level and message params.
     const formatArgs = this.GetFormatArgs(args);
     formatArgs.set('<level>', Logger.LevelToName(level));
     formatArgs.set('<msg>', msg);
@@ -142,9 +131,29 @@ export class Logger<T extends Loggable> {
     if (formatArgs.get('<creep>') && !formatArgs.get('<role>'))
       formatArgs.set('<role>', (formatArgs.get('<creep>') as CreepExtra)?.role);
 
+    if (this.EnableStructuredLogs) this.logStructured(level, msg, formatArgs);
+    else this.logFlat(level, msg, formatArgs);
+  }
+
+  logStructured(level: LogLevel, msg: string, format: Map<string, Loggable>): void {
+    const cleanedFormatArgs: { [key: string]: Loggable } = {};
+    for (const [k, v] of format.entries()) cleanedFormatArgs[k.slice(1, -1)] = v; // Strip the "<" and ">" chars from the keys.
+    this.writeMessage(JSON.stringify({ level, msg, args: cleanedFormatArgs }));
+  }
+
+  logFlat(level: LogLevel, msg: string, format: Map<string, Loggable>): void {
+    if (level < this._level) {
+      // Provided log level is too low for us to handle
+      return;
+    } else if (level === LogLevel.REPORT) {
+      // REPORT messages are filtered by level, but not formatted aside from colour, so log it directly, and don't rate limit it.
+      this.writeMessage(`<span style="color: DodgerBlue">${msg}</span>`, true, undefined);
+      return;
+    }
+
     // Render the FormatProperties into the log line.
     let finalLine = this._fmt;
-    for (const [key, value] of formatArgs.entries()) finalLine = finalLine.replace(key, value.toString());
+    for (const [key, value] of format.entries()) finalLine = finalLine.replace(key, value.toString());
 
     // Handle padding specifiers
     const paddingMatch = '%(';
@@ -177,8 +186,8 @@ export class Logger<T extends Loggable> {
       finalLine += `\n +++ The following info may help debug a padding error: ${JSON.stringify(paddingInfo)}`;
 
     // Log it.
-    if (level !== LogLevel.ERROR) this.writeMessage(finalLine, false, formatArgs.get('<rate>') as number);
-    else this.writeMessage(`<span style="color: red">${finalLine}</span>`, true, formatArgs.get('<rate>') as number);
+    if (level !== LogLevel.ERROR) this.writeMessage(finalLine, false, format.get('<rate>') as number);
+    else this.writeMessage(`<span style="color: red">${finalLine}</span>`, true, format.get('<rate>') as number);
   }
 
   debug(msg: string, ...args: LogArg[]): void {
