@@ -146,6 +146,10 @@ export class Logger<T extends Loggable> {
       if (formatArgs.get(k) === '' || formatArgs.get(k) === undefined || formatArgs.get(k) === null)
         formatArgs.delete(k);
 
+    // !! Important - After this point, values inside formatArgs must be
+    // primitive objects capable of being JSON.strinigified.
+    // Custom objects like CreepExtra and CreepRole will cause loops in the JSON serializer.
+
     if (this.EnableStructuredLogs) this.logStructured(level, msg, formatArgs);
     else this.logFlat(level, msg, formatArgs);
   }
