@@ -122,24 +122,29 @@ export class Logger<T extends Loggable> {
     formatArgs.set('<level>', Logger.LevelToName(level));
 
     // If we have a creep but not a room, get the room from the creep
-    if (formatArgs.get('<creep>') && !formatArgs.get('<room>'))
-      formatArgs.set('<room>', String((formatArgs.get('<creep>') as CreepExtra)?.AssignedRoom));
-    else if (formatArgs.get('<room>') instanceof Room)
+    if (typeof formatArgs.get('<room>') === 'object' && formatArgs.get('<room>') === '')
+      formatArgs.set('<room>', (formatArgs.get('<creep>') as CreepExtra).AssignedRoom.name);
+
+    if (typeof formatArgs.get('<room>') === 'object')
       // Stringify the room if we have it
-      formatArgs.set('<room>', String(formatArgs.get('<room>')));
+      formatArgs.set('<room>', (formatArgs.get('<room>') as Room).name);
 
     // If we have a creep but not a role, get the role from the creep
-    if (formatArgs.get('<creep>') && !formatArgs.get('<role>'))
-      formatArgs.set('<role>', String((formatArgs.get('<creep>') as CreepExtra)?.role));
-    else if (formatArgs.get('<role>') instanceof CreepRoleBase)
+    if (typeof formatArgs.get('<creep>') === 'object' && formatArgs.get('<role>') === '')
+      formatArgs.set('<role>', (formatArgs.get('<creep>') as CreepExtra).role ?? '');
+
+    if (typeof formatArgs.get('<role>') === 'object')
       // Stringify the role if we have it
-      formatArgs.set('<role>', String(formatArgs.get('<role>')));
+      formatArgs.set('<role>', (formatArgs.get('<role>') as CreepRole).name);
 
     // If we still have a creep, stringify it
-    if (formatArgs.get('<creep>') instanceof CreepExtra) formatArgs.set('<creep>', String(formatArgs.get('<creep>')));
+    if (typeof formatArgs.get('<creep>') === 'object')
+      formatArgs.set('<creep>', (formatArgs.get('<creep>') as CreepExtra).name);
 
-    // Delete empty format args
-    for (const k in formatArgs) if (formatArgs.get(k) === '') formatArgs.delete(k);
+    // Delete empty/invalid format args
+    for (const k in formatArgs)
+      if (formatArgs.get(k) === '' || formatArgs.get(k) === undefined || formatArgs.get(k) === null)
+        formatArgs.delete(k);
 
     if (this.EnableStructuredLogs) this.logStructured(level, msg, formatArgs);
     else this.logFlat(level, msg, formatArgs);
