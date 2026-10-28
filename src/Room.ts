@@ -423,14 +423,18 @@ export class RoomExtra extends Room {
         mines = report.mines;
       }
 
-      // If we have visibility on the room and it's not neutral and not owned by us
+      // If we have visibility on the room and confirm it's hostile,
       // Then skip it, since we can't work any of the sources in that room
-      if (cr instanceof Room && cr.controller?.owner?.username !== this.colony.username) {
-        this.log.warn('Skipping ${miningPositionCount} Mining Positions in room we claim but do not own: ${roomName}', {
-          '<rate>': 20,
-          miningPositionCount: mines.length,
-          roomName: name,
-        });
+      if (
+        typeof cr === 'object' &&
+        cr.controller !== undefined &&
+        cr.controller.owner !== undefined &&
+        cr.controller.owner.username !== this.colony.username
+      ) {
+        this.log.warn(
+          'Skipping ${miningPositionCount} Mining Positions in unminable hostile room: ${roomName} ${ourUsername}',
+          { '<rate>': 20, miningPositionCount: mines.length, roomName: name, ourUsername: this.colony.username },
+        );
         return [];
       }
 
