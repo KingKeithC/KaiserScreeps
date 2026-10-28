@@ -117,7 +117,7 @@ export class Logger<T extends Loggable> {
     else console.log(msg);
   }
 
-  EnableStructuredLogs = true;
+  EnableStructuredLogs = false;
   log(level: LogLevel, msg: string, ...args: LogArg[]): void {
     const formatArgs = this.GetFormatArgs(args);
     formatArgs.set('<level>', Logger.LevelToName(level));
@@ -130,18 +130,16 @@ export class Logger<T extends Loggable> {
     if (typeof formatArgs.get('<creep>') === 'object' && formatArgs.get('<role>') === '')
       formatArgs.set('<role>', (formatArgs.get('<creep>') as CreepExtra).role);
 
-    // Delete empty/invalid format args
-    for (const k of formatArgs.keys())
-      if (formatArgs.get(k) === '' || formatArgs.get(k) === undefined || formatArgs.get(k) === null)
-        formatArgs.delete(k);
-
     if (this.EnableStructuredLogs) this.logStructured(level, msg, formatArgs);
     else this.logFlat(level, msg, formatArgs);
   }
 
   logStructured(level: LogLevel, msg: string, format: Map<string, Loggable>): void {
-    // Replace objects with their string identifiers
+    // Delete empty/invalid format args
+    for (const k of format.keys())
+      if (format.get(k) === '' || format.get(k) === undefined || format.get(k) === null) format.delete(k);
 
+    // Replace objects with their string identifiers
     if (typeof format.get('<creep>') === 'object') format.set('<creep>', (format.get('<creep>') as CreepExtra).name);
     if (typeof format.get('<role>') === 'object') format.set('<role>', (format.get('<role>') as CreepRole).name);
     if (typeof format.get('<room>') === 'object') format.set('<room>', (format.get('<room>') as Room).name);
