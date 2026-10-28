@@ -105,9 +105,7 @@ export class Logger<T extends Loggable> {
     return formatArgs;
   }
 
-  private writeMessage(msg: string, unsafe = false, rate?: number): void {
-    if (rate && Game.time % rate !== 0) return; // Do nothing if rate limited
-
+  private writeMessage(msg: string, unsafe = false): void {
     // Log the message to the console.
     if (unsafe) console.logUnsafe(msg);
     else console.log(msg);
@@ -126,8 +124,10 @@ export class Logger<T extends Loggable> {
     if (typeof formatArgs.get('<creep>') === 'object' && formatArgs.get('<role>') === '')
       formatArgs.set('<role>', (formatArgs.get('<creep>') as CreepExtra).role);
 
-    if (this.EnableStructuredLogs) this.logStructured(level, msg, formatArgs);
-    else this.logFlat(level, msg, formatArgs);
+    const rate = formatArgs.get('<rate>') === '' ? 1 : (formatArgs.get('<rate>') as number);
+    if (rate === 1 || Game.time % rate === 0)
+      if (this.EnableStructuredLogs) this.logStructured(level, msg, formatArgs);
+      else this.logFlat(level, msg, formatArgs);
   }
 
   logStructured(level: LogLevel, msg: string, format: Map<string, Loggable>): void {
@@ -166,7 +166,7 @@ export class Logger<T extends Loggable> {
       return;
     } else if (level === LogLevel.REPORT) {
       // REPORT messages are filtered by level, but not formatted aside from colour, so log it directly, and don't rate limit it.
-      this.writeMessage(`<span style="color: DodgerBlue">${msg}</span>`, true, undefined);
+      this.writeMessage(`<span style="color: DodgerBlue">${msg}</span>`, true);
       return;
     }
 
@@ -209,8 +209,8 @@ export class Logger<T extends Loggable> {
       finalLine += `\n +++ The following info may help debug a padding error: ${JSON.stringify(paddingInfo)}`;
 
     // Log it.
-    if (level !== LogLevel.ERROR) this.writeMessage(finalLine, false, format.get('<rate>') as number);
-    else this.writeMessage(`<span style="color: red">${finalLine}</span>`, true, format.get('<rate>') as number);
+    if (level !== LogLevel.ERROR) this.writeMessage(finalLine, false);
+    else this.writeMessage(`<span style="color: red">${finalLine}</span>`, true);
   }
 
   debug(msg: string, ...args: LogArg[]): void {
