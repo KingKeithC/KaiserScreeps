@@ -169,7 +169,7 @@ export class Logger<T extends Loggable> {
 
     // Render the FormatProperties into the log line.
     let finalLine = this._fmt;
-    for (const [key, value] of format.entries()) finalLine = finalLine.replace(key, value.toString());
+    for (const [key, value] of format.entries()) finalLine = finalLine.replace(key, (value ?? 'null').toString());
 
     // Handle padding specifiers
     const paddingMatch = '%(';
