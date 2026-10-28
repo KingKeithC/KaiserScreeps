@@ -209,7 +209,9 @@ export class RoomExtra extends Room {
     return this.cachedWorkableClaimedRooms;
   }
 
-  HostilesByRoom = this.MapWithRoomsInClaimedArea(mr => (mr instanceof Room ? mr.find(FIND_HOSTILE_CREEPS) : []));
+  get HostilesByRoom(): [string | Room | RoomExtra, Creep[]][] {
+    return this.MapWithRoomsInClaimedArea(mr => (mr instanceof Room ? mr.find(FIND_HOSTILE_CREEPS) : []), true);
+  }
 
   get EnableCostMatrixOverlay(): boolean {
     return this.memory.enableCostMatrixOverlay ?? false;
@@ -395,8 +397,9 @@ export class RoomExtra extends Room {
     // Not an owned room
     // Get mines from the room's scouting report, and if there is
     // no scouting report, create a new one and return the mines from that.
+    let existingReport;
     if (cr instanceof Room) {
-      const existingReport = Memory.scoutingReports[cr.name];
+      existingReport = Memory.scoutingReports[cr.name];
 
       if (existingReport !== undefined)
         if (existingReport.mines !== undefined && existingReport.mines.length > 0) return existingReport.mines;
@@ -426,7 +429,7 @@ export class RoomExtra extends Room {
     // Lookup the existing report for the room, and
     // if the report has mines, and the room is neutral,
     // then return those mines.
-    const existingReport = Memory.scoutingReports[cr];
+    existingReport = Memory.scoutingReports[cr];
     if (!existingReport) return [];
     if (!existingReport.mines) return [];
 
@@ -571,9 +574,11 @@ export class RoomExtra extends Room {
     includeMainRoom = true,
   ): [Room | string, T[]][] {
     const ret: [RoomExtra | Room | string, T[]][] = includeMainRoom ? [[this, mapper(this)]] : [];
-    for (const name of this.ClaimedRoomNames)
-      if (name in Game.rooms) ret.push([Game.rooms[name], mapper(Game.rooms[name])]);
+    for (const name of this.ClaimedRoomNames) {
+      const otherRoom = this.colony.OtherRooms.filter(or => or.name === name);
+      if (otherRoom) ret.push([Game.rooms[name], mapper(Game.rooms[name])]);
       else ret.push([name, mapper(name)]);
+    }
 
     // this.log.crit('MapWithRoomsInClaimedArea: ${retLen}', { retLen: ret.length });
     return ret;
