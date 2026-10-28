@@ -123,38 +123,32 @@ export class Logger<T extends Loggable> {
 
     // If we have a creep but not a room, get the room from the creep
     if (typeof formatArgs.get('<room>') === 'object' && formatArgs.get('<room>') === '')
-      formatArgs.set('<room>', (formatArgs.get('<creep>') as CreepExtra).AssignedRoom.name);
-
-    if (typeof formatArgs.get('<room>') === 'object')
-      // Stringify the room if we have it
-      formatArgs.set('<room>', (formatArgs.get('<room>') as Room).name);
+      formatArgs.set('<room>', (formatArgs.get('<creep>') as CreepExtra).AssignedRoom);
 
     // If we have a creep but not a role, get the role from the creep
     if (typeof formatArgs.get('<creep>') === 'object' && formatArgs.get('<role>') === '')
-      formatArgs.set('<role>', (formatArgs.get('<creep>') as CreepExtra).role ?? '');
-
-    if (typeof formatArgs.get('<role>') === 'object')
-      // Stringify the role if we have it
-      formatArgs.set('<role>', (formatArgs.get('<role>') as CreepRole).name);
-
-    // If we still have a creep, stringify it
-    if (typeof formatArgs.get('<creep>') === 'object')
-      formatArgs.set('<creep>', (formatArgs.get('<creep>') as CreepExtra).name);
+      formatArgs.set('<role>', (formatArgs.get('<creep>') as CreepExtra).role);
 
     // Delete empty/invalid format args
     for (const k in formatArgs)
       if (formatArgs.get(k) === '' || formatArgs.get(k) === undefined || formatArgs.get(k) === null)
         formatArgs.delete(k);
 
-    // !! Important - After this point, values inside formatArgs must be
-    // primitive objects capable of being JSON.strinigified.
-    // Custom objects like CreepExtra and CreepRole will cause loops in the JSON serializer.
-
     if (this.EnableStructuredLogs) this.logStructured(level, msg, formatArgs);
     else this.logFlat(level, msg, formatArgs);
   }
 
   logStructured(level: LogLevel, msg: string, format: Map<string, Loggable>): void {
+    // Replace objects with their string identifiers
+
+    if (typeof format.get('<creep>') === 'object') format.set('<creep>', (format.get('<creep>') as CreepExtra).name);
+    if (typeof format.get('<role>') === 'object') format.set('<role>', (format.get('<role>') as CreepRole).name);
+    if (typeof format.get('<room>') === 'object') format.set('<room>', (format.get('<room>') as Room).name);
+
+    // !! Important - After this point, values inside formatArgs must be
+    // primitive objects capable of being JSON.strinigified.
+    // Custom objects like CreepExtra and CreepRole will cause loops in the JSON serializer.
+
     const cleanedFormatArgs: { [key: string]: Loggable } = {};
     for (const [k, v] of format.entries()) cleanedFormatArgs[k.slice(1, -1)] = v; // Strip the "<" and ">" chars from the keys.
     this.writeMessage(JSON.stringify({ level, msg, ...cleanedFormatArgs }));
