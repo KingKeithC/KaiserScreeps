@@ -270,18 +270,19 @@ export class Worker extends CreepRoleBase implements CreepRole {
     const best =
       canFullySupplyUsInSameRoomAsCreep ?? canFullySupplyUsAnywhere ?? anySourceInMyRoom ?? anySourceAnywhere;
 
-    this.log.debug(
-      `FindGatheringTask: ${JSON.stringify({
-        best: String(best),
-        countCanFullySupplyUs: canFullySupplyUs.length,
-        canFullySupplyUsInSameRoomAsCreep: String(canFullySupplyUsInSameRoomAsCreep),
-        canFullySupplyUsAnywhere: String(canFullySupplyUsAnywhere),
-        countAnyPossibleSource: possibleSources.length,
-        anySourceInMyRoom: String(anySourceInMyRoom),
-        anySourceAnywhere: String(anySourceAnywhere),
-      })}`,
-      { '<creep>': creep },
-    );
+    // Uncomment this if there are issues with gathering task assignment
+    // this.log.debug(
+    //   `FindGatheringTask: ${JSON.stringify({
+    //     best: String(best),
+    //     countCanFullySupplyUs: canFullySupplyUs.length,
+    //     canFullySupplyUsInSameRoomAsCreep: String(canFullySupplyUsInSameRoomAsCreep),
+    //     canFullySupplyUsAnywhere: String(canFullySupplyUsAnywhere),
+    //     countAnyPossibleSource: possibleSources.length,
+    //     anySourceInMyRoom: String(anySourceInMyRoom),
+    //     anySourceAnywhere: String(anySourceAnywhere),
+    //   })}`,
+    //   { '<creep>': creep },
+    // );
 
     if (best) return new CollectEnergy(best);
     else return this.CollectFromRandomMiner(creep);
