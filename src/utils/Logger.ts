@@ -148,7 +148,7 @@ export class Logger<T extends Loggable> {
   logStructured(level: LogLevel, msg: string, format: Map<string, Loggable>): void {
     const cleanedFormatArgs: { [key: string]: Loggable } = {};
     for (const [k, v] of format.entries()) cleanedFormatArgs[k.slice(1, -1)] = v; // Strip the "<" and ">" chars from the keys.
-    this.writeMessage(JSON.stringify({ level, msg, args: cleanedFormatArgs }));
+    this.writeMessage(JSON.stringify({ level, msg, ...cleanedFormatArgs }));
   }
 
   logFlat(level: LogLevel, msg: string, format: Map<string, Loggable>): void {
