@@ -100,15 +100,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
   }
 
   SelectNextTask(creep: CreepExtra): CreepTask | null {
-    // if (this.RefillBelowCarryCapacity - this.SpendAboveCarryCapacity < 0)
-    //   throw new Error(
-    //     `Worker: this.RefillBelowCarryCapacity (${this.RefillBelowCarryCapacity}) should be ` +
-    //       `greater than or equal to this.SpendAboveCarryCapacity (${this.SpendAboveCarryCapacity})`,
-    //   );
-
-    const currentFillRatio = creep.store.getUsedCapacity(RESOURCE_ENERGY) / creep.store.getCapacity(RESOURCE_ENERGY);
-
-    if (currentFillRatio > 0) {
+    if (creep.store.getUsedCapacity(RESOURCE_ENERGY) > 0) {
       // Need to spend hauled energy
 
       // Look for a spending task amongst typical targets
@@ -125,17 +117,19 @@ export class Worker extends CreepRoleBase implements CreepRole {
       else if (creep.AssignedRoom.storage !== undefined && creep.AssignedRoom.StoreOverUpgrade)
         // If still no spending task, and there is storage, then store
         return new Supply(creep.AssignedRoom.storage.id);
-    } else {
+    }
+
       // If there aren't enough miners, then do mining
+    const miningTask = this.MineAnyFreePosition(creep);
       const totalMinerBodies = sum(creep.AssignedRoom.GetAssignedTasksWithCreep(TaskAction.Mine), m =>
         BodyCost(m[0].body),
       );
-      if (totalMinerBodies < this.RelyOnMinersAt) {
+    if (miningTask !== null && totalMinerBodies < this.RelyOnMinersAt) {
         this.log.warn(
           `Emergency mining since too few miners are available (${totalMinerBodies}/${this.RelyOnMinersAt})...`,
           { '<creep>': creep },
         );
-        return this.MineAnyFreePosition(creep);
+      return miningTask;
       }
 
       // Try to find a gathering task
@@ -144,7 +138,6 @@ export class Worker extends CreepRoleBase implements CreepRole {
       if (!gather && !creep.AssignedRoom.StoreOverUpgrade) gather = this.CollectFromRoomStorage(creep);
       // If we found a gathering task, return it
       if (gather) return gather;
-    }
 
     // Didn't need or Can't find, gathering or spending task
 
@@ -234,10 +227,10 @@ export class Worker extends CreepRoleBase implements CreepRole {
       number,
     ][] = [
       /* eslint-disable @typescript-eslint/no-unnecessary-type-assertion */
-      ...creep.AssignedRoom.FlatMapOverRoomsInClaimedArea(cr => cr instanceof Room ? cr.find(FIND_TOMBSTONES, { filter: t => t.store.getUsedCapacity(RESOURCE_ENERGY) > 0 }) : []) as Tombstone[],
-      ...creep.AssignedRoom.FlatMapOverRoomsInClaimedArea(cr => cr instanceof Room ? cr.find(FIND_DROPPED_RESOURCES, { filter: r => r.resourceType === RESOURCE_ENERGY && r.amount > 0 }) : []) as Resource<RESOURCE_ENERGY>[],
-      ...creep.AssignedRoom.FlatMapOverRoomsInClaimedArea(cr => cr instanceof Room ? cr.find(FIND_RUINS, {filter: r=> r.store.getUsedCapacity(RESOURCE_ENERGY) > 0}) : []) as Ruin[],
-      ...creep.AssignedRoom.FlatMapOverRoomsInClaimedArea(cr => cr instanceof Room ? cr.find(FIND_STRUCTURES, { filter: s => s.structureType === STRUCTURE_CONTAINER && s.store.getUsedCapacity(RESOURCE_ENERGY) > 0}) : []) as StructureContainer[],
+      ...creep.AssignedRoom.FlatMapOverRoomsInClaimedArea(cr => !(cr instanceof Room) ? [] : cr.find(FIND_TOMBSTONES, { filter: t => t.store.getUsedCapacity(RESOURCE_ENERGY) > 0 })) as Tombstone[],
+      ...creep.AssignedRoom.FlatMapOverRoomsInClaimedArea(cr => !(cr instanceof Room) ? [] : cr.find(FIND_DROPPED_RESOURCES, { filter: r => r.resourceType === RESOURCE_ENERGY && r.amount > 0 })) as Resource<RESOURCE_ENERGY>[],
+      ...creep.AssignedRoom.FlatMapOverRoomsInClaimedArea(cr => !(cr instanceof Room) ? [] : cr.find(FIND_RUINS, {filter: r=> r.store.getUsedCapacity(RESOURCE_ENERGY) > 0})) as Ruin[],
+      ...creep.AssignedRoom.FlatMapOverRoomsInClaimedArea(cr => !(cr instanceof Room) ? [] : cr.find(FIND_STRUCTURES, { filter: s => s.structureType === STRUCTURE_CONTAINER && s.store.getUsedCapacity(RESOURCE_ENERGY) > 0})) as StructureContainer[],
       ...creep.AssignedRoom.LinkReceivers.filter(lr => lr.store.getUsedCapacity(RESOURCE_ENERGY) > 0) as StructureLink[],
       /* eslint-enable @typescript-eslint/no-unnecessary-type-assertion */
     ].map(ps => [ps, ps instanceof Resource ? ps.amount : ps.store.getUsedCapacity(RESOURCE_ENERGY)]);
