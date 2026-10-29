@@ -3,13 +3,13 @@ export type { TaskActionResult, CreepTask, TravelPath, EnergySource } from './ty
 export { BaseTask } from './BaseTask';
 export { TargetTask } from './TargetTask';
 export { Mine } from './Mine';
-export { CollectEnergy } from './CollectEnergy';
+export { Collect } from './CollectEnergy';
 export { UpdateController, MaintainController } from './UpdateController';
 export { Build } from './Build';
 export { Dismantle } from './Dismantle';
 export { Move } from './Move';
 export { Repair } from './Repair';
 export { Supply } from './Supply';
-export { Attack as AttackTargetTask } from './Attack';
+export { Attack } from './Attack';
 export { GuardTask } from './Guard';
 export { ClaimRoomTask } from './ClaimRoom';

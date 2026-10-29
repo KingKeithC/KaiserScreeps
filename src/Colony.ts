@@ -10,10 +10,10 @@ import { Worker } from 'roles/Worker';
 import { RoomExtra } from 'Room';
 import profiler from 'screeps-profiler';
 import {
-  AttackTargetTask,
+  Attack,
   Build,
   ClaimRoomTask,
-  CollectEnergy,
+  Collect,
   CreepTask,
   Dismantle,
   GuardTask,
@@ -65,12 +65,13 @@ interface TaskRegistry {
 export class Colony {
   readonly Tasks: TaskRegistry = {
     mine: Mine.prototype,
-    collectEnergy: CollectEnergy.prototype,
+    collectEnergy: Collect.prototype,
+    collect: Collect.prototype, // New Alias
     updateController: UpdateController.prototype,
     build: Build.prototype,
     repair: Repair.prototype,
     supply: Supply.prototype,
-    attack: AttackTargetTask.prototype,
+    attack: Attack.prototype,
     guard: GuardTask.prototype,
     move: Move.prototype,
     claim: ClaimRoomTask.prototype,

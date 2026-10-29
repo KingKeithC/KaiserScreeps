@@ -3,7 +3,7 @@ import { sum } from 'lodash';
 import { RoomExtra } from 'Room';
 import {
   Build,
-  CollectEnergy,
+  Collect,
   CreepTask,
   MaintainController,
   Mine,
@@ -12,8 +12,10 @@ import {
   TaskAction,
   UpdateController,
 } from 'tasks';
+import { ResourceContainer } from 'tasks/CollectEnergy';
 import { MakeBody } from 'utils/Collections';
 import { BodyCost } from 'utils/CreepUtils';
+import { EnergySourcesForRoom, NonEnergySourcesForRoomByType } from 'utils/RoomUtils';
 import { CreepRoleBase, CreepRole } from './Role';
 
 export class Worker extends CreepRoleBase implements CreepRole {
@@ -67,7 +69,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
   // This function is expected to return a value, and logs a warning when it cannot.
   // Call this function in a section of code where it is already confirmed that this is the right type of task to return,
   // i.e. where you expect it to succeed, the null return is more of a fallback so an error is not thrown.
-  CollectFromRandomMiner(creep: CreepExtra): CollectEnergy | null {
+  CollectFromRandomMiner(creep: CreepExtra): Collect | null {
     // Just dispatch to a random miner in the room regardless of fill state
     // By the time they get there, the miner should hopefully have something to collect,
     // and it should prevent them from searching for new tasks ever idle tick
@@ -75,7 +77,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
     const miners = creep.AssignedRoom.AssignedCreepsByRoleName.get('Miner') ?? [];
     if (miners.length > 0) {
       const randomMiner = miners[Math.floor(miners.length * Math.random())];
-      return new CollectEnergy(randomMiner);
+      return new Collect(randomMiner);
     }
 
     this.log.warn('Room has no miners to collect from.', { '<creep>': creep });
@@ -84,18 +86,96 @@ export class Worker extends CreepRoleBase implements CreepRole {
 
   // Dispatch a collection task if possible.
   // This function is expected to return a value, and logs a warning when it cannot.
-  CollectFromRoomStorage(creep: CreepExtra): CollectEnergy | null {
+  CollectFromRoomStorage(creep: CreepExtra): Collect | null {
     const stored = creep.AssignedRoom.storage?.store.getUsedCapacity(RESOURCE_ENERGY) ?? 0;
     if (
       creep.AssignedRoom.storage !== undefined &&
       stored < creep.AssignedRoom.StorageWartimeEnergyBuffer &&
       !creep.AssignedRoom.StoreOverUpgrade
     )
-      return new CollectEnergy(creep.AssignedRoom.storage.id);
+      return new Collect(creep.AssignedRoom.storage.id);
 
     // We log a warning becaue the conditions above should already have been checked, and
     // if this function disagrees, it means the calling logic is incomplete or mis-implemented.
     this.log.warn('Collect from Room Storage not possible.', { '<creep>': creep });
+    return null;
+  }
+
+  ResourcePriorities = [RESOURCE_ENERGY, RESOURCE_CATALYZED_GHODIUM_ACID];
+
+  FindBestCollection(creep: CreepExtra, possibleSources: [ResourceContainer, number][]): ResourceContainer | null {
+    const sourcesWhoCanFullySupplyUs = [];
+    for (const possible of possibleSources) {
+      // Who else is coming to collect from this source already
+      const incomingCollectors = creep.AssignedRoom.GetAssignedTasksWithCreep(TaskAction.Collect).filter(
+        ce => (ce[1] as Collect).targetId === possible[0].id,
+      );
+
+      // How much energy is scheduled to be withdrawn currently
+      const totalWithdrawls = sum(incomingCollectors, collector => collector[0].store.getFreeCapacity(RESOURCE_ENERGY));
+
+      // If we expect to be able to fully collect from this source if we attempted to go for it,
+      // then add it to the 'best' list.
+      if (possible[1] - totalWithdrawls >= creep.store.getFreeCapacity(RESOURCE_ENERGY))
+        sourcesWhoCanFullySupplyUs.push(possible);
+    }
+
+    const canFullySupplyUs = sourcesWhoCanFullySupplyUs.map(s => s[0]);
+    const canFullySupplyUsInSameRoomAsCreep = creep.pos.findClosestByPath(canFullySupplyUs, { ignoreCreeps: true });
+    const canFullySupplyUsAnywhere = canFullySupplyUs.pop();
+
+    const anySourceInMyRoom = creep.pos.findClosestByPath(
+      possibleSources.map(s => s[0]),
+      { ignoreCreeps: true },
+    );
+    const anySourceAnywhere = possibleSources.map(s => s[0]).pop();
+    const best =
+      canFullySupplyUsInSameRoomAsCreep ?? canFullySupplyUsAnywhere ?? anySourceInMyRoom ?? anySourceAnywhere ?? null;
+
+    // Uncomment this if there are issues with gathering task assignment
+    // this.log.debug(
+    //   `FindGatheringTask: ${JSON.stringify({
+    //     best: String(best),
+    //     countCanFullySupplyUs: canFullySupplyUs.length,
+    //     canFullySupplyUsInSameRoomAsCreep: String(canFullySupplyUsInSameRoomAsCreep),
+    //     canFullySupplyUsAnywhere: String(canFullySupplyUsAnywhere),
+    //     countAnyPossibleSource: possibleSources.length,
+    //     anySourceInMyRoom: String(anySourceInMyRoom),
+    //     anySourceAnywhere: String(anySourceAnywhere),
+    //   })}`,
+    //   { '<creep>': creep },
+    // );
+
+    return best;
+  }
+
+  CollectNonEnergy(creep: CreepExtra): Collect | null {
+    const containersByType = new Map<ResourceConstant, [ResourceContainer, number][]>();
+    for (const result of creep.AssignedRoom.MapWithRoomsInClaimedArea(NonEnergySourcesForRoomByType))
+      for (const [rt, sources] of result[1]) {
+        const existing = containersByType.get(rt) ?? [];
+        containersByType.set(rt, existing.concat(sources));
+      }
+
+    // Find according to priorities
+    for (const prio of this.ResourcePriorities) {
+      const task = this.FindBestCollection(creep, containersByType.get(prio) ?? []);
+      if (task) return new Collect(task, prio);
+    }
+
+    // Find any
+    for (const [rt, containers] of containersByType) {
+      const task = this.FindBestCollection(creep, containers);
+      if (task) return new Collect(task, rt);
+    }
+
+    return null;
+  }
+
+  GatherEnergy(creep: CreepExtra): Collect | null {
+    const sources = creep.AssignedRoom.FlatMapOverRoomsInClaimedArea(EnergySourcesForRoom);
+    const source = this.FindBestCollection(creep, sources);
+    if (source) return new Collect(source);
     return null;
   }
 
@@ -117,11 +197,16 @@ export class Worker extends CreepRoleBase implements CreepRole {
       else if (creep.AssignedRoom.storage !== undefined && creep.AssignedRoom.StoreOverUpgrade)
         // If still no spending task, and there is storage, then store
         return new Supply(creep.AssignedRoom.storage.id);
+    } else if (creep.store.getUsedCapacity(RESOURCE_ENERGY) === 0 && creep.AssignedRoom.storage !== undefined) {
+      const nonEnergy = this.CollectNonEnergy(creep);
+      if (nonEnergy) return nonEnergy;
     }
 
     // Try to find a gathering task
-    let gather = this.FindGatheringTask(creep);
-    // In case no normal gathering task was found, try gthering from storage
+    let gather = this.GatherEnergy(creep);
+    // If no task found, try a random miner
+    if (!gather) gather = this.CollectFromRandomMiner(creep);
+    // If still no task found, try gthering from storage
     if (!gather && !creep.AssignedRoom.StoreOverUpgrade) gather = this.CollectFromRoomStorage(creep);
     // If we found a gathering task, return it
     if (gather) return gather;
@@ -219,67 +304,6 @@ export class Worker extends CreepRoleBase implements CreepRole {
   }
 
   RelyOnMinersAt = 1000;
-  FindGatheringTask(creep: CreepExtra): CreepTask | null {
-    // const miners = (creep.AssignedRoom.AssignedCreepsByRoleGroup.get('Miners') ?? []).filter(m => !m.spawning);
-    // prettier-ignore
-    const possibleSources: [
-      CreepExtra | StructureLink | StructureContainer | Resource<RESOURCE_ENERGY> | Ruin | Tombstone,
-      number,
-    ][] = [
-      /* eslint-disable @typescript-eslint/no-unnecessary-type-assertion */
-      ...creep.AssignedRoom.FlatMapOverRoomsInClaimedArea(cr => !(cr instanceof Room) ? [] : cr.find(FIND_TOMBSTONES, { filter: t => t.store.getUsedCapacity(RESOURCE_ENERGY) > 0 })) as Tombstone[],
-      ...creep.AssignedRoom.FlatMapOverRoomsInClaimedArea(cr => !(cr instanceof Room) ? [] : cr.find(FIND_DROPPED_RESOURCES, { filter: r => r.resourceType === RESOURCE_ENERGY && r.amount > 0 })) as Resource<RESOURCE_ENERGY>[],
-      ...creep.AssignedRoom.FlatMapOverRoomsInClaimedArea(cr => !(cr instanceof Room) ? [] : cr.find(FIND_RUINS, {filter: r=> r.store.getUsedCapacity(RESOURCE_ENERGY) > 0})) as Ruin[],
-      ...creep.AssignedRoom.FlatMapOverRoomsInClaimedArea(cr => !(cr instanceof Room) ? [] : cr.find(FIND_STRUCTURES, { filter: s => s.structureType === STRUCTURE_CONTAINER && s.store.getUsedCapacity(RESOURCE_ENERGY) > 0})) as StructureContainer[],
-      ...creep.AssignedRoom.LinkReceivers.filter(lr => lr.store.getUsedCapacity(RESOURCE_ENERGY) > 0) as StructureLink[],
-      /* eslint-enable @typescript-eslint/no-unnecessary-type-assertion */
-    ].map(ps => [ps, ps instanceof Resource ? ps.amount : ps.store.getUsedCapacity(RESOURCE_ENERGY)]);
-
-    const sourcesWhoCanFullySupplyUs = [];
-    for (const possible of possibleSources) {
-      // Who else is coming to collect from this source already
-      const incomingCollectors = creep.AssignedRoom.GetAssignedTasksWithCreep(TaskAction.CollectEnergy).filter(
-        ce => (ce[1] as CollectEnergy).targetId === possible[0].id,
-      );
-
-      // How much energy is scheduled to be withdrawn currently
-      const totalWithdrawls = sum(incomingCollectors, collector => collector[0].store.getFreeCapacity(RESOURCE_ENERGY));
-
-      // If we expect to be able to fully collect from this source if we attempted to go for it,
-      // then add it to the 'best' list.
-      if (possible[1] - totalWithdrawls >= creep.store.getFreeCapacity(RESOURCE_ENERGY))
-        sourcesWhoCanFullySupplyUs.push(possible);
-    }
-
-    const canFullySupplyUs = sourcesWhoCanFullySupplyUs.map(s => s[0]);
-    const canFullySupplyUsInSameRoomAsCreep = creep.pos.findClosestByPath(canFullySupplyUs, { ignoreCreeps: true });
-    const canFullySupplyUsAnywhere = canFullySupplyUs.pop();
-
-    const anySourceInMyRoom = creep.pos.findClosestByPath(
-      possibleSources.map(s => s[0]),
-      { ignoreCreeps: true },
-    );
-    const anySourceAnywhere = possibleSources.map(s => s[0]).pop();
-    const best =
-      canFullySupplyUsInSameRoomAsCreep ?? canFullySupplyUsAnywhere ?? anySourceInMyRoom ?? anySourceAnywhere;
-
-    // Uncomment this if there are issues with gathering task assignment
-    // this.log.debug(
-    //   `FindGatheringTask: ${JSON.stringify({
-    //     best: String(best),
-    //     countCanFullySupplyUs: canFullySupplyUs.length,
-    //     canFullySupplyUsInSameRoomAsCreep: String(canFullySupplyUsInSameRoomAsCreep),
-    //     canFullySupplyUsAnywhere: String(canFullySupplyUsAnywhere),
-    //     countAnyPossibleSource: possibleSources.length,
-    //     anySourceInMyRoom: String(anySourceInMyRoom),
-    //     anySourceAnywhere: String(anySourceAnywhere),
-    //   })}`,
-    //   { '<creep>': creep },
-    // );
-
-    if (best) return new CollectEnergy(best);
-    else return this.CollectFromRandomMiner(creep);
-  }
 
   IgnoreDroppedResourcesLessThan = 30;
   MediumSearchRange = 20;

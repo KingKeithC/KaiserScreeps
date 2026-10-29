@@ -1,13 +1,6 @@
 import { Dictionary, flatten, range, unique } from 'lodash';
 import { CreepTask, Mine, Repair, TaskAction, UpdateController } from 'tasks';
-import {
-  FormatHostileInfos,
-  GetHostileInfo,
-  GetMiningPositions,
-  HostileInfo,
-  MakeRoomReport,
-  MiningPosition,
-} from 'utils/RoomUtils';
+import { FormatHostileInfos, GetHostileInfo, GetMiningPositions, HostileInfo, MiningPosition } from 'utils/RoomUtils';
 import { Colony } from 'Colony';
 import { CreepExtra } from 'Creep';
 import { DeserializeRoomPosition, FmtRatios, LerpColour, SerializeRoomPosition } from 'utils/Collections';
@@ -575,22 +568,23 @@ export class RoomExtra extends Room {
   }
 
   MapWithRoomsInClaimedArea<T>(
-    mapper: (r: RoomExtra | Room | string) => T[],
+    mapper: (r: RoomExtra | Room | string) => T,
     includeMainRoom = true,
-  ): [Room | string, T[]][] {
-    const ret: [RoomExtra | Room | string, T[]][] = includeMainRoom ? [[this, mapper(this)]] : [];
+  ): [RoomExtra | Room | string, T][] {
+    const ret: [RoomExtra | Room | string, T][] = [];
+
+    if (includeMainRoom) ret.push([this, mapper(this)]);
     for (const name of this.ClaimedRoomNames) {
-      const otherRoom = this.colony.OtherRooms.filter(or => or.name === name);
-      if (otherRoom) ret.push([Game.rooms[name], mapper(Game.rooms[name])]);
+      const otherRoom = this.colony.OtherRooms.filter(or => or.name === name).pop();
+      if (otherRoom) ret.push([otherRoom, mapper(otherRoom)]);
       else ret.push([name, mapper(name)]);
     }
 
-    // this.log.crit('MapWithRoomsInClaimedArea: ${retLen}', { retLen: ret.length });
     return ret;
   }
 
-  FlatMapOverRoomsInClaimedArea<T>(mapper: (r: RoomExtra | Room | string) => T[], includeMainRoom = true): T[] {
-    return flatten(this.MapWithRoomsInClaimedArea(mapper, includeMainRoom).map(v => v[1]));
+  FlatMapOverRoomsInClaimedArea<E>(mapper: (r: RoomExtra | Room | string) => E[], includeMainRoom = true): E[] {
+    return flatten(this.MapWithRoomsInClaimedArea(mapper, includeMainRoom).map(r => r[1]));
   }
 
   CleanupDeadCreeps(): void {

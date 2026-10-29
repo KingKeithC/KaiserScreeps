@@ -1,6 +1,6 @@
 export const TaskAction = {
   Mine: '⛏️',
-  CollectEnergy: '🔌',
+  Collect: '🔌',
   MaintainController: '🦸‍♀️',
   Build: '🏗️',
   Repair: '🛠️',
