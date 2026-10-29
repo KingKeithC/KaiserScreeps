@@ -214,37 +214,23 @@ export function MakeRoomReport(rRoom: Room): RoomReport {
   };
 }
 
-export function NonEnergySourcesForRoomByType(room: string | Room): Map<ResourceConstant, ContainerAndAmount[]> {
-  const resourceIsNotEnergy = (r: { resourceType: ResourceConstant }): boolean => r.resourceType !== RESOURCE_ENERGY;
-  const storeContainsNonEnergy = (e: { store: StoreDefinition }) =>
-    e.store.getUsedCapacity() - e.store.getUsedCapacity(RESOURCE_ENERGY) > 0;
-
+export function ResourceContainersForRoomByType(room: string | Room): Map<ResourceConstant, ContainerAndAmount[]> {
   const ret = new Map<ResourceConstant, ContainerAndAmount[]>();
   if (typeof room === 'string') return ret;
 
-  for (const dropped of room.find(FIND_DROPPED_RESOURCES, { filter: resourceIsNotEnergy }))
+  for (const dropped of room.find(FIND_DROPPED_RESOURCES, { filter: r => r.amount > 0 }))
     ret.set(dropped.resourceType, [...(ret.get(dropped.resourceType) ?? []), [dropped, dropped.amount]]);
 
-  for (const tomb of room.find(FIND_TOMBSTONES, { filter: storeContainsNonEnergy }))
+  for (const tomb of room.find(FIND_TOMBSTONES, { filter: r => r.store.getUsedCapacity() > 0 }))
     for (const rt in tomb.store)
       ret.set(rt as ResourceConstant, [
         ...(ret.get(rt as ResourceConstant) ?? []),
         [tomb, tomb.store.getUsedCapacity(rt as ResourceConstant)],
       ]);
 
-  return ret;
-}
-
-export function EnergySourcesForRoom(room: string | Room): ContainerAndAmount[] {
-  if (typeof room === 'string') return [];
-
   const tombstones: ContainerAndAmount[] = room
     .find(FIND_TOMBSTONES, { filter: t => t.store.getUsedCapacity(RESOURCE_ENERGY) > 0 })
     .map(t => [t, t.store.getUsedCapacity(RESOURCE_ENERGY)]);
-
-  const dropped: ContainerAndAmount[] = room
-    .find(FIND_DROPPED_RESOURCES, { filter: r => r.resourceType === RESOURCE_ENERGY && r.amount > 0 })
-    .map(t => [t, t.amount]);
 
   const ruins: ContainerAndAmount[] = room
     .find(FIND_RUINS, { filter: r => r.store.getUsedCapacity(RESOURCE_ENERGY) > 0 })
@@ -262,5 +248,7 @@ export function EnergySourcesForRoom(room: string | Room): ContainerAndAmount[] 
     })
     .map(t => [t as StructureLink, (t as StructureLink).store.getUsedCapacity(RESOURCE_ENERGY)]);
 
-  return [...tombstones, ...dropped, ...ruins, ...containers, ...links];
+  ret.set(RESOURCE_ENERGY, [...tombstones, ...ruins, ...containers, ...links]);
+
+  return ret;
 }

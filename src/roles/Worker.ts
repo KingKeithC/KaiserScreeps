@@ -14,12 +14,7 @@ import {
 } from 'tasks';
 import { MakeBody } from 'utils/Collections';
 import { BodyCost } from 'utils/CreepUtils';
-import {
-  ContainerAndAmount,
-  EnergySourcesForRoom,
-  NonEnergySourcesForRoomByType,
-  ResourceContainer,
-} from 'utils/RoomUtils';
+import { ContainerAndAmount, ResourceContainersForRoomByType, ResourceContainer } from 'utils/RoomUtils';
 import { CreepRoleBase, CreepRole } from './Role';
 
 export class Worker extends CreepRoleBase implements CreepRole {
@@ -105,8 +100,6 @@ export class Worker extends CreepRoleBase implements CreepRole {
     return null;
   }
 
-  ResourcePriorities = [RESOURCE_ENERGY, RESOURCE_CATALYZED_GHODIUM_ACID];
-
   FindBestCollection(creep: CreepExtra, possibleSources: ContainerAndAmount[]): ResourceContainer | null {
     const sourcesWhoCanFullySupplyUs = [];
     for (const possible of possibleSources) {
@@ -153,39 +146,36 @@ export class Worker extends CreepRoleBase implements CreepRole {
     return best;
   }
 
-  CollectNonEnergy(creep: CreepExtra): Collect | null {
+  CollectResources(creep: CreepExtra, searchForType: ResourceConstant[]): Collect | null {
     const containersByType = new Map<ResourceConstant, ContainerAndAmount[]>();
-    for (const result of creep.AssignedRoom.MapWithRoomsInClaimedArea(NonEnergySourcesForRoomByType))
+    for (const result of creep.AssignedRoom.MapWithRoomsInClaimedArea(ResourceContainersForRoomByType))
       for (const [rt, sources] of result[1]) {
         const existing = containersByType.get(rt) ?? [];
         containersByType.set(rt, existing.concat(sources));
       }
 
     // Find according to priorities
-    for (const prio of this.ResourcePriorities) {
+    for (const prio of searchForType) {
       const candidates: ContainerAndAmount[] = containersByType.get(prio) ?? [];
       const task = this.FindBestCollection(creep, candidates);
       if (task) return new Collect(task, prio);
     }
 
-    // Find any
-    for (const [rt, containers] of containersByType) {
-      const task = this.FindBestCollection(creep, containers);
-      if (task) return new Collect(task, rt);
-    }
-
-    return null;
-  }
-
-  GatherEnergy(creep: CreepExtra): Collect | null {
-    const sources = creep.AssignedRoom.FlatMapOverRoomsInClaimedArea(EnergySourcesForRoom);
-    const source = this.FindBestCollection(creep, sources);
-    if (source) return new Collect(source);
+    // No priority found.
     return null;
   }
 
   SelectNextTask(creep: CreepExtra): CreepTask | null {
-    if (creep.store.getUsedCapacity(RESOURCE_ENERGY) > 0) {
+    if (
+      creep.AssignedRoom.storage !== undefined &&
+      creep.store.getUsedCapacity() - creep.store.getUsedCapacity(RESOURCE_ENERGY) > 0
+    ) {
+      // Need to store hauled non-energy resources
+      for (const resourceType in creep.store) {
+        this.log.warn('Non-Energy being stored: ${resourceType}', { resourceType });
+        return new Supply(creep.AssignedRoom.storage.id, resourceType as ResourceConstant);
+      }
+    } else if (creep.store.getUsedCapacity(RESOURCE_ENERGY) > 0) {
       // Need to spend hauled energy
 
       // Look for a spending task amongst typical targets
@@ -203,12 +193,19 @@ export class Worker extends CreepRoleBase implements CreepRole {
         // If still no spending task, and there is storage, then store
         return new Supply(creep.AssignedRoom.storage.id);
     } else if (creep.store.getUsedCapacity(RESOURCE_ENERGY) === 0 && creep.AssignedRoom.storage !== undefined) {
-      const nonEnergy = this.CollectNonEnergy(creep);
-      if (nonEnergy) return nonEnergy;
+      // Need to haul non-energy resources
+      const nonEnergy = this.CollectResources(
+        creep,
+        RESOURCES_ALL.filter(t => t !== RESOURCE_ENERGY),
+      );
+      if (nonEnergy) {
+        this.log.warn('Non-Energy being collected: ${resourceType}', { resourceType: nonEnergy.resourceType });
+        return nonEnergy;
+      }
     }
 
     // Try to find a gathering task
-    let gather = this.GatherEnergy(creep);
+    let gather = this.CollectResources(creep, [RESOURCE_ENERGY]);
     // If no task found, try a random miner
     if (!gather) gather = this.CollectFromRandomMiner(creep);
     // If still no task found, try gthering from storage
