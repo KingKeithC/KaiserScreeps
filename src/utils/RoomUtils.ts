@@ -1,6 +1,4 @@
 import { groupBy } from 'lodash';
-import { RoomExtra } from 'Room';
-import { ResourceContainer } from 'tasks/CollectEnergy';
 import { RoomPositionString, SerializeRoomPosition, SerializeRoomPositionTriple } from './Collections';
 import { BodyCost, PartCounts } from './CreepUtils';
 import { Logger } from './Logger';
@@ -10,6 +8,11 @@ import { Logger } from './Logger';
   Standalone Functions/Types related to rooms.
 
 */
+
+export type ResourceContainer =
+  Creep | StructureLink | StructureStorage | StructureContainer | Resource | Ruin | Tombstone;
+
+export type ContainerAndAmount = [ResourceContainer, number];
 
 /* ------------- Interfaces ------------- */
 
@@ -211,19 +214,18 @@ export function MakeRoomReport(rRoom: Room): RoomReport {
   };
 }
 
-export function NonEnergySourcesForRoomByType(
-  room: string | Room | RoomExtra,
-): Map<ResourceConstant, [ResourceContainer, number][]> {
-  const notEnergy = (r: { resourceType: ResourceConstant }): boolean => r.resourceType !== RESOURCE_ENERGY;
-  const ret = new Map<ResourceConstant, [ResourceContainer, number][]>();
+export function NonEnergySourcesForRoomByType(room: string | Room): Map<ResourceConstant, ContainerAndAmount[]> {
+  const resourceIsNotEnergy = (r: { resourceType: ResourceConstant }): boolean => r.resourceType !== RESOURCE_ENERGY;
+  const storeContainsNonEnergy = (e: { store: StoreDefinition }) =>
+    e.store.getUsedCapacity() - e.store.getUsedCapacity(RESOURCE_ENERGY) > 0;
+
+  const ret = new Map<ResourceConstant, ContainerAndAmount[]>();
   if (typeof room === 'string') return ret;
 
-  for (const dropped of room.find(FIND_DROPPED_RESOURCES, { filter: notEnergy }))
+  for (const dropped of room.find(FIND_DROPPED_RESOURCES, { filter: resourceIsNotEnergy }))
     ret.set(dropped.resourceType, [...(ret.get(dropped.resourceType) ?? []), [dropped, dropped.amount]]);
 
-  for (const tomb of room.find(FIND_TOMBSTONES, {
-    filter: t => t.store.getUsedCapacity() - t.store.getUsedCapacity(RESOURCE_ENERGY) > 0,
-  }))
+  for (const tomb of room.find(FIND_TOMBSTONES, { filter: storeContainsNonEnergy }))
     for (const rt in tomb.store)
       ret.set(rt as ResourceConstant, [
         ...(ret.get(rt as ResourceConstant) ?? []),
@@ -233,31 +235,32 @@ export function NonEnergySourcesForRoomByType(
   return ret;
 }
 
-export function EnergySourcesForRoom(room: string | Room | RoomExtra): [ResourceContainer, number][] {
+export function EnergySourcesForRoom(room: string | Room): ContainerAndAmount[] {
   if (typeof room === 'string') return [];
 
-  const tombstones: [ResourceContainer, number][] = room
+  const tombstones: ContainerAndAmount[] = room
     .find(FIND_TOMBSTONES, { filter: t => t.store.getUsedCapacity(RESOURCE_ENERGY) > 0 })
     .map(t => [t, t.store.getUsedCapacity(RESOURCE_ENERGY)]);
 
-  const dropped: [ResourceContainer, number][] = room
+  const dropped: ContainerAndAmount[] = room
     .find(FIND_DROPPED_RESOURCES, { filter: r => r.resourceType === RESOURCE_ENERGY && r.amount > 0 })
     .map(t => [t, t.amount]);
 
-  const ruins: [ResourceContainer, number][] = room
+  const ruins: ContainerAndAmount[] = room
     .find(FIND_RUINS, { filter: r => r.store.getUsedCapacity(RESOURCE_ENERGY) > 0 })
     .map(t => [t, t.store.getUsedCapacity(RESOURCE_ENERGY)]);
 
-  const containers: [ResourceContainer, number][] = room
+  const containers: ContainerAndAmount[] = room
     .find(FIND_STRUCTURES, {
       filter: s => s.structureType === STRUCTURE_CONTAINER && s.store.getUsedCapacity(RESOURCE_ENERGY) > 0,
     })
     .map(t => [t as StructureContainer, (t as StructureContainer).store.getUsedCapacity(RESOURCE_ENERGY)]);
 
-  const links: [ResourceContainer, number][] = [];
-  if (room instanceof RoomExtra) {
-    for (const lr of room.LinkReceivers) links.push([lr, lr.store.getUsedCapacity(RESOURCE_ENERGY)]);
-  }
+  const links: ContainerAndAmount[] = room
+    .find(FIND_MY_STRUCTURES, {
+      filter: s => s.structureType === STRUCTURE_LINK && s.id in (room.memory.linkGroups ?? {}).Senders,
+    })
+    .map(t => [t as StructureLink, (t as StructureLink).store.getUsedCapacity(RESOURCE_ENERGY)]);
 
   return [...tombstones, ...dropped, ...ruins, ...containers, ...links];
 }

@@ -1,10 +1,8 @@
 import { CreepExtra } from 'Creep';
+import { ResourceContainer } from 'utils/RoomUtils';
 import { BaseTask } from './BaseTask';
 import { TaskAction } from './TaskAction';
 import { TaskActionResult } from './types';
-
-export type ResourceContainer =
-  CreepExtra | StructureLink | StructureStorage | StructureContainer | Resource | Ruin | Tombstone;
 
 export class Collect extends BaseTask<typeof TaskAction.Collect> {
   public readonly kind = 'collectEnergy' as const;

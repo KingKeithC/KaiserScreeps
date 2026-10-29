@@ -12,10 +12,14 @@ import {
   TaskAction,
   UpdateController,
 } from 'tasks';
-import { ResourceContainer } from 'tasks/CollectEnergy';
 import { MakeBody } from 'utils/Collections';
 import { BodyCost } from 'utils/CreepUtils';
-import { EnergySourcesForRoom, NonEnergySourcesForRoomByType } from 'utils/RoomUtils';
+import {
+  ContainerAndAmount,
+  EnergySourcesForRoom,
+  NonEnergySourcesForRoomByType,
+  ResourceContainer,
+} from 'utils/RoomUtils';
 import { CreepRoleBase, CreepRole } from './Role';
 
 export class Worker extends CreepRoleBase implements CreepRole {
@@ -103,7 +107,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
 
   ResourcePriorities = [RESOURCE_ENERGY, RESOURCE_CATALYZED_GHODIUM_ACID];
 
-  FindBestCollection(creep: CreepExtra, possibleSources: [ResourceContainer, number][]): ResourceContainer | null {
+  FindBestCollection(creep: CreepExtra, possibleSources: ContainerAndAmount[]): ResourceContainer | null {
     const sourcesWhoCanFullySupplyUs = [];
     for (const possible of possibleSources) {
       // Who else is coming to collect from this source already
@@ -150,7 +154,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
   }
 
   CollectNonEnergy(creep: CreepExtra): Collect | null {
-    const containersByType = new Map<ResourceConstant, [ResourceContainer, number][]>();
+    const containersByType = new Map<ResourceConstant, ContainerAndAmount[]>();
     for (const result of creep.AssignedRoom.MapWithRoomsInClaimedArea(NonEnergySourcesForRoomByType))
       for (const [rt, sources] of result[1]) {
         const existing = containersByType.get(rt) ?? [];
@@ -159,7 +163,8 @@ export class Worker extends CreepRoleBase implements CreepRole {
 
     // Find according to priorities
     for (const prio of this.ResourcePriorities) {
-      const task = this.FindBestCollection(creep, containersByType.get(prio) ?? []);
+      const candidates: ContainerAndAmount[] = containersByType.get(prio) ?? [];
+      const task = this.FindBestCollection(creep, candidates);
       if (task) return new Collect(task, prio);
     }
 
