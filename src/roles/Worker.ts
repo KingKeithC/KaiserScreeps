@@ -61,15 +61,12 @@ export class Worker extends CreepRoleBase implements CreepRole {
   }
 
   override GetRoomQuota(room: RoomExtra) {
-    return room.ClaimedSources.length * 2 + 1;
+    return room.ClaimedSources.length * 3;
   }
 
-  MinTicksBetweenWorkers = 0;
+  MinTicksBetweenWorkers = 100;
   IsSpawnNeeded(room: RoomExtra) {
-    return (
-      Game.time - room.LastSpawnTick(this.name) > this.MinTicksBetweenWorkers &&
-      this.GetRoomCreepsInRole(room).length < this.GetRoomQuota(room)
-    );
+    return Game.time - room.LastSpawnTick(this.name) > this.MinTicksBetweenWorkers;
   }
 
   // Dispatch a collection task if possible.
@@ -100,7 +97,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
       stored > creep.AssignedRoom.StorageWartimeEnergyBuffer &&
       creep.AssignedRoom.AllowStorageDraw
     )
-      return new Collect(creep.AssignedRoom.storage.id);
+      return new Collect(creep.AssignedRoom.storage);
 
     // We log a warning becaue the conditions above should already have been checked, and
     // if this function disagrees, it means the calling logic is incomplete or mis-implemented.
@@ -110,28 +107,29 @@ export class Worker extends CreepRoleBase implements CreepRole {
 
   FindBestCollection(creep: CreepExtra, possibleSources: ContainerAndAmount[]): ResourceContainer | null {
     const sourcesWhoCanFullySupplyUs = [];
+    const currentCollectionTasks = creep.AssignedRoom.GetAssignedTasksWithCreep(TaskAction.Collect);
     for (const possible of possibleSources) {
       // Who else is coming to collect from this source already
-      const incomingCollectors = creep.AssignedRoom.GetAssignedTasksWithCreep(TaskAction.Collect).filter(
-        ce => (ce[1] as Collect).targetId === possible[0].id,
-      );
+      const incomingCollectors = currentCollectionTasks.filter(ce => (ce[1] as Collect).targetId === possible[0].id);
 
       // How much energy is scheduled to be withdrawn currently
-      const totalWithdrawls = sum(incomingCollectors, collector => collector[0].store.getFreeCapacity(RESOURCE_ENERGY));
+      const totalWithdrawls = sum(incomingCollectors, collector => collector[0].store.getFreeCapacity());
 
       // If we expect to be able to fully collect from this source if we attempted to go for it,
       // then add it to the 'best' list.
-      if (possible[1] - totalWithdrawls >= creep.store.getFreeCapacity(RESOURCE_ENERGY))
-        sourcesWhoCanFullySupplyUs.push(possible);
+      if (possible[1] - totalWithdrawls >= creep.store.getFreeCapacity()) sourcesWhoCanFullySupplyUs.push(possible);
     }
 
     const canFullySupplyUs = sourcesWhoCanFullySupplyUs.map(s => s[0]);
-    const canFullySupplyUsInSameRoomAsCreep = creep.pos.findClosestByPath(canFullySupplyUs, { ignoreCreeps: true });
+    const canFullySupplyUsInSameRoomAsCreep = creep.pos.findClosestByPath(canFullySupplyUs, {
+      ignoreCreeps: true,
+      costCallback: (rn: string, cm: CostMatrix) => creep.CostCallback(rn, cm),
+    });
     const canFullySupplyUsAnywhere = canFullySupplyUs.pop();
 
     const anySourceInMyRoom = creep.pos.findClosestByPath(
       possibleSources.map(s => s[0]),
-      { ignoreCreeps: true },
+      { costCallback: (rn: string, cm: CostMatrix) => creep.CostCallback(rn, cm) },
     );
     const anySourceAnywhere = possibleSources.map(s => s[0]).pop();
     const best =
@@ -356,7 +354,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
 
       const sameRoom = supplier.pos.findClosestByPath(
         group.filter(s => s.pos.roomName === supplier.room.name),
-        { ignoreCreeps: true },
+        { costCallback: (rn: string, cm: CostMatrix) => supplier.CostCallback(rn, cm) },
       );
       if (sameRoom) return sameRoom;
 
@@ -388,7 +386,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
 
       const sameRoom = supplier.pos.findClosestByPath(
         group.filter(s => s.room.name === supplier.room.name),
-        { ignoreCreeps: true },
+        { costCallback: (rn: string, cm: CostMatrix) => supplier.CostCallback(rn, cm) },
       );
       if (sameRoom) return sameRoom;
 
@@ -455,7 +453,10 @@ export class Worker extends CreepRoleBase implements CreepRole {
         .filter(s => p(s.site) && s.site.hits / s.site.hitsMax < repairAt && s.count < maxRepairs)
         .map(c => c.site);
 
-      if (needsRepair.length > 0) return supplier.pos.findClosestByPath(needsRepair, { ignoreCreeps: true });
+      if (needsRepair.length > 0)
+        return supplier.pos.findClosestByPath(needsRepair, {
+          costCallback: (rn: string, cm: CostMatrix) => supplier.CostCallback(rn, cm),
+        });
     }
 
     return null;

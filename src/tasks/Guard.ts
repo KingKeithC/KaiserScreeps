@@ -42,7 +42,9 @@ export class GuardTask extends TargetTask<typeof TaskAction.Guard, string> {
     const hostiles = room.find(FIND_HOSTILE_CREEPS);
     if (hostiles) {
       // Attack closest hostile
-      const closestHostile = creep.pos.findClosestByPath(hostiles);
+      const closestHostile = creep.pos.findClosestByPath(hostiles, {
+        costCallback: (rn: string, cm: CostMatrix) => creep.CostCallback(rn, cm),
+      });
       if (closestHostile) return { range: 1, target: closestHostile, result: creep.attack(closestHostile) };
       return null; // No path to hostiles
     }
@@ -51,6 +53,7 @@ export class GuardTask extends TargetTask<typeof TaskAction.Guard, string> {
     if (!rampart) {
       const found = creep.pos.findClosestByPath(FIND_MY_STRUCTURES, {
         filter: s => s.structureType === STRUCTURE_RAMPART,
+        costCallback: (rn: string, cm: CostMatrix) => creep.CostCallback(rn, cm),
       });
       if (found) {
         this.rampartId = found.id as Id<StructureRampart>;

@@ -304,7 +304,7 @@ export class Colony {
     this.MyRooms.forEach(r => {
       r.ClearStructureDependentData();
       this.log.report(
-        `Regenerated ${r.name} PathfindingCostMatrix ${r.PathfindingCostMatrix !== null ? 'Yes' : 'Error'}`,
+        `Regenerated ${r.name} PathfindingCostMatrix ${r.StructuresCostMatrix !== null ? 'Yes' : 'Error'}`,
       );
     });
   }

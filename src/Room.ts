@@ -235,46 +235,58 @@ export class RoomExtra extends Room {
   // We return the cached matrix from the property if it is defined,
   // Otherwise we check memory and deserialize it from there,
   // then cache that as a property for fast access in the same tick.
-  private cachedDeserializedCostMatrix?: CostMatrix;
-  get PathfindingCostMatrix(): CostMatrix {
+  private cachedDeserializedStructuresCostMatrix?: CostMatrix;
+  get StructuresCostMatrix(): CostMatrix {
     // Return from cached property
-    if (this.cachedDeserializedCostMatrix !== undefined) return this.cachedDeserializedCostMatrix;
+    if (this.cachedDeserializedStructuresCostMatrix !== undefined) return this.cachedDeserializedStructuresCostMatrix;
 
     // Return from memory, and update cache
     if (this.memory.pathfindingCostMatrix !== undefined) {
-      this.cachedDeserializedCostMatrix = PathFinder.CostMatrix.deserialize(this.memory.pathfindingCostMatrix);
-      return this.cachedDeserializedCostMatrix;
+      this.cachedDeserializedStructuresCostMatrix = PathFinder.CostMatrix.deserialize(
+        this.memory.pathfindingCostMatrix,
+      );
+      return this.cachedDeserializedStructuresCostMatrix;
     }
 
     // Not in memory or cache, call update function.
-    this.UpdateCostMatrix();
+    this.UpdateStructuresCostMatrix();
 
     // If still undefined, then there was an error
     if (this.memory.pathfindingCostMatrix === undefined)
       throw new Error('Cost Matrix was undefined after calling UpdateCostMatrix().');
 
     // Return from memory, and update cache
-    this.cachedDeserializedCostMatrix = PathFinder.CostMatrix.deserialize(this.memory.pathfindingCostMatrix);
-    return this.cachedDeserializedCostMatrix;
+    this.cachedDeserializedStructuresCostMatrix = PathFinder.CostMatrix.deserialize(this.memory.pathfindingCostMatrix);
+    return this.cachedDeserializedStructuresCostMatrix;
+  }
+
+  private cachedCreepsCostMatrix?: CostMatrix;
+  get CreepsCostMatrix(): CostMatrix {
+    if (this.cachedCreepsCostMatrix) return this.cachedCreepsCostMatrix;
+
+    // Start from the structures matrix
+    this.cachedCreepsCostMatrix = this.StructuresCostMatrix.clone();
+
+    // Blot out the positions of all creeps in the room
+    for (const creep of this.find(FIND_CREEPS))
+      this.cachedCreepsCostMatrix.set(creep.pos.x, creep.pos.y, this.PathfindingParams.Unwalkable);
+
+    // Don't bother saving the matrix since it's only valid for this tick
+
+    return this.cachedCreepsCostMatrix;
   }
 
   public ClearStructureDependentData(): void {
     this.log.warn(`ClearStructureDependentData...`);
 
     // Clear cost matricies
-    this.cachedDeserializedCostMatrix = undefined;
     this.memory.pathfindingCostMatrix = undefined;
     this.memory.pathfindingCostMatrixDate = undefined;
+    this.cachedDeserializedStructuresCostMatrix = undefined;
+    this.cachedCreepsCostMatrix = undefined;
 
     // Also clear the list of mining positions
     this.memory.mines = undefined;
-  }
-
-  get PathfindingCostMatrixDate(): number {
-    return this.memory.pathfindingCostMatrixDate ?? 0;
-  }
-  private set PathfindingCostMatrixDate(value: number) {
-    this.memory.pathfindingCostMatrixDate = value;
   }
 
   PathfindingParams = {
@@ -288,7 +300,7 @@ export class RoomExtra extends Room {
 
   CostMatrixIsStale = false;
 
-  private UpdateCostMatrix(): void {
+  private UpdateStructuresCostMatrix(): void {
     this.log.info(`Updating Cost Matrix...`);
     const matrix = new PathFinder.CostMatrix();
     const terrain = this.getTerrain();
@@ -378,11 +390,10 @@ export class RoomExtra extends Room {
       matrix.set(s.pos.x, s.pos.y, this.PathfindingParams.Unwalkable);
 
     // Cache
-    this.cachedDeserializedCostMatrix = matrix;
+    this.cachedDeserializedStructuresCostMatrix = matrix;
 
     // Memoize
     this.memory.pathfindingCostMatrix = matrix.serialize();
-    this.PathfindingCostMatrixDate = Game.time;
     this.CostMatrixIsStale = false;
   }
 
@@ -828,7 +839,7 @@ export class RoomExtra extends Room {
   DrawCostMatrixOverlay(): void {
     for (let x = 0; x < 50; x++)
       for (let y = 0; y < 50; y++) {
-        const weight = this.PathfindingCostMatrix.get(x, y);
+        const weight = this.CreepsCostMatrix.get(x, y);
         if (weight > 0)
           this.visual
             .rect(x - 0.5, y - 0.5, 1, 1, { fill: LerpColour('#00ff00', '#ff0000', weight / 255) })
@@ -849,7 +860,7 @@ export class RoomExtra extends Room {
     [(s => (s instanceof StructureRampart || s instanceof StructureWall) && s.hits < 100_000), 1, 1],
 
     // Anything else that's below half health, as long as more repairs are enabled
-    [(s => !this.ForeverRepairs && s.hits < s.hitsMax), 0.5, 1],
+    [(s => this.ForeverRepairs && s.hits < s.hitsMax), 0.5, 1],
     [(s => {if (
       s instanceof StructureRampart
       || s instanceof StructureContainer

@@ -27,10 +27,11 @@ export class Mine extends TargetTask<typeof TaskAction.Mine, MiningPosition> {
     // If the target is no longer claimed, we're done
     if (!creep.AssignedRoom.ClaimedMinePositions.some(p => p === this.target.pos)) return true;
 
-    // If the source is invalid (in a visible room and still null) we're done
     const target = DeserializeRoomPosition(this.target.pos);
     const source = Game.getObjectById(this.target.source);
-    if (target.roomName in Game.rooms && source === null) return true;
+    if (target.roomName in Game.rooms && source === null)
+      return true; // If the source is invalid (in a visible room and still null) we're done
+    else if (!(target.roomName in Game.rooms)) return false; // If it's in a non-visible room, we'll consider it incomplete.
 
     // If someone (other than us) is in our spot, we're done
     const occupier = target.lookFor(LOOK_CREEPS).pop();

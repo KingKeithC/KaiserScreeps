@@ -86,7 +86,9 @@ export class Defender extends CreepRoleBase implements CreepRole {
     for (const [room, creeps] of creep.AssignedRoom.HostilesByRoom) {
       const roomName = room instanceof Room ? room.name : room;
       if (roomName === creep.room.name) {
-        const found = creep.pos.findClosestByPath(creeps);
+        const found = creep.pos.findClosestByPath(creeps, {
+          costCallback: (rn: string, cm: CostMatrix) => creep.CostCallback(rn, cm),
+        });
         if (found) return found;
       }
     }

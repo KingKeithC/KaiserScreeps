@@ -12,14 +12,13 @@ export class Collect extends BaseTask<typeof TaskAction.Collect> {
   public readonly targetId: Id<ResourceContainer>;
 
   public constructor(
-    targetOrId: Id<ResourceContainer> | ResourceContainer,
+    target: ResourceContainer,
     public readonly resourceType: ResourceConstant = RESOURCE_ENERGY,
     public readonly maxAttempts = 5,
     public readonly smallPickupThreshold = 50,
   ) {
     super(TaskAction.Collect);
-    if ('id' in targetOrId) this.targetId = targetOrId.id;
-    else this.targetId = targetOrId;
+    this.targetId = target.id;
   }
 
   public toString(): string {

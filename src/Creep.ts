@@ -96,15 +96,9 @@ export class CreepExtra extends Creep {
   MaxAvoidTicks = 4;
   MoveLong(pos: RoomPosition, opts?: MoveToOpts): number {
     this.log.debug('Invoking MoveLong to ${pos} with ${opts}', { pos, opts });
-    const costCallback = (rn: string, cm: CostMatrix) => {
-      if (!(rn in Game.rooms)) return cm;
-      const myRoom = this.colony.MyRooms.filter(mr => mr.name === rn).pop();
-      if (myRoom) return myRoom.PathfindingCostMatrix;
-      return cm;
-    };
     return this.moveTo(pos, {
       ...opts,
-      costCallback,
+      costCallback: (rn: string, cm: CostMatrix) => this.CostCallback(rn, cm),
       visualizePathStyle: { stroke: Colours.PATH_LONG, lineStyle: 'solid' },
       ignoreCreeps: true,
       reusePath: 20,
@@ -115,14 +109,20 @@ export class CreepExtra extends Creep {
   MoveAvoidCreeps(pos: RoomPosition, opts?: MoveToOpts): number {
     this.log.debug('Invoking MoveAvoidCreeps to ${pos} with ${opts}', { pos, opts });
     // eslint-disable-next-line no-underscore-dangle
-    delete this.memory._move; // Clear out any cached path
     return this.moveTo(pos, {
       ...opts,
+      costCallback: (rn: string, cm: CostMatrix) => this.CostCallback(rn, cm),
       visualizePathStyle: { stroke: Colours.PATH_STUCK, lineStyle: 'dotted' },
-      ignoreCreeps: false,
-      reusePath: 0,
-      plainCost: 1,
+      reusePath: 5,
+      plainCost: 2,
     });
+  }
+
+  CostCallback(roomName: string, matrix: CostMatrix): CostMatrix | void {
+    if (!(roomName in Game.rooms)) return matrix;
+    const myRoom = this.colony.MyRooms.filter(mr => mr.name === roomName).pop();
+    if (myRoom) return myRoom.CreepsCostMatrix;
+    return matrix;
   }
 
   // Returns 1 when in range; otherwise returns the moveTo result.
@@ -130,6 +130,9 @@ export class CreepExtra extends Creep {
   MoveCreep(target: RoomPosition | { pos: RoomPosition }, opts?: MoveToOpts): number {
     this.IntendedToMove = true;
     const targetPos = target instanceof RoomPosition ? target : target.pos;
+
+    if (!(targetPos.roomName in Game.rooms))
+      this.log.warn('Target room is not visible: ${target}', { target: targetPos });
 
     if (this.pos.roomName === targetPos.roomName && this.pos.getRangeTo(targetPos) <= (opts?.range ?? 1)) {
       // Arrived / Base case
