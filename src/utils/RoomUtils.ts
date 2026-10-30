@@ -252,3 +252,19 @@ export function ResourceContainersForRoomByType(room: string | Room): Map<Resour
 
   return ret;
 }
+
+export function FirstBodyByEnergyCapacity(
+  room: Room,
+  ...bodies: (BodyPartConstant[] | null | undefined)[]
+): BodyPartConstant[] | null {
+  for (const body of bodies) if (body && room.energyCapacityAvailable >= BodyCost(body)) return body;
+  return null;
+}
+
+export function FirstBodyByEnergyAvailable(
+  room: Room,
+  ...bodies: (BodyPartConstant[] | null | undefined)[]
+): BodyPartConstant[] | null {
+  for (const body of bodies) if (body && room.energyAvailable >= BodyCost(body)) return body;
+  return null;
+}

@@ -14,7 +14,13 @@ import {
 } from 'tasks';
 import { MakeBody } from 'utils/Collections';
 import { BodyCost } from 'utils/CreepUtils';
-import { ContainerAndAmount, ResourceContainersForRoomByType, ResourceContainer } from 'utils/RoomUtils';
+import {
+  ContainerAndAmount,
+  ResourceContainersForRoomByType,
+  ResourceContainer,
+  FirstBodyByEnergyAvailable,
+  FirstBodyByEnergyCapacity,
+} from 'utils/RoomUtils';
 import { CreepRoleBase, CreepRole } from './Role';
 
 export class Worker extends CreepRoleBase implements CreepRole {
@@ -23,17 +29,19 @@ export class Worker extends CreepRoleBase implements CreepRole {
 
   GetNewCreepBody(room: RoomExtra): BodyPartConstant[] {
     const zygote = MakeBody([CARRY, 2], [WORK, 1], [MOVE, 2]); // 300
-    const tiers = [
-      // MakeBody([WORK, 11], [CARRY, 6], [MOVE, 8]), // 1800
-      MakeBody([WORK, 6], [CARRY, 7], [MOVE, 7]), // 1300
+    const body = FirstBodyByEnergyCapacity(
+      room,
+      FirstBodyByEnergyAvailable(
+        room,
+        MakeBody([WORK, 11], [CARRY, 6], [MOVE, 8]), // 1800
+        MakeBody([WORK, 6], [CARRY, 7], [MOVE, 7]), // 1300
+      ),
       MakeBody([WORK, 2], [CARRY, 4], [MOVE, 3]), // 550
       zygote,
-    ];
+    );
 
-    const measure = room.AssignedCreeps.length < 3 ? room.energyAvailable : room.energyCapacityAvailable;
-    for (const t of tiers) if (BodyCost(t) <= measure) return t; // Return the first body we can currently afford
-
-    return zygote;
+    if (body) return body;
+    else return zygote;
   }
 
   TickCreep(creep: CreepExtra): void {
