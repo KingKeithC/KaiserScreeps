@@ -188,7 +188,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
       for (const resourceType in creep.store)
         if (resourceType !== RESOURCE_ENERGY) {
           this.log.warn('Non-Energy being stored: ${resourceType}', { '<creep>': creep, resourceType });
-          return new Supply(creep.AssignedRoom.storage.id, resourceType as ResourceConstant);
+          return new Supply(creep.AssignedRoom.storage, resourceType as ResourceConstant);
         }
     }
 
