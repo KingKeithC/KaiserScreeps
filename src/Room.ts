@@ -72,10 +72,7 @@ export class RoomExtra extends Room {
   }
 
   GetAssignedTasks(taskAction?: string): CreepTask[] {
-    const ret = [];
-    for (const c of this.AssignedCreeps) if (c.currentTask) ret.push(c.currentTask);
-    if (!taskAction) return ret;
-    return ret.filter(t => t.action === taskAction);
+    return this.GetAssignedTasksWithCreep(taskAction).map(s => s[1]);
   }
 
   GetAssignedTasksWithCreep(taskAction?: string): [CreepExtra, CreepTask][] {
@@ -512,31 +509,16 @@ export class RoomExtra extends Room {
     return GetHostileInfo(this);
   }
 
-  get AvailableSpawns(): StructureSpawn[] {
-    return this.find(FIND_MY_SPAWNS, { filter: s => !s.spawning });
+  get ClaimedContainers(): StructureContainer[] {
+    return this.FlatMapOverRoomsInClaimedArea(r =>
+      typeof r === 'string' ? [] : r.find(FIND_STRUCTURES, { filter: s => s.structureType === STRUCTURE_CONTAINER }),
+    );
   }
 
-  get Towers(): StructureTower[] {
-    return this.find(FIND_MY_STRUCTURES, { filter: s => s.structureType === STRUCTURE_TOWER });
-  }
-
-  public get Sources(): Source[] {
-    return this.find(FIND_SOURCES);
-  }
-
-  get Containers(): StructureContainer[] {
-    const containerGetter = (r: Room) =>
-      r.find(FIND_STRUCTURES, { filter: s => s.structureType === STRUCTURE_CONTAINER });
-    let ret = [...containerGetter(this)];
-    for (const claimed of this.WorkableClaimedRooms) ret = ret.concat(...containerGetter(claimed));
-    return ret as StructureContainer[];
-  }
-
-  get Repairs(): AnyStructure[] {
-    const repairGetter = (r: Room) => r.find(FIND_STRUCTURES, { filter: s => s.hits < s.hitsMax });
-    let ret = [...repairGetter(this)];
-    for (const claimed of this.WorkableClaimedRooms) ret = ret.concat(...repairGetter(claimed));
-    return ret;
+  get ClaimedRepairs(): AnyStructure[] {
+    return this.FlatMapOverRoomsInClaimedArea(r =>
+      typeof r === 'string' ? [] : r.find(FIND_STRUCTURES, { filter: s => s.hits < s.hitsMax }),
+    );
   }
 
   get Ramparts(): StructureRampart[] {
@@ -689,7 +671,9 @@ export class RoomExtra extends Room {
 
   RunTowers(): void {
     // Run each tower in the room
-    if (!this.DisableTowers) for (const tower of this.Towers) this.TickTower(tower);
+    if (!this.DisableTowers)
+      for (const tower of this.find(FIND_MY_STRUCTURES, { filter: s => s.structureType === STRUCTURE_TOWER }))
+        this.TickTower(tower as StructureTower);
   }
 
   RunLinks(): void {
@@ -720,7 +704,7 @@ export class RoomExtra extends Room {
   }
 
   CheckSpawns(): void {
-    const maxSpawns = this.AvailableSpawns.length;
+    const maxSpawns = this.find(FIND_MY_SPAWNS, { filter: s => !s.spawning }).length;
     if (maxSpawns === 0) {
       this.log.info(`All spawns in use.`, { '<rate>': 20 });
       return;
@@ -785,7 +769,7 @@ export class RoomExtra extends Room {
   }
 
   TrySpawnRole(role: CreepRole, name: string, body: BodyPartConstant[]): boolean {
-    for (const sp of this.AvailableSpawns) {
+    for (const sp of this.find(FIND_MY_SPAWNS, { filter: s => !s.spawning })) {
       // Get directions to surrounding roads
       const nearbyRoads = sp.pos.findInRange(this.Roads, 1).map(nr => sp.pos.getDirectionTo(nr.pos.x, nr.pos.y));
 
@@ -870,7 +854,7 @@ export class RoomExtra extends Room {
   }
 
   DrawRepairOverlay(): void {
-    for (const d of this.Repairs)
+    for (const d of this.ClaimedRepairs)
       this.visual.rect(d.pos.x - 0.5, d.pos.y - 0.5, 1, 1, {
         fill: LerpColour('#ff0000', '#00ff00', d.hits / d.hitsMax),
       });
@@ -912,7 +896,7 @@ export class RoomExtra extends Room {
     const roomLimit = (s: AnyStructure) =>
       limitToRoom === undefined || (limitToRoom !== undefined && s.pos.roomName === limitToRoom.name);
     for (const [predicate, repairAt, maxWorkers] of this.RepairPriorities) {
-      const candidates = this.Repairs.filter(
+      const candidates = this.ClaimedRepairs.filter(
         s => roomLimit(s) && predicate(s) && s.hits / s.hitsMax < repairAt && incoming(s) < maxWorkers,
       );
 

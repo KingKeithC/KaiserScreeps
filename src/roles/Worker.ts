@@ -226,9 +226,9 @@ export class Worker extends CreepRoleBase implements CreepRole {
     const totalMinerBodies = sum(creep.AssignedRoom.GetAssignedTasksWithCreep(TaskAction.Mine), m =>
       BodyCost(m[0].body),
     );
-    if (miningTask !== null && totalMinerBodies < this.RelyOnMinersAt) {
+    if (miningTask !== null && totalMinerBodies < this.WorkersMineBelowMinerBodyTotalCost) {
       this.log.warn(
-        `Emergency mining since too few miners are available (${totalMinerBodies}/${this.RelyOnMinersAt})...`,
+        `Emergency mining since too few miners are available (${totalMinerBodies}/${this.WorkersMineBelowMinerBodyTotalCost})...`,
         { '<creep>': creep },
       );
       return miningTask;
@@ -297,24 +297,22 @@ export class Worker extends CreepRoleBase implements CreepRole {
         if (!(room instanceof Room)) continue;
         const roomTowers = room.find(FIND_MY_STRUCTURES, { filter: s => s.structureType === STRUCTURE_TOWER });
         const ongoingRepairs = repairTasks.filter(rt => rt.repairRoom === room.name);
-        const ongoingTowerSupplys = supplyTasks.filter(st => creep.AssignedRoom.Towers.some(t => t.id === st.target));
+        const ongoingTowerSupplys = supplyTasks.filter(st => roomTowers.some(t => t.id === st.target));
 
         // Repair if there are no available towers to do it
         if (roomTowers.length === 0 && ongoingRepairs.length < this.MaxRepairPerRoom) {
           const repair = this.FindIdealRepairByStrength(creep, roomRepairs);
           if (repair) return new Repair(repair);
         } else if (roomTowers.length > 0 && ongoingTowerSupplys.length < this.MaxSupplyForTowers) {
-          const tower = this.FindSupplyByPath(creep, creep.AssignedRoom.Towers, 'towers');
+          const tower = this.FindSupplyByPath(creep, roomTowers as StructureTower[], 'towers');
           if (tower) return new Supply(tower.id);
         }
       }
     }
-
     return null;
   }
 
-  RelyOnMinersAt = 1000;
-
+  WorkersMineBelowMinerBodyTotalCost = 1000;
   IgnoreDroppedResourcesLessThan = 30;
   MediumSearchRange = 20;
   ShortSearchRange = 5;
@@ -438,7 +436,10 @@ export class Worker extends CreepRoleBase implements CreepRole {
     }
 
     for (const [p, repairAt, maxRepairs] of supplier.AssignedRoom.RepairPriorities) {
-      const needsRepair = supplier.AssignedRoom.Repairs.map(s => ({ site: s, count: targetsByCount.get(s.id) ?? 0 }))
+      const needsRepair = supplier.AssignedRoom.ClaimedRepairs.map(s => ({
+        site: s,
+        count: targetsByCount.get(s.id) ?? 0,
+      }))
         .filter(s => p(s.site) && s.site.hits / s.site.hitsMax < repairAt && s.count < maxRepairs)
         .map(c => c.site);
 
