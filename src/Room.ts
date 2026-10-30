@@ -33,6 +33,7 @@ declare global {
     pathfindingCostMatrixDate?: number;
     pathfindingCostMatrix?: number[];
     storeOverUpgrade?: boolean;
+    allowStorageDraw?: boolean;
   }
 }
 
@@ -150,6 +151,13 @@ export class RoomExtra extends Room {
   }
   set LinkGroups(value: { [key: string]: Id<StructureLink>[] }) {
     this.memory.linkGroups = value;
+  }
+
+  get AllowStorageDraw(): boolean {
+    return this.memory.allowStorageDraw ?? false;
+  }
+  set AllowStorageDraw(value: boolean) {
+    this.memory.allowStorageDraw = value;
   }
 
   set Mines(value: MiningPosition[]) {

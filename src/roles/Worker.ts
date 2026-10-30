@@ -217,7 +217,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
     // If no task found, try a random miner
     if (!gather) gather = this.CollectFromRandomMiner(creep);
     // If still no task found, try gthering from storage
-    if (!gather && !creep.AssignedRoom.StoreOverUpgrade) gather = this.CollectFromRoomStorage(creep);
+    if (!gather && creep.AssignedRoom.AllowStorageDraw) gather = this.CollectFromRoomStorage(creep);
     // If we found a gathering task, return it
     if (gather) return gather;
 
