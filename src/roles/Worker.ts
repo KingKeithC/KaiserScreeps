@@ -156,11 +156,18 @@ export class Worker extends CreepRoleBase implements CreepRole {
 
   CollectResources(creep: CreepExtra, searchForType: ResourceConstant[]): Collect | null {
     const containersByType = new Map<ResourceConstant, ContainerAndAmount[]>();
-    for (const result of creep.AssignedRoom.MapWithRoomsInClaimedArea(ResourceContainersForRoomByType))
-      for (const [rt, sources] of result[1]) {
-        const existing = containersByType.get(rt) ?? [];
-        containersByType.set(rt, existing.concat(sources));
-      }
+    for (const [_room, results] of creep.AssignedRoom.MapWithRoomsInClaimedArea(ResourceContainersForRoomByType))
+      for (const [rt, sources] of results)
+        if (searchForType.includes(rt)) {
+          const existing = containersByType.get(rt) ?? [];
+          containersByType.set(rt, existing.concat(sources));
+        }
+
+    this.log.debug('Collect Resources, searched for ${searchForType} found ${containersByType}', {
+      '<creep>': creep,
+      containersByType: [...containersByType],
+      searchForType,
+    });
 
     // Find according to priorities
     for (const prio of searchForType) {
@@ -174,6 +181,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
   }
 
   SelectNextTask(creep: CreepExtra): CreepTask | null {
+    // SUPPLY
     if (
       creep.AssignedRoom.storage !== undefined &&
       creep.store.getUsedCapacity() - creep.store.getUsedCapacity(RESOURCE_ENERGY) > 0
@@ -201,7 +209,10 @@ export class Worker extends CreepRoleBase implements CreepRole {
       else if (creep.AssignedRoom.storage !== undefined && creep.AssignedRoom.StoreOverUpgrade)
         // If still no spending task, and there is storage, then store
         return new Supply(creep.AssignedRoom.storage.id);
-    } else if (creep.store.getUsedCapacity(RESOURCE_ENERGY) === 0 && creep.AssignedRoom.storage !== undefined) {
+    }
+
+    // GATHER
+    if (creep.store.getUsedCapacity() === 0 && creep.AssignedRoom.storage !== undefined) {
       // Need to haul non-energy resources
       const nonEnergy = this.CollectResources(
         creep,
@@ -211,7 +222,9 @@ export class Worker extends CreepRoleBase implements CreepRole {
         this.log.warn('Non-Energy being collected: ${resourceType}', { resourceType: nonEnergy.resourceType });
         return nonEnergy;
       }
-    } else if (creep.store.getFreeCapacity() > 0) {
+    }
+
+    if (creep.store.getFreeCapacity() > 0) {
       // Try to find a gathering task
       const gather =
         this.CollectResources(creep, [RESOURCE_ENERGY]) ??
