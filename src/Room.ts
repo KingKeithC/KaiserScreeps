@@ -1,6 +1,13 @@
 import { Dictionary, flatten, range, unique } from 'lodash';
 import { CreepTask, Mine, Repair, TaskAction, UpdateController } from 'tasks';
-import { FormatHostileInfos, GetHostileInfo, GetMiningPositions, HostileInfo, MiningPosition } from 'utils/RoomUtils';
+import {
+  FormatHostileInfos,
+  GetHostileInfo,
+  GetMinesForRoom,
+  GetMiningPositions,
+  HostileInfo,
+  MiningPosition,
+} from 'utils/RoomUtils';
 import { Colony } from 'Colony';
 import { CreepExtra } from 'Creep';
 import { DeserializeRoomPosition, FmtRatios, LerpColour, SerializeRoomPosition } from 'utils/Collections';
@@ -386,65 +393,8 @@ export class RoomExtra extends Room {
     return this.memory.eventAmounts ?? {};
   }
 
-  GetMinesForRoom(cr: RoomExtra | Room | string): MiningPosition[] {
-    Memory.scoutingReports ??= {};
-
-    // Owned room, just return it's Mines property.
-    if (cr instanceof RoomExtra) return cr.Mines;
-
-    let existingReport;
-    if (typeof cr === 'string') {
-      // Not owned, and not visible room.
-
-      // Lookup the existing report for the room, and
-      // if the report has mines, and the room is neutral,
-      // then return those mines.
-      existingReport = Memory.scoutingReports[cr];
-      if (!existingReport) return [];
-      if (!existingReport.mines) return [];
-
-      // Don't return mines for hostile rooms, since we can
-      // only mine neutral or owned rooms.
-      if (existingReport.owner !== undefined && existingReport.owner !== this.colony.username) return [];
-
-      return existingReport.mines;
-    }
-
-    // Not an owned room
-    // Get mines from the room's scouting report, and if there is
-    // no scouting report, create a new one and return the mines from that.
-    if (cr instanceof Room) {
-      existingReport = Memory.scoutingReports[cr.name];
-
-      if (existingReport !== undefined)
-        if (existingReport.mines !== undefined && existingReport.mines.length > 0) return existingReport.mines;
-        else {
-          if (
-            cr.controller !== undefined &&
-            cr.controller.owner !== undefined &&
-            cr.controller.owner.username === this.colony.username
-          ) {
-            this.log.warn('Skipping unminable hostile room: ${roomName}', { '<rate>': 20, roomName: cr.name });
-            return [];
-          }
-
-          const mines = GetMiningPositions(cr);
-          Memory.scoutingReports[cr.name].mines = mines;
-          return mines;
-        }
-      else {
-        // Broken - Causes Type Error, tried to lookup a non-visible room
-        // const report = MakeRoomReport(cr);
-        // Memory.scoutingReports[cr.name] = report;
-        // return report.mines;
-      }
-    }
-
-    return [];
-  }
-
   get WorkableClaimedMiningPositions(): [RoomExtra | Room | string, MiningPosition[]][] {
-    return this.MapWithRoomsInClaimedArea(cr => this.GetMinesForRoom(cr), true);
+    return this.MapWithRoomsInClaimedArea(cr => GetMinesForRoom(cr, this.colony.username), true);
   }
 
   get ClaimedSources(): Id<Source>[] {

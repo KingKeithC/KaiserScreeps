@@ -273,3 +273,60 @@ export function FirstBodyByEnergyAvailable(
   for (const body of bodies) if (body && room.energyAvailable >= BodyCost(body)) return body;
   return null;
 }
+
+export function GetMinesForRoom(room: Room | string, myUsername: string): MiningPosition[] {
+  Memory.scoutingReports ??= {};
+
+  let existingReport;
+  if (typeof room === 'string') {
+    // Not owned, and not visible room.
+
+    // Lookup the existing report for the room, and
+    // if the report has mines, and the room is neutral,
+    // then return those mines.
+    existingReport = Memory.scoutingReports[room];
+    if (!existingReport) return [];
+    if (!existingReport.mines) return [];
+
+    // Don't return mines for hostile rooms, since we can
+    // only mine neutral or owned rooms.
+    if (existingReport.owner !== undefined && existingReport.owner !== myUsername) return [];
+
+    return existingReport.mines;
+  }
+
+  // Not an owned room
+  // Get mines from the room's scouting report, and if there is
+  // no scouting report, create a new one and return the mines from that.
+  if (room instanceof Room) {
+    existingReport = Memory.scoutingReports[room.name];
+
+    if (existingReport !== undefined)
+      if (existingReport.mines !== undefined && existingReport.mines.length > 0) return existingReport.mines;
+      else {
+        if (
+          room.controller !== undefined &&
+          room.controller.owner !== undefined &&
+          room.controller.owner.username === myUsername
+        ) {
+          Logger.warn('GetMinesForRoom: Skipping unminable hostile room: ${roomName}', {
+            '<rate>': 20,
+            roomName: room.name,
+          });
+          return [];
+        }
+
+        const mines = GetMiningPositions(room);
+        Memory.scoutingReports[room.name].mines = mines;
+        return mines;
+      }
+    else {
+      // Broken - Causes Type Error, tried to lookup a non-visible room
+      // const report = MakeRoomReport(cr);
+      // Memory.scoutingReports[cr.name] = report;
+      // return report.mines;
+    }
+  }
+
+  return [];
+}
