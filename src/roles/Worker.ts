@@ -97,8 +97,8 @@ export class Worker extends CreepRoleBase implements CreepRole {
     const stored = creep.AssignedRoom.storage?.store.getUsedCapacity(RESOURCE_ENERGY) ?? 0;
     if (
       creep.AssignedRoom.storage !== undefined &&
-      stored < creep.AssignedRoom.StorageWartimeEnergyBuffer &&
-      !creep.AssignedRoom.StoreOverUpgrade
+      stored > creep.AssignedRoom.StorageWartimeEnergyBuffer &&
+      creep.AssignedRoom.AllowStorageDraw
     )
       return new Collect(creep.AssignedRoom.storage.id);
 
@@ -211,28 +211,26 @@ export class Worker extends CreepRoleBase implements CreepRole {
         this.log.warn('Non-Energy being collected: ${resourceType}', { resourceType: nonEnergy.resourceType });
         return nonEnergy;
       }
-    }
+    } else if (creep.store.getFreeCapacity() > 0) {
+      // Try to find a gathering task
+      const gather =
+        this.CollectResources(creep, [RESOURCE_ENERGY]) ??
+        this.CollectFromRandomMiner(creep) ??
+        this.CollectFromRoomStorage(creep);
+      if (gather) return gather;
 
-    // Try to find a gathering task
-    let gather = this.CollectResources(creep, [RESOURCE_ENERGY]);
-    // If no task found, try a random miner
-    if (!gather) gather = this.CollectFromRandomMiner(creep);
-    // If still no task found, try gthering from storage
-    if (!gather && creep.AssignedRoom.AllowStorageDraw) gather = this.CollectFromRoomStorage(creep);
-    // If we found a gathering task, return it
-    if (gather) return gather;
-
-    // If there aren't enough miners, then do mining
-    const miningTask = this.MineAnyFreePosition(creep);
-    const totalMinerBodies = sum(creep.AssignedRoom.GetAssignedTasksWithCreep(TaskAction.Mine), m =>
-      BodyCost(m[0].body),
-    );
-    if (miningTask !== null && totalMinerBodies < this.WorkersMineBelowMinerBodyTotalCost) {
-      this.log.warn(
-        `Emergency mining since too few miners are available (${totalMinerBodies}/${this.WorkersMineBelowMinerBodyTotalCost})...`,
-        { '<creep>': creep },
+      // If there aren't enough miners, then do mining
+      const miningTask = this.MineAnyFreePosition(creep);
+      const totalMinerBodies = sum(creep.AssignedRoom.GetAssignedTasksWithCreep(TaskAction.Mine), m =>
+        BodyCost(m[0].body),
       );
-      return miningTask;
+      if (miningTask !== null && totalMinerBodies < this.WorkersMineBelowMinerBodyTotalCost) {
+        this.log.warn(
+          `Emergency mining since too few miners are available (${totalMinerBodies}/${this.WorkersMineBelowMinerBodyTotalCost})...`,
+          { '<creep>': creep },
+        );
+        return miningTask;
+      }
     }
 
     // Didn't need or Can't find, gathering or spending task
@@ -262,6 +260,8 @@ export class Worker extends CreepRoleBase implements CreepRole {
         CONTROLLER_DOWNGRADE[creep.AssignedRoom.controller.level] * UpdateController.DowngradeMaintenanceRatio;
       if (creep.AssignedRoom.controller.ticksToDowngrade < downgradeMaintenanceThreshold)
         return new MaintainController(creep.AssignedRoom.controller);
+    } else {
+      throw new Error(`Assigned room ${creep.AssignedRoom} has no controller!`);
     }
 
     const supplyTasks = creep.AssignedRoom.GetAssignedTasks(TaskAction.Supply) as Supply[];
@@ -273,9 +273,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
       if (spawn) return new Supply(spawn.id);
     }
 
-    if (creep.AssignedRoom.controller === undefined)
-      throw new Error(`Assigned room ${creep.AssignedRoom} has no controller!`);
-
+    // Don't bother with construction or building at level 1
     if (creep.AssignedRoom.controller.level === 1) return new UpdateController(creep.AssignedRoom.controller);
 
     const constructions = creep.AssignedRoom.FlatMapOverRoomsInClaimedArea(r =>
@@ -321,9 +319,9 @@ export class Worker extends CreepRoleBase implements CreepRole {
   // prettier-ignore
   ConstructionPriorities: ((c: ConstructionSite) => boolean)[] = [
     (c => c.structureType === STRUCTURE_SPAWN),
-    (c => c.structureType === STRUCTURE_ROAD),
     (c => c.structureType === STRUCTURE_EXTENSION || c.structureType === STRUCTURE_SPAWN),
     (c => c.structureType === STRUCTURE_STORAGE || c.structureType === STRUCTURE_CONTAINER),
+    (c => c.structureType === STRUCTURE_ROAD),
     (c => c.structureType === STRUCTURE_RAMPART || c.structureType === STRUCTURE_WALL),
     (() => true),
   ];

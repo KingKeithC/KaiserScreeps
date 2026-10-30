@@ -228,27 +228,32 @@ export function ResourceContainersForRoomByType(room: string | Room): Map<Resour
         [tomb, tomb.store.getUsedCapacity(rt as ResourceConstant)],
       ]);
 
-  const tombstones: ContainerAndAmount[] = room
-    .find(FIND_TOMBSTONES, { filter: t => t.store.getUsedCapacity(RESOURCE_ENERGY) > 0 })
-    .map(t => [t, t.store.getUsedCapacity(RESOURCE_ENERGY)]);
+  for (const ruin of room.find(FIND_RUINS, { filter: r => r.store.getUsedCapacity(RESOURCE_ENERGY) > 0 }))
+    for (const rt in ruin.store)
+      ret.set(rt as ResourceConstant, [
+        ...(ret.get(rt as ResourceConstant) ?? []),
+        [ruin, ruin.store.getUsedCapacity(rt as ResourceConstant)],
+      ]);
 
-  const ruins: ContainerAndAmount[] = room
-    .find(FIND_RUINS, { filter: r => r.store.getUsedCapacity(RESOURCE_ENERGY) > 0 })
-    .map(t => [t, t.store.getUsedCapacity(RESOURCE_ENERGY)]);
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
+  for (const container of room.find(FIND_STRUCTURES, {
+    filter: s => s.structureType === STRUCTURE_CONTAINER && s.store.getUsedCapacity(RESOURCE_ENERGY) > 0,
+  }) as StructureContainer[])
+    for (const rt in container.store)
+      ret.set(rt as ResourceConstant, [
+        ...(ret.get(rt as ResourceConstant) ?? []),
+        [container, container.store.getUsedCapacity(rt as ResourceConstant)],
+      ]);
 
-  const containers: ContainerAndAmount[] = room
-    .find(FIND_STRUCTURES, {
-      filter: s => s.structureType === STRUCTURE_CONTAINER && s.store.getUsedCapacity(RESOURCE_ENERGY) > 0,
-    })
-    .map(t => [t as StructureContainer, (t as StructureContainer).store.getUsedCapacity(RESOURCE_ENERGY)]);
-
-  const links: ContainerAndAmount[] = room
-    .find(FIND_MY_STRUCTURES, {
-      filter: s => s.structureType === STRUCTURE_LINK && s.id in (room.memory.linkGroups ?? {}).Senders,
-    })
-    .map(t => [t as StructureLink, (t as StructureLink).store.getUsedCapacity(RESOURCE_ENERGY)]);
-
-  ret.set(RESOURCE_ENERGY, [...tombstones, ...ruins, ...containers, ...links]);
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
+  for (const sender of room.find(FIND_MY_STRUCTURES, {
+    filter: s => s.structureType === STRUCTURE_LINK && s.id in (room.memory.linkGroups ?? {}).Senders,
+  }) as StructureLink[])
+    for (const rt in sender.store)
+      ret.set(rt as ResourceConstant, [
+        ...(ret.get(rt as ResourceConstant) ?? []),
+        [sender, sender.store.getUsedCapacity(rt as ResourceConstant) ?? 0],
+      ]);
 
   return ret;
 }
