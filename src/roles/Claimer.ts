@@ -1,7 +1,7 @@
 import { CreepExtra } from 'Creep';
 import { unique } from 'lodash';
 import type { RoomExtra } from 'Room';
-import { ClaimRoomTask, CreepTask, TaskAction } from 'tasks';
+import { Claim, CreepTask, TaskAction } from 'tasks';
 import { MakeBody } from 'utils/Collections';
 import { CreepRole, CreepRoleBase } from './Role';
 
@@ -23,7 +23,7 @@ export class Claimer extends CreepRoleBase implements CreepRole {
   }
 
   WorkedClaims(room: RoomExtra): string[] {
-    return unique(room.GetAssignedTasks(TaskAction.Claim).map(p => (p as ClaimRoomTask).target));
+    return unique(room.GetAssignedTasks(TaskAction.Claim).map(p => (p as Claim).targetId));
   }
 
   UnworkedClaims(room: RoomExtra): string[] {
@@ -36,7 +36,11 @@ export class Claimer extends CreepRoleBase implements CreepRole {
   }
 
   override SelectNextTask(creep: CreepExtra): CreepTask | null {
-    for (const c of this.UnworkedClaims(creep.AssignedRoom)) return new ClaimRoomTask(c, false);
+    for (const c of this.UnworkedClaims(creep.AssignedRoom))
+      if (c in Game.rooms) {
+        const controller = Game.rooms[c].controller;
+        if (controller !== undefined) return new Claim(controller, false);
+      }
     return null;
   }
 }

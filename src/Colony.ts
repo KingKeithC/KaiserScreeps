@@ -12,8 +12,8 @@ import profiler from 'screeps-profiler';
 import {
   Attack,
   Build,
-  ClaimRoomTask,
   Collect,
+  Claim,
   CreepTask,
   Dismantle,
   GuardTask,
@@ -74,7 +74,7 @@ export class Colony {
     attack: Attack.prototype,
     guard: GuardTask.prototype,
     move: Move.prototype,
-    claim: ClaimRoomTask.prototype,
+    claim: Claim.prototype,
     dismantle: Dismantle.prototype,
   } as const;
 

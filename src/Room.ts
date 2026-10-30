@@ -430,7 +430,9 @@ export class RoomExtra extends Room {
    */
   AvailableMiningPositions(): MiningPosition[] {
     const ret = [];
-    const assignedMiningPositions = this.colony.GetAllAssignedTasks(TaskAction.Mine).map(p => (p as Mine).target);
+    const assignedMiningPositions = this.colony
+      .GetAllAssignedTasks(TaskAction.Mine)
+      .map(p => (p as Mine).miningPosition);
     for (const [_room, mines] of this.WorkableClaimedMiningPositions)
       for (const mine of mines) if (!assignedMiningPositions.some(amp => amp.source === mine.source)) ret.push(mine);
     return ret;
@@ -874,7 +876,7 @@ export class RoomExtra extends Room {
   FindRepairByPriorityAndStrength(limitToRoom?: RoomExtra, byRangeTo?: RoomPosition): AnyStructure | null {
     let priorityIndex = 0;
     const ongoingRepairs = this.GetAssignedTasks(TaskAction.Repair) as Repair[];
-    const incoming = (s: AnyStructure) => ongoingRepairs.filter(or => or.target === s.id).length;
+    const incoming = (s: AnyStructure) => ongoingRepairs.filter(or => or.targetId === s.id).length;
     const roomLimit = (s: AnyStructure) =>
       limitToRoom === undefined || (limitToRoom !== undefined && s.pos.roomName === limitToRoom.name);
     for (const [predicate, repairAt, maxWorkers] of this.RepairPriorities) {

@@ -25,12 +25,17 @@ export class Defender extends CreepRoleBase implements CreepRole {
     return total;
   }
 
-  public SelectNextTask(creep: CreepExtra): CreepTask {
+  public SelectNextTask(creep: CreepExtra): CreepTask | null {
     const hostile = this.FindNearestHostile(creep);
-    if (!hostile) {
-      return new GuardTask(creep.room.name);
+    if (hostile) return new Attack(hostile);
+    else {
+      const rampart = creep.pos.findClosestByPath(FIND_MY_STRUCTURES, {
+        filter: s => s.structureType === STRUCTURE_RAMPART,
+      });
+      if (rampart) return new GuardTask(rampart as StructureRampart);
     }
-    return new Attack(hostile);
+
+    return null;
   }
 
   public OnSpawn(creep: CreepExtra): void {

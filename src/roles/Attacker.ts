@@ -179,10 +179,12 @@ export class Attacker extends CreepRoleBase implements CreepRole {
     if (step.memory.attackType === 'Creeps' || step.memory.attackType === undefined)
       for (const nearby of this.Searches.AttackCreeps(step.pos)) if (nearby) return new Attack(nearby);
 
-    // If next step is Dismantle or 'any', find the target structure, and set to dismantling it
-    if (step.memory.attackType === 'NearestStructure' || step.memory.attackType === undefined)
-      for (const structure of this.Searches.AttackNearestStructure(step.pos))
-        if (structure) return new Dismantle(structure.id);
+    // If next step is Dismantle, find the target structure, and set to dismantling it
+    if (step.memory.attackType === 'NearestStructure') {
+      const structure = step.pos.lookFor(LOOK_STRUCTURES).pop();
+      if (!structure) return null;
+      return new Dismantle(structure);
+    }
 
     return null;
   }

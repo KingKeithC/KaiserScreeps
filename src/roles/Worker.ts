@@ -12,7 +12,7 @@ import {
   TaskAction,
   UpdateController,
 } from 'tasks';
-import { MakeBody } from 'utils/Collections';
+import { DeserializeRoomPosition, MakeBody } from 'utils/Collections';
 import { BodyCost } from 'utils/CreepUtils';
 import {
   ContainerAndAmount,
@@ -206,9 +206,10 @@ export class Worker extends CreepRoleBase implements CreepRole {
           (creep.AssignedRoom.storage !== undefined && !creep.AssignedRoom.StoreOverUpgrade))
       )
         return new UpdateController(creep.AssignedRoom.controller);
-      else if (creep.AssignedRoom.storage !== undefined && creep.AssignedRoom.StoreOverUpgrade)
-        // If still no spending task, and there is storage, then store
-        return new Supply(creep.AssignedRoom.storage.id);
+
+      // If still no spending task, and there is storage, then store
+      if (creep.AssignedRoom.storage !== undefined && creep.AssignedRoom.StoreOverUpgrade)
+        return new Supply(creep.AssignedRoom.storage);
     }
 
     // ------ GATHER ------
@@ -277,11 +278,11 @@ export class Worker extends CreepRoleBase implements CreepRole {
 
     const supplyTasks = creep.AssignedRoom.GetAssignedTasks(TaskAction.Supply) as Supply[];
     if (
-      supplyTasks.filter(s => creep.AssignedRoom.SpawnsOrExtensions.some(sp => sp.id === s.target)).length <
+      supplyTasks.filter(s => creep.AssignedRoom.SpawnsOrExtensions.some(sp => sp.id === s.targetId)).length <
       this.MaxSupplyForSpawns
     ) {
       const spawn = this.FindSupplyByPath(creep, creep.AssignedRoom.SpawnsOrExtensions, 'spawns/extensions');
-      if (spawn) return new Supply(spawn.id);
+      if (spawn) return new Supply(spawn);
     }
 
     // Don't bother with construction or building at level 1
@@ -291,9 +292,9 @@ export class Worker extends CreepRoleBase implements CreepRole {
       r instanceof Room ? r.find(FIND_MY_CONSTRUCTION_SITES) : [],
     );
     const buildTasks = creep.AssignedRoom.GetAssignedTasks(TaskAction.Build) as Build[];
-    if (buildTasks.filter(b => constructions.some(c => c.id === b.target)).length < this.MaxBuildPerRoom) {
+    if (buildTasks.filter(b => constructions.some(c => c.id === b.targetId)).length < this.MaxBuildPerRoom) {
       const cons = this.FindConstructionByPriorityAndPath(creep, constructions);
-      if (cons) return new Build(cons.id);
+      if (cons) return new Build(cons);
     }
 
     // Don't bother with repairs below RCL3
@@ -306,8 +307,8 @@ export class Worker extends CreepRoleBase implements CreepRole {
       for (const [room, roomRepairs] of repairs) {
         if (!(room instanceof Room)) continue;
         const roomTowers = room.find(FIND_MY_STRUCTURES, { filter: s => s.structureType === STRUCTURE_TOWER });
-        const ongoingRepairs = repairTasks.filter(rt => rt.repairRoom === room.name);
-        const ongoingTowerSupplys = supplyTasks.filter(st => roomTowers.some(t => t.id === st.target));
+        const ongoingRepairs = repairTasks.filter(rt => DeserializeRoomPosition(rt.targetPos).roomName === room.name);
+        const ongoingTowerSupplys = supplyTasks.filter(st => roomTowers.some(t => t.id === st.targetId));
 
         // Repair if there are no available towers to do it
         if (roomTowers.length === 0 && ongoingRepairs.length < this.MaxRepairPerRoom) {
@@ -315,7 +316,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
           if (repair) return new Repair(repair);
         } else if (roomTowers.length > 0 && ongoingTowerSupplys.length < this.MaxSupplyForTowers) {
           const tower = this.FindSupplyByPath(creep, roomTowers as StructureTower[], 'towers');
-          if (tower) return new Supply(tower.id);
+          if (tower) return new Supply(tower);
         }
       }
     }
@@ -377,7 +378,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
     let groups = 0;
     for (const [p, maxSuppliers] of this.SupplyPriorities) {
       const group = candidates
-        .map(s => ({ structure: s, suppliers: inProgressSupplyTasks.filter(ist => ist.target === s.id).length }))
+        .map(s => ({ structure: s, suppliers: inProgressSupplyTasks.filter(ist => ist.targetId === s.id).length }))
         .filter(
           s => s.structure.store.getFreeCapacity(RESOURCE_ENERGY) > 0 && p(s.structure) && s.suppliers < maxSuppliers,
         )
@@ -411,7 +412,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
 
   FindIdealRepairByStrength(creep: CreepExtra, candidates: AnyStructure[]): AnyStructure | undefined | null {
     const inProgressRepairTasks = creep.AssignedRoom.GetAssignedTasks(TaskAction.Repair).filter(
-      t => (t as Repair).repairRoom === creep.room.name,
+      t => DeserializeRoomPosition((t as Repair).targetPos).roomName === creep.room.name,
     );
     const targetsByCount = new Map<string, number>();
     for (const t of inProgressRepairTasks) {
