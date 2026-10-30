@@ -22,6 +22,20 @@
       "script": "lint",
       "problemMatcher": "$eslint-stylish",
       "options": { "cwd": "${workspaceFolder}" }
+    },
+    {
+      "type": "npm",
+      "script": "push-sim",
+      "problemMatcher": [],
+      "label": "npm: push-sim",
+      "detail": "rollup -c --environment DEST:sim"
+    },
+    {
+      "type": "npm",
+      "script": "watch-sim",
+      "problemMatcher": [],
+      "label": "npm: watch-sim",
+      "detail": "rollup -cw --environment DEST:sim"
     }
   ]
 }
