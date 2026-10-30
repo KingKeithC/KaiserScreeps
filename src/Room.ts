@@ -22,6 +22,7 @@ declare global {
     roleLimits?: { [roleName: string]: number };
     enableVisuals?: boolean;
     enableRepairOverlay?: boolean;
+    foreverRepair?: boolean;
     attackHostiles?: boolean;
     disableWarriors?: boolean;
     disableTowers?: boolean;
@@ -165,6 +166,12 @@ export class RoomExtra extends Room {
   }
   set AllowStorageDraw(value: boolean) {
     this.memory.allowStorageDraw = value;
+  }
+  get ForeverRepairs(): boolean {
+    return this.memory.foreverRepair ?? false;
+  }
+  set ForeverRepairs(value: boolean) {
+    this.memory.foreverRepair = value;
   }
 
   set Mines(value: MiningPosition[]) {
@@ -832,11 +839,17 @@ export class RoomExtra extends Room {
   // List of filter callback, health capacity to begin repair, and maxRepairers, descending order.
   // prettier-ignore
   RepairPriorities: [((s: AnyStructure) => boolean), number, number][] = [
-    [(s => (s instanceof StructureRampart || s instanceof StructureWall) && s.hits < 10_000), 1, 1],
+    // Anything other than the big repair needs that's under %80 health
+    [(s => !(s instanceof StructureRampart || s instanceof StructureWall || s instanceof StructureRoad)), 0.8, 2],
+
+    // Roads under 75%
     [(s => s instanceof StructureRoad), 0.75, 1],
-    [(s => (s instanceof StructureRoad || s instanceof StructureRampart || s instanceof StructureWall)), 0.75, 1],
-    [(s => (s instanceof StructureRampart || s instanceof StructureWall) && s.hits < 1_000_000), 1, 1],
-    [(s => s.hits < s.hitsMax), 1, 1],
+
+    // Repair wals and ramparts up to 100k at least.
+    [(s => (s instanceof StructureRampart || s instanceof StructureWall) && s.hits < 100_000), 1, 1],
+
+    // Anything else that's below half health, as long as more repairs are enabled
+    [(s => !this.ForeverRepairs && s.hits < s.hitsMax), 0.5, 1],
     [(s => {if (
       s instanceof StructureRampart
       || s instanceof StructureContainer
