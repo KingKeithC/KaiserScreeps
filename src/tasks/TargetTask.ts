@@ -1,5 +1,6 @@
 import { CreepExtra } from 'Creep';
 import { DeserializeRoomPosition, SerializeRoomPosition } from 'utils/Collections';
+import { Logger } from 'utils/Logger';
 import { BaseTask } from './BaseTask';
 import { TaskActionResult } from './types';
 
@@ -44,18 +45,26 @@ export abstract class TargetTask<Action extends string, Target extends Targetabl
     return this.actWhenTargetValid(creep, this.target);
   }
 
-  isCompleteWhenTargetInvalid = true;
-  isCompleteWhenTargetInNonVisibleRoom = false;
+  CompleteWhenTargetIsNullAndInVisibleRoom = true;
+  CompleteWhenTargetInNonVisibleRoom = false;
   abstract isCreepAbleToContinue(creep: CreepExtra): boolean;
   abstract isCompleteWhenTargetValid(creep: CreepExtra, target: NonNullable<Target>): boolean;
   public isComplete(creep: CreepExtra): boolean {
-    if (!this.isCreepAbleToContinue(creep)) return false;
+    // If creep can't continue, then we're done
+    if (!this.isCreepAbleToContinue(creep)) return true;
 
+    // Check if we're in a different room than the target
     const targetPos = DeserializeRoomPosition(this.targetPos);
-    if (this.target === null || this.target === undefined)
-      if (targetPos.roomName in Game.rooms) return this.isCompleteWhenTargetInvalid;
-      else if (!(targetPos.roomName in Game.rooms)) return this.isCompleteWhenTargetInNonVisibleRoom;
-      else throw new Error('Target is null, and in room that is neither visible nor invisible...');
+    if (targetPos.roomName !== creep.pos.roomName)
+      if (targetPos.roomName in Game.rooms) return this.CompleteWhenTargetIsNullAndInVisibleRoom;
+      else return this.CompleteWhenTargetInNonVisibleRoom; // TODO: Invoke move logic early before bothering to act?
+
+    // We're in the same room as the target
+
+    if (this.target === null || this.target === undefined) {
+      Logger.warn('Target is null, and in room that is neither visible nor invisible...');
+      return true;
+    }
 
     return this.isCompleteWhenTargetValid(creep, this.target);
   }
