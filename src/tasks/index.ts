@@ -12,4 +12,4 @@ export { Repair } from './Repair';
 export { Supply } from './Supply';
 export { Attack } from './Attack';
 export { GuardTask } from './Guard';
-export { ClaimRoomTask } from './ClaimRoom';
+export { Claim } from './Claim';

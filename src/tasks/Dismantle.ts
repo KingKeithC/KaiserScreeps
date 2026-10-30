@@ -3,21 +3,26 @@ import { TargetTask } from './TargetTask';
 import { TaskAction } from './TaskAction';
 import { TaskActionResult } from './types';
 
-export class Dismantle extends TargetTask<typeof TaskAction.Dismantle, Id<AnyStructure>> {
+export class Dismantle extends TargetTask<typeof TaskAction.Dismantle, AnyStructure> {
   public readonly kind = 'dismantle' as const;
 
-  public constructor(target: Id<AnyStructure>) {
-    super(TaskAction.Dismantle, target, 'structure');
+  public constructor(target: AnyStructure) {
+    super(TaskAction.Dismantle, target);
   }
 
-  public override act(creep: CreepExtra): TaskActionResult | null {
-    const target = Game.getObjectById(this.target);
-    if (!target) return null;
+  actWhenTargetValid(creep: CreepExtra, target: NonNullable<AnyStructure>): TaskActionResult | null {
     return { range: 1, result: creep.dismantle(target), target };
   }
 
-  public override isComplete(): boolean {
-    const target = Game.getObjectById(this.target);
-    return !target;
+  isCreepAbleToContinue(): boolean {
+    return true; // If the creep is alive, then it should still be good to go
+  }
+
+  isCompleteWhenTargetValid(creep: CreepExtra, target: NonNullable<AnyStructure>): boolean {
+    return target.hits === 0;
+  }
+
+  extraToString?(target: NonNullable<AnyStructure>): string {
+    return `%${((target.hits / target.hitsMax) * 100).toFixed(2)}`;
   }
 }

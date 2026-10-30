@@ -11,8 +11,7 @@ export class Repair extends TargetTask<typeof TaskAction.Repair, AnyStructure> {
   }
 
   public extraToString(target: AnyStructure): string {
-    const health = (target.hits / target.hitsMax) * 100;
-    return `%${health.toFixed(2)}`;
+    return `%${((target.hits / target.hitsMax) * 100).toFixed(2)}`;
   }
 
   public actWhenTargetValid(creep: CreepExtra, target: NonNullable<AnyStructure>): TaskActionResult | null {

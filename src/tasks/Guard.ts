@@ -1,68 +1,33 @@
 import { CreepExtra } from 'Creep';
-import { Logger } from 'utils/Logger';
 import { TargetTask } from './TargetTask';
 import { TaskAction } from './TaskAction';
 import { TaskActionResult } from './types';
 
-interface GuardOptions {
-  rampartId?: Id<StructureRampart>;
-}
-
-export class GuardTask extends TargetTask<typeof TaskAction.Guard, string> {
+export class GuardTask extends TargetTask<typeof TaskAction.Guard, StructureRampart> {
   public readonly kind = 'guard' as const;
 
-  private rampartId?: Id<StructureRampart>;
-
-  public constructor(
-    public roomName: string,
-    public options: GuardOptions = {},
-  ) {
-    super(TaskAction.Guard, roomName, 'room');
-    this.rampartId = options.rampartId;
+  public constructor(post: StructureRampart) {
+    super(TaskAction.Guard, post);
   }
 
-  public override isComplete(creep: CreepExtra): boolean {
-    for (const [r, v] of creep.AssignedRoom.HostilesByRoom)
-      if (v.length > 0) {
-        Logger.warn(`GuardTask cancelled since we spotted ${v.length} creeps in ${r}`, { '<creep>': creep });
-        return true;
-      }
-    return false;
+  public isCompleteWhenTargetValid(): boolean {
+    return false; // State of the Rampart we are guarding is irrelevant
   }
 
-  public act(creep: CreepExtra): TaskActionResult | null {
-    if (!(this.roomName in Game.rooms))
-      return { range: 25, result: ERR_NOT_IN_RANGE, target: { pos: new RoomPosition(25, 25, this.roomName) } };
+  public isCreepAbleToContinue(creep: CreepExtra): boolean {
+    // We can continue guarding so long as the room is free of hostiles
+    return creep.AssignedRoom.find(FIND_HOSTILE_CREEPS).length === 0;
+  }
 
-    let room = Game.rooms[this.roomName];
-    let rampart = this.rampartId ? Game.getObjectById(this.rampartId) : null;
-    if (!room && !rampart) return null;
-    if (!room && rampart) room = rampart.room;
+  public extraToString(target: StructureRampart): string {
+    return `%${((target.hits / target.hitsMax) * 100).toFixed(2)}`;
+  }
 
-    const hostiles = room.find(FIND_HOSTILE_CREEPS);
-    if (hostiles) {
-      // Attack closest hostile
-      const closestHostile = creep.pos.findClosestByPath(hostiles, {
-        costCallback: (rn: string, cm: CostMatrix) => creep.CostCallback(rn, cm),
-      });
-      if (closestHostile) return { range: 1, target: closestHostile, result: creep.attack(closestHostile) };
-      return null; // No path to hostiles
-    }
+  public actWhenTargetValid(creep: CreepExtra, target: StructureRampart): TaskActionResult | null {
+    // Do nothing if we're sitting on the rampart
+    if (creep.pos.isEqualTo(target.pos)) return null;
 
-    // No hostiles, guard a rampart
-    if (!rampart) {
-      const found = creep.pos.findClosestByPath(FIND_MY_STRUCTURES, {
-        filter: s => s.structureType === STRUCTURE_RAMPART,
-        costCallback: (rn: string, cm: CostMatrix) => creep.CostCallback(rn, cm),
-      });
-      if (found) {
-        this.rampartId = found.id as Id<StructureRampart>;
-        rampart = found as StructureRampart;
-      } else
-        // No rampart, move to room centre
-        return { range: 25, target: { pos: new RoomPosition(25, 25, this.roomName) }, result: ERR_NOT_IN_RANGE };
-    }
-
-    return { range: 0, target: rampart, result: ERR_NOT_IN_RANGE };
+    // Otherwise, move to the rampart
+    return { range: 0, result: ERR_NOT_IN_RANGE, target };
   }
 }
