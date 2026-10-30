@@ -18,7 +18,6 @@ import {
   ContainerAndAmount,
   ResourceContainersForRoomByType,
   ResourceContainer,
-  FirstBodyByEnergyAvailable,
   FirstBodyByEnergyCapacity,
 } from 'utils/RoomUtils';
 import { CreepRoleBase, CreepRole } from './Role';
@@ -31,11 +30,8 @@ export class Worker extends CreepRoleBase implements CreepRole {
     const zygote = MakeBody([CARRY, 2], [WORK, 1], [MOVE, 2]); // 300
     const body = FirstBodyByEnergyCapacity(
       room,
-      FirstBodyByEnergyAvailable(
-        room,
-        MakeBody([WORK, 11], [CARRY, 6], [MOVE, 8]), // 1800
-        MakeBody([WORK, 6], [CARRY, 7], [MOVE, 7]), // 1300
-      ),
+      MakeBody([WORK, 11], [CARRY, 6], [MOVE, 8]), // 1800
+      MakeBody([WORK, 6], [CARRY, 7], [MOVE, 7]), // 1300
       MakeBody([WORK, 2], [CARRY, 4], [MOVE, 3]), // 550
       zygote,
     );
