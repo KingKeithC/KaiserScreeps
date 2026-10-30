@@ -181,7 +181,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
   }
 
   SelectNextTask(creep: CreepExtra): CreepTask | null {
-    // SUPPLY
+    // ------ SUPPLY ------
     if (
       creep.AssignedRoom.storage !== undefined &&
       creep.store.getUsedCapacity() - creep.store.getUsedCapacity(RESOURCE_ENERGY) > 0
@@ -189,10 +189,12 @@ export class Worker extends CreepRoleBase implements CreepRole {
       // Need to store hauled non-energy resources
       for (const resourceType in creep.store)
         if (resourceType !== RESOURCE_ENERGY) {
-          this.log.warn('Non-Energy being stored: ${resourceType}', { resourceType });
+          this.log.warn('Non-Energy being stored: ${resourceType}', { '<creep>': creep, resourceType });
           return new Supply(creep.AssignedRoom.storage.id, resourceType as ResourceConstant);
         }
-    } else if (creep.store.getUsedCapacity(RESOURCE_ENERGY) > 0) {
+    }
+
+    if (creep.store.getUsedCapacity(RESOURCE_ENERGY) > 0) {
       // Need to spend hauled energy
 
       // Look for a spending task amongst typical targets
@@ -211,15 +213,19 @@ export class Worker extends CreepRoleBase implements CreepRole {
         return new Supply(creep.AssignedRoom.storage.id);
     }
 
-    // GATHER
+    // ------ GATHER ------
+
     if (creep.store.getUsedCapacity() === 0 && creep.AssignedRoom.storage !== undefined) {
-      // Need to haul non-energy resources
+      // Need to collect non-energy resources, but only if room has storage
       const nonEnergy = this.CollectResources(
         creep,
         RESOURCES_ALL.filter(t => t !== RESOURCE_ENERGY),
       );
       if (nonEnergy) {
-        this.log.warn('Non-Energy being collected: ${resourceType}', { resourceType: nonEnergy.resourceType });
+        this.log.warn('Non-Energy being collected: ${resourceType}', {
+          '<creep>': creep,
+          resourceType: nonEnergy.resourceType,
+        });
         return nonEnergy;
       }
     }
@@ -233,17 +239,11 @@ export class Worker extends CreepRoleBase implements CreepRole {
       if (gather) return gather;
 
       // If there aren't enough miners, then do mining
-      const miningTask = this.MineAnyFreePosition(creep);
-      const totalMinerBodies = sum(creep.AssignedRoom.GetAssignedTasksWithCreep(TaskAction.Mine), m =>
-        BodyCost(m[0].body),
-      );
-      if (miningTask !== null && totalMinerBodies < this.WorkersMineBelowMinerBodyTotalCost) {
-        this.log.warn(
-          `Emergency mining since too few miners are available (${totalMinerBodies}/${this.WorkersMineBelowMinerBodyTotalCost})...`,
-          { '<creep>': creep },
-        );
-        return miningTask;
-      }
+      if (
+        sum(creep.AssignedRoom.GetAssignedTasksWithCreep(TaskAction.Mine), m => BodyCost(m[0].body)) <
+        this.WorkersMineBelowMinerBodyTotalCost
+      )
+        return this.MineAnyFreePosition(creep);
     }
 
     // Didn't need or Can't find, gathering or spending task
