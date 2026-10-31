@@ -61,10 +61,7 @@ export abstract class TargetTask<Action extends string, Target extends Targetabl
     // Check if we're in a different room than the target
     const targetPos = DeserializeRoomPosition(this.targetPos);
     if (targetPos.roomName !== creep.pos.roomName)
-      if (targetPos.roomName in Game.rooms) {
-        this.isCompleteFlag = this.CompleteWhenTargetIsNullAndInVisibleRoom;
-        return result;
-      } else {
+      if (!(targetPos.roomName in Game.rooms)) {
         this.isCompleteFlag = this.CompleteWhenTargetInNonVisibleRoom;
         // TODO: Invoke move logic early before bothering to act?
         return result;
@@ -73,9 +70,14 @@ export abstract class TargetTask<Action extends string, Target extends Targetabl
     // We're in the same room as the target
 
     if (this.target === null || this.target === undefined) {
-      Logger.warn('Target is null, and in room that is neither visible nor invisible...');
-      this.isCompleteFlag = true;
-      return result;
+      if (targetPos.roomName in Game.rooms) {
+        this.isCompleteFlag = this.CompleteWhenTargetIsNullAndInVisibleRoom;
+        return result;
+      } else {
+        Logger.warn('Target is null, and in room that is neither visible nor invisible...');
+        this.isCompleteFlag = true;
+        return result;
+      }
     }
 
     this.isCompleteFlag = this.isCompleteWhenTargetValid(creep, this.target);

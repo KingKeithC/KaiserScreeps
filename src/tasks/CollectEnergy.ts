@@ -56,8 +56,9 @@ export class Collect extends TargetTask<typeof TaskAction.Collect, ResourceConta
   }
 
   public isCompleteWhenTargetValid(creep: CreepExtra, target: NonNullable<ResourceContainer>): boolean {
+    if ('store' in target && target.store === null) return false; // if it's visible then it's still ok to collect from.
+
     return (
-      ('store' in target && target.store.getUsedCapacity(this.resourceType) === null) ||
       ('store' in target && target.store.getUsedCapacity(this.resourceType) === 0) ||
       ('amount' in target && target.amount === 0)
     );

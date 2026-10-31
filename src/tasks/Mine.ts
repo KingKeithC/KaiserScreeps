@@ -29,12 +29,21 @@ export class Mine implements CreepTask {
   }
 
   public handleOutcome(creep: CreepExtra, outcome: TaskActionResult | null): TaskActionResult | null {
-    if (outcome?.result === ERR_NOT_ENOUGH_RESOURCES && creep.role?.groupName === 'Miners')
-      // If the target is no longer claimed, we're done
-      if (!creep.AssignedRoom.ClaimedMinePositions.some(p => p === this.miningPosition.pos)) {
-        this.isCompleteFlag = true;
-        return { ...outcome, result: OK };
-      }
+    // If the source is out of energy, and we're not a miner, then we're done
+    if (outcome?.result === ERR_NOT_ENOUGH_RESOURCES && creep.role?.groupName === 'Miners') {
+      // Since we're a miner, we can ignore the error result
+      outcome.result = OK;
+    } else if (outcome?.result === ERR_NOT_ENOUGH_RESOURCES) {
+      // Non miner, if the source if out of energy, we're done.
+      this.isCompleteFlag = true;
+      return { ...outcome, result: OK } as TaskActionResult;
+    }
+
+    // If the target is no longer claimed, we're done
+    if (!creep.AssignedRoom.ClaimedMinePositions.some(p => p === this.miningPosition.pos)) {
+      this.isCompleteFlag = true;
+      return { ...outcome, result: OK } as TaskActionResult;
+    }
 
     // If the source is invalid (in a visible room and still null) we're done
     const target = DeserializeRoomPosition(this.miningPosition.pos);
