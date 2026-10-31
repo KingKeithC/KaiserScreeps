@@ -239,50 +239,48 @@ export class CreepExtra extends Creep {
   }
 
   DoTask(): void {
-    // Act on our task
+    // Early return for no task
     const task = this.currentTask;
     if (task === null) {
       this.say('🤷');
       return;
     }
+
     const outcome = task.act(this);
     task.handleOutcome(this, outcome);
-    this.currentTask = task;
+    this.currentTask = task; // Save task back to itself since acting on it might have changed it
+    this.ActedThisTick = true; // Update non-idle flag since we acted
 
-    // Update non-idle flag since we acted
-    this.ActedThisTick = true;
+    // Handle follow up actions
 
-    // Early return for no result
-    if (outcome === null || outcome === undefined) return;
+    if (task.isCompleteFlag) {
+      // Task finshed, so change it now proactively
+      this.ChangeTask();
+      return;
+    } else if (outcome === null || outcome === undefined || outcome.result === OK)
+      // Task was ok or couldn't act, but still isn't complete, and don't need to move.
+      return;
+    else if (outcome.result === ERR_NOT_IN_RANGE) {
+      // We have to move to the task's target
+      const moveResult = this.MoveCreep(outcome.target.pos, { range: outcome.range });
 
-    // Log non-ok ScreepsReturnCode
-    if (outcome.result !== OK)
-      this.log.debug('Task ${task} Outcome not OK ${outcome}', { '<role>': this.role, task, outcome });
+      if (moveResult !== OK)
+        // Log bad moves
+        this.log.debug(
+          'DoTask: MoveNotOK - ${task} Outcome ${outcome}, Follow up move from ${thisPos} to ${targetPos} failed.',
+          { task, outcome, thisPos: this.pos, targetPos: outcome.target.pos },
+        );
 
-    // Handle ScreepsReturnCode
-    switch (outcome.result) {
-      case OK:
-      case ERR_FULL:
-      case ERR_NOT_ENOUGH_RESOURCES:
-        return; // These can be ignored.
-      case ERR_NOT_IN_RANGE: {
-        // We have to move to the task's target
-        const moveResult = this.MoveCreep(outcome.target.pos, { range: outcome.range });
-        if (moveResult === ERR_NO_PATH) {
-          // If pathfinding fails, select a new task
-          this.log.warn('Outcome ${outcome}, Pathfinding from ${thisPos} to ${targetPos} failed.', {
-            outcome,
-            thisPos: this.pos,
-            targetPos: outcome.target.pos,
-          });
-          this.ChangeTask();
-        }
-        return;
-      }
-      default: {
-        this.log.crit('Task ${task} has unhandled outcome ${outcome}', { '<role>': this.role, task, outcome });
-        return;
-      }
+      // If pathfinding failed, select a new task
+      if (moveResult === ERR_NO_PATH) this.ChangeTask();
+    } else {
+      // Task result was not ok and not a move
+      this.log.warn('DoTask: NotOK - Task ${task} Outcome ${outcome}.', {
+        task,
+        outcome,
+        thisPos: this.pos,
+        targetPos: outcome.target.pos,
+      });
     }
   }
 
