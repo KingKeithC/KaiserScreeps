@@ -171,6 +171,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
     return null;
   }
 
+  WorkersMineBelowMinerBodyTotalCost = 1000;
   SelectNextTask(creep: CreepExtra): CreepTask | null {
     // ------ SUPPLY ------
     if (
@@ -316,11 +317,6 @@ export class Worker extends CreepRoleBase implements CreepRole {
     }
     return null;
   }
-
-  WorkersMineBelowMinerBodyTotalCost = 1000;
-  IgnoreDroppedResourcesLessThan = 30;
-  MediumSearchRange = 20;
-  ShortSearchRange = 5;
 
   // prettier-ignore
   ConstructionPriorities: ((c: ConstructionSite) => boolean)[] = [
