@@ -256,10 +256,10 @@ export class Worker extends CreepRoleBase implements CreepRole {
     return null;
   }
 
-  MaxSupplyForSpawns = 3;
-  MaxSupplyForTowers = 2;
-  MaxBuildPerRoom = 3;
-  MaxRepairPerRoom = 1;
+  MaxSupplyForSpawns = 4;
+  MaxSupplyForTowers = 1;
+  MaxBuildPerRoom = 2;
+  MaxRepairPerRoom = 2;
   public FindSpendingTask(creep: CreepExtra): CreepTask | null {
     if (creep.AssignedRoom.controller) {
       const downgradeMaintenanceThreshold =
