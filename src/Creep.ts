@@ -98,7 +98,7 @@ export class CreepExtra extends Creep {
     // this.log.debug('Invoking MoveLong to ${pos} with ${opts}', { pos, opts });
     return this.moveTo(pos, {
       ...opts,
-      costCallback: (rn: string, cm: CostMatrix) => this.CostCallback(rn, cm),
+      costCallback: (rn: string, cm: CostMatrix) => this.CostCallback(rn, cm, false),
       visualizePathStyle: { stroke: Colours.PATH_LONG, lineStyle: 'solid' },
       ignoreCreeps: true,
       reusePath: 20,
@@ -118,11 +118,12 @@ export class CreepExtra extends Creep {
     });
   }
 
-  CostCallback(roomName: string, matrix: CostMatrix): CostMatrix | void {
+  CostCallback(roomName: string, matrix: CostMatrix, accountForCreeps = true): CostMatrix | void {
     if (!(roomName in Game.rooms)) return matrix;
     const myRoom = this.colony.MyRooms.filter(mr => mr.name === roomName).pop();
-    if (myRoom) return myRoom.CreepsCostMatrix;
-    return matrix;
+    if (myRoom && accountForCreeps) return myRoom.CreepsCostMatrix;
+    else if (myRoom && !accountForCreeps) return myRoom.StructuresCostMatrix;
+    else return matrix;
   }
 
   // Returns 1 when in range; otherwise returns the moveTo result.
@@ -157,6 +158,8 @@ export class CreepExtra extends Creep {
 
     // Switch move mode
     if (this.memory.moveMode === 'long' && (this.memory.stuckTicks ?? 0) > this.MaxStuckTicks) {
+      // eslint-disable-next-line no-underscore-dangle
+      delete this.memory._move; // Clear out saved path
       this.memory.moveMode = 'avoidCreeps';
       this.memory.stuckTicks = 0;
       this.memory.successfulAvoidMoves = 0;
@@ -164,6 +167,8 @@ export class CreepExtra extends Creep {
       this.memory.moveMode === 'avoidCreeps' &&
       (this.memory.successfulAvoidMoves ?? 0) >= this.MaxAvoidTicks
     ) {
+      // eslint-disable-next-line no-underscore-dangle
+      delete this.memory._move; // Clear out saved path
       this.memory.moveMode = 'long';
       this.memory.stuckTicks = 0;
       this.memory.successfulAvoidMoves = 0;
