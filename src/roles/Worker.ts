@@ -154,11 +154,11 @@ export class Worker extends CreepRoleBase implements CreepRole {
           containersByType.set(rt, existing.concat(sources));
         }
 
-    this.log.debug('Collect Resources, searched for ${searchForType} found ${containersByType}', {
-      '<creep>': creep,
-      containersByType: [...containersByType],
-      searchForType,
-    });
+    // this.log.debug('Collect Resources, searched for ${searchForType} found ${containersByType}', {
+    //   '<creep>': creep,
+    //   containersByType: [...containersByType],
+    //   searchForType,
+    // });
 
     // Find according to priorities
     for (const prio of searchForType) {

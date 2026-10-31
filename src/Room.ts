@@ -885,7 +885,6 @@ export class RoomExtra extends Room {
   ];
 
   FindRepairByPriorityAndStrength(limitToRoom?: RoomExtra, byRangeTo?: RoomPosition): AnyStructure | null {
-    let priorityIndex = 0;
     const ongoingRepairs = this.GetAssignedTasks(TaskAction.Repair) as Repair[];
     const incoming = (s: AnyStructure) => ongoingRepairs.filter(or => or.targetId === s.id).length;
     const roomLimit = (s: AnyStructure) =>
@@ -903,11 +902,9 @@ export class RoomExtra extends Room {
         // Sort by range to given point
         selected = byRangeTo.findClosestByRange(candidates);
 
-      priorityIndex++;
       if (!selected) continue;
       else return selected;
     }
-    this.log.debug(`No repairs found, searched ${priorityIndex} priority groups.`);
     return null;
   }
 
