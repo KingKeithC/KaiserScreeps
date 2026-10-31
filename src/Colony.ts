@@ -160,12 +160,7 @@ export class Colony {
   }
 
   private readonly log = new Logger(this);
-
-  readonly username: string;
-  constructor() {
-    // Set my username
-    this.username = Game.spawns[Object.keys(Game.spawns)[0]].owner.username;
-  }
+  readonly username = Game.spawns[Object.keys(Game.spawns)[0]].owner.username;
 
   private WrapWithProfiling(lambda: () => void): () => void {
     if (!Memory.globalEnableProfiling) return lambda;
