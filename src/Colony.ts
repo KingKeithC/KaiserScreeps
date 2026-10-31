@@ -107,33 +107,8 @@ export class Colony {
     return role;
   }
 
-  // All the living creeps I own
-  private cachedMyCreeps: CreepExtra[] = [];
-  get MyCreeps(): CreepExtra[] {
-    if (this.cachedMyCreeps.length > 0) return this.cachedMyCreeps;
-    this.cachedMyCreeps = Object.values(Game.creeps)
-      .filter(c => c.my)
-      .map(c => new CreepExtra(c.id, this));
-    return this.cachedMyCreeps;
-  }
-
-  // All visible room owned by me.
-  private cachedMyRooms: RoomExtra[] = [];
-  get MyRooms(): RoomExtra[] {
-    if (this.cachedMyRooms.length > 0) return this.cachedMyRooms;
-    this.cachedMyRooms = Object.values(Game.rooms)
-      .filter(r => r.controller && r.controller.my)
-      .map(r => new RoomExtra(r, this));
-    return this.cachedMyRooms;
-  }
-
-  // All visible rooms, not owned by me.
-  private cachedOtherRooms: Room[] = [];
-  get OtherRooms(): Room[] {
-    if (this.cachedOtherRooms.length > 0) return this.cachedOtherRooms;
-    this.cachedOtherRooms = Object.values(Game.rooms).filter(r => !(r.controller && r.controller.my));
-    return this.cachedOtherRooms;
-  }
+  readonly Creeps: Map<string, CreepExtra> = new Map();
+  readonly Rooms: Map<string, RoomExtra> = new Map();
 
   // this.MyCreeps Grouped by Assigned Room (creep.memory.room)
   private cachedCreepsByAssignedRoom: Map<string, CreepExtra[]> = new Map();
@@ -146,17 +121,6 @@ export class Colony {
           c,
         ]);
     return this.cachedCreepsByAssignedRoom;
-  }
-
-  // creep.memory.currentTask from all MyCreeps, optionally filtered by a type of action
-  private cachedAllAssignedTasks: CreepTask[] = [];
-  GetAllAssignedTasks(taskAction?: CreepTask['action']): CreepTask[] {
-    if (taskAction === undefined && this.cachedAllAssignedTasks.length > 0) return this.cachedAllAssignedTasks;
-    if (taskAction !== undefined && this.cachedAllAssignedTasks.length > 0)
-      return this.cachedAllAssignedTasks.filter(t => t.action === taskAction);
-    this.cachedAllAssignedTasks = this.MyCreeps.map(c => c.currentTask).filter(t => t !== null) as CreepTask[];
-    if (taskAction) return this.cachedAllAssignedTasks.filter(t => t.action === taskAction);
-    return this.cachedAllAssignedTasks;
   }
 
   private readonly log = new Logger(this);
@@ -231,13 +195,39 @@ export class Colony {
     return this.WrapWithProfiling(this.WrapWithErrorMapper(this.MainLoop.bind(this)));
   }
 
-  private ClearCaches(): void {
-    // Reset Cached fields so they are generated on next access.
-    this.cachedMyCreeps = [];
+  private cachedMyCreeps: CreepExtra[] = [];
+  get MyCreeps(): CreepExtra[] {
+    if (this.cachedMyCreeps.length > 0) return this.cachedMyCreeps;
+    for (const creep of this.Creeps.values()) if (creep.my) this.cachedMyCreeps.push(creep);
+    return this.cachedMyCreeps;
+  }
+
+  private cachedMyRooms: RoomExtra[] = [];
+  get MyRooms(): RoomExtra[] {
+    if (this.cachedMyRooms.length > 0) return this.cachedMyRooms;
+    for (const room of this.Rooms.values()) if (room.controller && room.controller.my) this.cachedMyRooms.push(room);
+    return this.cachedMyRooms;
+  }
+
+  private cachedOtherRooms: RoomExtra[] = [];
+  get OtherRooms(): RoomExtra[] {
+    if (this.cachedOtherRooms.length > 0) return this.cachedOtherRooms;
+    for (const room of this.Rooms.values())
+      if (!(room.controller && room.controller.my)) this.cachedOtherRooms.push(room);
+    return this.cachedMyRooms;
+  }
+
+  private RefreshCaches(): void {
+    // Clear out rooms list, and refresh dependent lists
+    this.Rooms.clear();
+    for (const [name, room] of Object.entries(Game.rooms)) this.Rooms.set(name, new RoomExtra(room, this));
     this.cachedMyRooms = [];
     this.cachedOtherRooms = [];
-    this.cachedAllAssignedTasks = [];
-    this.cachedCreepsByAssignedRoom = new Map();
+
+    // Clear out creeps list
+    this.Creeps.clear();
+    for (const [name, creep] of Object.entries(Game.creeps)) this.Creeps.set(name, new CreepExtra(creep.id, this));
+    this.cachedMyCreeps = [];
   }
 
   // Stats are only fetched evey ~90 seconds, so we only need to update them infrequently
@@ -245,7 +235,7 @@ export class Colony {
 
   // This is the effectively the loop function invoked each tick.
   private MainLoop(): void {
-    this.ClearCaches(); // Must be called before any Creep/Room access on the colony
+    this.RefreshCaches(); // Must be called before any Creep/Room access on the colony
 
     this.CleanupStaleFlags();
     this.TryGeneratingPixel();
