@@ -1,7 +1,6 @@
 import { CreepExtra } from 'Creep';
+import { TaskAction, TaskActionResult } from 'tasks/types';
 import { TargetTask } from './TargetTask';
-import { TaskAction } from './TaskAction';
-import { TaskActionResult } from './types';
 
 export class Dismantle extends TargetTask<typeof TaskAction.Dismantle, AnyStructure> {
   public readonly kind = 'dismantle' as const;

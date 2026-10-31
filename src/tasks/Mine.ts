@@ -1,16 +1,14 @@
 import { CreepExtra } from 'Creep';
+import { CreepTask, TaskAction, TaskActionResult } from 'tasks/types';
 import { DeserializeRoomPosition } from 'utils/Collections';
 import { MiningPosition } from 'utils/RoomUtils';
-import { BaseTask } from './BaseTask';
-import { TaskAction } from './TaskAction';
-import { TaskActionResult } from './types';
 
-export class Mine extends BaseTask<typeof TaskAction.Mine> {
+export class Mine implements CreepTask {
+  public readonly action = TaskAction.Mine;
   public readonly kind = 'mine' as const;
+  public isCompleteFlag = false;
 
-  public constructor(public readonly miningPosition: MiningPosition) {
-    super(TaskAction.Mine);
-  }
+  public constructor(public readonly miningPosition: MiningPosition) {}
 
   public toString(): string {
     const source = Game.getObjectById(this.miningPosition.source);
@@ -19,7 +17,7 @@ export class Mine extends BaseTask<typeof TaskAction.Mine> {
     return `${this.action} on ${sourceId} @ ${this.miningPosition.pos}${extra}`;
   }
 
-  public override act(creep: CreepExtra): TaskActionResult | null {
+  public act(creep: CreepExtra): TaskActionResult | null {
     const sourcePos = { pos: DeserializeRoomPosition(this.miningPosition.pos) };
 
     const source = Game.getObjectById(this.miningPosition.source);
@@ -30,25 +28,41 @@ export class Mine extends BaseTask<typeof TaskAction.Mine> {
     return outcome;
   }
 
-  public override isComplete(creep: CreepExtra): boolean {
+  public handleOutcome(creep: CreepExtra): void {
     // If the target is no longer claimed, we're done
-    if (!creep.AssignedRoom.ClaimedMinePositions.some(p => p === this.miningPosition.pos)) return true;
+    if (!creep.AssignedRoom.ClaimedMinePositions.some(p => p === this.miningPosition.pos)) {
+      this.isCompleteFlag = true;
+      return;
+    }
 
     // If the source is invalid (in a visible room and still null) we're done
     const target = DeserializeRoomPosition(this.miningPosition.pos);
     const source = Game.getObjectById(this.miningPosition.source);
-    if (target.roomName in Game.rooms && source === null) return true;
+    if (target.roomName in Game.rooms && source === null) {
+      this.isCompleteFlag = true;
+      return;
+    }
 
     // If someone (other than us) is in our spot, we're done
     const occupier = target.lookFor(LOOK_CREEPS).pop();
-    if (occupier !== undefined && occupier.id !== creep.id) return true;
+    if (occupier !== undefined && occupier.id !== creep.id) {
+      this.isCompleteFlag = true;
+      return;
+    }
 
     // Otherwise, if we're a miner, mine forever
-    if (creep.role?.groupName === 'Miners') return false;
+    if (creep.role?.groupName === 'Miners') {
+      this.isCompleteFlag = false;
+      return;
+    }
 
     // For all others, we're done when we run out of free space,
     // or the mine runs out of energy
-    if (source !== null && source.energy === 0) return true;
-    return creep.store.getFreeCapacity(RESOURCE_ENERGY) === 0;
+    if (source !== null && source.energy === 0) {
+      this.isCompleteFlag = true;
+      return;
+    }
+
+    this.isCompleteFlag = creep.store.getFreeCapacity(RESOURCE_ENERGY) === 0;
   }
 }

@@ -1,8 +1,7 @@
 import { CreepExtra } from 'Creep';
+import { TaskAction, TaskActionResult } from 'tasks/types';
 import { ResourceContainer } from 'utils/RoomUtils';
 import { TargetTask } from './TargetTask';
-import { TaskAction } from './TaskAction';
-import { TaskActionResult } from './types';
 
 export class Collect extends TargetTask<typeof TaskAction.Collect, ResourceContainer> {
   public readonly kind = 'collectEnergy' as const;

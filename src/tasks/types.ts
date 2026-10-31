@@ -1,4 +1,22 @@
-import type { CreepExtra } from 'Creep';
+import { CreepExtra } from 'Creep';
+
+export const TaskAction = {
+  Mine: '⛏️',
+  Collect: '🔌',
+  MaintainController: '🦸‍♀️',
+  Build: '🏗️',
+  Repair: '🛠️',
+  Supply: '🫴',
+  UpgradeController: '🔼',
+  Pickup: '🧹',
+  Attack: '⚔️',
+  Guard: '🛡️',
+  Scout: '👀',
+  Claim: '🏁',
+  Move: '👣',
+  ExitRoom: '🚪',
+  Dismantle: '🔱',
+} as const;
 
 export interface TaskActionResult {
   target: { pos: RoomPosition };
@@ -8,18 +26,8 @@ export interface TaskActionResult {
 
 export interface CreepTask<Action extends string = string> {
   readonly action: Action;
-  // readonly kind: Action;
+  isCompleteFlag: boolean;
   toString(): string;
-  isComplete(creep: CreepExtra): boolean;
   act(creep: CreepExtra): TaskActionResult | null;
+  handleOutcome(creep: CreepExtra, outcome: TaskActionResult | null): void;
 }
-
-export type TravelPath = { exit: ExitConstant; room: string }[];
-export type EnergySource =
-  | { kind: 'creep'; name: string }
-  | { kind: 'container'; id: Id<StructureContainer> }
-  | { kind: 'storage'; id: Id<StructureStorage> }
-  | { kind: 'link'; id: Id<StructureLink> }
-  | { kind: 'dropped'; id: Id<Resource<RESOURCE_ENERGY>> }
-  | { kind: 'tomb'; id: Id<Tombstone> }
-  | { kind: 'ruin'; id: Id<Ruin> };

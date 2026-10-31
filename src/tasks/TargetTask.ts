@@ -1,17 +1,19 @@
 import { CreepExtra } from 'Creep';
+import { CreepTask, TaskActionResult } from 'tasks/types';
 import { DeserializeRoomPosition, SerializeRoomPosition } from 'utils/Collections';
 import { Logger } from 'utils/Logger';
-import { BaseTask } from './BaseTask';
-import { TaskActionResult } from './types';
 
 export type Targetable = _HasId & _HasRoomPosition;
 
-export abstract class TargetTask<Action extends string, Target extends Targetable> extends BaseTask<Action> {
+export abstract class TargetTask<Action extends string, Target extends Targetable> implements CreepTask<Action> {
   public readonly targetId: Id<Target>;
   public readonly targetPos: string;
+  public isCompleteFlag = false;
 
-  public constructor(action: Action, target: Target) {
-    super(action);
+  public constructor(
+    public readonly action: Action,
+    target: Target,
+  ) {
     this.targetId = target.id;
     this.targetPos = SerializeRoomPosition(target.pos);
   }
@@ -49,24 +51,36 @@ export abstract class TargetTask<Action extends string, Target extends Targetabl
   CompleteWhenTargetInNonVisibleRoom = false;
   abstract isCreepAbleToContinue(creep: CreepExtra): boolean;
   abstract isCompleteWhenTargetValid(creep: CreepExtra, target: NonNullable<Target>): boolean;
-  public isComplete(creep: CreepExtra): boolean {
+
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  public handleOutcome(creep: CreepExtra, _result: TaskActionResult | null): void {
     // If creep can't continue, then we're done
-    if (!this.isCreepAbleToContinue(creep)) return true;
+    if (!this.isCreepAbleToContinue(creep)) {
+      this.isCompleteFlag = true;
+      return;
+    }
 
     // Check if we're in a different room than the target
     const targetPos = DeserializeRoomPosition(this.targetPos);
     if (targetPos.roomName !== creep.pos.roomName)
-      if (targetPos.roomName in Game.rooms) return this.CompleteWhenTargetIsNullAndInVisibleRoom;
-      else return this.CompleteWhenTargetInNonVisibleRoom; // TODO: Invoke move logic early before bothering to act?
+      if (targetPos.roomName in Game.rooms) {
+        this.isCompleteFlag = this.CompleteWhenTargetIsNullAndInVisibleRoom;
+        return;
+      } else {
+        this.isCompleteFlag = this.CompleteWhenTargetInNonVisibleRoom;
+        // TODO: Invoke move logic early before bothering to act?
+        return;
+      }
 
     // We're in the same room as the target
 
     if (this.target === null || this.target === undefined) {
       Logger.warn('Target is null, and in room that is neither visible nor invisible...');
-      return true;
+      this.isCompleteFlag = true;
+      return;
     }
 
-    return this.isCompleteWhenTargetValid(creep, this.target);
+    this.isCompleteFlag = this.isCompleteWhenTargetValid(creep, this.target);
   }
 
   abstract extraToString?(target: NonNullable<Target>): string;

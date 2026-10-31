@@ -1,10 +1,7 @@
-export { TaskAction } from './TaskAction';
-export type { TaskActionResult, CreepTask, TravelPath, EnergySource } from './types';
-export { BaseTask } from './BaseTask';
 export { TargetTask } from './TargetTask';
 export { Mine } from './Mine';
 export { Collect } from './CollectEnergy';
-export { UpdateController, MaintainController } from './UpdateController';
+export { UpgradeController } from './UpdateController';
 export { Build } from './Build';
 export { Dismantle } from './Dismantle';
 export { Move } from './Move';

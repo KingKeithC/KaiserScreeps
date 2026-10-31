@@ -1,5 +1,5 @@
 import { Dictionary, flatten, range, unique } from 'lodash';
-import { CreepTask, Mine, Repair, TaskAction, UpdateController } from 'tasks';
+import { Mine, Repair, UpgradeController } from 'tasks';
 import {
   FormatHostileInfos,
   GetHostileInfo,
@@ -15,6 +15,7 @@ import { Colours } from 'Data';
 import { CreepRole } from 'roles/Role';
 import { Logger } from 'utils/Logger';
 import { BodyCost } from 'utils/CreepUtils';
+import { CreepTask, TaskAction } from 'tasks/types';
 
 declare global {
   interface RoomMemory {
@@ -640,7 +641,7 @@ export class RoomExtra extends Room {
   RunCreeps(): void {
     // Run each creep in the room.
     for (const c of this.AssignedCreeps.filter(ac => !ac.spawning)) {
-      if (c.currentTask === null || c.currentTask.isComplete(c)) c.ChangeTask();
+      if (c.currentTask === null || c.currentTask.isCompleteFlag) c.ChangeTask();
       c.role.TickCreep(c);
       c.DoTask();
       c.MoveIntoRoomIfOnEdge();
@@ -808,7 +809,7 @@ export class RoomExtra extends Room {
 
     const nextLevelStr = this.controller.level === 8 ? '' : ` -> ${this.controller.level + 1}`;
     const downgradeMaintenanceThreshold =
-      CONTROLLER_DOWNGRADE[this.controller.level] * UpdateController.DowngradeMaintenanceRatio;
+      CONTROLLER_DOWNGRADE[this.controller.level] * UpgradeController.DowngradeMaintenanceRatio;
     const downgradeStr =
       this.controller.ticksToDowngrade < downgradeMaintenanceThreshold
         ? ` , Downgrade in ${this.controller.ticksToDowngrade}`

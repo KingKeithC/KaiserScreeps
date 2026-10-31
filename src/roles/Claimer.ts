@@ -1,9 +1,10 @@
 import { CreepExtra } from 'Creep';
 import { unique } from 'lodash';
 import type { RoomExtra } from 'Room';
-import { Claim, CreepTask, TaskAction } from 'tasks';
+import { Claim } from 'tasks';
+import { TaskAction, CreepTask } from 'tasks/types';
 import { MakeBody } from 'utils/Collections';
-import { CreepRole, CreepRoleBase } from './Role';
+import { CreepRoleBase, CreepRole } from './Role';
 
 export class Claimer extends CreepRoleBase implements CreepRole {
   readonly groupName = 'Warriors';

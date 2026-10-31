@@ -1,7 +1,8 @@
 import { CreepExtra } from 'Creep';
-import { CreepTask, Move, Dismantle } from 'tasks';
+import { Move, Dismantle } from 'tasks';
 import { Attack } from 'tasks/Attack';
-import { MakeBody, FormatStructureHits, SerializeRoomPosition } from 'utils/Collections';
+import { CreepTask } from 'tasks/types';
+import { FormatStructureHits, MakeBody, SerializeRoomPosition } from 'utils/Collections';
 import { BodyCost, PartCounts } from 'utils/CreepUtils';
 import { FormatHostileInfos, HostileInfo } from 'utils/RoomUtils';
 import { CreepRoleBase, CreepRole } from './Role';

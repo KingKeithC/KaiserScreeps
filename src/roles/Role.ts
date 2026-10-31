@@ -3,8 +3,7 @@ import { Colony } from 'Colony';
 import { CreepExtra } from 'Creep';
 import { GetRandomName } from 'Data';
 import { RoomExtra } from 'Room';
-import { CreepTask } from 'tasks';
-import { BodyCost } from 'utils/CreepUtils';
+import { CreepTask } from 'tasks/types';
 import { Logger } from 'utils/Logger';
 
 export interface CreepRole {

@@ -1,6 +1,7 @@
 import { CreepExtra } from 'Creep';
 import { RoomExtra } from 'Room';
-import { CreepTask, Mine } from 'tasks';
+import { Mine } from 'tasks';
+import { CreepTask } from 'tasks/types';
 import { MakeBody } from 'utils/Collections';
 import { BodyCost } from 'utils/CreepUtils';
 import { CreepRole, CreepRoleBase } from './Role';

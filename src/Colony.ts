@@ -14,15 +14,15 @@ import {
   Build,
   Collect,
   Claim,
-  CreepTask,
   Dismantle,
   GuardTask,
   Mine,
   Move,
   Repair,
   Supply,
-  UpdateController,
+  UpgradeController,
 } from 'tasks';
+import { CreepTask } from 'tasks/types';
 import { FmtRatios } from 'utils/Collections';
 import { ErrorMapper } from 'utils/ErrorMapper';
 import { Logger } from 'utils/Logger';
@@ -67,7 +67,7 @@ export class Colony {
     mine: Mine.prototype,
     collectEnergy: Collect.prototype,
     collect: Collect.prototype, // New Alias
-    updateController: UpdateController.prototype,
+    updateController: UpgradeController.prototype,
     build: Build.prototype,
     repair: Repair.prototype,
     supply: Supply.prototype,

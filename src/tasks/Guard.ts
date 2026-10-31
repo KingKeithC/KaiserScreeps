@@ -1,7 +1,6 @@
 import { CreepExtra } from 'Creep';
+import { TaskAction, TaskActionResult } from 'tasks/types';
 import { TargetTask } from './TargetTask';
-import { TaskAction } from './TaskAction';
-import { TaskActionResult } from './types';
 
 export class GuardTask extends TargetTask<typeof TaskAction.Guard, StructureRampart> {
   public readonly kind = 'guard' as const;

@@ -1,6 +1,5 @@
 import type { CreepExtra } from 'Creep';
-import { TaskAction } from './TaskAction';
-import { CreepTask, TaskActionResult } from './types';
+import { TaskAction, CreepTask, TaskActionResult } from 'tasks/types';
 import { TargetTask } from './TargetTask';
 
 export class Attack extends TargetTask<typeof TaskAction.Attack, Creep> implements CreepTask<string> {

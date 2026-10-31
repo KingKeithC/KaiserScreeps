@@ -3,8 +3,8 @@ import type { RoomExtra } from 'Room';
 import { Logger } from 'utils/Logger';
 import { Colony } from 'Colony';
 import { CreepRole } from 'roles/Role';
-import { CreepTask } from 'tasks';
 import { DeserializeRoomPosition, RoomPositionString, SerializeRoomPosition } from 'utils/Collections';
+import { CreepTask } from 'tasks/types';
 
 declare global {
   interface CreepMemory {
@@ -248,6 +248,7 @@ export class CreepExtra extends Creep {
       return;
     }
     const outcome = task.act(this);
+    task.handleOutcome(this, outcome);
     this.currentTask = task;
 
     // Update non-idle flag since we acted

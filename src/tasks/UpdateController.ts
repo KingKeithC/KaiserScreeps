@@ -1,66 +1,44 @@
-/* eslint-disable max-classes-per-file */
 import { CreepExtra } from 'Creep';
-import { BaseTask } from './BaseTask';
-import { TaskAction } from './TaskAction';
+import { TaskAction, TaskActionResult } from 'tasks/types';
+import { TargetTask } from './TargetTask';
 
-export interface UpdateControllerOptions {
-  mode?: 'upgrade' | 'maintain';
-}
-
-export class UpdateController extends BaseTask<
-  typeof TaskAction.MaintainController | typeof TaskAction.UpgradeController
-> {
+export class UpgradeController extends TargetTask<typeof TaskAction.UpgradeController, StructureController> {
   static readonly DowngradeMaintenanceRatio = 1 / 4; // Start repairs when ticksToDowngrade drop below this.
   static readonly MaintenanceBuffer = 2000;
 
   public readonly kind = 'updateController' as const;
-  public readonly mode: 'upgrade' | 'maintain';
-  public readonly startingProgress: number = 0;
-
-  ExpectedFinalProgress(controller: StructureController): number {
-    return Math.min(this.startingProgress + UpdateController.MaintenanceBuffer, controller.progressTotal);
-  }
-
-  public readonly controllerId: Id<StructureController>;
+  private readonly startingProgress: number = 0;
 
   public constructor(
-    public readonly controller: StructureController,
-    options: UpdateControllerOptions = {},
+    controller: StructureController,
+    public readonly mode: 'upgrade' | 'maintain',
   ) {
-    const mode = options.mode ?? 'upgrade';
-    super(mode === 'maintain' ? TaskAction.MaintainController : TaskAction.UpgradeController);
-    this.mode = mode;
-    this.controllerId = controller.id;
+    super(TaskAction.UpgradeController, controller);
     this.startingProgress = controller.progress;
   }
 
-  public toString(): string {
-    const controller = this.controllerId ? Game.getObjectById(this.controllerId) : null;
-    const target = controller
-      ? String(controller)
-      : this.controllerId
-        ? `[controller ${this.controllerId}]`
-        : '[room controller]';
-    return `${this.action} on ${target}`;
+  ExpectedFinalProgress(controller: StructureController): number {
+    return Math.min(this.startingProgress + UpgradeController.MaintenanceBuffer, controller.progressTotal);
   }
 
-  public override act(creep: CreepExtra) {
-    const target = this.controllerId ? Game.getObjectById(this.controllerId) : creep.room.controller;
-    return this.perform(target instanceof StructureController ? target : null, 3, controller =>
-      creep.upgradeController(controller),
-    );
+  public extraToString(target: StructureController): string {
+    return `${this.mode} ${target.level} %${((target.progress / target.progressTotal) * 100).toExponential(2)}`;
   }
 
-  public override isComplete(creep: CreepExtra): boolean {
-    const controller = Game.getObjectById(this.controllerId);
-    if (!(controller instanceof StructureController)) return true;
-    if (creep.store.energy === 0) return true;
-    return this.mode === 'maintain' && controller.progress >= this.ExpectedFinalProgress(controller);
+  public actWhenTargetValid(creep: CreepExtra, target: StructureController): TaskActionResult | null {
+    return { range: 3, result: creep.upgradeController(target), target };
   }
-}
 
-export class MaintainController extends UpdateController {
-  public constructor(controller: StructureController) {
-    super(controller, { mode: 'maintain' });
+  isCreepAbleToContinue(creep: CreepExtra): boolean {
+    if (creep.store.energy === 0) return false;
+    return true;
+  }
+
+  isCompleteWhenTargetValid(creep: CreepExtra, target: StructureController): boolean {
+    return this.mode === 'maintain' && target.progress >= this.ExpectedFinalProgress(target);
+  }
+
+  public handleOutcome(): void {
+    return;
   }
 }

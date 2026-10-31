@@ -1,7 +1,6 @@
 import { CreepExtra } from 'Creep';
+import { TaskAction, TaskActionResult } from 'tasks/types';
 import { TargetTask } from './TargetTask';
-import { TaskAction } from './TaskAction';
-import { TaskActionResult } from './types';
 
 export class Repair extends TargetTask<typeof TaskAction.Repair, AnyStructure> {
   public readonly kind = 'repair' as const;

@@ -1,17 +1,9 @@
 import { CreepExtra } from 'Creep';
 import { sum } from 'lodash';
 import { RoomExtra } from 'Room';
-import {
-  Build,
-  Collect,
-  CreepTask,
-  MaintainController,
-  Mine,
-  Repair,
-  Supply,
-  TaskAction,
-  UpdateController,
-} from 'tasks';
+
+import { Build, Collect, Mine, Repair, Supply, UpgradeController } from 'tasks';
+import { CreepTask, TaskAction } from 'tasks/types';
 import { DeserializeRoomPosition, MakeBody } from 'utils/Collections';
 import { BodyCost } from 'utils/CreepUtils';
 import {
@@ -201,7 +193,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
         (creep.AssignedRoom.storage === undefined ||
           (creep.AssignedRoom.storage !== undefined && !creep.AssignedRoom.StoreOverUpgrade))
       )
-        return new UpdateController(creep.AssignedRoom.controller);
+        return new UpgradeController(creep.AssignedRoom.controller, 'upgrade');
 
       // If still no spending task, and there is storage, then store
       if (creep.AssignedRoom.storage !== undefined && creep.AssignedRoom.StoreOverUpgrade)
@@ -265,9 +257,9 @@ export class Worker extends CreepRoleBase implements CreepRole {
   public FindSpendingTask(creep: CreepExtra): CreepTask | null {
     if (creep.AssignedRoom.controller) {
       const downgradeMaintenanceThreshold =
-        CONTROLLER_DOWNGRADE[creep.AssignedRoom.controller.level] * UpdateController.DowngradeMaintenanceRatio;
+        CONTROLLER_DOWNGRADE[creep.AssignedRoom.controller.level] * UpgradeController.DowngradeMaintenanceRatio;
       if (creep.AssignedRoom.controller.ticksToDowngrade < downgradeMaintenanceThreshold)
-        return new MaintainController(creep.AssignedRoom.controller);
+        return new UpgradeController(creep.AssignedRoom.controller, 'maintain');
     } else {
       throw new Error(`Assigned room ${creep.AssignedRoom} has no controller!`);
     }
@@ -282,7 +274,8 @@ export class Worker extends CreepRoleBase implements CreepRole {
     }
 
     // Don't bother with construction or building at level 1
-    if (creep.AssignedRoom.controller.level === 1) return new UpdateController(creep.AssignedRoom.controller);
+    if (creep.AssignedRoom.controller.level === 1)
+      return new UpgradeController(creep.AssignedRoom.controller, 'upgrade');
 
     const constructions = creep.AssignedRoom.FlatMapOverRoomsInClaimedArea(r =>
       r instanceof Room ? r.find(FIND_MY_CONSTRUCTION_SITES) : [],
