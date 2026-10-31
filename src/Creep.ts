@@ -31,13 +31,11 @@ declare global {
 
 export class CreepExtra extends Creep {
   private readonly log = new Logger(this, { formatArgs: { '<creep>': this } });
-  readonly colony: Colony;
-  constructor(id: Id<Creep>, colony: Colony) {
+  constructor(
+    id: Id<Creep>,
+    public readonly colony: Colony,
+  ) {
     super(id);
-    this.colony = colony;
-    this.memory.moveMode ??= 'long';
-    this.memory.stuckTicks ??= 0;
-    this.memory.successfulAvoidMoves ??= 0;
   }
 
   get role(): CreepRole {

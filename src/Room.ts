@@ -440,9 +440,7 @@ export class RoomExtra extends Room {
    */
   AvailableMiningPositions(): MiningPosition[] {
     const ret = [];
-    const assignedMiningPositions = this.colony
-      .GetAllAssignedTasks(TaskAction.Mine)
-      .map(p => (p as Mine).miningPosition);
+    const assignedMiningPositions = this.GetAssignedTasks(TaskAction.Mine).map(p => (p as Mine).miningPosition);
     for (const [_room, mines] of this.WorkableClaimedMiningPositions)
       for (const mine of mines) if (!assignedMiningPositions.some(amp => amp.source === mine.source)) ret.push(mine);
     return ret;

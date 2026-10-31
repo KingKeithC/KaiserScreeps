@@ -1,5 +1,6 @@
 import { CreepExtra } from 'Creep';
 import { TaskAction, TaskActionResult } from 'tasks/types';
+import { ResourceContainerUsedRatio } from 'utils/Collections';
 import { ResourceContainer } from 'utils/RoomUtils';
 import { TargetTask } from './TargetTask';
 
@@ -19,15 +20,7 @@ export class Collect extends TargetTask<typeof TaskAction.Collect, ResourceConta
   }
 
   public extraToString(target: ResourceContainer): string {
-    const remaining =
-      'store' in target
-        ? '%' +
-          (
-            (target.store.getUsedCapacity(this.resourceType) ??
-              0 / (target.store.getCapacity(this.resourceType) ?? 1)) * 100
-          ).toFixed(2)
-        : `${target.amount} / Unlimited`;
-    return `${this.attempts}/${this.maxAttempts} attempts, ${remaining} stored`;
+    return `${this.attempts}/${this.maxAttempts} attempts, %${ResourceContainerUsedRatio(target)} stored`;
   }
 
   public actWhenTargetInvalid(): TaskActionResult | null {
@@ -42,7 +35,9 @@ export class Collect extends TargetTask<typeof TaskAction.Collect, ResourceConta
         ? target.transfer(creep, this.resourceType)
         : target instanceof Resource
           ? creep.pickup(target)
-          : creep.withdraw(target, this.resourceType);
+          : target instanceof Mineral
+            ? creep.harvest(target)
+            : creep.withdraw(target, this.resourceType);
 
     if (result === OK && inventoryChange <= this.smallPickupThreshold) this.attempts++;
     else if (result !== OK && result !== ERR_NOT_IN_RANGE) this.attempts++;
