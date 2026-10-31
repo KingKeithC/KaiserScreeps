@@ -324,12 +324,11 @@ export class Worker extends CreepRoleBase implements CreepRole {
 
   // prettier-ignore
   ConstructionPriorities: ((c: ConstructionSite) => boolean)[] = [
-    (c => c.structureType === STRUCTURE_SPAWN),
-    (c => c.structureType === STRUCTURE_EXTENSION || c.structureType === STRUCTURE_SPAWN),
-    (c => c.structureType === STRUCTURE_STORAGE || c.structureType === STRUCTURE_CONTAINER),
-    (c => c.structureType === STRUCTURE_ROAD),
     (c => c.structureType === STRUCTURE_RAMPART || c.structureType === STRUCTURE_WALL),
-    (() => true),
+    (c => c.structureType === STRUCTURE_SPAWN),
+    (c => c.structureType === STRUCTURE_EXTENSION),
+    (c => c.structureType === STRUCTURE_ROAD),
+    (() => true), // Everything else
   ];
 
   // prettier-ignore
