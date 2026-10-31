@@ -41,7 +41,7 @@ export class Mine implements CreepTask {
     if (target.roomName in Game.rooms && source === null) {
       this.isCompleteFlag = true;
       return;
-    }
+    } else if (!(target.roomName in Game.rooms)) return; // Can't see the room, so can't discern anymore
 
     // If someone (other than us) is in our spot, we're done
     const occupier = target.lookFor(LOOK_CREEPS).pop();
