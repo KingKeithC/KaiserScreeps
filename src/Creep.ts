@@ -76,7 +76,7 @@ export class CreepExtra extends Creep {
   StartOfTick(): void {
     if (this.spawning) return; // Ignore spawning creeps.
 
-    // Invoke callback is we just finished spawning
+    // Invoke callback if we just finished spawning
     if (!this.spawning && (this.memory.spawning ?? false)) {
       this.memory.spawning = false;
       this.log.info(`Ready for service!`);
@@ -95,7 +95,7 @@ export class CreepExtra extends Creep {
   MaxStuckTicks = 2;
   MaxAvoidTicks = 4;
   MoveLong(pos: RoomPosition, opts?: MoveToOpts): number {
-    this.log.debug('Invoking MoveLong to ${pos} with ${opts}', { pos, opts });
+    // this.log.debug('Invoking MoveLong to ${pos} with ${opts}', { pos, opts });
     return this.moveTo(pos, {
       ...opts,
       costCallback: (rn: string, cm: CostMatrix) => this.CostCallback(rn, cm),
@@ -107,7 +107,7 @@ export class CreepExtra extends Creep {
   }
 
   MoveAvoidCreeps(pos: RoomPosition, opts?: MoveToOpts): number {
-    this.log.debug('Invoking MoveAvoidCreeps to ${pos} with ${opts}', { pos, opts });
+    // this.log.debug('Invoking MoveAvoidCreeps to ${pos} with ${opts}', { pos, opts });
     // eslint-disable-next-line no-underscore-dangle
     return this.moveTo(pos, {
       ...opts,
@@ -132,9 +132,10 @@ export class CreepExtra extends Creep {
     const targetPos = target instanceof RoomPosition ? target : target.pos;
 
     if (!(targetPos.roomName in Game.rooms))
-      this.log.warn('Target room is not visible: ${target}', { target: targetPos });
+      this.log.warn('MoveCreep invoked to target room that is not visible: ${target}', { target: targetPos });
 
     if (this.pos.roomName === targetPos.roomName && this.pos.getRangeTo(targetPos) <= (opts?.range ?? 1)) {
+      this.log.debug(`MoveCreep: arrived!`);
       // Arrived / Base case
       // Reset to clean, long move mode
       this.memory.stuckTicks = 0;
@@ -147,13 +148,10 @@ export class CreepExtra extends Creep {
 
     // Increment counters
     if (this.memory.moveMode === 'avoidCreeps' && this.MovedBetweenTicks) {
-      this.log.debug(`MoveCreep: avoidCreeps && movedBetweenTicks; ${this.memory.successfulAvoidMoves} (+1)`);
       this.memory.successfulAvoidMoves = (this.memory.successfulAvoidMoves ?? 0) + 1;
     } else if (this.memory.moveMode === 'long' && !this.MovedBetweenTicks && this.fatigue === 0) {
-      this.log.debug(`MoveCreep: long && !movedBetweenTicks && this.fatigue === 0; ${this.memory.stuckTicks} (+1)`);
       this.memory.stuckTicks = (this.memory.stuckTicks ?? 0) + 1;
     } else if (this.memory.stuckTicks && this.memory.moveMode === 'long' && this.MovedBetweenTicks) {
-      this.log.debug(`MoveCreep: long && movedBetweenTicks; Was stuck ${this.memory.stuckTicks}, now 0.`);
       this.memory.stuckTicks = 0;
     }
 

@@ -706,7 +706,7 @@ export class RoomExtra extends Room {
         const needed = BodyCost(body);
 
         if (available < needed) {
-          this.log.warn(msg + 'Given body too expensive or room energy too low (${available}/${needed}).', {
+          this.log.debug(msg + 'Given body too expensive or room energy too low (${available}/${needed}).', {
             '<rate>': 10,
             '<role>': role,
             roomCount,
@@ -737,13 +737,14 @@ export class RoomExtra extends Room {
 
         // If we used up all the spawn points, then return early.
         if (++completedSpawns >= maxSpawns) return;
-      } else
-        this.log.debug(msg + 'Role under quota (${roomCount} < ${roomQuota}) but does not need spawn.', {
-          '<role>': role,
-          roomCount,
-          timeSinceLastSpawn,
-          roomQuota,
-        });
+      }
+      // else
+      // this.log.debug(msg + 'Role under quota (${roomCount} < ${roomQuota}) but does not need spawn.', {
+      //   '<role>': role,
+      //   roomCount,
+      //   timeSinceLastSpawn,
+      //   roomQuota,
+      // });
     }
   }
 
