@@ -258,7 +258,6 @@ export class Worker extends CreepRoleBase implements CreepRole {
 
   MaxSupplyForSpawns = 4;
   MaxSupplyForTowers = 1;
-  MaxBuildPerRoom = 2;
   MaxRepairPerRoom = 2;
   public FindSpendingTask(creep: CreepExtra): CreepTask | null {
     if (creep.AssignedRoom.controller) {
@@ -286,11 +285,8 @@ export class Worker extends CreepRoleBase implements CreepRole {
     const constructions = creep.AssignedRoom.FlatMapOverRoomsInClaimedArea(r =>
       r instanceof Room ? r.find(FIND_MY_CONSTRUCTION_SITES) : [],
     );
-    const buildTasks = creep.AssignedRoom.GetAssignedTasks(TaskAction.Build) as Build[];
-    if (buildTasks.filter(b => constructions.some(c => c.id === b.targetId)).length < this.MaxBuildPerRoom) {
-      const cons = this.FindConstructionByPriorityAndPath(creep, constructions);
-      if (cons) return new Build(cons);
-    }
+    const cons = this.FindConstructionByPriorityAndPath(creep, constructions);
+    if (cons) return new Build(cons);
 
     // Don't bother with repairs below RCL3
     if (creep.AssignedRoom.controller.level >= 3) {
