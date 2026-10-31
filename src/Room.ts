@@ -390,6 +390,15 @@ export class RoomExtra extends Room {
     }))
       matrix.set(s.pos.x, s.pos.y, this.PathfindingParams.Unwalkable);
 
+    // Blot out unwalkable construction sites
+    for (const s of this.find(FIND_CONSTRUCTION_SITES, {
+      filter: st =>
+        st.structureType !== STRUCTURE_ROAD &&
+        st.structureType !== STRUCTURE_CONTAINER &&
+        (st.structureType !== STRUCTURE_RAMPART || !st.my),
+    }))
+      matrix.set(s.pos.x, s.pos.y, this.PathfindingParams.Unwalkable);
+
     // Cache
     this.cachedDeserializedStructuresCostMatrix = matrix;
 
