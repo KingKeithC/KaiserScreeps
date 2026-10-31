@@ -140,8 +140,12 @@ export function CouldCreepStandAt(x: number, y: number, room: Room, terrain: Roo
     return false; // Can't stand on any other structure
   }
 
-  // Can't stand on construction sites (or maybe just shouldn't)
-  if (pos.lookFor(LOOK_CONSTRUCTION_SITES).length > 0) return false;
+  for (const structure of pos.lookFor(LOOK_CONSTRUCTION_SITES)) {
+    if (structure.structureType === STRUCTURE_CONTAINER) continue; // Can stand on container construction sites.
+    if (structure.structureType === STRUCTURE_ROAD) continue; // Can stand on road construction sites.
+    if (structure.structureType === STRUCTURE_RAMPART && structure.my) continue; // Can stand on my rampart construction sites.
+    return false; // Can't stand on any other construction sites
+  }
 
   // No other blockers, must be okay to stand there
   return true;
@@ -155,7 +159,7 @@ export function CouldCreepStandAt(x: number, y: number, room: Room, terrain: Roo
 export function GetMiningPositions(room: Room): MiningPosition[] {
   const sources = room.find(FIND_SOURCES);
   if (sources.length === 0) {
-    Logger.warn(`GetMinerPositions: No sources in room.`, { '<room>': room });
+    Logger.warn('GetMinerPositions: No sources in room.', { '<room>': room });
   }
 
   let searched = 0;
@@ -177,8 +181,11 @@ export function GetMiningPositions(room: Room): MiningPosition[] {
         }
       }
 
-  Logger.info(`GetMinerPositions: ${sources.length} Sources have ${found} positions (${searched} searched).`, {
+  Logger.info('GetMinerPositions: Found (${found}/${searched}) Sources: ${sources}.', {
     '<room>': room,
+    found,
+    searched,
+    sources,
   });
   return ret;
 }
