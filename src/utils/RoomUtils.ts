@@ -10,7 +10,7 @@ import { Logger } from './Logger';
 */
 
 export type ResourceContainer =
-  Creep | StructureLink | StructureStorage | StructureContainer | Resource | Ruin | Tombstone;
+  Creep | StructureLink | StructureStorage | StructureContainer | Resource | Ruin | Tombstone | Mineral;
 
 export type ContainerAndAmount = [ResourceContainer, number];
 
@@ -252,15 +252,21 @@ export function ResourceContainersForRoomByType(room: string | Room): Map<Resour
         [container, container.store.getUsedCapacity(rt as ResourceConstant)],
       ]);
 
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
-  for (const sender of room.find(FIND_MY_STRUCTURES, {
-    filter: s => s.structureType === STRUCTURE_LINK && s.id in (room.memory.linkGroups ?? {}).Senders,
-  }) as StructureLink[])
-    for (const rt in sender.store)
-      ret.set(rt as ResourceConstant, [
-        ...(ret.get(rt as ResourceConstant) ?? []),
-        [sender, sender.store.getUsedCapacity(rt as ResourceConstant) ?? 0],
-      ]);
+  if (CONTROLLER_STRUCTURES.link[room.controller?.level ?? 0] > 0)
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
+    for (const sender of room.find(FIND_MY_STRUCTURES, {
+      filter: s => s.structureType === STRUCTURE_LINK && s.id in (room.memory.linkGroups ?? {}).Senders,
+    }) as StructureLink[])
+      for (const rt in sender.store)
+        ret.set(rt as ResourceConstant, [
+          ...(ret.get(rt as ResourceConstant) ?? []),
+          [sender, sender.store.getUsedCapacity(rt as ResourceConstant) ?? 0],
+        ]);
+
+  if (CONTROLLER_STRUCTURES.extractor[room.controller?.level ?? 0] > 0)
+    for (const extractor of room.find(FIND_MY_STRUCTURES, { filter: { structureType: STRUCTURE_EXTRACTOR } }))
+      for (const rt of extractor.pos.lookFor(LOOK_MINERALS))
+        ret.set(rt.mineralType, [...(ret.get(rt.mineralType) ?? []), [rt, rt.mineralAmount]]);
 
   return ret;
 }
