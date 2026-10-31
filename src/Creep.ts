@@ -275,7 +275,7 @@ export class CreepExtra extends Creep {
       if (moveResult === ERR_NO_PATH) this.ChangeTask();
     } else {
       // Task result was not ok and not a move
-      this.log.warn('DoTask: NotOK - Task ${task} Outcome ${outcome}.', {
+      this.log.debug('DoTask: NotOK - Task ${task} Outcome ${outcome}.', {
         task,
         outcome,
         thisPos: this.pos,
