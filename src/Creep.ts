@@ -263,7 +263,7 @@ export class CreepExtra extends Creep {
       // We have to move to the task's target
       const moveResult = this.MoveCreep(outcome.target.pos, { range: outcome.range });
 
-      if (moveResult !== OK)
+      if (moveResult !== OK && moveResult !== ERR_TIRED)
         // Log bad moves
         this.log.debug(
           'DoTask: MoveNotOK - ${moveResult}, ${task} Outcome ${outcome}, Follow up move from ${thisPos} to ${targetPos} failed.',
