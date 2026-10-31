@@ -266,8 +266,8 @@ export class CreepExtra extends Creep {
       if (moveResult !== OK)
         // Log bad moves
         this.log.debug(
-          'DoTask: MoveNotOK - ${task} Outcome ${outcome}, Follow up move from ${thisPos} to ${targetPos} failed.',
-          { task, outcome, thisPos: this.pos, targetPos: outcome.target.pos },
+          'DoTask: MoveNotOK - ${moveResult}, ${task} Outcome ${outcome}, Follow up move from ${thisPos} to ${targetPos} failed.',
+          { moveResult, task, outcome, thisPos: this.pos, targetPos: outcome.target.pos },
         );
 
       // If pathfinding failed, select a new task
