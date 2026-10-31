@@ -27,7 +27,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
 
     const body = FirstBodyByEnergyCapacity(
       room,
-      MakeBody([WORK, 11], [CARRY, 6], [MOVE, 8]), // 1800
+      MakeBody([WORK, 10], [CARRY, 7], [MOVE, 9]), // 1800
       MakeBody([WORK, 6], [CARRY, 7], [MOVE, 7]), // 1300
       MakeBody([WORK, 2], [CARRY, 4], [MOVE, 3]), // 550
       zygote,
