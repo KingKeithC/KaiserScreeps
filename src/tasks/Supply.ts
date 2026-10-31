@@ -29,4 +29,9 @@ export class Supply extends TargetTask<typeof TaskAction.Supply, AnyStoreStructu
   public isCompleteWhenTargetValid(_creep: CreepExtra, target: NonNullable<AnyStoreStructure>): boolean {
     return target.store.getFreeCapacity(RESOURCE_ENERGY) < this.freeCapacityToConsiderComplete;
   }
+
+  public override handleOutcome(creep: CreepExtra, result: TaskActionResult | null): void {
+    super.handleOutcome(creep, result);
+    if (result?.result === ERR_FULL) this.isCompleteFlag = true;
+  }
 }
