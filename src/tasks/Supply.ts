@@ -14,20 +14,19 @@ export class Supply extends TargetTask<typeof TaskAction.Supply, AnyStoreStructu
   }
 
   extraToString(target: AnyStoreStructure): string {
-    const capacity = (target.store.getUsedCapacity(RESOURCE_ENERGY) / target.store.getCapacity(RESOURCE_ENERGY)) * 100;
-    return `%${capacity.toFixed(2)}`;
+    return `%${(((target.store.getUsedCapacity() ?? 0) / (target.store.getCapacity() ?? 1)) * 100).toFixed(2)}`;
   }
 
   public actWhenTargetValid(creep: CreepExtra, target: NonNullable<AnyStoreStructure>): TaskActionResult | null {
-    return { range: 1, result: creep.transfer(target, RESOURCE_ENERGY), target };
+    return { range: 1, result: creep.transfer(target, this.resourceType), target };
   }
 
   public isCreepAbleToContinue(creep: CreepExtra): boolean {
-    return creep.store.getUsedCapacity(RESOURCE_ENERGY) > 0;
+    return creep.store.getUsedCapacity() > 0;
   }
 
   public isCompleteWhenTargetValid(_creep: CreepExtra, target: NonNullable<AnyStoreStructure>): boolean {
-    return target.store.getFreeCapacity(RESOURCE_ENERGY) < this.freeCapacityToConsiderComplete;
+    return (target.store.getFreeCapacity(this.resourceType) ?? 0) < this.freeCapacityToConsiderComplete;
   }
 
   public override handleOutcome(creep: CreepExtra, results: TaskActionResult | null): TaskActionResult | null {
