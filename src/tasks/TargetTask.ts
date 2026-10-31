@@ -40,9 +40,7 @@ export abstract class TargetTask<Action extends string, Target extends Targetabl
     if (this.target === null || this.target === undefined)
       if (targetPos.roomName in Game.rooms)
         return this.actWhenTargetInvalid(creep, Game.rooms[targetPos.roomName]); // The target is in a visible room, and still can't see it, it must be invalid.
-      else if (!(targetPos.roomName in Game.rooms))
-        return this.actWhenTargetInNonVisibleRoom(creep, targetPos); // The target is in a non-visible room, it could be invalid or we might just need to move into the room.
-      else throw new Error('Target is null, and in room that is neither visible nor invisible...');
+      else return this.actWhenTargetInNonVisibleRoom(creep, targetPos); // The target is in a non-visible room, it could be invalid or we might just need to move into the room.
 
     return this.actWhenTargetValid(creep, this.target);
   }
