@@ -38,7 +38,12 @@ export class UpgradeController extends TargetTask<typeof TaskAction.UpgradeContr
     return this.mode === 'maintain' && target.progress >= this.ExpectedFinalProgress(target);
   }
 
-  public handleOutcome(): void {
-    return;
+  public handleOutcome(creep: CreepExtra, results: TaskActionResult | null): TaskActionResult | null {
+    if (results?.result === ERR_NOT_ENOUGH_RESOURCES) this.isCompleteFlag = true;
+    if (results?.result === ERR_NOT_OWNER) this.isCompleteFlag = true;
+    if (results?.result === ERR_INVALID_TARGET) this.isCompleteFlag = true;
+    if (results?.result === ERR_INVALID_ARGS) this.isCompleteFlag = true;
+    if (this.isCompleteFlag) return { ...results, result: OK } as TaskActionResult;
+    return results;
   }
 }

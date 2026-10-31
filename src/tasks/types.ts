@@ -29,5 +29,5 @@ export interface CreepTask<Action extends string = string> {
   isCompleteFlag: boolean;
   toString(): string;
   act(creep: CreepExtra): TaskActionResult | null;
-  handleOutcome(creep: CreepExtra, outcome: TaskActionResult | null): void;
+  handleOutcome(creep: CreepExtra, outcome: TaskActionResult | null): TaskActionResult | null;
 }

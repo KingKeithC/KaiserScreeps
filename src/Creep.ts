@@ -246,8 +246,7 @@ export class CreepExtra extends Creep {
       return;
     }
 
-    const outcome = task.act(this);
-    task.handleOutcome(this, outcome);
+    const outcome = task.handleOutcome(this, task.act(this));
     this.currentTask = task; // Save task back to itself since acting on it might have changed it
     this.ActedThisTick = true; // Update non-idle flag since we acted
 

@@ -51,11 +51,11 @@ export abstract class TargetTask<Action extends string, Target extends Targetabl
   abstract isCompleteWhenTargetValid(creep: CreepExtra, target: NonNullable<Target>): boolean;
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  public handleOutcome(creep: CreepExtra, _result: TaskActionResult | null): void {
+  public handleOutcome(creep: CreepExtra, result: TaskActionResult | null): TaskActionResult | null {
     // If creep can't continue, then we're done
     if (!this.isCreepAbleToContinue(creep)) {
       this.isCompleteFlag = true;
-      return;
+      return result;
     }
 
     // Check if we're in a different room than the target
@@ -63,11 +63,11 @@ export abstract class TargetTask<Action extends string, Target extends Targetabl
     if (targetPos.roomName !== creep.pos.roomName)
       if (targetPos.roomName in Game.rooms) {
         this.isCompleteFlag = this.CompleteWhenTargetIsNullAndInVisibleRoom;
-        return;
+        return result;
       } else {
         this.isCompleteFlag = this.CompleteWhenTargetInNonVisibleRoom;
         // TODO: Invoke move logic early before bothering to act?
-        return;
+        return result;
       }
 
     // We're in the same room as the target
@@ -75,10 +75,11 @@ export abstract class TargetTask<Action extends string, Target extends Targetabl
     if (this.target === null || this.target === undefined) {
       Logger.warn('Target is null, and in room that is neither visible nor invisible...');
       this.isCompleteFlag = true;
-      return;
+      return result;
     }
 
     this.isCompleteFlag = this.isCompleteWhenTargetValid(creep, this.target);
+    return result;
   }
 
   abstract extraToString?(target: NonNullable<Target>): string;

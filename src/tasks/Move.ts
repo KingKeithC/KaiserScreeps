@@ -28,11 +28,12 @@ export class Move implements CreepTask {
     return { range: this.minDistance, result: ERR_NOT_IN_RANGE, target: { pos: this.toRoomPosition() } };
   }
 
-  public handleOutcome(creep: CreepExtra): void {
+  public handleOutcome(creep: CreepExtra, outcome: TaskActionResult | null): TaskActionResult | null {
     // Not done, so don't update isCompleteFlag
-    if (creep.room.name !== this.toRoomPosition().roomName) return;
+    if (creep.room.name !== this.toRoomPosition().roomName) return outcome;
 
     // Update flag based on range to target
     this.isCompleteFlag = creep.pos.inRangeTo(this.toRoomPosition(), this.minDistance);
+    return outcome;
   }
 }
