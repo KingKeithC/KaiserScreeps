@@ -44,9 +44,26 @@ export class Claimer extends CreepRoleBase implements CreepRole {
         if (controller !== undefined) return new Claim(controller, false);
       } else {
         const exit = creep.room.findExitTo(c);
-        if (exit === ERR_NO_PATH) return null;
-        const pos = creep.pos.findClosestByPath(exit as FindConstant);
-        if (pos) return new Move(pos, 0);
+        if (exit === ERR_NO_PATH || exit === ERR_INVALID_ARGS) return null;
+        const expitPos = creep.pos.findClosestByPath(exit);
+        if (!expitPos) return null;
+
+        // Set the entry pos to be 2 linear tiles toward the exit dir
+        const entryPos = new RoomPosition(expitPos.x, expitPos.y, c);
+        if (expitPos.y === 0)
+          // MOVE UP
+          entryPos.y = 48;
+        else if (expitPos.x === 49)
+          // MOVE RIGHT
+          entryPos.x = 1;
+        else if (expitPos.y === 49)
+          // MOVE DOWN
+          entryPos.y = 1;
+        else if (expitPos.x === 0)
+          // LEFT
+          entryPos.x = 48;
+
+        return new Move(entryPos, 0);
       }
     return null;
   }
