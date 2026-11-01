@@ -425,7 +425,10 @@ export class RoomExtra extends Room {
   }
 
   get WorkableClaimedMiningPositions(): [RoomExtra | Room | string, MiningPosition[]][] {
-    return this.MapWithRoomsInClaimedArea(cr => GetMinesForRoom(cr, this.colony.username), true);
+    return this.MapWithRoomsInClaimedArea(
+      cr => (cr instanceof RoomExtra ? cr.Mines : GetMinesForRoom(cr, this.colony.username)),
+      true,
+    );
   }
 
   get ClaimedSources(): Id<Source>[] {
