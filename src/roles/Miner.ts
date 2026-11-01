@@ -12,7 +12,7 @@ export class Miner extends CreepRoleBase implements CreepRole {
 
   IsSpawnNeeded(room: RoomExtra): boolean {
     // We can't spawn miners until we have a worker.
-    return room.AssignedCreeps.filter(c => c.role.groupName === 'Worker').length > 0;
+    return room.AssignedCreeps.filter(c => c.role.groupName === 'Workers').length > 0;
   }
 
   GetNewCreepBody(room: RoomExtra): BodyPartConstant[] {
