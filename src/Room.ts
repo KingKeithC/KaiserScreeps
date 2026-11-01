@@ -72,13 +72,29 @@ export class RoomExtra extends Room {
     return this.GetAssignedTasksWithCreep(taskAction).map(s => s[1]);
   }
 
+  private cachedAssignedTasksWithCreep?: { [key: string]: [CreepExtra, CreepTask][] } = {};
   GetAssignedTasksWithCreep(taskAction?: string): [CreepExtra, CreepTask][] {
-    const ret: [CreepExtra, CreepTask][] = [];
+    const cacheFetcher = () => {
+      if (this.cachedAssignedTasksWithCreep !== undefined)
+        if (taskAction === undefined) return flatten(Object.values(this.cachedAssignedTasksWithCreep));
+        else return this.cachedAssignedTasksWithCreep[taskAction] ?? [];
+      return [];
+    };
+
+    // Return from cache if exists
+    if (this.cachedAssignedTasksWithCreep !== undefined) return cacheFetcher();
+
+    // Create cache
+    this.cachedAssignedTasksWithCreep = {};
     for (const c of this.AssignedCreeps)
       if (c.currentTask !== null)
-        if (taskAction === undefined || (taskAction !== undefined && c.currentTask.action === taskAction))
-          ret.push([c, c.currentTask]);
-    return ret;
+        this.cachedAssignedTasksWithCreep[c.currentTask.action] = [
+          ...(this.cachedAssignedTasksWithCreep[c.currentTask.action] ?? []),
+          [c, c.currentTask],
+        ];
+
+    // Return from newly created cache
+    return cacheFetcher();
   }
 
   get StoreOverUpgrade() {
