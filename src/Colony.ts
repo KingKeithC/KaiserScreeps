@@ -214,7 +214,7 @@ export class Colony {
     if (this.cachedOtherRooms.length > 0) return this.cachedOtherRooms;
     for (const room of this.Rooms.values())
       if (!(room.controller && room.controller.my)) this.cachedOtherRooms.push(room);
-    return this.cachedMyRooms;
+    return this.cachedOtherRooms;
   }
 
   private RefreshCaches(): void {
