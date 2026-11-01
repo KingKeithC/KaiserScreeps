@@ -226,6 +226,7 @@ export class Colony {
 
     // Clear out creeps list
     this.Creeps.clear();
+    this.cachedCreepsByAssignedRoom.clear();
     for (const [name, creep] of Object.entries(Game.creeps)) this.Creeps.set(name, new CreepExtra(creep.id, this));
     this.cachedMyCreeps = [];
   }
