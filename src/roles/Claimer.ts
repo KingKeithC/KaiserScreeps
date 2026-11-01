@@ -43,7 +43,10 @@ export class Claimer extends CreepRoleBase implements CreepRole {
         const controller = Game.rooms[c].controller;
         if (controller !== undefined) return new Claim(controller, false);
       } else {
-        return new Move(new RoomPosition(25, 25, c), 40);
+        const exit = creep.room.findExitTo(c);
+        if (exit === ERR_NO_PATH) return null;
+        const pos = creep.pos.findClosestByPath(exit as FindConstant);
+        if (pos) return new Move(pos, 0);
       }
     return null;
   }
