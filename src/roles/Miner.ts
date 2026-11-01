@@ -12,7 +12,7 @@ export class Miner extends CreepRoleBase implements CreepRole {
 
   IsSpawnNeeded(room: RoomExtra): boolean {
     // We can't spawn miners until we have a worker.
-    return (room.AssignedCreepsByRoleName.get('Worker') ?? []).length > 0;
+    return room.AssignedCreeps.filter(c => c.role.groupName === 'Worker').length > 0;
   }
 
   GetNewCreepBody(room: RoomExtra): BodyPartConstant[] {
@@ -68,8 +68,7 @@ export class Miner extends CreepRoleBase implements CreepRole {
     const closeNeedsEnergy = creep.pos
       .findInRange(
         [
-          ...(creep.AssignedRoom.AssignedCreepsByRoleName.get('Worker') ?? []),
-          ...(creep.AssignedRoom.AssignedCreepsByRoleName.get('Settler') ?? []),
+          ...creep.AssignedRoom.AssignedCreeps.filter(c => c.role.groupName === 'Worker'),
           ...creep.pos.findInRange(FIND_STRUCTURES, 1, {
             filter: s => 'store' in s && s.store.getFreeCapacity(RESOURCE_ENERGY) > 0,
           }),

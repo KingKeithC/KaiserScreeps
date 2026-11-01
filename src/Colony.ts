@@ -110,19 +110,6 @@ export class Colony {
   readonly Creeps: Map<string, CreepExtra> = new Map();
   readonly Rooms: Map<string, RoomExtra> = new Map();
 
-  // this.MyCreeps Grouped by Assigned Room (creep.memory.room)
-  private cachedCreepsByAssignedRoom: Map<string, CreepExtra[]> = new Map();
-  get CreepsByAssignedRoom(): Map<string, CreepExtra[]> {
-    if (this.cachedCreepsByAssignedRoom.size > 0) return this.cachedCreepsByAssignedRoom;
-    for (const c of this.MyCreeps)
-      if (c.memory.room)
-        this.cachedCreepsByAssignedRoom.set(c.memory.room, [
-          ...(this.cachedCreepsByAssignedRoom.get(c.memory.room) ?? []),
-          c,
-        ]);
-    return this.cachedCreepsByAssignedRoom;
-  }
-
   private readonly log = new Logger(this);
   readonly username = Game.spawns[Object.keys(Game.spawns)[0]].owner.username;
 
@@ -226,7 +213,6 @@ export class Colony {
 
     // Clear out creeps list
     this.Creeps.clear();
-    this.cachedCreepsByAssignedRoom.clear();
     for (const [name, creep] of Object.entries(Game.creeps)) this.Creeps.set(name, new CreepExtra(creep.id, this));
     this.cachedMyCreeps = [];
   }

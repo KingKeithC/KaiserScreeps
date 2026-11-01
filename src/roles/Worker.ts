@@ -71,7 +71,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
     // By the time they get there, the miner should hopefully have something to collect,
     // and it should prevent them from searching for new tasks ever idle tick
     // this does make them less responsive however
-    const miners = creep.AssignedRoom.AssignedCreepsByRoleName.get('Miner') ?? [];
+    const miners = creep.AssignedRoom.AssignedCreeps.filter(c => c.role.groupName === 'Miner');
     if (miners.length > 0) {
       const randomMiner = miners[Math.floor(miners.length * Math.random())];
       return new Collect(randomMiner);

@@ -50,8 +50,6 @@ export class RoomExtra extends Room {
   readonly colony: Colony;
   readonly log: Logger<RoomExtra> = new Logger(this, { formatArgs: { '<room>': this } });
   readonly AssignedCreeps: CreepExtra[];
-  readonly AssignedCreepsByRoleName: Map<string, CreepExtra[]>;
-  readonly AssignedCreepsByRoleGroup: Map<string, CreepExtra[]>;
 
   parent?: RoomExtra;
 
@@ -67,18 +65,7 @@ export class RoomExtra extends Room {
     // This class init
     this.parent = parent;
     this.colony = colony;
-    this.AssignedCreeps = colony.CreepsByAssignedRoom.get(this.name) ?? [];
-
-    this.AssignedCreepsByRoleName = new Map();
-    this.AssignedCreepsByRoleGroup = new Map();
-    for (const c of this.AssignedCreeps) {
-      if (!c.role) continue;
-      this.AssignedCreepsByRoleName.set(c.role.name, [...(this.AssignedCreepsByRoleName.get(c.role.name) ?? []), c]);
-      this.AssignedCreepsByRoleGroup.set(c.role.groupName, [
-        ...(this.AssignedCreepsByRoleGroup.get(c.role.groupName) ?? []),
-        c,
-      ]);
-    }
+    this.AssignedCreeps = colony.MyCreeps.filter(c => c.memory.room === room.name);
   }
 
   GetAssignedTasks(taskAction?: string): CreepTask[] {
