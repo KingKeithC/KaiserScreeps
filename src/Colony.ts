@@ -98,11 +98,11 @@ export class Colony {
   }
 
   // Lookup a role from the registry, and throw an error if not found
-  GetRole(name: string): CreepRole {
-    const role = this.Roles[name];
+  GetRole(roleName: string): CreepRole {
+    const role = this.Roles[roleName];
     if (!role) {
       // It's a game breaking error to have no role
-      throw new Error(`Role is not in Registry: ${name}`);
+      this.log.crit('Role is not in Registry: ${roleName}', { roleName });
     }
     return role;
   }
@@ -205,16 +205,17 @@ export class Colony {
   }
 
   private RefreshCaches(): void {
-    // Clear out rooms list, and refresh dependent lists
     this.Rooms.clear();
-    for (const [name, room] of Object.entries(Game.rooms)) this.Rooms.set(name, new RoomExtra(room, this));
+    this.Creeps.clear();
     this.cachedMyRooms = [];
     this.cachedOtherRooms = [];
-
-    // Clear out creeps list
-    this.Creeps.clear();
-    for (const [name, creep] of Object.entries(Game.creeps)) this.Creeps.set(name, new CreepExtra(creep.id, this));
     this.cachedMyCreeps = [];
+    for (const [name, creep] of Object.entries(Game.creeps))
+      if (creep.my) this.Creeps.set(name, new CreepExtra(creep.id, this));
+
+    for (const [name, room] of Object.entries(Game.rooms))
+      if (room.controller === undefined || room.controller.owner === undefined || room.controller.my)
+        this.Rooms.set(name, new RoomExtra(room, this));
   }
 
   // Stats are only fetched evey ~90 seconds, so we only need to update them infrequently
@@ -330,6 +331,8 @@ export class Colony {
   }
 
   Restart(): void {
+    this.UnassignAllTasks();
+
     if (Game.cpu.halt === undefined) this.log.crit(`Game.cpu.halt() is undefined. Game must in in Isolated VM mode.`);
     else Game.cpu.halt();
   }
