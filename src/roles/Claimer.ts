@@ -1,7 +1,7 @@
 import { CreepExtra } from 'Creep';
 import { unique } from 'lodash';
 import type { RoomExtra } from 'Room';
-import { Claim } from 'tasks';
+import { Claim, Move } from 'tasks';
 import { TaskAction, CreepTask } from 'tasks/types';
 import { MakeBody } from 'utils/Collections';
 import { CreepRoleBase, CreepRole } from './Role';
@@ -19,6 +19,7 @@ export class Claimer extends CreepRoleBase implements CreepRole {
   IsSpawnNeeded(room: RoomExtra): boolean {
     return this.UnworkedClaims(room).length > 0;
   }
+
   override GetRoomQuota(room: RoomExtra): number {
     return room.ClaimedRoomNames.length;
   }
@@ -41,6 +42,8 @@ export class Claimer extends CreepRoleBase implements CreepRole {
       if (c in Game.rooms) {
         const controller = Game.rooms[c].controller;
         if (controller !== undefined) return new Claim(controller, false);
+      } else {
+        return new Move(new RoomPosition(25, 25, c), 40);
       }
     return null;
   }
