@@ -61,10 +61,16 @@ export class CreepExtra extends Creep {
 
     // Fetch and memoize our assigned room.
     if (!this.memory.room) {
-      throw new Error(`Creep ${this.name} has no assigned room!`);
+      this.log.crit('Creep ${creepName} has no assigned room!', { creepName: this.name });
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      return null!;
     }
     const room = this.colony.MyRooms.filter(r => r.name === this.memory.room).pop();
-    if (!room) throw new Error(`Assigned Room ${this.memory.room} not in colony.MyRooms!`);
+    if (!room) {
+      this.log.crit('Assigned Room ${roomName} not in colony.MyRooms!', { roomName: this.memory.room });
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      return null!;
+    }
     this.cachedAssignedRoom = room;
 
     // Return fetched.
