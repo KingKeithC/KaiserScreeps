@@ -127,6 +127,11 @@ export class CreepExtra extends Creep {
   // Returns 1 when in range; otherwise returns the moveTo result.
   MovedBetweenTicks = false;
   MoveCreep(target: RoomPosition | { pos: RoomPosition }, opts?: MoveToOpts): number {
+    // Init move trackers
+    this.memory.moveMode ??= 'long';
+    this.memory.stuckTicks ??= 0;
+    this.memory.successfulAvoidMoves ??= 0;
+
     this.IntendedToMove = true;
     const targetPos = target instanceof RoomPosition ? target : target.pos;
 
