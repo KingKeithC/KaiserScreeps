@@ -287,13 +287,6 @@ export class Colony {
   }
 
   TickOtherVisibleRoom(room: Room): void {
-    if (room.name in Memory.rooms) {
-      // We generally shouldn't be able to get here.
-      // This might indicate a previously owned room was lost.
-      this.log.warn(`Unowned room ${room.name} appears in owned room memory (Memory.rooms)!`);
-      return;
-    }
-
     // Update the room reports for unowned rooms
     Memory.scoutingReports ??= {};
     if (!(room.name in Memory.scoutingReports)) {
