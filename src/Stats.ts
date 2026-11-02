@@ -33,8 +33,6 @@ interface ColonyStatsData {
   lifetime_stuck_ticks: { [roleName: string]: { [roomName: string]: number } };
   my_creep_count: { [roleName: string]: { [roomName: string]: number } };
   spawns_in_progress: { [roomName: string]: number };
-  event_counts: { [roomName: string]: { [eventType: string]: number } };
-  event_amounts: { [roomName: string]: { [eventType: string]: number } };
   neutral_structure_count: { [roomName: string]: number };
   hostile_creep_count: { [roomName: string]: number };
   my_structure_count: { [roomName: string]: number };
@@ -49,6 +47,8 @@ interface ColonyStatsData {
   energy_in_containers: { [roomName: string]: number };
   energy_in_my_creeps: { [roomName: string]: number };
   energy_in_links: { [roomName: string]: number };
+  event_counts_total: { [roomName: string]: { [eventType: string]: number } };
+  event_amounts_total: { [roomName: string]: { [eventType: string]: number } };
 }
 
 const ColonyStatsSchema: Schema<ColonyStatsData> = {
@@ -175,11 +175,15 @@ const ColonyStatsSchema: Schema<ColonyStatsData> = {
     unit: 'number',
     description: 'Total amount of spawns in the spawning state.',
   },
-  event_counts: { labelKeys: ['room', 'event_type'], unit: 'number', description: 'Total times an event occured.' },
-  event_amounts: {
+  event_counts_total: {
     labelKeys: ['room', 'event_type'],
     unit: 'number',
-    description: 'Total amount for all occurences of event.',
+    description: 'Total number of times an event occured.',
+  },
+  event_amounts_total: {
+    labelKeys: ['room', 'event_type'],
+    unit: 'number',
+    description: 'Sum of amount for all occurences of event.',
   },
 } as const;
 
@@ -282,8 +286,8 @@ export function GetColonyStats(colony: Colony): ColonyStats {
       rcl_progressTotal: colony.MapNameable(colony.MyRooms, mr => mr.controller?.progressTotal ?? 0),
       rcl_progress: colony.MapNameable(colony.MyRooms, mr => mr.controller?.progress ?? 0),
       rcl_level: colony.MapNameable(colony.MyRooms, mr => mr.controller?.level ?? 0),
-      event_counts: colony.MapNameable(colony.MyRooms, mr => mr.EventCounts),
-      event_amounts: colony.MapNameable(colony.MyRooms, mr => mr.EventAmounts),
+      event_counts_total: colony.MapNameable(colony.MyRooms, mr => mr.EventCounts),
+      event_amounts_total: colony.MapNameable(colony.MyRooms, mr => mr.EventAmounts),
     },
   };
 }
