@@ -120,20 +120,24 @@ export class Worker extends CreepRoleBase implements CreepRole {
     // Sort from least to most used capacity
     possibleSources.sort((a, b) => a[1] - b[1]);
 
-    const canFullySupplyUs = sourcesWhoCanFullySupplyUs.map(s => s[0]);
-    const canFullySupplyUsAnywhere = canFullySupplyUs.pop();
-    const canFullySupplyUsInSameRoomAsCreep = creep.pos.findClosestByPath(canFullySupplyUs, {
+    const fullSupply = sourcesWhoCanFullySupplyUs.map(s => s[0]);
+    const fullestSameRoom = creep.pos.findClosestByPath(fullSupply, {
       ignoreCreeps: true,
       costCallback: (rn: string, cm: CostMatrix) => creep.CostCallback(rn, cm),
     });
+    if (fullestSameRoom) return fullestSameRoom;
+
+    const fullestOverall = fullSupply.pop();
+    if (fullestOverall) return fullestOverall;
 
     const anySourceInMyRoom = creep.pos.findClosestByPath(
       possibleSources.map(s => s[0]),
       { costCallback: (rn: string, cm: CostMatrix) => creep.CostCallback(rn, cm) },
     );
+    if (anySourceInMyRoom) return anySourceInMyRoom;
+
     const anySourceAnywhere = possibleSources.map(s => s[0]).pop();
-    const best =
-      canFullySupplyUsInSameRoomAsCreep ?? canFullySupplyUsAnywhere ?? anySourceInMyRoom ?? anySourceAnywhere ?? null;
+    if (anySourceAnywhere) return anySourceAnywhere;
 
     // Uncomment this if there are issues with gathering task assignment
     // this.log.debug(
@@ -149,7 +153,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
     //   { '<creep>': creep },
     // );
 
-    return best;
+    return null;
   }
 
   CollectResources(creep: CreepExtra, searchForType: ResourceConstant[]): Collect | null {
