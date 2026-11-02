@@ -1,5 +1,5 @@
 import { CreepExtra } from 'Creep';
-import { Dictionary, flatten, sum, unique } from 'lodash';
+import { Dictionary, flatten, unique } from 'lodash';
 import { Attacker } from 'roles/Attacker';
 import { Claimer } from 'roles/Claimer';
 import { Defender } from 'roles/Defender';

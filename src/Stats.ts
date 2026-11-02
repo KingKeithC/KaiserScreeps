@@ -4,7 +4,7 @@ import { sum } from 'lodash';
 interface SchemaField {
   unit: 'ticks' | 'number' | 'cpu' | 'bytes';
   description: string;
-  labelKeys?: string[];
+  labelKeys?: readonly string[];
 }
 
 type Schema<T extends object> = { [k in keyof T]: SchemaField | (T[k] extends object ? Schema<T[k]> : never) };
