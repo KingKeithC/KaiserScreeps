@@ -74,10 +74,11 @@ export class RoomExtra extends Room {
 
   GetAssignedTasksWithCreep(taskAction?: string): [CreepExtra, CreepTask][] {
     const ret: [CreepExtra, CreepTask][] = [];
-    for (const c of this.AssignedCreeps)
-      if (c.currentTask !== null)
-        if (taskAction === undefined || (taskAction !== undefined && c.currentTask.action === taskAction))
-          ret.push([c, c.currentTask]);
+    for (const c of this.AssignedCreeps) {
+      const currentTask = c.currentTask;
+      if (currentTask !== null && (taskAction === undefined || currentTask.action === taskAction))
+        ret.push([c, currentTask]);
+    }
     return ret;
   }
 
@@ -172,6 +173,7 @@ export class RoomExtra extends Room {
 
   set ClaimedRoomNames(value: string[]) {
     this.memory.claimedNearby = unique(value);
+    this.cachedClaimedRepairs = undefined;
   }
   get ClaimedRoomNames(): string[] {
     return unique(this.memory.claimedNearby ?? []);
@@ -491,10 +493,13 @@ export class RoomExtra extends Room {
     );
   }
 
+  private cachedClaimedRepairs?: AnyStructure[];
   get ClaimedRepairs(): AnyStructure[] {
-    return this.FlatMapOverRoomsInClaimedArea(r =>
+    if (this.cachedClaimedRepairs !== undefined) return this.cachedClaimedRepairs;
+    this.cachedClaimedRepairs = this.FlatMapOverRoomsInClaimedArea(r =>
       typeof r === 'string' ? [] : r.find(FIND_STRUCTURES, { filter: s => s.hits < s.hitsMax }),
     );
+    return this.cachedClaimedRepairs;
   }
 
   get Ramparts(): StructureRampart[] {
@@ -533,8 +538,8 @@ export class RoomExtra extends Room {
 
     if (includeMainRoom) ret.push([this, mapper(this)]);
     for (const name of this.ClaimedRoomNames) {
-      const otherRoom = this.colony.OtherRooms.filter(or => or.name === name).pop();
-      if (otherRoom) ret.push([otherRoom, mapper(otherRoom)]);
+      const otherRoom = this.colony.Rooms.get(name);
+      if (otherRoom && !otherRoom.controller?.my) ret.push([otherRoom, mapper(otherRoom)]);
       else ret.push([name, mapper(name)]);
     }
 
@@ -646,10 +651,26 @@ export class RoomExtra extends Room {
   }
 
   RunTowers(): void {
-    // Run each tower in the room
-    if (!this.DisableTowers)
-      for (const tower of this.find(FIND_MY_STRUCTURES, { filter: s => s.structureType === STRUCTURE_TOWER }))
-        this.TickTower(tower as StructureTower);
+    if (this.DisableTowers) return;
+
+    const towers = this.find(FIND_MY_STRUCTURES, {
+      filter: (s): s is StructureTower => s.structureType === STRUCTURE_TOWER,
+    });
+    if (towers.length === 0) return;
+
+    const hostiles = this.Hostiles;
+    let weakestFriendly: Creep | undefined;
+    let lowestFriendlyHealth = Infinity;
+    for (const creep of this.colony.MyCreeps) {
+      if (creep.hits >= creep.hitsMax) continue;
+      const healthRatio = creep.hits / creep.hitsMax;
+      if (healthRatio <= lowestFriendlyHealth) {
+        weakestFriendly = creep;
+        lowestFriendlyHealth = healthRatio;
+      }
+    }
+
+    for (const tower of towers) this.TickTower(tower, hostiles, weakestFriendly);
   }
 
   RunLinks(): void {
@@ -874,36 +895,42 @@ export class RoomExtra extends Room {
 
   FindRepairByPriorityAndStrength(limitToRoom?: RoomExtra, byRangeTo?: RoomPosition): AnyStructure | null {
     const ongoingRepairs = this.GetAssignedTasks(TaskAction.Repair) as Repair[];
-    const incoming = (s: AnyStructure) => ongoingRepairs.filter(or => or.targetId === s.id).length;
-    const roomLimit = (s: AnyStructure) =>
-      limitToRoom === undefined || (limitToRoom !== undefined && s.pos.roomName === limitToRoom.name);
+    const incomingRepairs = new Map<string, number>();
+    for (const repair of ongoingRepairs)
+      incomingRepairs.set(repair.targetId, (incomingRepairs.get(repair.targetId) ?? 0) + 1);
+
+    const repairs = this.ClaimedRepairs;
     for (const [predicate, repairAt, maxWorkers] of this.RepairPriorities) {
-      const candidates = this.ClaimedRepairs.filter(
-        s => roomLimit(s) && predicate(s) && s.hits / s.hitsMax < repairAt && incoming(s) < maxWorkers,
-      );
+      let selected: AnyStructure | null = null;
+      let bestScore = Infinity;
+      for (const structure of repairs) {
+        if (
+          (limitToRoom !== undefined && structure.pos.roomName !== limitToRoom.name) ||
+          !predicate(structure) ||
+          structure.hits / structure.hitsMax >= repairAt ||
+          (incomingRepairs.get(structure.id) ?? 0) >= maxWorkers
+        )
+          continue;
 
-      let selected;
-      if (byRangeTo === undefined)
-        // Sort by most needed
-        selected = candidates.sort((b, a) => a.hits / a.hitsMax - b.hits / b.hitsMax).pop();
-      else
-        // Sort by range to given point
-        selected = byRangeTo.findClosestByRange(candidates);
-
-      if (!selected) continue;
-      else return selected;
+        const score = byRangeTo === undefined ? structure.hits / structure.hitsMax : byRangeTo.getRangeTo(structure);
+        if (score <= bestScore) {
+          selected = structure;
+          bestScore = score;
+        }
+      }
+      if (selected) return selected;
     }
     return null;
   }
 
-  TickTower(tower: StructureTower) {
+  TickTower(tower: StructureTower, hostiles: Creep[], weakestFriendly?: Creep) {
     const supplyRatio = tower.store.getUsedCapacity(RESOURCE_ENERGY) / tower.store.getCapacity(RESOURCE_ENERGY);
     if (!tower.isActive || !supplyRatio) return; // RCL or Energy too low to work
 
     // Critical Tasks - Always performed regardless of ener
 
     // Attacks
-    if (this.Hostiles.length && this.AttackHostiles && !this.DisableTowerAttacks) {
+    if (hostiles.length && this.AttackHostiles && !this.DisableTowerAttacks) {
       this.visual.circle(tower.pos, {
         radius: this.TowerAttackRange,
         stroke: Colours.ATTACK_RANGE,
@@ -912,10 +939,16 @@ export class RoomExtra extends Room {
       });
 
       // Find lowest health hostile in range
-      const weakestHostile = tower.pos
-        .findInRange(this.Hostiles, this.TowerAttackRange)
-        .sort((b, a) => a.hits / a.hitsMax - b.hits / b.hitsMax)
-        .pop();
+      let weakestHostile: Creep | undefined;
+      let lowestHostileHealth = Infinity;
+      for (const hostile of hostiles) {
+        if (tower.pos.getRangeTo(hostile.pos) > this.TowerAttackRange) continue;
+        const healthRatio = hostile.hits / hostile.hitsMax;
+        if (healthRatio <= lowestHostileHealth) {
+          weakestHostile = hostile;
+          lowestHostileHealth = healthRatio;
+        }
+      }
       if (weakestHostile) {
         const res = tower.attack(weakestHostile);
         this.log.debug(
@@ -926,9 +959,6 @@ export class RoomExtra extends Room {
     }
 
     // My creeps in need of healing, weakest first
-    const weakestFriendly = this.colony.MyCreeps.filter(c => c.hits < c.hitsMax)
-      .sort((b, a) => a.hits / a.hitsMax - b.hits / b.hitsMax)
-      .pop();
     if (weakestFriendly) {
       const res = tower.heal(weakestFriendly);
       this.log.debug(
