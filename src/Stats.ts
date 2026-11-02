@@ -14,41 +14,51 @@ interface StatsFrame<S extends object> {
   data: S;
 }
 
+type NumericRecord<TKey extends string = string> = Record<TKey, number>;
+type RoleRoomNumericRecord = Record<string, NumericRecord>;
+type RoomEventNumericRecord = Record<string, NumericRecord>;
+
 /* eslint-disable camelcase */
 interface ColonyStatsData {
   time: number;
   last_reset_time: number;
   visible_rooms_count: number;
-  gcl: { [homogenousMetric: string]: number };
-  gpl: { [homogenousMetric: string]: number };
-  cpu: { [homogenousMetric: string]: number };
-  meminfo: { [homogenousMetric: string]: number };
-  rcl_level: { [roomName: string]: number };
-  rcl_progress: { [roomName: string]: number };
-  rcl_progressTotal: { [roomName: string]: number };
-  resources: { [resourceType: string]: number };
-  room_quota: { [roleName: string]: { [roomName: string]: number } };
-  assigned_room_count: { [roleName: string]: { [roomName: string]: number } };
-  lifetime_idle_ticks: { [roleName: string]: { [roomName: string]: number } };
-  lifetime_stuck_ticks: { [roleName: string]: { [roomName: string]: number } };
-  my_creep_count: { [roleName: string]: { [roomName: string]: number } };
-  spawns_in_progress: { [roomName: string]: number };
-  neutral_structure_count: { [roomName: string]: number };
-  hostile_creep_count: { [roomName: string]: number };
-  my_structure_count: { [roomName: string]: number };
-  my_constructions_count: { [roomName: string]: number };
-  hostile_structure_count: { [roomName: string]: number };
-  dropped_energy_amount: { [roomName: string]: number };
-  capacity_of_storage: { [roomName: string]: number };
-  energy_in_storage: { [roomName: string]: number };
-  energy_in_spawns: { [roomName: string]: number };
-  energy_in_sources: { [roomName: string]: number };
-  capacity_of_spawns: { [roomName: string]: number };
-  energy_in_containers: { [roomName: string]: number };
-  energy_in_my_creeps: { [roomName: string]: number };
-  energy_in_links: { [roomName: string]: number };
-  event_counts_total: { [roomName: string]: { [eventType: string]: number } };
-  event_amounts_total: { [roomName: string]: { [eventType: string]: number } };
+
+  // [string] Labels
+  gcl: NumericRecord;
+  gpl: NumericRecord;
+  cpu: NumericRecord;
+  meminfo: NumericRecord;
+  rcl_level: NumericRecord;
+  rcl_progress: NumericRecord;
+  rcl_progressTotal: NumericRecord;
+  resources: NumericRecord;
+  spawns_in_progress: NumericRecord;
+  neutral_structure_count: NumericRecord;
+  hostile_creep_count: NumericRecord;
+  my_structure_count: NumericRecord;
+  my_constructions_count: NumericRecord;
+  hostile_structure_count: NumericRecord;
+  dropped_energy_amount: NumericRecord;
+  capacity_of_storage: NumericRecord;
+  energy_in_storage: NumericRecord;
+  energy_in_spawns: NumericRecord;
+  energy_in_sources: NumericRecord;
+  capacity_of_spawns: NumericRecord;
+  energy_in_containers: NumericRecord;
+  energy_in_my_creeps: NumericRecord;
+  energy_in_links: NumericRecord;
+
+  // ['room', 'eventType'] Labels
+  event_counts_total: RoomEventNumericRecord;
+  event_amounts_total: RoomEventNumericRecord;
+
+  // ['role', 'room'] Labels
+  room_quota: RoleRoomNumericRecord;
+  assigned_room_count: RoleRoomNumericRecord;
+  lifetime_idle_ticks: RoleRoomNumericRecord;
+  lifetime_stuck_ticks: RoleRoomNumericRecord;
+  my_creep_count: RoleRoomNumericRecord;
 }
 
 const ColonyStatsSchema: Schema<ColonyStatsData> = {
@@ -189,10 +199,10 @@ const ColonyStatsSchema: Schema<ColonyStatsData> = {
 
 export type ColonyStats = StatsFrame<ColonyStatsData>;
 export function GetColonyStats(colony: Colony): ColonyStats {
-  const resources: { [resourceType: string]: number } = {};
+  const resources: NumericRecord = {};
   for (const r of Object.entries(Game.resources)) resources[r[0]] = r[1] as number;
 
-  const meminfo: { [memInfoType: string]: number } = {};
+  const meminfo: NumericRecord = {};
   if (Game.cpu.getHeapStatistics) {
     for (const [k, v] of Object.entries(Game.cpu.getHeapStatistics())) meminfo[k] = v as number;
 
