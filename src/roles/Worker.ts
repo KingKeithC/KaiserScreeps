@@ -110,7 +110,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
 
       // If we expect to be able to fully collect from this source if we attempted to go for it,
       // then add it to the 'best' list.
-      possible[1] = possible[1] - totalWithdrawls;
+      possible[1] = possible[1] - totalWithdrawls - creep.store.getFreeCapacity();
       if (possible[1] >= creep.store.getFreeCapacity()) sourcesWhoCanFullySupplyUs.push(possible);
     }
 
