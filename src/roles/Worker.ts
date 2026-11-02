@@ -14,6 +14,11 @@ import {
 } from 'utils/RoomUtils';
 import { CreepRoleBase, CreepRole } from './Role';
 
+interface CollectionPlan {
+  sourcesByType: Map<ResourceConstant, ContainerAndAmount[]>;
+  reservedCapacityBySource: Map<string, number>;
+}
+
 export class Worker extends CreepRoleBase implements CreepRole {
   readonly groupName = 'Workers';
   readonly name: string = 'Worker';
@@ -98,19 +103,37 @@ export class Worker extends CreepRoleBase implements CreepRole {
     return null;
   }
 
-  FindBestCollection(creep: CreepExtra, possibleSources: ContainerAndAmount[]): ResourceContainer | null {
+  private CreateCollectionPlan(creep: CreepExtra): CollectionPlan {
+    const sourcesByType = new Map<ResourceConstant, ContainerAndAmount[]>();
+    for (const [_room, results] of creep.AssignedRoom.MapWithRoomsInClaimedArea(ResourceContainersForRoomByType))
+      for (const [resourceType, sources] of results) {
+        const existing = sourcesByType.get(resourceType);
+        if (existing) existing.push(...sources);
+        else sourcesByType.set(resourceType, sources);
+      }
+
+    const reservedCapacityBySource = new Map<string, number>();
+    for (const [collector, task] of creep.AssignedRoom.GetAssignedTasksWithCreep(TaskAction.Collect)) {
+      const sourceId = (task as Collect).targetId;
+      reservedCapacityBySource.set(
+        sourceId,
+        (reservedCapacityBySource.get(sourceId) ?? 0) + collector.store.getFreeCapacity(),
+      );
+    }
+
+    return { sourcesByType, reservedCapacityBySource };
+  }
+
+  FindBestCollection(
+    creep: CreepExtra,
+    possibleSources: ContainerAndAmount[],
+    reservedCapacityBySource: Map<string, number>,
+  ): ResourceContainer | null {
     const sourcesWhoCanFullySupplyUs = [];
-    const currentCollectionTasks = creep.AssignedRoom.GetAssignedTasksWithCreep(TaskAction.Collect);
     for (const possible of possibleSources) {
-      // Who else is coming to collect from this source already
-      const incomingCollectors = currentCollectionTasks.filter(ce => (ce[1] as Collect).targetId === possible[0].id);
-
-      // How much energy is scheduled to be withdrawn currently
-      const totalWithdrawls = sum(incomingCollectors, collector => collector[0].store.getFreeCapacity());
-
       // If we expect to be able to fully collect from this source if we attempted to go for it,
       // then add it to the 'best' list.
-      possible[1] = possible[1] - totalWithdrawls - creep.store.getFreeCapacity();
+      possible[1] = possible[1] - (reservedCapacityBySource.get(possible[0].id) ?? 0) - creep.store.getFreeCapacity();
       if (possible[1] >= creep.store.getFreeCapacity()) sourcesWhoCanFullySupplyUs.push(possible);
     }
 
@@ -121,10 +144,13 @@ export class Worker extends CreepRoleBase implements CreepRole {
     possibleSources.sort((a, b) => a[1] - b[1]);
 
     const fullSupply = sourcesWhoCanFullySupplyUs.map(s => s[0]);
-    const fullestSameRoom = creep.pos.findClosestByPath(fullSupply, {
-      ignoreCreeps: true,
-      costCallback: (rn: string, cm: CostMatrix) => creep.CostCallback(rn, cm),
-    });
+    const fullestSameRoom =
+      fullSupply.length > 0
+        ? creep.pos.findClosestByPath(fullSupply, {
+            ignoreCreeps: true,
+            costCallback: (rn: string, cm: CostMatrix) => creep.CostCallback(rn, cm),
+          })
+        : null;
     if (fullestSameRoom) return fullestSameRoom;
 
     const fullestOverall = fullSupply.pop();
@@ -156,15 +182,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
     return null;
   }
 
-  CollectResources(creep: CreepExtra, searchForType: ResourceConstant[]): Collect | null {
-    const containersByType = new Map<ResourceConstant, ContainerAndAmount[]>();
-    for (const [_room, results] of creep.AssignedRoom.MapWithRoomsInClaimedArea(ResourceContainersForRoomByType))
-      for (const [rt, sources] of results)
-        if (searchForType.includes(rt)) {
-          const existing = containersByType.get(rt) ?? [];
-          containersByType.set(rt, existing.concat(sources));
-        }
-
+  CollectResources(creep: CreepExtra, searchForType: ResourceConstant[], plan: CollectionPlan): Collect | null {
     // this.log.debug('Collect Resources, searched for ${searchForType} found ${containersByType}', {
     //   '<creep>': creep,
     //   containersByType: [...containersByType],
@@ -173,8 +191,9 @@ export class Worker extends CreepRoleBase implements CreepRole {
 
     // Find according to priorities
     for (const prio of searchForType) {
-      const candidates: ContainerAndAmount[] = containersByType.get(prio) ?? [];
-      const task = this.FindBestCollection(creep, candidates);
+      const candidates = plan.sourcesByType.get(prio);
+      if (!candidates || candidates.length === 0) continue;
+      const task = this.FindBestCollection(creep, candidates, plan.reservedCapacityBySource);
       if (task) return new Collect(task, prio);
     }
 
@@ -219,11 +238,14 @@ export class Worker extends CreepRoleBase implements CreepRole {
 
     // ------ GATHER ------
 
+    let collectionPlan: CollectionPlan | undefined;
     if (creep.store.getUsedCapacity() === 0 && creep.AssignedRoom.storage !== undefined) {
       // Need to collect non-energy resources, but only if room has storage
+      collectionPlan = this.CreateCollectionPlan(creep);
       const nonEnergy = this.CollectResources(
         creep,
         RESOURCES_ALL.filter(t => t !== RESOURCE_ENERGY),
+        collectionPlan,
       );
       if (nonEnergy) {
         this.log.warn('Non-Energy being collected: ${resourceType}', {
@@ -236,8 +258,9 @@ export class Worker extends CreepRoleBase implements CreepRole {
 
     if (creep.store.getFreeCapacity() > 0) {
       // Try to find a gathering task
+      collectionPlan ??= this.CreateCollectionPlan(creep);
       const gather =
-        this.CollectResources(creep, [RESOURCE_ENERGY]) ??
+        this.CollectResources(creep, [RESOURCE_ENERGY], collectionPlan) ??
         this.CollectFromRandomMiner(creep) ??
         this.CollectFromRoomStorage(creep);
       if (gather) return gather;
@@ -281,11 +304,11 @@ export class Worker extends CreepRoleBase implements CreepRole {
     }
 
     const supplyTasks = creep.AssignedRoom.GetAssignedTasks(TaskAction.Supply) as Supply[];
-    if (
-      supplyTasks.filter(s => creep.AssignedRoom.SpawnsOrExtensions.some(sp => sp.id === s.targetId)).length <
-      this.MaxSupplyForSpawns
-    ) {
-      const spawn = this.FindSupplyByPath(creep, creep.AssignedRoom.SpawnsOrExtensions, 'spawns/extensions');
+    const spawnsOrExtensions = creep.AssignedRoom.SpawnsOrExtensions;
+    const spawnExtensionIds = new Set<string>(spawnsOrExtensions.map(structure => structure.id));
+    const spawnSuppliers = supplyTasks.filter(task => spawnExtensionIds.has(task.targetId)).length;
+    if (spawnSuppliers < this.MaxSupplyForSpawns) {
+      const spawn = this.FindSupplyByPath(creep, spawnsOrExtensions, 'spawns/extensions', supplyTasks);
       if (spawn) return new Supply(spawn);
     }
 
@@ -301,23 +324,37 @@ export class Worker extends CreepRoleBase implements CreepRole {
 
     // Don't bother with repairs below RCL3
     if (creep.AssignedRoom.controller.level >= 3) {
+      const repairsByRoom = new Map<string, AnyStructure[]>();
+      for (const structure of creep.AssignedRoom.ClaimedRepairs) {
+        const roomRepairs = repairsByRoom.get(structure.pos.roomName) ?? [];
+        roomRepairs.push(structure);
+        repairsByRoom.set(structure.pos.roomName, roomRepairs);
+      }
       const repairs = creep.AssignedRoom.MapWithRoomsInClaimedArea(r =>
-        r instanceof Room ? r.find(FIND_STRUCTURES, { filter: s => s.hits < s.hitsMax }) : [],
+        typeof r === 'string' ? [] : (repairsByRoom.get(r.name) ?? []),
       );
       const repairTasks = creep.AssignedRoom.GetAssignedTasks(TaskAction.Repair) as Repair[];
+      const repairTasksByRoom = new Map<string, Repair[]>();
+      for (const task of repairTasks) {
+        const roomName = DeserializeRoomPosition(task.targetPos).roomName;
+        const roomTasks = repairTasksByRoom.get(roomName) ?? [];
+        roomTasks.push(task);
+        repairTasksByRoom.set(roomName, roomTasks);
+      }
 
       for (const [room, roomRepairs] of repairs) {
         if (!(room instanceof Room)) continue;
         const roomTowers = room.find(FIND_MY_STRUCTURES, { filter: s => s.structureType === STRUCTURE_TOWER });
-        const ongoingRepairs = repairTasks.filter(rt => DeserializeRoomPosition(rt.targetPos).roomName === room.name);
-        const ongoingTowerSupplys = supplyTasks.filter(st => roomTowers.some(t => t.id === st.targetId));
+        const ongoingRepairs = repairTasksByRoom.get(room.name) ?? [];
+        const roomTowerIds = new Set<string>(roomTowers.map(tower => tower.id));
+        const ongoingTowerSupplies = supplyTasks.filter(task => roomTowerIds.has(task.targetId));
 
         // Repair if there are no available towers to do it
         if (roomTowers.length === 0 && ongoingRepairs.length < this.MaxRepairPerRoom) {
-          const repair = this.FindIdealRepairByStrength(creep, roomRepairs);
+          const repair = this.FindIdealRepairByStrength(creep, roomRepairs, ongoingRepairs);
           if (repair) return new Repair(repair);
-        } else if (roomTowers.length > 0 && ongoingTowerSupplys.length < this.MaxSupplyForTowers) {
-          const tower = this.FindSupplyByPath(creep, roomTowers as StructureTower[], 'towers');
+        } else if (roomTowers.length > 0 && ongoingTowerSupplies.length < this.MaxSupplyForTowers) {
+          const tower = this.FindSupplyByPath(creep, roomTowers as StructureTower[], 'towers', supplyTasks);
           if (tower) return new Supply(tower);
         }
       }
@@ -348,11 +385,15 @@ export class Worker extends CreepRoleBase implements CreepRole {
   ): ConstructionSite | null {
     for (const p of this.ConstructionPriorities) {
       const group = candidates.filter(p);
+      if (group.length === 0) continue;
 
-      const sameRoom = supplier.pos.findClosestByPath(
-        group.filter(s => s.pos.roomName === supplier.room.name),
-        { costCallback: (rn: string, cm: CostMatrix) => supplier.CostCallback(rn, cm) },
-      );
+      const sameRoomCandidates = group.filter(s => s.pos.roomName === supplier.room.name);
+      const sameRoom =
+        sameRoomCandidates.length > 0
+          ? supplier.pos.findClosestByPath(sameRoomCandidates, {
+              costCallback: (rn: string, cm: CostMatrix) => supplier.CostCallback(rn, cm),
+            })
+          : null;
       if (sameRoom) return sameRoom;
 
       const remoteRoom = group
@@ -368,23 +409,32 @@ export class Worker extends CreepRoleBase implements CreepRole {
     supplier: CreepExtra,
     candidates: AnyStoreStructure[],
     candidateName?: string,
+    inProgressSupplyTasks: Supply[] = supplier.AssignedRoom.GetAssignedTasks(TaskAction.Supply) as Supply[],
   ): AnyStoreStructure | null {
-    const inProgressSupplyTasks = supplier.AssignedRoom.GetAssignedTasks(TaskAction.Supply) as Supply[];
+    const suppliersByTarget = new Map<string, number>();
+    for (const task of inProgressSupplyTasks)
+      suppliersByTarget.set(task.targetId, (suppliersByTarget.get(task.targetId) ?? 0) + 1);
+
     let considered = 0;
     let groups = 0;
     for (const [p, maxSuppliers] of this.SupplyPriorities) {
-      const group = candidates
-        .map(s => ({ structure: s, suppliers: inProgressSupplyTasks.filter(ist => ist.targetId === s.id).length }))
-        .filter(
-          s => s.structure.store.getFreeCapacity(RESOURCE_ENERGY) > 0 && p(s.structure) && s.suppliers < maxSuppliers,
+      const group: AnyStoreStructure[] = [];
+      for (const structure of candidates)
+        if (
+          structure.store.getFreeCapacity(RESOURCE_ENERGY) > 0 &&
+          p(structure) &&
+          (suppliersByTarget.get(structure.id) ?? 0) < maxSuppliers
         )
-        .map(s => s.structure);
+          group.push(structure);
       considered += group.length;
 
-      const sameRoom = supplier.pos.findClosestByPath(
-        group.filter(s => s.room.name === supplier.room.name),
-        { costCallback: (rn: string, cm: CostMatrix) => supplier.CostCallback(rn, cm) },
-      );
+      const sameRoomCandidates = group.filter(s => s.room.name === supplier.room.name);
+      const sameRoom =
+        sameRoomCandidates.length > 0
+          ? supplier.pos.findClosestByPath(sameRoomCandidates, {
+              costCallback: (rn: string, cm: CostMatrix) => supplier.CostCallback(rn, cm),
+            })
+          : null;
       if (sameRoom) return sameRoom;
 
       const remoteRoom = group
@@ -406,26 +456,33 @@ export class Worker extends CreepRoleBase implements CreepRole {
     return null;
   }
 
-  FindIdealRepairByStrength(creep: CreepExtra, candidates: AnyStructure[]): AnyStructure | undefined | null {
-    const inProgressRepairTasks = creep.AssignedRoom.GetAssignedTasks(TaskAction.Repair).filter(
-      t => DeserializeRoomPosition((t as Repair).targetPos).roomName === creep.room.name,
-    );
+  FindIdealRepairByStrength(
+    creep: CreepExtra,
+    candidates: AnyStructure[],
+    inProgressRepairTasks: Repair[],
+  ): AnyStructure | undefined | null {
+    const candidateIds = new Set<string>(candidates.map(structure => structure.id));
     const targetsByCount = new Map<string, number>();
     for (const t of inProgressRepairTasks) {
-      const target = 'target' in t ? (t.target as string | undefined) : undefined;
-      if (!target) continue;
-      const existing = targetsByCount.get(target) ?? 0;
-      targetsByCount.set(target, existing + 1);
+      if (!candidateIds.has(t.targetId)) continue;
+      targetsByCount.set(t.targetId, (targetsByCount.get(t.targetId) ?? 0) + 1);
     }
 
     for (const [p, repairAt, maxRepairs] of creep.AssignedRoom.RepairPriorities) {
-      const needsRepair = candidates
-        .map(s => ({ site: s, count: targetsByCount.get(s.id) ?? 0 }))
-        .filter(s => p(s.site) && s.site.hits / s.site.hitsMax < repairAt && s.count < maxRepairs)
-        .map(c => c.site)
-        .sort((b, a) => a.hits / a.hitsMax - b.hits / b.hitsMax)
-        .pop();
-
+      let needsRepair: AnyStructure | undefined;
+      let lowestHealthRatio = Infinity;
+      for (const structure of candidates) {
+        const healthRatio = structure.hits / structure.hitsMax;
+        if (
+          p(structure) &&
+          healthRatio < repairAt &&
+          (targetsByCount.get(structure.id) ?? 0) < maxRepairs &&
+          healthRatio <= lowestHealthRatio
+        ) {
+          needsRepair = structure;
+          lowestHealthRatio = healthRatio;
+        }
+      }
       if (needsRepair) return needsRepair;
     }
 
