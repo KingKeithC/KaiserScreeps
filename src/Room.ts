@@ -567,11 +567,6 @@ export class RoomExtra extends Room {
     }
   }
 
-  ResetEvents(): void {
-    this.EventCounts = {};
-    this.EventAmounts = {};
-  }
-
   EventToName(e: EventConstant): string {
     switch (e) {
       case EVENT_ATTACK:
