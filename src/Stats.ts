@@ -31,7 +31,7 @@ interface ColonyStatsData {
   assigned_room_count: { [roleName: string]: { [roomName: string]: number } };
   lifetime_idle_ticks: { [roleName: string]: { [roomName: string]: number } };
   lifetime_stuck_ticks: { [roleName: string]: { [roomName: string]: number } };
-  my_creep_count: { [roomName: string]: number };
+  my_creep_count: { [roleName: string]: { [roomName: string]: number } };
   spawns_in_progress: { [roomName: string]: number };
   event_counts: { [roomName: string]: { [eventType: string]: number } };
   event_amounts: { [roomName: string]: { [eventType: string]: number } };
@@ -113,7 +113,7 @@ const ColonyStatsSchema: Schema<ColonyStatsData> = {
     description: 'The total number of ticks the creep intended to move but failed to over its lifetime.',
   },
   my_creep_count: {
-    labelKeys: ['room'],
+    labelKeys: ['role', 'room'],
     unit: 'number',
     description: 'The living number of creeps currently spawned by occupied room.',
   },
@@ -225,7 +225,12 @@ export function GetColonyStats(colony: Colony): ColonyStats {
       lifetime_stuck_ticks: colony.MapNameable(Object.values(colony.Roles), r =>
         colony.MapNameable(colony.MyRooms, ro => sum(r.GetRoomCreepsInRole(ro), cir => cir.LifetimeStuck)),
       ),
-      my_creep_count: colony.MapNameable(Object.values(Game.rooms), vr => vr.find(FIND_MY_CREEPS).length),
+      my_creep_count: colony.MapNameable(Object.values(colony.Roles), r =>
+        colony.MapNameable(
+          colony.MyRooms,
+          ro => ro.find(FIND_MY_CREEPS, { filter: c => c.memory.role === r.name }).length,
+        ),
+      ),
       neutral_structure_count: colony.MapNameable(
         Object.values(Game.rooms),
         vr => vr.find(FIND_STRUCTURES, { filter: s => !('owner' in s) }).length,
