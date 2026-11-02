@@ -34,11 +34,11 @@ interface ColonyStatsData {
   rcl_progressTotal: NumericRecord;
   resources: NumericRecord;
   spawns_in_progress: NumericRecord;
-  neutral_structure_count: NumericRecord;
+  neutral_structure_count: RoomEventNumericRecord;
   hostile_creep_count: NumericRecord;
-  my_structure_count: NumericRecord;
-  my_constructions_count: NumericRecord;
-  hostile_structure_count: NumericRecord;
+  my_structure_count: RoomEventNumericRecord;
+  my_constructions_count: RoomEventNumericRecord;
+  hostile_structure_count: RoomEventNumericRecord;
   dropped_energy_amount: NumericRecord;
   capacity_of_storage: NumericRecord;
   energy_in_storage: NumericRecord;
@@ -127,20 +127,32 @@ const ColonyStatsSchema: Schema<ColonyStatsData> = {
     unit: 'number',
     description: 'The living number of creeps currently spawned by occupied room.',
   },
-  neutral_structure_count: { labelKeys: ['room'], unit: 'number', description: 'Structures that have no owner.' },
-  hostile_creep_count: { labelKeys: ['room'], unit: 'number', description: 'Living hostile creep count.' },
-  my_structure_count: { labelKeys: ['room'], unit: 'number', description: 'Structures I own.' },
-  hostile_structure_count: {
-    labelKeys: ['room'],
+  neutral_structure_count: {
+    labelKeys: ['room', 'structureType'],
     unit: 'number',
-    description: 'Non-Neutral structures owned by someone else.',
+    description: 'Structures that have no owner, grouped by structure type.',
+  },
+  hostile_creep_count: { labelKeys: ['room'], unit: 'number', description: 'Living hostile creep count.' },
+  my_structure_count: {
+    labelKeys: ['room', 'structureType'],
+    unit: 'number',
+    description: 'Structures I own, grouped by structure type.',
+  },
+  hostile_structure_count: {
+    labelKeys: ['room', 'structureType'],
+    unit: 'number',
+    description: 'Non-neutral structures owned by someone else, grouped by structure type.',
   },
   dropped_energy_amount: {
     labelKeys: ['room'],
     unit: 'number',
     description: 'Total amount of energy sitting on the ground.',
   },
-  my_constructions_count: { labelKeys: ['room'], unit: 'number', description: 'Count of ongoing Constructions sites.' },
+  my_constructions_count: {
+    labelKeys: ['room', 'structureType'],
+    unit: 'number',
+    description: 'Ongoing construction sites, grouped by structure type.',
+  },
   capacity_of_storage: {
     labelKeys: ['room'],
     unit: 'number',
@@ -245,22 +257,33 @@ export function GetColonyStats(colony: Colony): ColonyStats {
           ro => ro.find(FIND_MY_CREEPS, { filter: c => c.memory.role === r.name }).length,
         ),
       ),
-      neutral_structure_count: colony.MapNameable(
-        Object.values(Game.rooms),
-        vr => vr.find(FIND_STRUCTURES, { filter: s => !('owner' in s) }).length,
+      neutral_structure_count: colony.MapNameable(Object.values(Game.rooms), vr =>
+        vr.find(FIND_STRUCTURES, { filter: s => !('owner' in s) }).reduce((counts, s) => {
+          counts[s.structureType] = (counts[s.structureType] ?? 0) + 1;
+          return counts;
+        }, {} as NumericRecord),
       ),
       hostile_creep_count: colony.MapNameable(Object.values(Game.rooms), vr => vr.find(FIND_HOSTILE_CREEPS).length),
-      my_structure_count: colony.MapNameable(Object.values(Game.rooms), vr => vr.find(FIND_MY_STRUCTURES).length),
-      hostile_structure_count: colony.MapNameable(
-        Object.values(Game.rooms),
-        vr => vr.find(FIND_HOSTILE_STRUCTURES).length,
+      my_structure_count: colony.MapNameable(Object.values(Game.rooms), vr =>
+        vr.find(FIND_MY_STRUCTURES).reduce((counts, s) => {
+          counts[s.structureType] = (counts[s.structureType] ?? 0) + 1;
+          return counts;
+        }, {} as NumericRecord),
+      ),
+      hostile_structure_count: colony.MapNameable(Object.values(Game.rooms), vr =>
+        vr.find(FIND_HOSTILE_STRUCTURES).reduce((counts, s) => {
+          counts[s.structureType] = (counts[s.structureType] ?? 0) + 1;
+          return counts;
+        }, {} as NumericRecord),
       ),
       dropped_energy_amount: colony.MapNameable(Object.values(Game.rooms), vr =>
         sum(vr.find(FIND_DROPPED_RESOURCES), r => (r.resourceType === RESOURCE_ENERGY ? r.amount : 0)),
       ),
-      my_constructions_count: colony.MapNameable(
-        Object.values(Game.rooms),
-        vr => vr.find(FIND_MY_CONSTRUCTION_SITES).length,
+      my_constructions_count: colony.MapNameable(Object.values(Game.rooms), vr =>
+        vr.find(FIND_MY_CONSTRUCTION_SITES).reduce((counts, s) => {
+          counts[s.structureType] = (counts[s.structureType] ?? 0) + 1;
+          return counts;
+        }, {} as NumericRecord),
       ),
       capacity_of_storage: colony.MapNameable(Object.values(Game.rooms), vr => vr.storage?.store.getCapacity() ?? 0),
       energy_in_storage: colony.MapNameable(
