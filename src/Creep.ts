@@ -103,9 +103,11 @@ export class CreepExtra extends Creep {
     return this.moveTo(pos, {
       ...opts,
       costCallback: (rn: string, cm: CostMatrix) => this.CostCallback(rn, cm, false),
-      visualizePathStyle: { stroke: Colours.PATH_LONG, lineStyle: 'solid' },
+      visualizePathStyle: Memory.globalEnablePathVisuals
+        ? { stroke: Colours.PATH_LONG, lineStyle: 'solid' }
+        : undefined,
       ignoreCreeps: true,
-      reusePath: 20,
+      reusePath: 50,
       plainCost: 2,
     });
   }
@@ -116,18 +118,18 @@ export class CreepExtra extends Creep {
     return this.moveTo(pos, {
       ...opts,
       costCallback: (rn: string, cm: CostMatrix) => this.CostCallback(rn, cm),
-      visualizePathStyle: { stroke: Colours.PATH_STUCK, lineStyle: 'dotted' },
+      visualizePathStyle: Memory.globalEnablePathVisuals
+        ? { stroke: Colours.PATH_STUCK, lineStyle: 'dotted' }
+        : undefined,
       reusePath: 5,
       plainCost: 2,
     });
   }
 
   CostCallback(roomName: string, matrix: CostMatrix, accountForCreeps = true): CostMatrix | void {
-    if (!(roomName in Game.rooms)) return matrix;
-    const myRoom = this.colony.MyRooms.filter(mr => mr.name === roomName).pop();
-    if (myRoom && accountForCreeps) return myRoom.CreepsCostMatrix;
-    else if (myRoom && !accountForCreeps) return myRoom.StructuresCostMatrix;
-    else return matrix;
+    const myRoom = this.colony.Rooms.get(roomName);
+    if (!myRoom?.controller?.my) return matrix;
+    return accountForCreeps ? myRoom.CreepsCostMatrix : myRoom.StructuresCostMatrix;
   }
 
   // Returns 1 when in range; otherwise returns the moveTo result.

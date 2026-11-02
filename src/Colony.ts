@@ -32,6 +32,7 @@ declare global {
   interface Memory {
     globalEnableProfiling?: boolean;
     globalEnableErrorMapper?: boolean;
+    globalEnablePathVisuals?: boolean;
     scoutingReports?: Dictionary<RoomReport>;
     scoutInterval?: number;
     colonyStateReportFrequency?: number;
