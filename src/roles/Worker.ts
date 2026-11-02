@@ -110,15 +110,22 @@ export class Worker extends CreepRoleBase implements CreepRole {
 
       // If we expect to be able to fully collect from this source if we attempted to go for it,
       // then add it to the 'best' list.
-      if (possible[1] - totalWithdrawls >= creep.store.getFreeCapacity()) sourcesWhoCanFullySupplyUs.push(possible);
+      possible[1] = possible[1] - totalWithdrawls;
+      if (possible[1] >= creep.store.getFreeCapacity()) sourcesWhoCanFullySupplyUs.push(possible);
     }
 
+    // Sort from least to most supply remaining
+    sourcesWhoCanFullySupplyUs.sort((a, b) => a[1] - b[1]);
+
+    // Sort from least to most used capacity
+    possibleSources.sort((a, b) => a[1] - b[1]);
+
     const canFullySupplyUs = sourcesWhoCanFullySupplyUs.map(s => s[0]);
+    const canFullySupplyUsAnywhere = canFullySupplyUs.pop();
     const canFullySupplyUsInSameRoomAsCreep = creep.pos.findClosestByPath(canFullySupplyUs, {
       ignoreCreeps: true,
       costCallback: (rn: string, cm: CostMatrix) => creep.CostCallback(rn, cm),
     });
-    const canFullySupplyUsAnywhere = canFullySupplyUs.pop();
 
     const anySourceInMyRoom = creep.pos.findClosestByPath(
       possibleSources.map(s => s[0]),
