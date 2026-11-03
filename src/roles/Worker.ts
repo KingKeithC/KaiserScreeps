@@ -6,18 +6,8 @@ import { Build, Collect, Mine, Repair, Supply, UpgradeController } from 'tasks';
 import { CreepTask, TaskAction } from 'tasks/types';
 import { DeserializeRoomPosition, MakeBody } from 'utils/Collections';
 import { BodyCost } from 'utils/CreepUtils';
-import {
-  ContainerAndAmount,
-  ResourceContainersForRoomByType,
-  ResourceContainer,
-  FirstBodyByEnergyCapacity,
-} from 'utils/RoomUtils';
+import { ContainerAndAmount, ResourceContainer, FirstBodyByEnergyCapacity } from 'utils/RoomUtils';
 import { CreepRoleBase, CreepRole } from './Role';
-
-interface CollectionPlan {
-  sourcesByType: Map<ResourceConstant, ContainerAndAmount[]>;
-  reservedCapacityBySource: Map<string, number>;
-}
 
 export class Worker extends CreepRoleBase implements CreepRole {
   readonly groupName = 'Workers';
@@ -103,27 +93,6 @@ export class Worker extends CreepRoleBase implements CreepRole {
     return null;
   }
 
-  protected CreateCollectionPlan(creep: CreepExtra): CollectionPlan {
-    const sourcesByType = new Map<ResourceConstant, ContainerAndAmount[]>();
-    for (const [_room, results] of creep.AssignedRoom.MapWithRoomsInClaimedArea(ResourceContainersForRoomByType))
-      for (const [resourceType, sources] of results) {
-        const existing = sourcesByType.get(resourceType);
-        if (existing) existing.push(...sources);
-        else sourcesByType.set(resourceType, sources);
-      }
-
-    const reservedCapacityBySource = new Map<string, number>();
-    for (const [collector, task] of creep.AssignedRoom.GetAssignedTasksWithCreep(TaskAction.Collect)) {
-      const sourceId = (task as Collect).targetId;
-      reservedCapacityBySource.set(
-        sourceId,
-        (reservedCapacityBySource.get(sourceId) ?? 0) + collector.store.getFreeCapacity(),
-      );
-    }
-
-    return { sourcesByType, reservedCapacityBySource };
-  }
-
   FindBestCollection(
     creep: CreepExtra,
     possibleSources: ContainerAndAmount[],
@@ -172,23 +141,17 @@ export class Worker extends CreepRoleBase implements CreepRole {
     return null;
   }
 
-  CollectResources(
-    creep: CreepExtra,
-    searchForType: ResourceConstant[],
-    plan: CollectionPlan,
-    sameRoom = false,
-  ): Collect | null {
-    // this.log.debug('Collect Resources, searched for ${searchForType} found ${containersByType}', {
-    //   '<creep>': creep,
-    //   containersByType: [...containersByType],
-    //   searchForType,
-    // });
-
+  CollectResources(creep: CreepExtra, searchForType: ResourceConstant[], sameRoom = false): Collect | null {
     // Find according to priorities
     for (const resourceType of searchForType) {
-      const candidates = plan.sourcesByType.get(resourceType);
+      const candidates = creep.AssignedRoom.CollectionPlan.sourcesByType.get(resourceType);
       if (!candidates || candidates.length === 0) continue;
-      const task = this.FindBestCollection(creep, candidates, plan.reservedCapacityBySource, sameRoom);
+      const task = this.FindBestCollection(
+        creep,
+        candidates,
+        creep.AssignedRoom.CollectionPlan.reservedCapacityBySource,
+        sameRoom,
+      );
       if (task) return new Collect(task, resourceType);
     }
 
@@ -233,15 +196,11 @@ export class Worker extends CreepRoleBase implements CreepRole {
 
     // ------ GATHER ------
 
-    let collectionPlan: CollectionPlan | undefined;
-    collectionPlan = this.CreateCollectionPlan(creep);
-
     if (creep.store.getUsedCapacity() === 0 && creep.AssignedRoom.storage !== undefined) {
       // Need to collect non-energy resources, but only if room has storage
       const nonEnergy = this.CollectResources(
         creep,
         RESOURCES_ALL.filter(t => t !== RESOURCE_ENERGY),
-        collectionPlan,
       );
       if (nonEnergy) {
         this.log.warn('Non-Energy being collected: ${resourceType}', {
@@ -254,9 +213,8 @@ export class Worker extends CreepRoleBase implements CreepRole {
 
     if (creep.store.getFreeCapacity() > 0) {
       // Try to find a gathering task
-      collectionPlan ??= this.CreateCollectionPlan(creep);
       const gather =
-        this.CollectResources(creep, [RESOURCE_ENERGY], collectionPlan) ??
+        this.CollectResources(creep, [RESOURCE_ENERGY]) ??
         this.CollectFromRandomMiner(creep) ??
         this.CollectFromRoomStorage(creep);
       if (gather) return gather;

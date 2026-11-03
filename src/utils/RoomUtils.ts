@@ -62,6 +62,11 @@ export interface RoomReport {
   hostiles?: HostileInfo[];
 }
 
+export interface CollectionPlan {
+  sourcesByType: Map<ResourceConstant, ContainerAndAmount[]>;
+  reservedCapacityBySource: Map<string, number>;
+}
+
 /* ------------- Functions ------------- */
 
 /**

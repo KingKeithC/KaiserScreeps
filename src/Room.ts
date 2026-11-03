@@ -1,12 +1,15 @@
 import { Dictionary, flatten, range, unique } from 'lodash';
-import { Mine, Repair, UpgradeController } from 'tasks';
+import { Collect, Mine, Repair, UpgradeController } from 'tasks';
 import {
+  CollectionPlan,
+  ContainerAndAmount,
   FormatHostileInfos,
   GetHostileInfo,
   GetMinesForRoom,
   GetMiningPositions,
   HostileInfo,
   MiningPosition,
+  ResourceContainersForRoomByType,
 } from 'utils/RoomUtils';
 import { Colony } from 'Colony';
 import { CreepExtra } from 'Creep';
@@ -538,6 +541,32 @@ export class RoomExtra extends Room {
       else ret.push(obj);
     }
     return ret;
+  }
+
+  private cachedCollectionPlan?: CollectionPlan;
+  get CollectionPlan() {
+    return (this.cachedCollectionPlan ??= this.CreateCollectionPlan());
+  }
+
+  CreateCollectionPlan(): CollectionPlan {
+    const sourcesByType = new Map<ResourceConstant, ContainerAndAmount[]>();
+    for (const [_room, results] of this.MapWithRoomsInClaimedArea(ResourceContainersForRoomByType))
+      for (const [resourceType, sources] of results) {
+        const existing = sourcesByType.get(resourceType);
+        if (existing) existing.push(...sources);
+        else sourcesByType.set(resourceType, sources);
+      }
+
+    const reservedCapacityBySource = new Map<string, number>();
+    for (const [collector, task] of this.GetAssignedTasksWithCreep(TaskAction.Collect)) {
+      const sourceId = (task as Collect).targetId;
+      reservedCapacityBySource.set(
+        sourceId,
+        (reservedCapacityBySource.get(sourceId) ?? 0) + collector.store.getFreeCapacity(),
+      );
+    }
+
+    return { sourcesByType, reservedCapacityBySource };
   }
 
   MapWithRoomsInClaimedArea<T>(
