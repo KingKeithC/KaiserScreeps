@@ -1,5 +1,4 @@
 import { CreepExtra } from 'Creep';
-import { RoomExtra } from 'Room';
 import { Supply } from 'tasks';
 import { CreepTask } from 'tasks/types';
 import { CreepRole } from './Role';
