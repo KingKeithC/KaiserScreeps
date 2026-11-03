@@ -152,7 +152,18 @@ export class Worker extends CreepRoleBase implements CreepRole {
         creep.AssignedRoom.CollectionPlan.reservedCapacityBySource,
         sameRoom,
       );
-      if (task) return new Collect(task, resourceType);
+      if (task) {
+        // Update reservation in collection plan
+        const reservedSoFar = creep.AssignedRoom.CollectionPlan.reservedCapacityBySource.get(task.id);
+        if (reservedSoFar)
+          creep.AssignedRoom.CollectionPlan.reservedCapacityBySource.set(
+            task.id,
+            reservedSoFar + creep.store.getFreeCapacity(resourceType),
+          );
+
+        // Return collection task
+        return new Collect(task, resourceType);
+      }
     }
 
     // No priority found.
