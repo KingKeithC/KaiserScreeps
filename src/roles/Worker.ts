@@ -190,11 +190,11 @@ export class Worker extends CreepRoleBase implements CreepRole {
     // });
 
     // Find according to priorities
-    for (const prio of searchForType) {
-      const candidates = plan.sourcesByType.get(prio);
+    for (const resourceType of searchForType) {
+      const candidates = plan.sourcesByType.get(resourceType);
       if (!candidates || candidates.length === 0) continue;
       const task = this.FindBestCollection(creep, candidates, plan.reservedCapacityBySource);
-      if (task) return new Collect(task, prio);
+      if (task) return new Collect(task, resourceType);
     }
 
     // No priority found.
