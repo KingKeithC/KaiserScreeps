@@ -25,7 +25,7 @@ export class Maintainer extends Worker implements CreepRole {
       if (creep.AssignedRoom.storage !== undefined) return new Supply(creep.AssignedRoom.storage);
     }
 
-    if (creep.store.getFreeCapacity() > 0) {
+    if (creep.store.getUsedCapacity() === 0) {
       // Collect energy from sources in the same room that have more than 100
       const energySource =
         this.CollectResources(creep, [RESOURCE_ENERGY], true, 100) ?? this.CollectFromRoomStorage(creep);
