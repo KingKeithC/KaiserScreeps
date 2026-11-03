@@ -316,12 +316,6 @@ export class Worker extends CreepRoleBase implements CreepRole {
     if (creep.AssignedRoom.controller.level === 1)
       return new UpgradeController(creep.AssignedRoom.controller, 'upgrade');
 
-    const constructions = creep.AssignedRoom.FlatMapOverRoomsInClaimedArea(r =>
-      r instanceof Room ? r.find(FIND_MY_CONSTRUCTION_SITES) : [],
-    );
-    const cons = this.FindConstructionByPriorityAndPath(creep, constructions);
-    if (cons) return new Build(cons);
-
     // Don't bother with repairs below RCL3
     if (creep.AssignedRoom.controller.level >= 3) {
       const repairsByRoom = new Map<string, AnyStructure[]>();
@@ -359,6 +353,13 @@ export class Worker extends CreepRoleBase implements CreepRole {
         }
       }
     }
+
+    const constructions = creep.AssignedRoom.FlatMapOverRoomsInClaimedArea(r =>
+      r instanceof Room ? r.find(FIND_MY_CONSTRUCTION_SITES) : [],
+    );
+    const cons = this.FindConstructionByPriorityAndPath(creep, constructions);
+    if (cons) return new Build(cons);
+
     return null;
   }
 
