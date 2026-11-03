@@ -522,7 +522,8 @@ export class RoomExtra extends Room {
     const ret = [];
     for (const id of this.LinkGroups.Receivers ?? []) {
       const obj = Game.getObjectById(id);
-      if (!obj) continue;
+      // Skip if missing, or still under construction
+      if (!obj || typeof obj.isActive !== 'function') continue;
       else ret.push(obj);
     }
     return ret;
@@ -532,7 +533,8 @@ export class RoomExtra extends Room {
     const ret = [];
     for (const id of this.LinkGroups.Senders ?? []) {
       const obj = Game.getObjectById(id);
-      if (!obj) continue;
+      // Skip if missing, or still under construction
+      if (!obj || typeof obj.isActive !== 'function') continue;
       else ret.push(obj);
     }
     return ret;
