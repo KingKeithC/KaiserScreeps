@@ -254,13 +254,13 @@ export function ResourceContainersForRoomByType(room: string | Room): Map<Resour
 
   if (CONTROLLER_STRUCTURES.link[room.controller?.level ?? 0] > 0)
     // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
-    for (const sender of room.find(FIND_MY_STRUCTURES, {
-      filter: s => s.structureType === STRUCTURE_LINK && s.id in (room.memory.linkGroups ?? {}).Senders,
+    for (const recv of room.find(FIND_MY_STRUCTURES, {
+      filter: s => s.structureType === STRUCTURE_LINK && s.id in (room.memory.linkGroups ?? {}).Receivers,
     }) as StructureLink[])
-      for (const rt in sender.store)
+      for (const rt in recv.store)
         ret.set(rt as ResourceConstant, [
           ...(ret.get(rt as ResourceConstant) ?? []),
-          [sender, sender.store.getUsedCapacity(rt as ResourceConstant) ?? 0],
+          [recv, recv.store.getUsedCapacity(rt as ResourceConstant) ?? 0],
         ]);
 
   if (CONTROLLER_STRUCTURES.extractor[room.controller?.level ?? 0] > 0)
