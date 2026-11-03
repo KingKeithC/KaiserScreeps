@@ -12,14 +12,43 @@ export class Maintainer extends Worker implements CreepRole {
   }
 
   SelectNextTask(creep: CreepExtra): CreepTask<string> | null {
-    if (creep.store.getUsedCapacity(RESOURCE_ENERGY) > 0) {
-      // Main task is to prevent the controller from downgrading
-      const maintain = this.MaintainController(creep);
-      if (maintain) return maintain;
+    return this.DoWithLocalEnergy(creep, c => this.MaintainControllerOrSpawn(c));
+  }
 
-      // Secondary task is to resupply the spawns/extensions
-      const spawnSupply = this.FindSpawnSupply(creep, 0);
-      if (spawnSupply) return spawnSupply;
+  MaintainControllerOrSpawn(creep: CreepExtra): CreepTask | null {
+    // Main task is to prevent the controller from downgrading
+    const maintain = this.MaintainController(creep);
+    if (maintain) return maintain;
+
+    // Secondary task is to resupply the spawns/extensions
+    const spawnSupply = this.FindSpawnSupply(creep, 0);
+    if (spawnSupply) return spawnSupply;
+
+    return null;
+  }
+
+  /**
+   * Control loop for Maintainers.
+   *
+   * Gather energy and execute the task returned by `findMainSpendingTask`.
+   *
+   * Only gathers energy sources from the Assigned room, containing 100 or more.
+   * Gathers from storage when none can be found otherwise.
+   *
+   * If no main spending task was found, then excess held energy is stored.
+   *
+   * @param creep The creep to perform the actions.
+   * @param findMainSpendingTask A callback on the creep that returns a task to spend the energy on.
+   * @returns The next task for the creep to perform as part of the loop.
+   */
+  DoWithLocalEnergy(
+    creep: CreepExtra,
+    findMainSpendingTask: (c: CreepExtra) => CreepTask | null,
+  ): CreepTask<string> | null {
+    if (creep.store.getUsedCapacity(RESOURCE_ENERGY) > 0) {
+      // Get main spending task
+      const mainTask = findMainSpendingTask(creep);
+      if (mainTask) return mainTask;
 
       // Excess goes into storage
       if (creep.AssignedRoom.storage !== undefined) return new Supply(creep.AssignedRoom.storage);
@@ -32,7 +61,11 @@ export class Maintainer extends Worker implements CreepRole {
       if (energySource) return energySource;
 
       // If no source found, use storage
-      if (creep.AssignedRoom.storage !== undefined) return new Collect(creep.AssignedRoom.storage);
+      if (
+        creep.AssignedRoom.storage !== undefined &&
+        creep.AssignedRoom.storage.store.getUsedCapacity(RESOURCE_ENERGY) > 0
+      )
+        return new Collect(creep.AssignedRoom.storage);
     }
 
     return null;
