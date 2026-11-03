@@ -103,7 +103,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
     return null;
   }
 
-  private CreateCollectionPlan(creep: CreepExtra): CollectionPlan {
+  protected CreateCollectionPlan(creep: CreepExtra): CollectionPlan {
     const sourcesByType = new Map<ResourceConstant, ContainerAndAmount[]>();
     for (const [_room, results] of creep.AssignedRoom.MapWithRoomsInClaimedArea(ResourceContainersForRoomByType))
       for (const [resourceType, sources] of results) {
@@ -239,9 +239,10 @@ export class Worker extends CreepRoleBase implements CreepRole {
     // ------ GATHER ------
 
     let collectionPlan: CollectionPlan | undefined;
+    collectionPlan = this.CreateCollectionPlan(creep);
+
     if (creep.store.getUsedCapacity() === 0 && creep.AssignedRoom.storage !== undefined) {
       // Need to collect non-energy resources, but only if room has storage
-      collectionPlan = this.CreateCollectionPlan(creep);
       const nonEnergy = this.CollectResources(
         creep,
         RESOURCES_ALL.filter(t => t !== RESOURCE_ENERGY),
@@ -290,34 +291,53 @@ export class Worker extends CreepRoleBase implements CreepRole {
     return null;
   }
 
-  MaxSupplyForSpawns = 6;
-  MaxSupplyForTowers = 1;
-  MaxRepairPerRoom = 2;
-  public FindSpendingTask(creep: CreepExtra): CreepTask | null {
+  MaintainController(creep: CreepExtra): UpgradeController | null {
     if (creep.AssignedRoom.controller) {
       const downgradeMaintenanceThreshold =
         CONTROLLER_DOWNGRADE[creep.AssignedRoom.controller.level] * UpgradeController.DowngradeMaintenanceRatio;
       if (creep.AssignedRoom.controller.ticksToDowngrade < downgradeMaintenanceThreshold)
         return new UpgradeController(creep.AssignedRoom.controller, 'maintain');
     } else {
-      throw new Error(`Assigned room ${creep.AssignedRoom} has no controller!`);
+      this.log.crit(`Assigned room ${creep.AssignedRoom} has no controller!`);
     }
+    return null;
+  }
 
-    const supplyTasks = creep.AssignedRoom.GetAssignedTasks(TaskAction.Supply) as Supply[];
-    const spawnsOrExtensions = creep.AssignedRoom.SpawnsOrExtensions;
+  FindSpawnSupply(
+    creep: CreepExtra,
+    maxSupplyForSpawns = this.MaxSupplyForSpawns, // 0 = unlimited
+    supplyTasks: Supply[] = creep.AssignedRoom.GetAssignedTasks(TaskAction.Supply) as Supply[],
+    spawnsOrExtensions = creep.AssignedRoom.SpawnsOrExtensions,
+  ): Supply | null {
     const spawnExtensionIds = new Set<string>(spawnsOrExtensions.map(structure => structure.id));
     const spawnSuppliers = supplyTasks.filter(task => spawnExtensionIds.has(task.targetId)).length;
-    if (spawnSuppliers < this.MaxSupplyForSpawns) {
+    if (maxSupplyForSpawns === 0 || spawnSuppliers < maxSupplyForSpawns) {
       const spawn = this.FindSupplyByPath(creep, spawnsOrExtensions, 'spawns/extensions', supplyTasks);
       if (spawn) return new Supply(spawn);
     }
+    return null;
+  }
+
+  MaxSupplyForSpawns = 6;
+  MaxSupplyForTowers = 1;
+  MaxRepairPerRoom = 2;
+  public FindSpendingTask(creep: CreepExtra): CreepTask | null {
+    const maintain = this.MaintainController(creep);
+    if (maintain) return maintain;
+
+    const supplyTasks = creep.AssignedRoom.GetAssignedTasks(TaskAction.Supply) as Supply[];
+
+    if (creep.AssignedRoom.GetAssignedCreepsOfRole('Maintainer').length === 0) {
+      const spawnSupply = this.FindSpawnSupply(creep, 0, supplyTasks);
+      if (spawnSupply) return spawnSupply;
+    }
 
     // Don't bother with construction or building at level 1
-    if (creep.AssignedRoom.controller.level === 1)
+    if (creep.AssignedRoom.controller?.level === 1)
       return new UpgradeController(creep.AssignedRoom.controller, 'upgrade');
 
     // Don't bother with repairs below RCL3
-    if (creep.AssignedRoom.controller.level >= 3) {
+    if (creep.AssignedRoom.controller?.level ?? 0 >= 3) {
       const repairsByRoom = new Map<string, AnyStructure[]>();
       for (const structure of creep.AssignedRoom.ClaimedRepairs) {
         const roomRepairs = repairsByRoom.get(structure.pos.roomName) ?? [];

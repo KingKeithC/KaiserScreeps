@@ -68,6 +68,14 @@ export class RoomExtra extends Room {
     this.AssignedCreeps = colony.MyCreeps.filter(c => c.memory.room === room.name);
   }
 
+  GetAssignedCreepsOfRole(roleName: string): CreepExtra[] {
+    return this.AssignedCreeps.filter(c => c.role.name === roleName);
+  }
+
+  GetAssignedCreepsOfRoleGroup(roleGroupName: string): CreepExtra[] {
+    return this.AssignedCreeps.filter(c => c.role.groupName === roleGroupName);
+  }
+
   GetAssignedTasks(taskAction?: string): CreepTask[] {
     return this.GetAssignedTasksWithCreep(taskAction).map(s => s[1]);
   }
