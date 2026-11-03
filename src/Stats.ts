@@ -7,7 +7,7 @@ interface SchemaField {
   labelKeys?: readonly string[];
 }
 
-type Schema<T extends object> = { [k in keyof T]: SchemaField | (T[k] extends object ? Schema<T[k]> : never) };
+type Schema<T extends object> = { [k in keyof T]: SchemaField };
 
 interface StatsFrame<S extends object> {
   schema: Schema<S>;
@@ -15,131 +15,155 @@ interface StatsFrame<S extends object> {
 }
 
 type NumericRecord<TKey extends string = string> = Record<TKey, number>;
-type RoleRoomNumericRecord = Record<string, NumericRecord>;
-type RoomEventNumericRecord = Record<string, NumericRecord>;
+type LabeledNumericRecord = Record<string, NumericRecord>;
 
 /* eslint-disable camelcase */
+// Every top-level key is one metric. Label values are nested map keys in schema.labelKeys order;
+// the numeric leaves are the samples. Metrics without labels are plain numbers.
 interface ColonyStatsData {
-  time: number;
-  last_reset_time: number;
+  // Global Stats
+  game_time_ticks: number;
+  program_reset_time_ticks: number;
+
+  // Performance
+  cpu_bucket: number;
+  cpu_used: number;
+  cpu_limit: number;
+  cpu_tick_limit: number;
+  heap_stat_bytes: NumericRecord;
+
+  // Account
+  resource_amount: NumericRecord;
   visible_rooms_count: number;
 
-  // [string] Labels
-  gcl: NumericRecord;
-  gpl: NumericRecord;
-  cpu: NumericRecord;
-  meminfo: NumericRecord;
+  // Global Control Level
+  gcl_level: number;
+  gcl_progress: number;
+  gcl_progress_total: number;
+
+  // Global Power Level
+  gpl_level: number;
+  gpl_progress: number;
+  gpl_progress_total: number;
+
+  // Room
+  hostile_creep_count: NumericRecord;
+  dropped_energy_amount: NumericRecord;
+  storage_capacity: NumericRecord;
+  storage_energy: NumericRecord;
+  spawn_energy: NumericRecord;
+  source_energy: NumericRecord;
+  spawn_energy_capacity: NumericRecord;
+  container_energy: NumericRecord;
+  creep_energy: NumericRecord;
+  link_energy: NumericRecord;
+  spawns_in_progress: NumericRecord;
   rcl_level: NumericRecord;
   rcl_progress: NumericRecord;
-  rcl_progressTotal: NumericRecord;
-  resources: NumericRecord;
-  spawns_in_progress: NumericRecord;
-  neutral_structure_count: RoomEventNumericRecord;
-  hostile_creep_count: NumericRecord;
-  my_structure_count: RoomEventNumericRecord;
-  my_constructions_count: RoomEventNumericRecord;
-  hostile_structure_count: RoomEventNumericRecord;
-  dropped_energy_amount: NumericRecord;
-  capacity_of_storage: NumericRecord;
-  energy_in_storage: NumericRecord;
-  energy_in_spawns: NumericRecord;
-  energy_in_sources: NumericRecord;
-  capacity_of_spawns: NumericRecord;
-  energy_in_containers: NumericRecord;
-  energy_in_my_creeps: NumericRecord;
-  energy_in_links: NumericRecord;
+  rcl_progress_total: NumericRecord;
 
-  // ['room', 'eventType'] Labels
-  event_counts_total: RoomEventNumericRecord;
-  event_amounts_total: RoomEventNumericRecord;
+  // Room-Structure
+  room_neutral_structure_count: LabeledNumericRecord;
+  room_my_structure_count: LabeledNumericRecord;
+  room_my_construction_site_count: LabeledNumericRecord;
+  room_hostile_structure_count: LabeledNumericRecord;
 
-  // ['role', 'room'] Labels
-  room_quota: RoleRoomNumericRecord;
-  assigned_room_count: RoleRoomNumericRecord;
-  lifetime_idle_ticks: RoleRoomNumericRecord;
-  lifetime_stuck_ticks: RoleRoomNumericRecord;
-  my_creep_count: RoleRoomNumericRecord;
+  // Room-Event
+  room_event_count_total: LabeledNumericRecord;
+  room_event_amount_total: LabeledNumericRecord;
+
+  // Role-Room
+  role_room_quota: LabeledNumericRecord;
+  role_room_assigned_creep_count: LabeledNumericRecord;
+  role_room_lifetime_idle_ticks: LabeledNumericRecord;
+  role_room_lifetime_stuck_ticks: LabeledNumericRecord;
+  role_room_my_creep_count: LabeledNumericRecord;
 }
 
 const ColonyStatsSchema: Schema<ColonyStatsData> = {
-  time: { unit: 'ticks', description: "Monotonicly increasing tick counter, the current 'time' of the Game." },
-  last_reset_time: {
+  game_time_ticks: {
+    unit: 'ticks',
+    description: "Monotonically increasing tick counter, the current 'time' of the game.",
+  },
+  program_reset_time_ticks: {
     unit: 'ticks',
     description: 'Last time the Program was Reset (happens on code push, or semi-rarely by the platform)',
   },
   visible_rooms_count: { unit: 'number', description: 'The total number of visible rooms this tick.' },
-  gcl: {
-    level: { unit: 'number', description: 'The current Global Control Level. Increased by upgrading controllers.' },
-    progress: { unit: 'number', description: 'Progress toward the next Global Control Level.' },
-    progressTotal: {
-      unit: 'number',
-      description: 'The Global Control Level will increase when Progress reaches this amount.',
-    },
+  gcl_level: { unit: 'number', description: 'The current Global Control Level. Increased by upgrading controllers.' },
+  gcl_progress: { unit: 'number', description: 'Progress toward the next Global Control Level.' },
+  gcl_progress_total: {
+    unit: 'number',
+    description: 'The Global Control Level will increase when progress reaches this amount.',
   },
-  gpl: {
-    level: {
-      unit: 'number',
-      description: 'The current Global Power Level. Increased by harvesting Power from Highway rooms.',
-    },
-    progress: { unit: 'number', description: 'Progress toward the next Global Power Level.' },
-    progressTotal: {
-      unit: 'number',
-      description: 'The Global Power Level will increase when Progress reaches this amount.',
-    },
+  gpl_level: {
+    unit: 'number',
+    description: 'The current Global Power Level. Increased by harvesting Power from Highway rooms.',
   },
-  cpu: {
-    unusedBucket: { unit: 'cpu', description: 'How much CPU has accumulated in the bucket (limit 10k).' },
-    used: { unit: 'cpu', description: 'How much CPU was used this tick in the execution of scripts.' },
-    limit: {
-      unit: 'cpu',
-      description:
-        'The maximum average limit of CPU usage. Excess unused amount below the limit contributes to the unusedBucket.',
-    },
-    tickLimit: {
-      unit: 'cpu',
-      description: 'How much CPU total are we allowed to burst to (and consume from the bucket) this tick?',
-    },
+  gpl_progress: { unit: 'number', description: 'Progress toward the next Global Power Level.' },
+  gpl_progress_total: {
+    unit: 'number',
+    description: 'The Global Power Level will increase when progress reaches this amount.',
   },
-  resources: { labelKeys: ['resourceType'], unit: 'number', description: 'Account level resources.' },
-  meminfo: { unit: 'bytes', description: 'How much memory are scripts using.' },
-  room_quota: {
+  cpu_bucket: { unit: 'cpu', description: 'How much CPU has accumulated in the bucket (limit 10k).' },
+  cpu_used: { unit: 'cpu', description: 'How much CPU was used this tick in the execution of scripts.' },
+  cpu_limit: {
+    unit: 'cpu',
+    description:
+      'The maximum average limit of CPU usage. Excess unused amount below the limit contributes to the CPU bucket.',
+  },
+  cpu_tick_limit: {
+    unit: 'cpu',
+    description: 'How much CPU total are we allowed to burst to (and consume from the bucket) this tick?',
+  },
+  resource_amount: {
+    labelKeys: ['resource_type'],
+    unit: 'number',
+    description: 'Account-level amount of each resource type.',
+  },
+  heap_stat_bytes: {
+    labelKeys: ['stat'],
+    unit: 'bytes',
+    description: 'Heap statistic values in bytes, labeled by statistic name.',
+  },
+  role_room_quota: {
     labelKeys: ['role', 'room'],
     unit: 'number',
     description: 'The maximum limit of creeps that may be spawned in this role or room.',
   },
-  assigned_room_count: {
+  role_room_assigned_creep_count: {
     labelKeys: ['role', 'room'],
     unit: 'number',
     description: 'The living number of creeps currently spawned by assigned room.',
   },
-  lifetime_idle_ticks: {
+  role_room_lifetime_idle_ticks: {
     labelKeys: ['role', 'room'],
     unit: 'ticks',
-    description: 'The total number of ticks the creep spent idle over its lifetime.',
+    description: 'The total number of ticks creeps spent idle over their lifetimes.',
   },
-  lifetime_stuck_ticks: {
+  role_room_lifetime_stuck_ticks: {
     labelKeys: ['role', 'room'],
     unit: 'ticks',
-    description: 'The total number of ticks the creep intended to move but failed to over its lifetime.',
+    description: 'The total number of ticks creeps intended to move but failed over their lifetimes.',
   },
-  my_creep_count: {
+  role_room_my_creep_count: {
     labelKeys: ['role', 'room'],
     unit: 'number',
     description: 'The living number of creeps currently spawned by occupied room.',
   },
-  neutral_structure_count: {
-    labelKeys: ['room', 'structureType'],
+  room_neutral_structure_count: {
+    labelKeys: ['room', 'structure_type'],
     unit: 'number',
     description: 'Structures that have no owner, grouped by structure type.',
   },
   hostile_creep_count: { labelKeys: ['room'], unit: 'number', description: 'Living hostile creep count.' },
-  my_structure_count: {
-    labelKeys: ['room', 'structureType'],
+  room_my_structure_count: {
+    labelKeys: ['room', 'structure_type'],
     unit: 'number',
     description: 'Structures I own, grouped by structure type.',
   },
-  hostile_structure_count: {
-    labelKeys: ['room', 'structureType'],
+  room_hostile_structure_count: {
+    labelKeys: ['room', 'structure_type'],
     unit: 'number',
     description: 'Non-neutral structures owned by someone else, grouped by structure type.',
   },
@@ -148,69 +172,64 @@ const ColonyStatsSchema: Schema<ColonyStatsData> = {
     unit: 'number',
     description: 'Total amount of energy sitting on the ground.',
   },
-  my_constructions_count: {
-    labelKeys: ['room', 'structureType'],
+  room_my_construction_site_count: {
+    labelKeys: ['room', 'structure_type'],
     unit: 'number',
     description: 'Ongoing construction sites, grouped by structure type.',
   },
-  capacity_of_storage: {
+  storage_capacity: {
     labelKeys: ['room'],
     unit: 'number',
     description: 'How much space is available in room storage.',
   },
-  energy_in_storage: { labelKeys: ['room'], unit: 'number', description: 'How storage space is used by energy.' },
-  energy_in_spawns: { labelKeys: ['room'], unit: 'number', description: 'Total energy of all spawns and extensions.' },
-  energy_in_sources: {
+  storage_energy: { labelKeys: ['room'], unit: 'number', description: 'Energy stored in room storage.' },
+  spawn_energy: { labelKeys: ['room'], unit: 'number', description: 'Total energy of all spawns and extensions.' },
+  source_energy: {
     labelKeys: ['room'],
     unit: 'number',
     description: 'Total amount of all energy sources in the room.',
   },
-  rcl_level: { labelKeys: ['room'], unit: 'number', description: 'The current Room Control Level.' },
-  rcl_progress: { labelKeys: ['room'], unit: 'number', description: 'Progress toward the next Room Control Level.' },
-  rcl_progressTotal: {
+  spawn_energy_capacity: {
     labelKeys: ['room'],
     unit: 'number',
-    description: 'The Room Control Level will increase when Progress reaches this amount.',
+    description: 'Total energy capacity of all spawns and extensions.',
   },
-  capacity_of_spawns: {
+  container_energy: { labelKeys: ['room'], unit: 'number', description: 'Total energy stored in room containers.' },
+  creep_energy: {
     labelKeys: ['room'],
     unit: 'number',
-    description: 'Total capacity of all spawns and extensions.',
+    description: 'Total energy carried by owned creeps in the room.',
   },
-  energy_in_containers: {
-    labelKeys: ['room'],
-    unit: 'number',
-    description: 'Total amount of energy in all containers in the room.',
-  },
-  energy_in_my_creeps: {
-    labelKeys: ['room'],
-    unit: 'number',
-    description: 'Total amount of energy my creeps are carrying in the room.',
-  },
-  energy_in_links: {
-    labelKeys: ['room'],
-    unit: 'number',
-    description: 'Total amount of energy sitting in links in the room.',
-  },
+  link_energy: { labelKeys: ['room'], unit: 'number', description: 'Total energy stored in room links.' },
   spawns_in_progress: {
     labelKeys: ['room'],
     unit: 'number',
-    description: 'Total amount of spawns in the spawning state.',
+    description: 'Number of owned spawns currently spawning in the room.',
   },
-  event_counts_total: {
+  rcl_level: { labelKeys: ['room'], unit: 'number', description: 'The current Room Control Level.' },
+  rcl_progress: { labelKeys: ['room'], unit: 'number', description: 'Progress toward the next Room Control Level.' },
+  rcl_progress_total: {
+    labelKeys: ['room'],
+    unit: 'number',
+    description: 'The Room Control Level will increase when progress reaches this amount.',
+  },
+  room_event_count_total: {
     labelKeys: ['room', 'event_type'],
     unit: 'number',
-    description: 'Total number of times an event occured.',
+    description: 'Total number of times each event occurred in the room.',
   },
-  event_amounts_total: {
+  room_event_amount_total: {
     labelKeys: ['room', 'event_type'],
     unit: 'number',
-    description: 'Sum of amount for all occurences of event.',
+    description: 'Total amount associated with each event type in the room.',
   },
 } as const;
 
 export type ColonyStats = StatsFrame<ColonyStatsData>;
 export function GetColonyStats(colony: Colony): ColonyStats {
+  const previousStatsData = Memory.stats?.data as
+    { program_reset_time_ticks?: number; last_reset_time?: number } | undefined;
+
   const resources: NumericRecord = {};
   for (const r of Object.entries(Game.resources)) resources[r[0]] = r[1] as number;
 
@@ -226,51 +245,54 @@ export function GetColonyStats(colony: Colony): ColonyStats {
   return {
     schema: ColonyStatsSchema,
     data: {
-      time: Game.time,
-      last_reset_time: Memory.stats?.data.last_reset_time ?? Game.time, // Carry forward unmodified time
+      game_time_ticks: Game.time,
+      program_reset_time_ticks:
+        previousStatsData?.program_reset_time_ticks ?? previousStatsData?.last_reset_time ?? Game.time,
       visible_rooms_count: Object.keys(Game.rooms).length,
-      gcl: { level: Game.gcl.level, progress: Game.gcl.progress, progressTotal: Game.gcl.progressTotal },
-      gpl: { level: Game.gpl.level, progress: Game.gpl.progress, progressTotal: Game.gpl.progressTotal },
-      cpu: {
-        unusedBucket: Game.cpu.bucket,
-        used: Game.cpu.getUsed(),
-        limit: Game.cpu.limit,
-        tickLimit: Game.cpu.tickLimit,
-      },
-      resources,
-      meminfo,
-      room_quota: colony.MapNameable(Object.values(colony.Roles), r =>
+      gcl_level: Game.gcl.level,
+      gcl_progress: Game.gcl.progress,
+      gcl_progress_total: Game.gcl.progressTotal,
+      gpl_level: Game.gpl.level,
+      gpl_progress: Game.gpl.progress,
+      gpl_progress_total: Game.gpl.progressTotal,
+      cpu_bucket: Game.cpu.bucket,
+      cpu_used: Game.cpu.getUsed(),
+      cpu_limit: Game.cpu.limit,
+      cpu_tick_limit: Game.cpu.tickLimit,
+      resource_amount: resources,
+      heap_stat_bytes: meminfo,
+      role_room_quota: colony.MapNameable(Object.values(colony.Roles), r =>
         colony.MapNameable(colony.MyRooms, ro => r.GetRoomQuota(ro)),
       ),
-      assigned_room_count: colony.MapNameable(Object.values(colony.Roles), r =>
+      role_room_assigned_creep_count: colony.MapNameable(Object.values(colony.Roles), r =>
         colony.MapNameable(colony.MyRooms, ro => r.GetRoomCreepsInRole(ro).length),
       ),
-      lifetime_idle_ticks: colony.MapNameable(Object.values(colony.Roles), r =>
+      role_room_lifetime_idle_ticks: colony.MapNameable(Object.values(colony.Roles), r =>
         colony.MapNameable(colony.MyRooms, ro => sum(r.GetRoomCreepsInRole(ro), cir => cir.LifetimeIdle)),
       ),
-      lifetime_stuck_ticks: colony.MapNameable(Object.values(colony.Roles), r =>
+      role_room_lifetime_stuck_ticks: colony.MapNameable(Object.values(colony.Roles), r =>
         colony.MapNameable(colony.MyRooms, ro => sum(r.GetRoomCreepsInRole(ro), cir => cir.LifetimeStuck)),
       ),
-      my_creep_count: colony.MapNameable(Object.values(colony.Roles), r =>
+      role_room_my_creep_count: colony.MapNameable(Object.values(colony.Roles), r =>
         colony.MapNameable(
           colony.MyRooms,
           ro => ro.find(FIND_MY_CREEPS, { filter: c => c.memory.role === r.name }).length,
         ),
       ),
-      neutral_structure_count: colony.MapNameable(Object.values(Game.rooms), vr =>
+      room_neutral_structure_count: colony.MapNameable(Object.values(Game.rooms), vr =>
         vr.find(FIND_STRUCTURES, { filter: s => !('owner' in s) }).reduce((counts, s) => {
           counts[s.structureType] = (counts[s.structureType] ?? 0) + 1;
           return counts;
         }, {} as NumericRecord),
       ),
       hostile_creep_count: colony.MapNameable(Object.values(Game.rooms), vr => vr.find(FIND_HOSTILE_CREEPS).length),
-      my_structure_count: colony.MapNameable(Object.values(Game.rooms), vr =>
+      room_my_structure_count: colony.MapNameable(Object.values(Game.rooms), vr =>
         vr.find(FIND_MY_STRUCTURES).reduce((counts, s) => {
           counts[s.structureType] = (counts[s.structureType] ?? 0) + 1;
           return counts;
         }, {} as NumericRecord),
       ),
-      hostile_structure_count: colony.MapNameable(Object.values(Game.rooms), vr =>
+      room_hostile_structure_count: colony.MapNameable(Object.values(Game.rooms), vr =>
         vr.find(FIND_HOSTILE_STRUCTURES).reduce((counts, s) => {
           counts[s.structureType] = (counts[s.structureType] ?? 0) + 1;
           return counts;
@@ -279,33 +301,31 @@ export function GetColonyStats(colony: Colony): ColonyStats {
       dropped_energy_amount: colony.MapNameable(Object.values(Game.rooms), vr =>
         sum(vr.find(FIND_DROPPED_RESOURCES), r => (r.resourceType === RESOURCE_ENERGY ? r.amount : 0)),
       ),
-      my_constructions_count: colony.MapNameable(Object.values(Game.rooms), vr =>
+      room_my_construction_site_count: colony.MapNameable(Object.values(Game.rooms), vr =>
         vr.find(FIND_MY_CONSTRUCTION_SITES).reduce((counts, s) => {
           counts[s.structureType] = (counts[s.structureType] ?? 0) + 1;
           return counts;
         }, {} as NumericRecord),
       ),
-      capacity_of_storage: colony.MapNameable(Object.values(Game.rooms), vr => vr.storage?.store.getCapacity() ?? 0),
-      energy_in_storage: colony.MapNameable(
+      storage_capacity: colony.MapNameable(Object.values(Game.rooms), vr => vr.storage?.store.getCapacity() ?? 0),
+      storage_energy: colony.MapNameable(
         Object.values(Game.rooms),
         vr => vr.storage?.store.getUsedCapacity(RESOURCE_ENERGY) ?? 0,
       ),
-      energy_in_spawns: colony.MapNameable(Object.values(Game.rooms), vr => vr.energyAvailable),
-      energy_in_sources: colony.MapNameable(Object.values(Game.rooms), vr =>
-        sum(vr.find(FIND_SOURCES).map(s => s.energy)),
-      ),
-      capacity_of_spawns: colony.MapNameable(Object.values(Game.rooms), vr => vr.energyCapacityAvailable),
-      energy_in_containers: colony.MapNameable(Object.values(Game.rooms), vr =>
+      spawn_energy: colony.MapNameable(Object.values(Game.rooms), vr => vr.energyAvailable),
+      source_energy: colony.MapNameable(Object.values(Game.rooms), vr => sum(vr.find(FIND_SOURCES).map(s => s.energy))),
+      spawn_energy_capacity: colony.MapNameable(Object.values(Game.rooms), vr => vr.energyCapacityAvailable),
+      container_energy: colony.MapNameable(Object.values(Game.rooms), vr =>
         sum(
           vr
             .find(FIND_STRUCTURES)
             .map(s => (s.structureType === STRUCTURE_CONTAINER ? s.store.getUsedCapacity(RESOURCE_ENERGY) : 0)),
         ),
       ),
-      energy_in_my_creeps: colony.MapNameable(Object.values(Game.rooms), vr =>
+      creep_energy: colony.MapNameable(Object.values(Game.rooms), vr =>
         sum(vr.find(FIND_MY_CREEPS).map(s => s.store.getUsedCapacity(RESOURCE_ENERGY))),
       ),
-      energy_in_links: colony.MapNameable(Object.values(Game.rooms), vr =>
+      link_energy: colony.MapNameable(Object.values(Game.rooms), vr =>
         sum(
           vr
             .find(FIND_STRUCTURES)
@@ -316,11 +336,11 @@ export function GetColonyStats(colony: Colony): ColonyStats {
         Object.values(Game.rooms),
         vr => vr.find(FIND_MY_SPAWNS).filter(s => s.spawning !== null && s.spawning !== undefined).length,
       ),
-      rcl_progressTotal: colony.MapNameable(colony.MyRooms, mr => mr.controller?.progressTotal ?? 0),
+      rcl_progress_total: colony.MapNameable(colony.MyRooms, mr => mr.controller?.progressTotal ?? 0),
       rcl_progress: colony.MapNameable(colony.MyRooms, mr => mr.controller?.progress ?? 0),
       rcl_level: colony.MapNameable(colony.MyRooms, mr => mr.controller?.level ?? 0),
-      event_counts_total: colony.MapNameable(colony.MyRooms, mr => mr.EventCounts),
-      event_amounts_total: colony.MapNameable(colony.MyRooms, mr => mr.EventAmounts),
+      room_event_count_total: colony.MapNameable(colony.MyRooms, mr => mr.EventCounts),
+      room_event_amount_total: colony.MapNameable(colony.MyRooms, mr => mr.EventAmounts),
     },
   };
 }

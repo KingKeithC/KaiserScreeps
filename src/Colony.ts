@@ -151,9 +151,11 @@ export class Colony {
     Memory.scoutingReports ??= {};
     Memory.scoutInterval ??= CREEP_LIFE_TIME * 2;
 
-    // Reset the last reset time stat
+    // Rebuild stats to migrate persisted data to the current schema, then record this reset.
+    const stats = GetColonyStats(this);
     // eslint-disable-next-line camelcase
-    this.stats.data.last_reset_time = Game.time;
+    stats.data.program_reset_time_ticks = Game.time;
+    this.stats = stats;
 
     this.log.crit(
       `GLOBALS RESET | Profiling Configured: ${this.GlobalEnableProfiling}, ErrorMapper: ${this.GlobalEnableErrorMapper}`,
