@@ -290,7 +290,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
     return null;
   }
 
-  MaxSupplyForSpawns = 4;
+  MaxSupplyForSpawns = 6;
   MaxSupplyForTowers = 1;
   MaxRepairPerRoom = 2;
   public FindSpendingTask(creep: CreepExtra): CreepTask | null {
