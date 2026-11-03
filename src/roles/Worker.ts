@@ -141,14 +141,19 @@ export class Worker extends CreepRoleBase implements CreepRole {
     return null;
   }
 
-  CollectResources(creep: CreepExtra, searchForType: ResourceConstant[], sameRoom = false): Collect | null {
+  CollectResources(
+    creep: CreepExtra,
+    searchForType: ResourceConstant[],
+    sameRoom = false,
+    minAmountToCollect = 0,
+  ): Collect | null {
     // Find according to priorities
     for (const resourceType of searchForType) {
       const candidates = creep.AssignedRoom.CollectionPlan.sourcesByType.get(resourceType);
       if (!candidates || candidates.length === 0) continue;
       const task = this.FindBestCollection(
         creep,
-        candidates,
+        candidates.filter(c => c[1] >= minAmountToCollect),
         creep.AssignedRoom.CollectionPlan.reservedCapacityBySource,
         sameRoom,
       );
