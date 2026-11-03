@@ -3,6 +3,7 @@ import { Dictionary, flatten, unique } from 'lodash';
 import { Attacker } from 'roles/Attacker';
 import { Claimer } from 'roles/Claimer';
 import { Defender } from 'roles/Defender';
+import { Maintainer } from 'roles/Maintainer';
 import { Miner } from 'roles/Miner';
 import { CreepRole } from 'roles/Role';
 import { Scout } from 'roles/Scout';
@@ -60,6 +61,7 @@ export class Colony {
   } as const;
 
   readonly Roles: { [name: string]: CreepRole } = {
+    Maintainer: new Maintainer(this),
     Miner: new Miner(this),
     Worker: new Worker(this),
     Defender: new Defender(this),
