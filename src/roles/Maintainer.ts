@@ -30,7 +30,8 @@ export class Maintainer extends Worker implements CreepRole {
   /**
    * Control loop for Maintainers.
    *
-   * Gather energy and execute the task returned by `findMainSpendingTask`.
+   * Gather energy from the creep's assigned room and execute the task
+   * returned by `findMainSpendingTask`.
    *
    * Only gathers energy sources from the Assigned room, containing 100 or more.
    * Gathers from storage when none can be found otherwise.
