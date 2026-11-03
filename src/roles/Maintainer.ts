@@ -1,5 +1,5 @@
 import { CreepExtra } from 'Creep';
-import { Supply } from 'tasks';
+import { Collect, Supply } from 'tasks';
 import { CreepTask } from 'tasks/types';
 import { CreepRole } from './Role';
 import { Worker } from './Worker';
@@ -25,11 +25,14 @@ export class Maintainer extends Worker implements CreepRole {
       if (creep.AssignedRoom.storage !== undefined) return new Supply(creep.AssignedRoom.storage);
     }
 
-    // Load up on energy if we are out
     if (creep.store.getFreeCapacity() > 0) {
+      // Collect energy from sources in the same room that have more than 100
       const energySource =
         this.CollectResources(creep, [RESOURCE_ENERGY], true, 100) ?? this.CollectFromRoomStorage(creep);
       if (energySource) return energySource;
+
+      // If no source found, use storage
+      if (creep.AssignedRoom.storage !== undefined) return new Collect(creep.AssignedRoom.storage);
     }
 
     return null;
