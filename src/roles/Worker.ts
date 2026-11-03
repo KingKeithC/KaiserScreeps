@@ -128,6 +128,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
     creep: CreepExtra,
     possibleSources: ContainerAndAmount[],
     reservedCapacityBySource: Map<string, number>,
+    sameRoom = false,
   ): ResourceContainer | null {
     const sourcesWhoCanFullySupplyUs = [];
     for (const possible of possibleSources) {
@@ -152,9 +153,10 @@ export class Worker extends CreepRoleBase implements CreepRole {
           })
         : null;
     if (fullestSameRoom) return fullestSameRoom;
-
-    const fullestOverall = fullSupply.pop();
-    if (fullestOverall) return fullestOverall;
+    if (!sameRoom) {
+      const fullestOverall = fullSupply.pop();
+      if (fullestOverall) return fullestOverall;
+    }
 
     const anySourceInMyRoom = creep.pos.findClosestByPath(
       possibleSources.map(s => s[0]),
@@ -162,27 +164,20 @@ export class Worker extends CreepRoleBase implements CreepRole {
     );
     if (anySourceInMyRoom) return anySourceInMyRoom;
 
-    const anySourceAnywhere = possibleSources.map(s => s[0]).pop();
-    if (anySourceAnywhere) return anySourceAnywhere;
-
-    // Uncomment this if there are issues with gathering task assignment
-    // this.log.debug(
-    //   `FindGatheringTask: ${JSON.stringify({
-    //     best: String(best),
-    //     countCanFullySupplyUs: canFullySupplyUs.length,
-    //     canFullySupplyUsInSameRoomAsCreep: String(canFullySupplyUsInSameRoomAsCreep),
-    //     canFullySupplyUsAnywhere: String(canFullySupplyUsAnywhere),
-    //     countAnyPossibleSource: possibleSources.length,
-    //     anySourceInMyRoom: String(anySourceInMyRoom),
-    //     anySourceAnywhere: String(anySourceAnywhere),
-    //   })}`,
-    //   { '<creep>': creep },
-    // );
+    if (!sameRoom) {
+      const anySourceAnywhere = possibleSources.map(s => s[0]).pop();
+      if (anySourceAnywhere) return anySourceAnywhere;
+    }
 
     return null;
   }
 
-  CollectResources(creep: CreepExtra, searchForType: ResourceConstant[], plan: CollectionPlan): Collect | null {
+  CollectResources(
+    creep: CreepExtra,
+    searchForType: ResourceConstant[],
+    plan: CollectionPlan,
+    sameRoom = false,
+  ): Collect | null {
     // this.log.debug('Collect Resources, searched for ${searchForType} found ${containersByType}', {
     //   '<creep>': creep,
     //   containersByType: [...containersByType],
@@ -193,7 +188,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
     for (const resourceType of searchForType) {
       const candidates = plan.sourcesByType.get(resourceType);
       if (!candidates || candidates.length === 0) continue;
-      const task = this.FindBestCollection(creep, candidates, plan.reservedCapacityBySource);
+      const task = this.FindBestCollection(creep, candidates, plan.reservedCapacityBySource, sameRoom);
       if (task) return new Collect(task, resourceType);
     }
 
