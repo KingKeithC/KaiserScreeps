@@ -66,6 +66,10 @@ export class Maintainer extends Worker implements CreepRole {
     }
 
     if (creep.store.getUsedCapacity() === 0) {
+      // Prioritize collecting from a link
+      const link = creep.AssignedRoom.LinkReceivers.pop();
+      if (link && link.store.getUsedCapacity(RESOURCE_ENERGY) > 0) return new Collect(link);
+
       // Collect energy from sources in the same room that have more than 100
       const mainSource = this.CollectResources(creep, [RESOURCE_ENERGY], true, 100);
       if (mainSource) return mainSource;
