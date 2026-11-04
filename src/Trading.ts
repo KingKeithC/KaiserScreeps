@@ -63,10 +63,9 @@ export class TradingSystem {
         const fulfillableQty = Math.min(o.remainingAmount, terminal.store.getUsedCapacity(o.resourceType));
         if (fulfillableQty <= 0) continue;
 
-        const costToTransact = Game.market.calcTransactionCost(fulfillableQty, terminal.room.name, o.roomName);
-        const estProfit = fulfillableQty * o.price * (1 - MARKET_FEE);
+        const estProfit = fulfillableQty * o.price;
         const estProfitPerUnit = estProfit / fulfillableQty;
-        const isProfitable = estProfit - costToTransact < this.IgnoreProfitPerUnitOnSellUnder;
+        const isProfitable = estProfit < this.IgnoreProfitPerUnitOnSellUnder;
 
         if (!isProfitable) continue;
 
@@ -75,11 +74,11 @@ export class TradingSystem {
           time: Game.time,
           terminal: terminal.id,
           terminalRoom: terminal.room.name,
+          costToTransact: Game.market.calcTransactionCost(fulfillableQty, terminal.room.name, o.roomName),
           fulfillableQty,
           isProfitable,
           estProfit,
           estProfitPerUnit,
-          costToTransact,
         });
       }
   }
@@ -92,22 +91,32 @@ export class TradingSystem {
     Memory.terminals[terminal.id].lastInventory = terminal.store;
   }
 
-  ExecuteDeals(room: RoomExtra): void {
-    // Execute Deal
-    for (const o of this.WatchedOrders.values())
-      if (o.isProfitable && o.terminalRoom === room.name) {
+  ExecuteDeals(room: RoomExtra, terminal: StructureTerminal): void {
+    const orders = Array.from(this.WatchedOrders.values()).sort(
+      (o2, o1) => o1.estProfitPerUnit / o1.costToTransact - o2.estProfitPerUnit / o2.costToTransact,
+    );
+
+    // Execute First deal from best to worst
+    for (const o of orders) {
+      if (
+        o.isProfitable &&
+        terminal.store.getUsedCapacity(RESOURCE_ENERGY) >= o.costToTransact &&
+        o.terminalRoom === room.name
+      ) {
         const deal = Game.market.deal(o.order.id, o.fulfillableQty, room.name);
-        if (deal === OK) Logger.crit('Deal!!! ${details}', { '<room>': room, details: o });
-        else Logger.warn('Deal fell through due to ${rc}: ${details}', { '<room>': room, rc: deal, details: o });
-        break;
+        if (deal === OK) {
+          Logger.crit('Deal!!! ${details}', { '<room>': room, details: o });
+          return;
+        } else Logger.warn('Deal fell through due to ${rc}: ${details}', { '<room>': room, rc: deal, details: o });
       }
+    }
   }
 
   OncePerRoom(room: RoomExtra) {
     if (room.terminal === undefined) return;
     Memory.terminals[room.terminal.id] ??= this.InitializeTerminal(room.terminal);
     this.RefreshWatchedOrders(room.terminal);
-    if (this.TradeEnabled) this.ExecuteDeals(room);
+    if (this.TradeEnabled) this.ExecuteDeals(room, room.terminal);
     this.UpdateTerminal(room.terminal);
   }
 }
