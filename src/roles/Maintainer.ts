@@ -25,6 +25,17 @@ export class Maintainer extends Worker implements CreepRole {
     return this.DoWithLocalEnergy(creep, c => this.MaintainControllerOrSpawn(c));
   }
 
+  TickCreep(creep: CreepExtra): void {
+    // If we have energy, and there are spawns/extensions next
+    // to us that need energy, give our energy to them
+    if (creep.store.getUsedCapacity(RESOURCE_ENERGY) > 0)
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
+      for (const s of creep.pos.findInRange(FIND_MY_STRUCTURES, 1, {
+        filter: st => st.structureType === STRUCTURE_EXTENSION || st.structureType === STRUCTURE_SPAWN,
+      }) as (StructureSpawn | StructureExtension)[])
+        if (s.store.getFreeCapacity(RESOURCE_ENERGY) > 0) creep.transfer(s, RESOURCE_ENERGY);
+  }
+
   MaintainControllerOrSpawn(creep: CreepExtra): CreepTask | null {
     // Main task is to prevent the controller from downgrading
     const maintain = this.MaintainController(creep);
