@@ -10,7 +10,7 @@ export class Maintainer extends Worker implements CreepRole {
   override name = 'Maintainer';
 
   GetRoomQuota(): number {
-    return 3;
+    return 2;
   }
 
   /**
