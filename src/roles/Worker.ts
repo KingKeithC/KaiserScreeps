@@ -217,7 +217,10 @@ export class Worker extends CreepRoleBase implements CreepRole {
     // Ignore the warning if all the sources are out of energy, as
     // that can cause it to spam when everything is running at peak efficiency
     if (creep.AssignedRoom.find(FIND_SOURCES_ACTIVE).length > 0) {
-      this.log.warn('SelectNextTask: Literally nothing for me to do, are we overspawned?', { '<creep>': creep });
+      this.log.warn('SelectNextTask: Literally nothing for me to do, are we overspawned ${idle}?', {
+        '<creep>': creep,
+        idle: creep.LifetimeIdle,
+      });
       const retire = this.ConsiderRetirement(creep);
       if (retire) return retire;
     }
