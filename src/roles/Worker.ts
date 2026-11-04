@@ -324,16 +324,11 @@ export class Worker extends CreepRoleBase implements CreepRole {
         if (!(room instanceof Room)) continue;
         const roomTowers = room.find(FIND_MY_STRUCTURES, { filter: s => s.structureType === STRUCTURE_TOWER });
         const ongoingRepairs = repairTasksByRoom.get(room.name) ?? [];
-        const roomTowerIds = new Set<string>(roomTowers.map(tower => tower.id));
-        const ongoingTowerSupplies = supplyTasks.filter(task => roomTowerIds.has(task.targetId));
 
         // Repair if there are no available towers to do it
         if (roomTowers.length === 0) {
           const repair = this.FindIdealRepairByStrength(creep, roomRepairs, ongoingRepairs);
           if (repair) return new Repair(repair);
-        } else if (roomTowers.length > 0 && ongoingTowerSupplies.length < this.MaxSupplyForTowers) {
-          const tower = this.FindSupplyByPath(creep, roomTowers as StructureTower[], 'towers', supplyTasks);
-          if (tower) return new Supply(tower);
         }
       }
     }

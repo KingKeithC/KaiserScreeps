@@ -34,6 +34,10 @@ export class Maintainer extends Worker implements CreepRole {
     const spawnSupply = this.FindSpawnSupply(creep, 0);
     if (spawnSupply) return spawnSupply;
 
+    const roomTowers = creep.AssignedRoom.find(FIND_MY_STRUCTURES, { filter: { structureType: STRUCTURE_TOWER } });
+    const tower = this.FindSupplyByPath(creep, roomTowers as StructureTower[], 'towers');
+    if (tower) return new Supply(tower);
+
     return null;
   }
 
