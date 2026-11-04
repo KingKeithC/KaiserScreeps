@@ -168,8 +168,8 @@ export class Worker extends CreepRoleBase implements CreepRole {
 
   WorkersMineBelowMinerBodyTotalCost = 1000;
   DesiredStorageTasks = 2;
-  RetireEnabled = false;
-  RetireWhenIdleFor = 100;
+  RetireEnabled = true;
+  RetireWhenIdleFor = 30;
   SelectNextTask(creep: CreepExtra): CreepTask | null {
     const storage = creep.AssignedRoom.storage;
 
