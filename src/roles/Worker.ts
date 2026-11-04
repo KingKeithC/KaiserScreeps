@@ -46,7 +46,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
   }
 
   override GetRoomQuota(room: RoomExtra) {
-    return room.ClaimedSources.length * 3;
+    return room.ClaimedSources.length * 4;
   }
 
   MinTicksBetweenWorkers = 100;
@@ -269,7 +269,6 @@ export class Worker extends CreepRoleBase implements CreepRole {
   }
 
   MaxSupplyForTowers = 1;
-  MaxRepairPerRoom = 2;
   MaxUpgradePerRoom = 2;
   public FindSpendingTask(creep: CreepExtra): CreepTask | null {
     const maintain = this.MaintainController(creep);
@@ -322,7 +321,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
         const ongoingTowerSupplies = supplyTasks.filter(task => roomTowerIds.has(task.targetId));
 
         // Repair if there are no available towers to do it
-        if (roomTowers.length === 0 && ongoingRepairs.length < this.MaxRepairPerRoom) {
+        if (roomTowers.length === 0) {
           const repair = this.FindIdealRepairByStrength(creep, roomRepairs, ongoingRepairs);
           if (repair) return new Repair(repair);
         } else if (roomTowers.length > 0 && ongoingTowerSupplies.length < this.MaxSupplyForTowers) {
