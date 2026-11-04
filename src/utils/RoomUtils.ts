@@ -160,7 +160,8 @@ export function GetMineable(room: Room): (Source | StructureExtractor)[] {
   const sources: (Source | StructureExtractor)[] = room.find(FIND_SOURCES);
   if (CONTROLLER_STRUCTURES.extractor[room.controller?.level ?? 0] > 0)
     for (const extractor of room.find(FIND_MY_STRUCTURES, { filter: { structureType: STRUCTURE_EXTRACTOR } }))
-      if (typeof extractor.isActive === 'function') sources.push(extractor as StructureExtractor);
+      if (typeof extractor.isActive === 'function' && extractor.pos.lookFor(LOOK_MINERALS)[0].mineralAmount > 0)
+        sources.push(extractor as StructureExtractor);
   return sources;
 }
 
