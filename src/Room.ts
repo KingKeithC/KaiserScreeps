@@ -46,6 +46,7 @@ declare global {
     pathfindingCostMatrix?: number[];
     storeOverUpgrade?: boolean;
     allowStorageDraw?: boolean;
+    lastViewed?: number;
   }
 }
 
@@ -97,12 +98,6 @@ export class RoomExtra extends Room {
     return this.memory.storeOverUpgrade ?? true;
   }
 
-  get EnableVisuals(): boolean {
-    return this.memory.enableVisuals ?? true;
-  }
-  set EnableVisuals(value: boolean) {
-    this.memory.enableVisuals = value;
-  }
   get EnableRepairOverlay(): boolean {
     return this.memory.enableRepairOverlay ?? false;
   }
@@ -707,7 +702,8 @@ export class RoomExtra extends Room {
   }
 
   DrawVisuals(): void {
-    if (!this.EnableVisuals) return;
+    // If we were not viewing the room in the browser recently, skip
+    if (Game.time - (this.memory.lastViewed ?? 0) > 10) return;
     if (this.EnableRepairOverlay) this.DrawRepairOverlay();
     if (this.EnableCostMatrixOverlay) this.DrawCostMatrixOverlay();
   }

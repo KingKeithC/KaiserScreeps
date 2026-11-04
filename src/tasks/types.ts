@@ -46,6 +46,7 @@ export const CreepActionRanges = {
 };
 
 export interface CreepTask<Action extends string = string> {
+  readonly kind: string;
   readonly action: Action;
   isCompleteFlag: boolean;
   toString(): string;

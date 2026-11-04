@@ -3,11 +3,6 @@ import { CreepExtra } from 'Creep';
 import { CreepRole } from 'roles/Role';
 
 declare global {
-  interface Memory {
-    logLevelName?: string;
-    logFormat?: string;
-  }
-
   interface Console {
     logUnsafe(message: string): void;
   }

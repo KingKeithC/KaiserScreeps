@@ -5,7 +5,7 @@ import { Claimer } from 'roles/Claimer';
 import { Defender } from 'roles/Defender';
 import { Maintainer } from 'roles/Maintainer';
 import { Miner } from 'roles/Miner';
-import { CreepRole } from 'roles/Role';
+import { CreepRole, CreepRoleBase } from 'roles/Role';
 import { Scout } from 'roles/Scout';
 import { Worker } from 'roles/Worker';
 import { RoomExtra } from 'Room';
@@ -32,6 +32,10 @@ import { MakeRoomReport, RoomReport } from 'utils/RoomUtils';
 
 declare global {
   interface Memory {
+    profiler: object;
+    rooms: Record<Room['name'], RoomMemory>;
+    flags: Record<Flag['name'], FlagMemory>;
+    creeps: Record<Creep['name'], CreepMemory>;
     globalEnableProfiling?: boolean;
     globalEnableErrorMapper?: boolean;
     globalEnablePathVisuals?: boolean;
@@ -39,13 +43,15 @@ declare global {
     scoutInterval?: number;
     colonyStateReportFrequency?: number;
     stats?: ColonyStats;
+    logLevelName?: string;
+    logFormat?: string;
   }
 }
 
 declare const global: { Colony: Colony };
 
 export class Colony {
-  readonly Tasks: { [name: string]: CreepTask } = {
+  readonly Tasks: { [name in CreepTask['kind']]: CreepTask } = {
     mine: Mine.prototype,
     collectEnergy: Collect.prototype,
     collect: Collect.prototype, // New Alias
@@ -60,7 +66,7 @@ export class Colony {
     dismantle: Dismantle.prototype,
   } as const;
 
-  readonly Roles: { [name: string]: CreepRole } = {
+  readonly Roles: { [name in CreepRole['name']]: CreepRoleBase } = {
     Maintainer: new Maintainer(this),
     Miner: new Miner(this),
     Worker: new Worker(this),
