@@ -1,7 +1,7 @@
 import { CreepExtra } from 'Creep';
 import { RoomExtra } from 'Room';
 import { Collect, Supply } from 'tasks';
-import { CreepTask } from 'tasks/types';
+import { CreepTask, TaskAction } from 'tasks/types';
 import { FirstBodyByEnergyCapacity } from 'utils/RoomUtils';
 import { CreepRole } from './Role';
 import { Worker } from './Worker';
@@ -61,8 +61,17 @@ export class Maintainer extends Worker implements CreepRole {
       const mainTask = findMainSpendingTask(creep);
       if (mainTask) return mainTask;
 
-      // Excess goes into storage
-      if (creep.AssignedRoom.storage !== undefined) return new Supply(creep.AssignedRoom.storage);
+      // Excess goes into storage,
+      // Unless last task was to Collect from storage or was null
+      if (
+        creep.AssignedRoom.storage !== undefined &&
+        creep.currentTask !== null &&
+        !(
+          creep.currentTask.action === TaskAction.Collect &&
+          (creep.currentTask as Collect).targetId === creep.room.storage?.id
+        )
+      )
+        return new Supply(creep.AssignedRoom.storage);
     }
 
     if (creep.store.getUsedCapacity() === 0) {
