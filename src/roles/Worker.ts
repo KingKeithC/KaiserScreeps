@@ -3,6 +3,7 @@ import { sum } from 'lodash';
 import { RoomExtra } from 'Room';
 
 import { Build, Collect, Mine, Repair, Supply, UpgradeController } from 'tasks';
+import { Retire } from 'tasks/Retire';
 import { CreepTask, TaskAction } from 'tasks/types';
 import { DeserializeRoomPosition, MakeBody } from 'utils/Collections';
 import { BodyCost } from 'utils/CreepUtils';
@@ -167,6 +168,8 @@ export class Worker extends CreepRoleBase implements CreepRole {
 
   WorkersMineBelowMinerBodyTotalCost = 1000;
   DesiredStorageTasks = 2;
+  RetireEnabled = false;
+  RetireWhenIdleFor = 100;
   SelectNextTask(creep: CreepExtra): CreepTask | null {
     const storage = creep.AssignedRoom.storage;
 
@@ -213,9 +216,20 @@ export class Worker extends CreepRoleBase implements CreepRole {
     // Log a warning if we found nothing to do
     // Ignore the warning if all the sources are out of energy, as
     // that can cause it to spam when everything is running at peak efficiency
-    if (creep.AssignedRoom.find(FIND_SOURCES_ACTIVE).length > 0)
+    if (creep.AssignedRoom.find(FIND_SOURCES_ACTIVE).length > 0) {
       this.log.warn('SelectNextTask: Literally nothing for me to do, are we overspawned?', { '<creep>': creep });
+      const retire = this.ConsiderRetirement(creep);
+      if (retire) return retire;
+    }
 
+    return null;
+  }
+
+  ConsiderRetirement(creep: CreepExtra): Retire | null {
+    const spawn = creep.AssignedRoom.SpawnsOrExtensions.filter(
+      s => s.structureType === STRUCTURE_SPAWN,
+    ).pop() as StructureSpawn;
+    if (spawn && this.RetireEnabled && creep.LifetimeIdle > this.RetireWhenIdleFor) return new Retire(spawn);
     return null;
   }
 

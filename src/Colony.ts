@@ -24,6 +24,7 @@ import {
   Supply,
   UpgradeController,
 } from 'tasks';
+import { Retire } from 'tasks/Retire';
 import { CreepTask } from 'tasks/types';
 import { TradingSystem } from 'Trading';
 import { FmtRatios } from 'utils/Collections';
@@ -60,6 +61,7 @@ export class Colony {
     updateController: UpgradeController.prototype,
     build: Build.prototype,
     repair: Repair.prototype,
+    retire: Retire.prototype,
     supply: Supply.prototype,
     attack: Attack.prototype,
     guard: GuardTask.prototype,

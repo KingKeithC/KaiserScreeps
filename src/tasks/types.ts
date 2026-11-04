@@ -6,6 +6,7 @@ export const TaskAction = {
   MaintainController: '🦸‍♀️',
   Build: '🏗️',
   Repair: '🛠️',
+  Retire: '🥀',
   Supply: '🫴',
   UpgradeController: '🔼',
   Pickup: '🧹',
