@@ -199,14 +199,14 @@ export class CreepExtra extends Creep {
     this.memory.lifetimeIdle = value;
   }
   get LifetimeIdle(): number {
-    return this.memory.lifetimeIdle ?? 0;
+    return (this.memory.lifetimeIdle ??= 0);
   }
 
   private set LifetimeStuck(value: number) {
     this.memory.lifetimeStuck = value;
   }
   get LifetimeStuck(): number {
-    return this.memory.lifetimeStuck ?? 0;
+    return (this.memory.lifetimeStuck ??= 0);
   }
 
   private set IntendedToMove(value: boolean) {
