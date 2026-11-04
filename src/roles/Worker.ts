@@ -46,7 +46,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
   }
 
   override GetRoomQuota(room: RoomExtra) {
-    return room.ClaimedSources.length * 3;
+    return room.ClaimedSources.length * 2;
   }
 
   MinTicksBetweenWorkers = 100;
@@ -171,16 +171,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
     const storage = creep.AssignedRoom.storage;
 
     // ------ SUPPLY ------
-    if (storage !== undefined && creep.store.getUsedCapacity() - creep.store.getUsedCapacity(RESOURCE_ENERGY) > 0) {
-      // Need to store hauled non-energy resources
-      for (const resourceType in creep.store)
-        if (resourceType !== RESOURCE_ENERGY) {
-          this.log.warn('Non-Energy being stored: ${resourceType}', { '<creep>': creep, resourceType });
-          return new Supply(storage, resourceType as ResourceConstant);
-        }
-    }
-
-    if (creep.store.getUsedCapacity(RESOURCE_ENERGY) > 0) {
+    if (creep.store.getUsedCapacity() > 0) {
       // Need to spend hauled energy
 
       // If there aren't enough creeps already delivering to storage, then do that
@@ -199,25 +190,9 @@ export class Worker extends CreepRoleBase implements CreepRole {
     }
 
     // ------ GATHER ------
-
-    if (storage && creep.store.getUsedCapacity() === 0) {
-      // Need to collect non-energy resources, but only if room has storage
-      const nonEnergy = this.CollectResources(
-        creep,
-        RESOURCES_ALL.filter(t => t !== RESOURCE_ENERGY),
-      );
-      if (nonEnergy) {
-        this.log.warn('Non-Energy being collected: ${resourceType}', {
-          '<creep>': creep,
-          resourceType: nonEnergy.resourceType,
-        });
-        return nonEnergy;
-      }
-    }
-
     if (creep.store.getUsedCapacity() === 0) {
       // Try to find a gathering task
-      const gather = this.CollectResources(creep, [RESOURCE_ENERGY], false, 50) ?? this.CollectFromRandomMiner(creep);
+      const gather = this.CollectResources(creep, RESOURCES_ALL, false, 50);
       if (gather) return gather;
 
       // If there aren't enough miners, then do mining
