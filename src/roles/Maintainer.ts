@@ -10,7 +10,7 @@ export class Maintainer extends Worker implements CreepRole {
   override name = 'Maintainer';
 
   GetRoomQuota(): number {
-    return 2;
+    return 3;
   }
 
   /**
@@ -33,6 +33,10 @@ export class Maintainer extends Worker implements CreepRole {
     // Secondary task is to resupply the spawns/extensions
     const spawnSupply = this.FindSpawnSupply(creep, 0);
     if (spawnSupply) return spawnSupply;
+
+    // Leftover goes to controller upgrade
+    const upgrade = this.UpgradeController(creep);
+    if (upgrade) return upgrade;
 
     return null;
   }

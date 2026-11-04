@@ -210,10 +210,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
 
     if (creep.store.getUsedCapacity() === 0) {
       // Try to find a gathering task
-      const gather =
-        this.CollectResources(creep, [RESOURCE_ENERGY]) ??
-        this.CollectFromRandomMiner(creep) ??
-        this.CollectFromRoomStorage(creep);
+      const gather = this.CollectResources(creep, [RESOURCE_ENERGY]) ?? this.CollectFromRandomMiner(creep);
       if (gather) return gather;
 
       // If there aren't enough miners, then do mining
@@ -253,6 +250,15 @@ export class Worker extends CreepRoleBase implements CreepRole {
     return null;
   }
 
+  UpgradeController(creep: CreepExtra): UpgradeController | null {
+    if (creep.AssignedRoom.controller) {
+      return new UpgradeController(creep.AssignedRoom.controller, 'upgrade');
+    } else {
+      this.log.crit(`Assigned room ${creep.AssignedRoom} has no controller!`);
+    }
+    return null;
+  }
+
   FindSpawnSupply(
     creep: CreepExtra,
     maxSupplyForSpawns = 0, // 0 = unlimited
@@ -271,29 +277,18 @@ export class Worker extends CreepRoleBase implements CreepRole {
   MaxSupplyForTowers = 1;
   MaxUpgradePerRoom = 2;
   public FindSpendingTask(creep: CreepExtra): CreepTask | null {
-    const maintain = this.MaintainController(creep);
-    if (maintain) return maintain;
-
+    const maintainers = creep.AssignedRoom.GetAssignedCreepsOfRole('Maintainer').length;
     const supplyTasks = creep.AssignedRoom.GetAssignedTasks(TaskAction.Supply) as Supply[];
-
-    if (creep.AssignedRoom.GetAssignedCreepsOfRole('Maintainer').length === 0) {
+    if (maintainers === 0) {
       const spawnSupply = this.FindSpawnSupply(creep, 0, supplyTasks);
       if (spawnSupply) return spawnSupply;
     }
 
-    if (creep.AssignedRoom.controller === undefined) {
+    const upgrade = this.UpgradeController(creep);
+    if (upgrade && maintainers === 0) return upgrade;
+    else if (!upgrade)
       this.log.crit('Assigned Room ${room} as no controller!', { '<creep>': creep, room: creep.AssignedRoom });
-      return null;
-    }
 
-    if (creep.AssignedRoom.controller.level === 1)
-      // Just upgrade the controller at level 1
-      return new UpgradeController(creep.AssignedRoom.controller, 'upgrade');
-    else if (creep.AssignedRoom.GetAssignedTasks(TaskAction.UpgradeController).length < this.MaxUpgradePerRoom)
-      // Else, upgrade if there aren't enough upgraders
-      return new UpgradeController(creep.AssignedRoom.controller, 'upgrade');
-
-    // Don't bother with repairs below RCL3
     if (creep.AssignedRoom.controller?.level ?? 0 >= 3) {
       const repairsByRoom = new Map<string, AnyStructure[]>();
       for (const structure of creep.AssignedRoom.ClaimedRepairs) {
@@ -331,11 +326,13 @@ export class Worker extends CreepRoleBase implements CreepRole {
       }
     }
 
-    const constructions = creep.AssignedRoom.FlatMapOverRoomsInClaimedArea(r =>
-      r instanceof Room ? r.find(FIND_MY_CONSTRUCTION_SITES) : [],
+    const construction = this.FindConstructionByPriorityAndPath(
+      creep,
+      creep.AssignedRoom.FlatMapOverRoomsInClaimedArea(r =>
+        r instanceof Room ? r.find(FIND_MY_CONSTRUCTION_SITES) : [],
+      ),
     );
-    const cons = this.FindConstructionByPriorityAndPath(creep, constructions);
-    if (cons) return new Build(cons);
+    if (construction) return new Build(construction);
 
     return null;
   }
