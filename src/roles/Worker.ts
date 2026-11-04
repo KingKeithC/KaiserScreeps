@@ -217,7 +217,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
 
     if (creep.store.getUsedCapacity() === 0) {
       // Try to find a gathering task
-      const gather = this.CollectResources(creep, [RESOURCE_ENERGY]) ?? this.CollectFromRandomMiner(creep);
+      const gather = this.CollectResources(creep, [RESOURCE_ENERGY], false, 50) ?? this.CollectFromRandomMiner(creep);
       if (gather) return gather;
 
       // If there aren't enough miners, then do mining
