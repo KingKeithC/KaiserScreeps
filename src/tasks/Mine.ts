@@ -66,6 +66,9 @@ export class Mine implements CreepTask {
       // Non miner, if the source if out of energy, we're done.
       this.isCompleteFlag = true;
       return { ...outcome, result: OK } as TaskActionResult;
+    } else if (outcome?.result === ERR_TIRED) {
+      // Extractor is on cooldown, ignore
+      return { ...outcome, result: OK } as TaskActionResult;
     }
 
     // If the target is no longer claimed, we're done
