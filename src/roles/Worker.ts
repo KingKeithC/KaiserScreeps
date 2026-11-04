@@ -80,16 +80,8 @@ export class Worker extends CreepRoleBase implements CreepRole {
   // This function is expected to return a value, and logs a warning when it cannot.
   CollectFromRoomStorage(creep: CreepExtra): Collect | null {
     const stored = creep.AssignedRoom.storage?.store.getUsedCapacity(RESOURCE_ENERGY) ?? 0;
-    if (
-      creep.AssignedRoom.storage !== undefined &&
-      stored > creep.AssignedRoom.StorageWartimeEnergyBuffer &&
-      creep.AssignedRoom.AllowStorageDraw
-    )
+    if (creep.AssignedRoom.storage !== undefined && stored > creep.AssignedRoom.StorageWartimeEnergyBuffer)
       return new Collect(creep.AssignedRoom.storage);
-
-    // We log a warning becaue the conditions above should already have been checked, and
-    // if this function disagrees, it means the calling logic is incomplete or mis-implemented.
-    this.log.warn('Collect from Room Storage not possible.', { '<creep>': creep });
     return null;
   }
 
@@ -197,16 +189,8 @@ export class Worker extends CreepRoleBase implements CreepRole {
       const spend = this.FindSpendingTask(creep);
       if (spend) return spend;
 
-      // If no spending task, and controller upgrade is the priority (given no storage alternative), then do upgrade
-      if (
-        creep.AssignedRoom.controller !== undefined &&
-        (creep.AssignedRoom.storage === undefined ||
-          (creep.AssignedRoom.storage !== undefined && !creep.AssignedRoom.StoreOverUpgrade))
-      )
-        return new UpgradeController(creep.AssignedRoom.controller, 'upgrade');
-
       // If still no spending task, and there is storage, then store
-      if (creep.AssignedRoom.storage !== undefined && creep.AssignedRoom.StoreOverUpgrade)
+      if (creep.AssignedRoom.storage !== undefined && creep.AssignedRoom.storage.store.getFreeCapacity() > 0)
         return new Supply(creep.AssignedRoom.storage);
     }
 
@@ -227,7 +211,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
       }
     }
 
-    if (creep.store.getFreeCapacity() > 0) {
+    if (creep.store.getFreeCapacity() === 0) {
       // Try to find a gathering task
       const gather =
         this.CollectResources(creep, [RESOURCE_ENERGY]) ??
@@ -274,7 +258,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
 
   FindSpawnSupply(
     creep: CreepExtra,
-    maxSupplyForSpawns = this.MaxSupplyForSpawns, // 0 = unlimited
+    maxSupplyForSpawns = 0, // 0 = unlimited
     supplyTasks: Supply[] = creep.AssignedRoom.GetAssignedTasks(TaskAction.Supply) as Supply[],
     spawnsOrExtensions = creep.AssignedRoom.SpawnsOrExtensions,
   ): Supply | null {
@@ -287,9 +271,9 @@ export class Worker extends CreepRoleBase implements CreepRole {
     return null;
   }
 
-  MaxSupplyForSpawns = 6;
   MaxSupplyForTowers = 1;
   MaxRepairPerRoom = 2;
+  MaxUpgradePerRoom = 2;
   public FindSpendingTask(creep: CreepExtra): CreepTask | null {
     const maintain = this.MaintainController(creep);
     if (maintain) return maintain;
@@ -301,8 +285,16 @@ export class Worker extends CreepRoleBase implements CreepRole {
       if (spawnSupply) return spawnSupply;
     }
 
-    // Don't bother with construction or building at level 1
-    if (creep.AssignedRoom.controller?.level === 1)
+    if (creep.AssignedRoom.controller === undefined) {
+      this.log.crit('Assigned Room ${room} as no controller!', { '<creep>': creep, room: creep.AssignedRoom });
+      return null;
+    }
+
+    if (creep.AssignedRoom.controller.level === 1)
+      // Just upgrade the controller at level 1
+      return new UpgradeController(creep.AssignedRoom.controller, 'upgrade');
+    else if (creep.AssignedRoom.GetAssignedTasks(TaskAction.UpgradeController).length < this.MaxUpgradePerRoom)
+      // Else, upgrade if there aren't enough upgraders
       return new UpgradeController(creep.AssignedRoom.controller, 'upgrade');
 
     // Don't bother with repairs below RCL3

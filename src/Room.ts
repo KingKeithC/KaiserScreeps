@@ -161,12 +161,6 @@ export class RoomExtra extends Room {
     this.memory.linkGroups = value;
   }
 
-  get AllowStorageDraw(): boolean {
-    return this.memory.allowStorageDraw ?? false;
-  }
-  set AllowStorageDraw(value: boolean) {
-    this.memory.allowStorageDraw = value;
-  }
   get ForeverRepairs(): boolean {
     return this.memory.foreverRepair ?? false;
   }
