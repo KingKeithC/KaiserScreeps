@@ -25,6 +25,7 @@ import {
   UpgradeController,
 } from 'tasks';
 import { CreepTask } from 'tasks/types';
+import { TradingSystem } from 'Trading';
 import { FmtRatios } from 'utils/Collections';
 import { ErrorMapper } from 'utils/ErrorMapper';
 import { Logger } from 'utils/Logger';
@@ -36,6 +37,7 @@ declare global {
     rooms: Record<Room['name'], RoomMemory>;
     flags: Record<Flag['name'], FlagMemory>;
     creeps: Record<Creep['name'], CreepMemory>;
+    terminals: Record<Id<StructureTerminal>, TerminalMemory>;
     globalEnableProfiling?: boolean;
     globalEnableErrorMapper?: boolean;
     globalEnablePathVisuals?: boolean;
@@ -102,6 +104,8 @@ export class Colony {
   private readonly log = new Logger(this);
   readonly username = Game.spawns[Object.keys(Game.spawns)[0]].owner.username;
 
+  private trading = new TradingSystem(this);
+
   private WrapWithProfiling(lambda: () => void): () => void {
     if (!Memory.globalEnableProfiling) return lambda;
 
@@ -156,6 +160,8 @@ export class Colony {
     // Initialize global memory
     Memory.creeps ??= {};
     Memory.rooms ??= {};
+    Memory.flags ??= {};
+    Memory.terminals ??= {};
     Memory.scoutingReports ??= {};
     Memory.scoutInterval ??= CREEP_LIFE_TIME * 2;
 
@@ -223,6 +229,7 @@ export class Colony {
 
     this.CleanupStaleFlags();
     this.TryGeneratingPixel();
+    this.trading.OncePerTick();
 
     for (const role of Object.values(this.Roles)) role.StartOfTick();
     for (const creep of this.MyCreeps) creep.StartOfTick();
@@ -238,6 +245,7 @@ export class Colony {
       room.RunCreeps();
       room.CheckSpawns();
       room.DrawVisuals();
+      this.trading.OncePerRoom(room);
     }
 
     // Tick all other rooms I can see but don't own
