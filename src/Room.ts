@@ -487,7 +487,8 @@ export class RoomExtra extends Room {
 
   private cachedClaimedRepairs?: AnyStructure[];
   get ClaimedRepairs(): AnyStructure[] {
-    if (this.cachedClaimedRepairs !== undefined) return this.cachedClaimedRepairs;
+    if (this.cachedClaimedRepairs !== undefined && this.cachedClaimedRepairs.length > 0)
+      return this.cachedClaimedRepairs;
     this.cachedClaimedRepairs = this.FlatMapOverRoomsInClaimedArea(r =>
       typeof r === 'string' ? [] : r.find(FIND_STRUCTURES, { filter: s => s.hits < s.hitsMax }),
     );
