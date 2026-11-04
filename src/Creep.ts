@@ -223,7 +223,7 @@ export class CreepExtra extends Creep {
   EndOfTick(): void {
     this.memory.lastPos = SerializeRoomPosition(this.pos);
 
-    if (this.fatigue === 0 || this.spawning) return; // Nothing more to do, these situations don't count as idle
+    if (this.fatigue > 0 || this.spawning) return; // Fatigue and spawning don't count as idle
 
     // If we didn't move and didn't act, and aren't tired, increment the idle counter
     if (!(this.MovedBetweenRooms || this.MovedBetweenTicks || this.ActedThisTick))
