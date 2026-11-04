@@ -182,15 +182,8 @@ export class Worker extends CreepRoleBase implements CreepRole {
     if (creep.store.getUsedCapacity() > 0) {
       // Need to spend hauled energy
 
-      // If there aren't enough creeps already delivering to storage, then do that
-      const supplyTasks = creep.AssignedRoom.GetAssignedTasks(TaskAction.Supply) as Supply[];
-      if (storage !== undefined && storage.store.getFreeCapacity() > 0) {
-        const storageSupplyTasks = supplyTasks.filter(t => t.targetId === storage.id);
-        if (storageSupplyTasks.length <= this.DesiredStorageTasks) return new Supply(storage);
-      }
-
       // Look for a spending task amongst typical targets
-      const spend = this.FindSpendingTask(creep, supplyTasks);
+      const spend = this.FindSpendingTask(creep);
       if (spend) return spend;
 
       if (creep.AssignedRoom.controller?.level ?? 0 < 6) {
