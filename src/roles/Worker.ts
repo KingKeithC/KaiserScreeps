@@ -109,7 +109,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
       fullSupply.length > 0
         ? creep.pos.findClosestByPath(fullSupply, {
             ignoreCreeps: true,
-            costCallback: (rn: string, cm: CostMatrix) => creep.CostCallback(rn, cm),
+            costCallback: (rn: string, cm: CostMatrix) => creep.CostCallback(rn, cm, false),
           })
         : null;
     if (fullestSameRoom) return fullestSameRoom;
@@ -120,7 +120,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
 
     const anySourceInMyRoom = creep.pos.findClosestByPath(
       possibleSources.map(s => s[0]),
-      { costCallback: (rn: string, cm: CostMatrix) => creep.CostCallback(rn, cm) },
+      { costCallback: (rn: string, cm: CostMatrix) => creep.CostCallback(rn, cm, false) },
     );
     if (anySourceInMyRoom) return anySourceInMyRoom;
 
@@ -372,7 +372,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
       const sameRoom =
         sameRoomCandidates.length > 0
           ? supplier.pos.findClosestByPath(sameRoomCandidates, {
-              costCallback: (rn: string, cm: CostMatrix) => supplier.CostCallback(rn, cm),
+              costCallback: (rn: string, cm: CostMatrix) => supplier.CostCallback(rn, cm, false),
             })
           : null;
       if (sameRoom) return sameRoom;
@@ -413,7 +413,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
       const sameRoom =
         sameRoomCandidates.length > 0
           ? supplier.pos.findClosestByPath(sameRoomCandidates, {
-              costCallback: (rn: string, cm: CostMatrix) => supplier.CostCallback(rn, cm),
+              costCallback: (rn: string, cm: CostMatrix) => supplier.CostCallback(rn, cm, false),
             })
           : null;
       if (sameRoom) return sameRoom;
@@ -490,7 +490,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
 
       if (needsRepair.length > 0)
         return supplier.pos.findClosestByPath(needsRepair, {
-          costCallback: (rn: string, cm: CostMatrix) => supplier.CostCallback(rn, cm),
+          costCallback: (rn: string, cm: CostMatrix) => supplier.CostCallback(rn, cm, false),
         });
     }
 
