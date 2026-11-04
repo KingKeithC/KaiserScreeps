@@ -903,11 +903,11 @@ export class RoomExtra extends Room {
     // Roads under 75%
     [(s => s instanceof StructureRoad), 0.75, 1],
 
-    // Repair wals and ramparts up to 100k at least.
+    // Repair walls and ramparts up to 100k at least.
     [(s => (s instanceof StructureRampart || s instanceof StructureWall) && s.hits < 100_000), 1, 1],
 
     // Repair ramparts that protect structures other than roads to 1M
-    [(s => (s instanceof StructureRampart && s.pos.lookFor(LOOK_STRUCTURES).filter(st => !(st.structureType in [STRUCTURE_ROAD, STRUCTURE_RAMPART])).length > 0) && s.hits < 100_000_000), 1, 1],
+    [(s => (s instanceof StructureRampart && s.pos.lookFor(LOOK_STRUCTURES).filter(st => st.structureType !== STRUCTURE_ROAD && st.structureType !== STRUCTURE_RAMPART).length > 0) && s.hits < 100_000_000), 1, 1],
 
     // Anything else that's below half health, as long as more repairs are enabled
     [(s => this.ForeverRepairs && s.hits < s.hitsMax), 0.5, 1],
