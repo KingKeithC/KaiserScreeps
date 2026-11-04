@@ -47,11 +47,14 @@ export class CreepExtra extends Creep {
     return this.colony.GetRole(this.memory.role);
   }
 
+  private cachedCurrentTask?: CreepTask | null;
   get currentTask(): CreepTask | null {
-    return this.colony.DeserializeTask(this.memory.currentTask);
+    if (this.cachedCurrentTask !== undefined) return this.cachedCurrentTask;
+    return (this.cachedCurrentTask = this.colony.DeserializeTask(this.memory.currentTask));
   }
+
   private set currentTask(value: CreepTask | null) {
-    this.memory.currentTask = value;
+    this.memory.currentTask = this.cachedCurrentTask = value;
   }
 
   private cachedAssignedRoom?: RoomExtra;
@@ -213,7 +216,7 @@ export class CreepExtra extends Creep {
     this.memory.intendToMove = value;
   }
   get IntendedToMove(): boolean {
-    return this.memory.intendToMove ?? false;
+    return (this.memory.intendToMove ??= false);
   }
 
   ActedThisTick = false;
