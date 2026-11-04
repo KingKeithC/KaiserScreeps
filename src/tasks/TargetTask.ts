@@ -6,6 +6,7 @@ import { Logger } from 'utils/Logger';
 export type Targetable = _HasId & _HasRoomPosition;
 
 export abstract class TargetTask<Action extends string, Target extends Targetable> implements CreepTask<Action> {
+  abstract kind: string;
   public readonly targetId: Id<Target>;
   public readonly targetPos: string;
   public isCompleteFlag = false;
