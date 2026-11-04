@@ -1,6 +1,7 @@
 import { CreepExtra } from 'Creep';
 import { CreepTask, TaskAction, TaskActionResult } from 'tasks/types';
-import { DeserializeRoomPosition } from 'utils/Collections';
+import { DeserializeRoomPosition, SerializeRoomPosition } from 'utils/Collections';
+import { Logger } from 'utils/Logger';
 import { MiningPosition } from 'utils/RoomUtils';
 
 export class Mine implements CreepTask {
@@ -12,7 +13,21 @@ export class Mine implements CreepTask {
 
   public toString(): string {
     const source = Game.getObjectById(this.miningPosition.source);
-    const extra = source !== null ? ` ${((source.energy / source.energyCapacity) * 100).toFixed(2)}` : '';
+
+    let extra: string | undefined;
+    if (source === null || source === undefined) extra = '';
+    else if (source instanceof Source) {
+      extra = ` ${((source.energy / source.energyCapacity) * 100).toFixed(2)}`;
+    } else if (source instanceof StructureExtractor) {
+      const mineral = source.pos.lookFor(LOOK_MINERALS)[0];
+      if (!mineral) extra = '';
+      else {
+        const max = MINERAL_DENSITY[mineral.density];
+        const amt = ((mineral.mineralAmount / max) * 100).toFixed(2);
+        extra = ` Amount: %${amt} Density: ${mineral.density} Cooldown: ${source.cooldown}`;
+      }
+    }
+
     const sourceId = source !== null ? String(source) : `[source ${this.miningPosition.source}]`;
     return `${this.action} on ${sourceId} @ ${this.miningPosition.pos}${extra}`;
   }
@@ -23,7 +38,18 @@ export class Mine implements CreepTask {
     const source = Game.getObjectById(this.miningPosition.source);
     if (!source) return { range: 0, result: ERR_NOT_IN_RANGE, target: sourcePos };
 
-    const outcome: TaskActionResult = { range: 0, result: creep.harvest(source), target: sourcePos };
+    const mineral: Mineral | undefined = source.pos.lookFor(LOOK_MINERALS)[0];
+    if (!mineral && source instanceof StructureExtractor) {
+      this.isCompleteFlag = true;
+      Logger.crit('Assigned Extractor ${extractor}, at ${pos} that has no Mineral under it!!', {
+        '<creep>': creep,
+        extractor: source,
+        pos: source.pos,
+      });
+      return null;
+    }
+
+    const outcome: TaskActionResult = { range: 0, result: creep.harvest(mineral), target: sourcePos };
     if (outcome?.result === ERR_NOT_OWNER) outcome.result = ERR_NOT_IN_RANGE; // Ignore owner errors, forward to a 'move' instruction
     return outcome;
   }
@@ -40,7 +66,7 @@ export class Mine implements CreepTask {
     }
 
     // If the target is no longer claimed, we're done
-    if (!creep.AssignedRoom.ClaimedMinePositions.some(p => p === this.miningPosition.pos)) {
+    if (!creep.AssignedRoom.ClaimedMinePositions.some(p => SerializeRoomPosition(p) === this.miningPosition.pos)) {
       this.isCompleteFlag = true;
       return { ...outcome, result: OK } as TaskActionResult;
     }
@@ -66,9 +92,25 @@ export class Mine implements CreepTask {
       return outcome;
     }
 
+    if (source === null) return outcome;
+
+    const mineral: Mineral | undefined = source.pos.lookFor(LOOK_MINERALS)[0];
+    if (!mineral && source instanceof StructureExtractor) {
+      this.isCompleteFlag = true;
+      Logger.crit('Assigned Extractor ${extractor}, at ${pos} that has no Mineral under it!!', {
+        '<creep>': creep,
+        extractor: source,
+        pos: source.pos,
+      });
+      return null;
+    }
+
     // For all others, we're done when we run out of free space,
-    // or the mine runs out of energy
-    if (source !== null && source.energy === 0) {
+    // or the source/mineral runs out of energy
+    if (
+      (source instanceof Source && source.energy === 0) ||
+      (source instanceof StructureExtractor && mineral.mineralAmount === 0)
+    ) {
       this.isCompleteFlag = true;
       return outcome;
     }

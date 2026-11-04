@@ -417,18 +417,19 @@ export class RoomExtra extends Room {
     );
   }
 
-  get ClaimedSources(): Id<Source>[] {
+  get ClaimedSources(): (Id<Source> | Id<StructureExtractor>)[] {
     return unique(flatten(this.WorkableClaimedMiningPositions.map(pair => pair[1].map(mp => mp.source))));
   }
 
-  get ClaimedMinePositions(): string[] {
+  get ClaimedMinePositions(): RoomPosition[] {
     const ret = [];
-    for (const [_room, mines] of this.WorkableClaimedMiningPositions) for (const mine of mines) ret.push(mine.pos);
+    for (const [_room, mines] of this.WorkableClaimedMiningPositions)
+      for (const mine of mines) ret.push(DeserializeRoomPosition(mine.pos));
     return ret;
   }
 
   /**
-   * Get positions next to Sources that are not the target of any other miners in the colony.
+   * Get positions next to Sources/Extractors that are not the target of any other miners in the colony.
    */
   AvailableMiningPositions(): MiningPosition[] {
     const ret = [];
@@ -439,7 +440,7 @@ export class RoomExtra extends Room {
   }
 
   /**
-   * Get unoccupied positions next to Sources. Positions may already have miners allocated to them.
+   * Get unoccupied positions next to Sources/Extractors. Positions may already have miners allocated to them.
    */
   UnfilledMiningPositions(): MiningPosition[] {
     const ret = [];

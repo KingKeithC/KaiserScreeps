@@ -27,7 +27,7 @@ export interface HostileInfo {
 
 // A single Mining Position
 export interface MiningPosition {
-  source: Id<Source>;
+  source: Id<Source> | Id<StructureExtractor>;
   pos: RoomPositionString;
 }
 
@@ -156,15 +156,23 @@ export function CouldCreepStandAt(x: number, y: number, room: Room, terrain: Roo
   return true;
 }
 
+export function GetMineable(room: Room): (Source | StructureExtractor)[] {
+  const sources: (Source | StructureExtractor)[] = room.find(FIND_SOURCES);
+  if (CONTROLLER_STRUCTURES.extractor[room.controller?.level ?? 0] > 0)
+    for (const extractor of room.find(FIND_MY_STRUCTURES, { filter: { structureType: STRUCTURE_EXTRACTOR } }))
+      if (typeof extractor.isActive === 'function') sources.push(extractor as StructureExtractor);
+  return sources;
+}
+
 /**
  * For each source in the room, find all the positions around it that a miner could occupy.
  * @param room The room to search in, must be visible.
  * @returns A list of Mining Positions, that are readily serializable.
  */
 export function GetMiningPositions(room: Room): MiningPosition[] {
-  const sources = room.find(FIND_SOURCES);
+  const sources = GetMineable(room);
   if (sources.length === 0) {
-    Logger.warn('GetMinerPositions: No sources in room.', { '<room>': room });
+    Logger.warn('GetMinerPositions: No sources/extractors in room.', { '<room>': room });
   }
 
   let searched = 0;
@@ -267,11 +275,6 @@ export function ResourceContainersForRoomByType(room: string | Room): Map<Resour
           ...(ret.get(rt as ResourceConstant) ?? []),
           [recv, recv.store.getUsedCapacity(rt as ResourceConstant) ?? 0],
         ]);
-
-  if (CONTROLLER_STRUCTURES.extractor[room.controller?.level ?? 0] > 0)
-    for (const extractor of room.find(FIND_MY_STRUCTURES, { filter: { structureType: STRUCTURE_EXTRACTOR } }))
-      for (const rt of extractor.pos.lookFor(LOOK_MINERALS))
-        ret.set(rt.mineralType, [...(ret.get(rt.mineralType) ?? []), [rt, rt.mineralAmount]]);
 
   return ret;
 }
