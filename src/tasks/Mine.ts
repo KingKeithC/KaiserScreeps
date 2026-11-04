@@ -49,7 +49,10 @@ export class Mine implements CreepTask {
       return null;
     }
 
-    const outcome: TaskActionResult = { range: 0, result: creep.harvest(mineral), target: sourcePos };
+    const outcome: TaskActionResult =
+      source instanceof StructureExtractor
+        ? { range: 0, result: creep.harvest(mineral), target: sourcePos }
+        : { range: 0, result: creep.harvest(source), target: sourcePos };
     if (outcome?.result === ERR_NOT_OWNER) outcome.result = ERR_NOT_IN_RANGE; // Ignore owner errors, forward to a 'move' instruction
     return outcome;
   }
