@@ -544,8 +544,8 @@ export class RoomExtra extends Room {
 
   CreateCollectionPlan(): CollectionPlan {
     const sourcesByType = new Map<ResourceConstant, ContainerAndAmount[]>();
-    for (const [_room, results] of this.MapWithRoomsInClaimedArea(ResourceContainersForRoomByType))
-      for (const [resourceType, sources] of results) {
+    for (const room of [this, ...this.WorkableClaimedRooms])
+      for (const [resourceType, sources] of ResourceContainersForRoomByType(room)) {
         const existing = sourcesByType.get(resourceType);
         if (existing) existing.push(...sources);
         else sourcesByType.set(resourceType, sources);

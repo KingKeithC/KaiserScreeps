@@ -142,7 +142,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
       if (!candidates || candidates.length === 0) continue;
       const task = this.FindBestCollection(
         creep,
-        candidates.filter(c => c[1] >= minAmountToCollect),
+        candidates.filter(c => (minAmountToCollect === 0 ? true : c[1] >= minAmountToCollect)),
         creep.AssignedRoom.CollectionPlan.reservedCapacityBySource,
         sameRoom,
       );
@@ -208,7 +208,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
       }
     }
 
-    if (creep.store.getFreeCapacity() === 0) {
+    if (creep.store.getUsedCapacity() === 0) {
       // Try to find a gathering task
       const gather =
         this.CollectResources(creep, [RESOURCE_ENERGY]) ??
