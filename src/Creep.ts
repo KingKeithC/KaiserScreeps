@@ -90,7 +90,7 @@ export class CreepExtra extends Creep {
     // Update state based on last tick's expectations.
     this.MovedBetweenTicks = !this.LastPos.isEqualTo(this.pos);
     if (this.MovedBetweenTicks && this.room.name !== this.LastPos.roomName) this.OnLeaveRoom();
-    if (this.IntendedToMove && !this.MovedBetweenTicks) this.LifetimeStuck++;
+    if (this.IntendedToMove && !this.MovedBetweenTicks) this.LifetimeStuck = this.LifetimeStuck + 1;
 
     // Reset after using its value:
     this.IntendedToMove = false;
