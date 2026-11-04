@@ -95,88 +95,102 @@ export class RoomExtra extends Room {
   }
 
   get StoreOverUpgrade() {
-    return this.memory.storeOverUpgrade ?? true;
+    return (this.memory.storeOverUpgrade ??= true);
   }
 
   get EnableRepairOverlay(): boolean {
-    return this.memory.enableRepairOverlay ?? false;
+    return (this.memory.enableRepairOverlay ??= false);
   }
   set EnableRepairOverlay(value: boolean) {
     this.memory.enableRepairOverlay = value;
   }
   get AttackHostiles(): boolean {
-    return this.memory.attackHostiles ?? true;
+    return (this.memory.attackHostiles ??= true);
   }
   set AttackHostiles(value: boolean) {
     this.memory.attackHostiles = value;
   }
   get DisableWarriors(): boolean {
-    return this.memory.disableWarriors ?? false;
+    return (this.memory.disableWarriors ??= false);
   }
   set DisableWarriors(value: boolean) {
     this.memory.disableWarriors = value;
   }
   get DisableTowers(): boolean {
-    return this.memory.disableTowers ?? false;
+    return (this.memory.disableTowers ??= false);
   }
   set DisableTowers(value: boolean) {
     this.memory.disableTowers = value;
   }
   get DisableTowerAttacks(): boolean {
-    return this.memory.disableTowerAttacks ?? false;
+    return (this.memory.disableTowerAttacks ??= false);
   }
   set DisableTowerAttacks(value: boolean) {
     this.memory.disableTowerAttacks = value;
   }
   get TowerAttackRange(): number {
-    return this.memory.towerAttackRange ?? 20;
+    return (this.memory.towerAttackRange ??= 20);
   }
   set TowerAttackRange(value: number) {
     this.memory.towerAttackRange = value;
   }
   get TowerCriticalSupplyRatio(): number {
-    return this.memory.towerCriticalSupplyRatio ?? 0.75;
+    return (this.memory.towerCriticalSupplyRatio ??= 0.75);
   }
   set TowerCriticalSupplyRatio(value: number) {
     this.memory.towerCriticalSupplyRatio = value;
   }
   get HostileNotificationThreshold(): number {
-    return this.memory.hostileNotificationThreshold ?? 2;
+    return (this.memory.hostileNotificationThreshold ??= 2);
   }
   set HostileNotificationThreshold(value: number) {
     this.memory.hostileNotificationThreshold = value;
   }
   get StorageWartimeEnergyBuffer(): number {
-    return this.memory.storageWartimeEnergyBuffer ?? 5000;
+    return (this.memory.storageWartimeEnergyBuffer ??= 5000);
   }
   get LinkGroups(): { [key: string]: Id<StructureLink>[] } {
-    return this.memory.linkGroups ?? {};
+    return (this.memory.linkGroups ??= {});
   }
   set LinkGroups(value: { [key: string]: Id<StructureLink>[] }) {
     this.memory.linkGroups = value;
   }
-
+  get EnableCostMatrixOverlay(): boolean {
+    return this.memory.enableCostMatrixOverlay ?? false;
+  }
+  set EnableCostMatrixOverlay(value: boolean) {
+    this.memory.enableCostMatrixOverlay = value;
+  }
   get ForeverRepairs(): boolean {
-    return this.memory.foreverRepair ?? false;
+    return (this.memory.foreverRepair ??= false);
   }
   set ForeverRepairs(value: boolean) {
     this.memory.foreverRepair = value;
   }
-
   set Mines(value: MiningPosition[]) {
     this.memory.mines = value;
   }
   get Mines(): MiningPosition[] {
-    if (this.memory.mines === undefined || this.memory.mines.length === 0) this.memory.mines = GetMiningPositions(this); // Update memoized
-    return this.memory.mines; // Return memoized
+    return (this.memory.mines ??= GetMiningPositions(this));
   }
-
   set ClaimedRoomNames(value: string[]) {
     this.memory.claimedNearby = unique(value);
     this.cachedClaimedRepairs = undefined;
   }
   get ClaimedRoomNames(): string[] {
-    return unique(this.memory.claimedNearby ?? []);
+    return unique((this.memory.claimedNearby ??= []));
+  }
+  private set EventCounts(value: Dictionary<number>) {
+    this.memory.eventCounts = value;
+  }
+  get EventCounts(): Dictionary<number> {
+    return (this.memory.eventCounts ??= {});
+  }
+  private set EventAmounts(value: Dictionary<number>) {
+    this.memory.eventAmounts = value;
+  }
+  get EventAmounts(): Dictionary<number> {
+    return (this.memory.eventAmounts ??= {});
   }
 
   private cachedWorkableClaimedRooms: Room[] = [];
@@ -213,13 +227,6 @@ export class RoomExtra extends Room {
 
   get HostilesByRoom(): [string | Room | RoomExtra, Creep[]][] {
     return this.MapWithRoomsInClaimedArea(mr => (mr instanceof Room ? mr.find(FIND_HOSTILE_CREEPS) : []), true);
-  }
-
-  get EnableCostMatrixOverlay(): boolean {
-    return this.memory.enableCostMatrixOverlay ?? false;
-  }
-  set EnableCostMatrixOverlay(value: boolean) {
-    this.memory.enableCostMatrixOverlay = value;
   }
 
   // We return the cached matrix from the property if it is defined,
@@ -289,7 +296,6 @@ export class RoomExtra extends Room {
   };
 
   CostMatrixIsStale = false;
-
   private UpdateStructuresCostMatrix(): void {
     this.log.info(`Updating Cost Matrix...`);
     const matrix = new PathFinder.CostMatrix();
@@ -396,20 +402,6 @@ export class RoomExtra extends Room {
     this.CostMatrixIsStale = false;
   }
 
-  private set EventCounts(value: Dictionary<number>) {
-    this.memory.eventCounts = value;
-  }
-  get EventCounts(): Dictionary<number> {
-    return this.memory.eventCounts ?? {};
-  }
-
-  private set EventAmounts(value: Dictionary<number>) {
-    this.memory.eventAmounts = value;
-  }
-  get EventAmounts(): Dictionary<number> {
-    return this.memory.eventAmounts ?? {};
-  }
-
   get WorkableClaimedMiningPositions(): [RoomExtra | Room | string, MiningPosition[]][] {
     return this.MapWithRoomsInClaimedArea(
       cr => (cr instanceof RoomExtra ? cr.Mines : GetMinesForRoom(cr, this.colony.username)),
@@ -450,17 +442,16 @@ export class RoomExtra extends Room {
   }
 
   LastSpawnTick(roleName: string): number {
-    return (this.memory.lastSpawnTick ?? {})[roleName] ?? 0;
+    return ((this.memory.lastSpawnTick ??= {})[roleName] ??= 0);
   }
 
   SetLastSpawnTick(roleName: string, value: number): void {
-    this.memory.lastSpawnTick ??= {};
-    this.memory.lastSpawnTick[roleName] = value;
+    (this.memory.lastSpawnTick ??= {})[roleName] = value;
   }
 
   GetLimitOfRole(roleName: string): number {
     // Return the custom limit room memory
-    const overridenQuota = (this.memory.roleLimits ?? {})[roleName];
+    const overridenQuota = (this.memory.roleLimits ??= {})[roleName];
     if (overridenQuota !== undefined) return overridenQuota;
 
     // Otherwise, return the quota from the role instance.
