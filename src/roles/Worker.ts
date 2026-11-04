@@ -165,35 +165,41 @@ export class Worker extends CreepRoleBase implements CreepRole {
   }
 
   WorkersMineBelowMinerBodyTotalCost = 1000;
+  DesiredStorageTasks = 2;
   SelectNextTask(creep: CreepExtra): CreepTask | null {
+    const storage = creep.AssignedRoom.storage;
+
     // ------ SUPPLY ------
-    if (
-      creep.AssignedRoom.storage !== undefined &&
-      creep.store.getUsedCapacity() - creep.store.getUsedCapacity(RESOURCE_ENERGY) > 0
-    ) {
+    if (storage !== undefined && creep.store.getUsedCapacity() - creep.store.getUsedCapacity(RESOURCE_ENERGY) > 0) {
       // Need to store hauled non-energy resources
       for (const resourceType in creep.store)
         if (resourceType !== RESOURCE_ENERGY) {
           this.log.warn('Non-Energy being stored: ${resourceType}', { '<creep>': creep, resourceType });
-          return new Supply(creep.AssignedRoom.storage, resourceType as ResourceConstant);
+          return new Supply(storage, resourceType as ResourceConstant);
         }
     }
 
     if (creep.store.getUsedCapacity(RESOURCE_ENERGY) > 0) {
       // Need to spend hauled energy
 
+      // If there aren't enough creeps already delivering to storage, then do that
+      const supplyTasks = creep.AssignedRoom.GetAssignedTasks(TaskAction.Supply) as Supply[];
+      if (storage !== undefined && storage.store.getFreeCapacity() > 0) {
+        const storageSupplyTasks = supplyTasks.filter(t => t.targetId === storage.id);
+        if (storageSupplyTasks.length <= this.DesiredStorageTasks) return new Supply(storage);
+      }
+
       // Look for a spending task amongst typical targets
-      const spend = this.FindSpendingTask(creep);
+      const spend = this.FindSpendingTask(creep, supplyTasks);
       if (spend) return spend;
 
       // If still no spending task, and there is storage, then store
-      if (creep.AssignedRoom.storage !== undefined && creep.AssignedRoom.storage.store.getFreeCapacity() > 0)
-        return new Supply(creep.AssignedRoom.storage);
+      if (storage !== undefined && storage.store.getFreeCapacity() > 0) return new Supply(storage);
     }
 
     // ------ GATHER ------
 
-    if (creep.store.getUsedCapacity() === 0 && creep.AssignedRoom.storage !== undefined) {
+    if (storage && creep.store.getUsedCapacity() === 0) {
       // Need to collect non-energy resources, but only if room has storage
       const nonEnergy = this.CollectResources(
         creep,
@@ -276,9 +282,11 @@ export class Worker extends CreepRoleBase implements CreepRole {
 
   MaxSupplyForTowers = 1;
   MaxUpgradePerRoom = 2;
-  public FindSpendingTask(creep: CreepExtra): CreepTask | null {
+  public FindSpendingTask(
+    creep: CreepExtra,
+    supplyTasks = creep.AssignedRoom.GetAssignedTasks(TaskAction.Supply) as Supply[],
+  ): CreepTask | null {
     const maintainers = creep.AssignedRoom.GetAssignedCreepsOfRole('Maintainer').length;
-    const supplyTasks = creep.AssignedRoom.GetAssignedTasks(TaskAction.Supply) as Supply[];
     if (maintainers === 0) {
       const spawnSupply = this.FindSpawnSupply(creep, 0, supplyTasks);
       if (spawnSupply) return spawnSupply;
