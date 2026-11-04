@@ -171,6 +171,11 @@ export class Worker extends CreepRoleBase implements CreepRole {
     const storage = creep.AssignedRoom.storage;
 
     // ------ SUPPLY ------
+    if (storage !== undefined && creep.store.getUsedCapacity() - creep.store.getUsedCapacity(RESOURCE_ENERGY) > 0) {
+      for (const resourceType in creep.store)
+        if (resourceType !== RESOURCE_ENERGY) return new Supply(storage, resourceType as ResourceConstant);
+    }
+
     if (creep.store.getUsedCapacity() > 0) {
       // Need to spend hauled energy
 
