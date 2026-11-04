@@ -85,9 +85,14 @@ export class Mine implements CreepTask {
       return outcome;
     } else if (!(target.roomName in Game.rooms)) return outcome; // Can't see the room, so can't discern anymore
 
-    // If someone (other than us) is in our spot, we're done
+    // If someone (other than a Miner or Maintainer or us) is in our spot, we're done
     const occupier = target.lookFor(LOOK_CREEPS).pop();
-    if (occupier !== undefined && occupier.id !== creep.id) {
+    if (
+      occupier !== undefined &&
+      occupier.id !== creep.id &&
+      // occupier.memory.role !== 'Miner' &&
+      occupier.memory.role !== 'Maintainer'
+    ) {
       this.isCompleteFlag = true;
       return outcome;
     }
