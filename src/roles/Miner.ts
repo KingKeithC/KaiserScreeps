@@ -64,24 +64,32 @@ export class Miner extends CreepRoleBase implements CreepRole {
   }
 
   TransferToNeighbours(creep: CreepExtra): void {
-    type EnergyCarrier = CreepExtra | AnyStoreStructure;
-    const closeNeedsEnergy = creep.pos
-      .findInRange(
-        [
-          ...creep.AssignedRoom.AssignedCreeps.filter(c => c.role.groupName === 'Worker'),
-          ...creep.pos.findInRange(FIND_STRUCTURES, 1, {
-            filter: s => 'store' in s && s.store.getFreeCapacity(RESOURCE_ENERGY) > 0,
-          }),
-          ...creep.AssignedRoom.LinkSenders,
-        ] as EnergyCarrier[],
-        1,
-        {
-          filter: (target): target is EnergyCarrier =>
-            'store' in target && target.store.getFreeCapacity(RESOURCE_ENERGY) > 0,
-        },
-      )
-      .sort((b, a) => a.store.getFreeCapacity(RESOURCE_ENERGY) - b.store.getFreeCapacity(RESOURCE_ENERGY))
-      .pop();
-    if (closeNeedsEnergy) creep.transfer(closeNeedsEnergy, RESOURCE_ENERGY);
+    let needSupply: CreepExtra | AnyStoreStructure | undefined;
+    for (const [rt, amt] of Object.entries(creep.store)) {
+      if ((amt as number) !== null && (amt as number) !== undefined && (amt as number) > 0) {
+        needSupply = creep.pos
+          .findInRange(
+            [
+              ...creep.AssignedRoom.AssignedCreeps.filter(c => c.role.groupName === 'Worker'),
+              ...creep.pos.findInRange(FIND_STRUCTURES, 1, {
+                filter: s => ('store' in s && s.store.getFreeCapacity(rt as ResourceConstant)) ?? 0 > 0,
+              }),
+              ...creep.AssignedRoom.LinkSenders,
+            ] as (CreepExtra | AnyStoreStructure)[],
+            1,
+            {
+              filter: (target): target is CreepExtra | AnyStoreStructure =>
+                'store' in target && (target.store.getFreeCapacity(rt as ResourceConstant) ?? 0) > 0,
+            },
+          )
+          .sort(
+            (b, a) =>
+              (a.store.getFreeCapacity(rt as ResourceConstant) ?? 0) -
+              (b.store.getFreeCapacity(rt as ResourceConstant) ?? 0),
+          )
+          .pop();
+      }
+      if (needSupply) creep.transfer(needSupply, rt as ResourceConstant);
+    }
   }
 }
