@@ -5,9 +5,10 @@ import { RoomExtra } from 'Room';
 import { Build, Collect, Mine, Repair, Supply, UpgradeController } from 'tasks';
 import { Retire } from 'tasks/Retire';
 import { CreepTask, TaskAction } from 'tasks/types';
-import { DeserializeRoomPosition, MakeBody } from 'utils/Collections';
+import { MakeBody } from 'utils/Collections';
 import { BodyCost } from 'utils/CreepUtils';
 import { ContainerAndAmount, ResourceContainer, FirstBodyByEnergyCapacity } from 'utils/RoomUtils';
+import { CreatePendingRepairs, FindHighestPriorityRepairGroup } from 'utils/RepairUtils';
 import { CreepRoleBase, CreepRole } from './Role';
 
 export class Worker extends CreepRoleBase implements CreepRole {
@@ -295,34 +296,28 @@ export class Worker extends CreepRoleBase implements CreepRole {
       this.log.crit('Assigned Room ${room} as no controller!', { '<creep>': creep, room: creep.AssignedRoom });
 
     if (creep.AssignedRoom.controller?.level ?? 0 >= 3) {
-      const repairsByRoom = new Map<string, AnyStructure[]>();
-      for (const structure of creep.AssignedRoom.ClaimedRepairs) {
-        const roomRepairs = repairsByRoom.get(structure.pos.roomName) ?? [];
-        roomRepairs.push(structure);
-        repairsByRoom.set(structure.pos.roomName, roomRepairs);
-      }
-      const repairs = creep.AssignedRoom.MapWithRoomsInClaimedArea(r =>
-        typeof r === 'string' ? [] : (repairsByRoom.get(r.name) ?? []),
-      );
       const repairTasks = creep.AssignedRoom.GetAssignedTasks(TaskAction.Repair) as Repair[];
-      const repairTasksByRoom = new Map<string, Repair[]>();
-      for (const task of repairTasks) {
-        const roomName = DeserializeRoomPosition(task.targetPos).roomName;
-        const roomTasks = repairTasksByRoom.get(roomName) ?? [];
-        roomTasks.push(task);
-        repairTasksByRoom.set(roomName, roomTasks);
-      }
+      const repairsByTarget = new Map<string, number>();
+      for (const task of repairTasks) repairsByTarget.set(task.targetId, (repairsByTarget.get(task.targetId) ?? 0) + 1);
 
-      for (const [room, roomRepairs] of repairs) {
+      for (const [room] of creep.AssignedRoom.MapWithRoomsInClaimedArea<RoomExtra | Room | string>(r => r)) {
         if (!(room instanceof Room)) continue;
         const roomTowers = room.find(FIND_MY_STRUCTURES, { filter: s => s.structureType === STRUCTURE_TOWER });
-        const ongoingRepairs = repairTasksByRoom.get(room.name) ?? [];
+        if (roomTowers.length > 0) continue;
 
-        // Repair if there are no available towers to do it
-        if (roomTowers.length === 0) {
-          const repair = this.FindIdealRepairByStrength(creep, roomRepairs, ongoingRepairs);
-          if (repair) return new Repair(repair);
-        }
+        const repairGroup =
+          room instanceof RoomExtra
+            ? room.PendingRepairGroup
+            : FindHighestPriorityRepairGroup(room, CreatePendingRepairs(room));
+        if (!repairGroup) continue;
+
+        const availableRepairs = repairGroup.repairs.filter(
+          structure => (repairsByTarget.get(structure.id) ?? 0) < repairGroup.maxWorkers,
+        );
+        const repair = creep.pos.findClosestByPath(availableRepairs, {
+          costCallback: (roomName: string, costMatrix: CostMatrix) => creep.CostCallback(roomName, costMatrix, false),
+        });
+        if (repair) return new Repair(repair);
       }
     }
 
@@ -428,66 +423,6 @@ export class Worker extends CreepRoleBase implements CreepRole {
       `Nothing needs supply${candidateName === undefined ? '' : ` in group: '${candidateName}'`}. Considered ${considered}/${candidates.length} eligible objects across ${groups} groups.`,
       { '<creep>': supplier },
     );
-    return null;
-  }
-
-  FindIdealRepairByStrength(
-    creep: CreepExtra,
-    candidates: AnyStructure[],
-    inProgressRepairTasks: Repair[],
-  ): AnyStructure | undefined | null {
-    const candidateIds = new Set<string>(candidates.map(structure => structure.id));
-    const targetsByCount = new Map<string, number>();
-    for (const t of inProgressRepairTasks) {
-      if (!candidateIds.has(t.targetId)) continue;
-      targetsByCount.set(t.targetId, (targetsByCount.get(t.targetId) ?? 0) + 1);
-    }
-
-    for (const [p, repairAt, maxRepairs] of creep.AssignedRoom.RepairPriorities) {
-      let needsRepair: AnyStructure | undefined;
-      let lowestHealthRatio = Infinity;
-      for (const structure of candidates) {
-        const healthRatio = structure.hits / structure.hitsMax;
-        if (
-          p(structure) &&
-          healthRatio < repairAt &&
-          (targetsByCount.get(structure.id) ?? 0) < maxRepairs &&
-          healthRatio <= lowestHealthRatio
-        ) {
-          needsRepair = structure;
-          lowestHealthRatio = healthRatio;
-        }
-      }
-      if (needsRepair) return needsRepair;
-    }
-
-    return null;
-  }
-
-  FindIdealRepair(supplier: CreepExtra): AnyStructure | undefined | null {
-    const inProgressRepairTasks = supplier.AssignedRoom.GetAssignedTasks(TaskAction.Repair);
-    const targetsByCount = new Map<string, number>();
-    for (const t of inProgressRepairTasks) {
-      const target = 'target' in t ? (t.target as string | undefined) : undefined;
-      if (!target) continue;
-      const existing = targetsByCount.get(target) ?? 0;
-      targetsByCount.set(target, existing + 1);
-    }
-
-    for (const [p, repairAt, maxRepairs] of supplier.AssignedRoom.RepairPriorities) {
-      const needsRepair = supplier.AssignedRoom.ClaimedRepairs.map(s => ({
-        site: s,
-        count: targetsByCount.get(s.id) ?? 0,
-      }))
-        .filter(s => p(s.site) && s.site.hits / s.site.hitsMax < repairAt && s.count < maxRepairs)
-        .map(c => c.site);
-
-      if (needsRepair.length > 0)
-        return supplier.pos.findClosestByPath(needsRepair, {
-          costCallback: (rn: string, cm: CostMatrix) => supplier.CostCallback(rn, cm, false),
-        });
-    }
-
     return null;
   }
 }

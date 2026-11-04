@@ -1,5 +1,5 @@
 import { Dictionary, flatten, range, unique } from 'lodash';
-import { Collect, Mine, Repair, UpgradeController } from 'tasks';
+import { Collect, Mine, UpgradeController } from 'tasks';
 import {
   CollectionPlan,
   ContainerAndAmount,
@@ -19,6 +19,11 @@ import { CreepRole } from 'roles/Role';
 import { Logger } from 'utils/Logger';
 import { BodyCost } from 'utils/CreepUtils';
 import { CreepTask, TaskAction } from 'tasks/types';
+import {
+  CreatePendingRepairs,
+  FindHighestPriorityRepairGroup,
+  PendingRepairs as PendingRepairCollection,
+} from 'utils/RepairUtils';
 
 declare global {
   interface RoomMemory {
@@ -175,7 +180,6 @@ export class RoomExtra extends Room {
   }
   set ClaimedRoomNames(value: string[]) {
     this.memory.claimedNearby = unique(value);
-    this.cachedClaimedRepairs = undefined;
   }
   get ClaimedRoomNames(): string[] {
     return unique((this.memory.claimedNearby ??= []));
@@ -485,14 +489,17 @@ export class RoomExtra extends Room {
     );
   }
 
-  private cachedClaimedRepairs?: AnyStructure[];
   get ClaimedRepairs(): AnyStructure[] {
-    if (this.cachedClaimedRepairs !== undefined && this.cachedClaimedRepairs.length > 0)
-      return this.cachedClaimedRepairs;
-    this.cachedClaimedRepairs = this.FlatMapOverRoomsInClaimedArea(r =>
-      typeof r === 'string' ? [] : r.find(FIND_STRUCTURES, { filter: s => s.hits < s.hitsMax }),
-    );
-    return this.cachedClaimedRepairs;
+    return this.FlatMapOverRoomsInClaimedArea(r => (r instanceof Room ? CreatePendingRepairs(r).candidates : []));
+  }
+
+  private cachedPendingRepairs?: PendingRepairCollection;
+  get PendingRepairs(): PendingRepairCollection {
+    return (this.cachedPendingRepairs ??= CreatePendingRepairs(this));
+  }
+
+  get PendingRepairGroup() {
+    return FindHighestPriorityRepairGroup(this, this.PendingRepairs);
   }
 
   get Ramparts(): StructureRampart[] {
@@ -886,63 +893,6 @@ export class RoomExtra extends Room {
       }
   }
 
-  // List of filter callback, health capacity to begin repair, and maxRepairers, descending order.
-  // prettier-ignore
-  RepairPriorities: [((s: AnyStructure) => boolean), number, number][] = [
-    // Anything other than the big repair needs that's under %80 health
-    [(s => !(s instanceof StructureRampart || s instanceof StructureWall || s instanceof StructureRoad)), 0.8, 2],
-
-    // Roads under 75%
-    [(s => s instanceof StructureRoad), 0.75, 1],
-
-    // Repair walls and ramparts up to 100k at least.
-    [(s => (s instanceof StructureRampart || s instanceof StructureWall) && s.hits < 100_000), 1, 1],
-
-    // Repair ramparts that protect structures other than roads to 1M
-    [(s => (s instanceof StructureRampart && s.pos.lookFor(LOOK_STRUCTURES).filter(st => st.structureType !== STRUCTURE_ROAD && st.structureType !== STRUCTURE_RAMPART).length > 0) && s.hits < 1_000_000), 1, 1],
-
-    // Anything else that's below half health, as long as more repairs are enabled
-    [(s => this.ForeverRepairs && s.hits < s.hitsMax), 0.5, 1],
-    [(s => {if (
-      s instanceof StructureRampart
-      || s instanceof StructureContainer
-      || s instanceof StructurePortal
-      || s instanceof StructureRoad
-      || s instanceof StructureRampart
-      || s instanceof StructureWall
-    ) return false; this.log.warn(`Unfiltered Repair Priority: ${s}`); return false}), 1, 1],
-  ];
-
-  FindRepairByPriorityAndStrength(limitToRoom?: RoomExtra, byRangeTo?: RoomPosition): AnyStructure | null {
-    const ongoingRepairs = this.GetAssignedTasks(TaskAction.Repair) as Repair[];
-    const incomingRepairs = new Map<string, number>();
-    for (const repair of ongoingRepairs)
-      incomingRepairs.set(repair.targetId, (incomingRepairs.get(repair.targetId) ?? 0) + 1);
-
-    const repairs = this.ClaimedRepairs;
-    for (const [predicate, repairAt, maxWorkers] of this.RepairPriorities) {
-      let selected: AnyStructure | null = null;
-      let bestScore = Infinity;
-      for (const structure of repairs) {
-        if (
-          (limitToRoom !== undefined && structure.pos.roomName !== limitToRoom.name) ||
-          !predicate(structure) ||
-          structure.hits / structure.hitsMax >= repairAt ||
-          (incomingRepairs.get(structure.id) ?? 0) >= maxWorkers
-        )
-          continue;
-
-        const score = byRangeTo === undefined ? structure.hits / structure.hitsMax : byRangeTo.getRangeTo(structure);
-        if (score <= bestScore) {
-          selected = structure;
-          bestScore = score;
-        }
-      }
-      if (selected) return selected;
-    }
-    return null;
-  }
-
   TickTower(tower: StructureTower, hostiles: Creep[], weakestFriendly?: Creep) {
     const supplyRatio = tower.store.getUsedCapacity(RESOURCE_ENERGY) / tower.store.getCapacity(RESOURCE_ENERGY);
     if (!tower.isActive || !supplyRatio) return; // RCL or Energy too low to work
@@ -989,8 +939,23 @@ export class RoomExtra extends Room {
 
     // If we have enough energy, repair the most damaged structure in the room
     if (supplyRatio >= this.TowerCriticalSupplyRatio) {
-      const needRepair = this.FindRepairByPriorityAndStrength(this);
-      if (needRepair) tower.repair(needRepair);
+      const repairGroup = FindHighestPriorityRepairGroup(this, this.PendingRepairs);
+      if (repairGroup) {
+        const target = repairGroup.repairs.reduce(
+          (best, candidate) => {
+            const targetRange = tower.pos.getRangeTo(candidate);
+            const falloff = Math.min(
+              1,
+              (TOWER_FALLOFF * Math.max(0, targetRange - TOWER_OPTIMAL_RANGE)) / TOWER_FALLOFF_RANGE,
+            );
+            const effectivePower = TOWER_POWER_REPAIR * (1 - falloff);
+            if (!best || effectivePower > best.effectivePower) return { structure: candidate, effectivePower };
+            return best;
+          },
+          undefined as { structure: AnyStructure; effectivePower: number } | undefined,
+        );
+        if (target) tower.repair(target.structure);
+      }
     }
   }
 
