@@ -320,8 +320,9 @@ export class Colony {
     claimer.AssignedRoom.ClaimedRoomNames.push(newRoom);
   }
 
+  PixelCost = 9000;
   TryGeneratingPixel(): void {
-    if (Game.cpu.bucket >= 10000) {
+    if (Game.cpu.bucket >= this.PixelCost) {
       const res = Game.cpu.generatePixel();
       if (res === OK) this.log.info(`!!! Generated a pixel :)`);
     }
