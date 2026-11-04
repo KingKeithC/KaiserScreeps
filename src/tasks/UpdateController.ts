@@ -31,6 +31,14 @@ export class UpgradeController extends TargetTask<typeof TaskAction.UpgradeContr
 
   isCreepAbleToContinue(creep: CreepExtra): boolean {
     if (creep.store.energy === 0) return false;
+    // If we are in upgrade mode, and the creep is a maintainer,
+    // and spawns need energy, end early
+    if (
+      this.mode === 'upgrade' &&
+      creep.role.name === 'Maintainer' &&
+      creep.AssignedRoom.energyAvailable < creep.AssignedRoom.energyCapacityAvailable
+    )
+      return false;
     return true;
   }
 
