@@ -49,37 +49,62 @@ export class Miner extends CreepRoleBase implements CreepRole {
   }
 
   TickCreep(creep: CreepExtra): void {
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
+    const nearLinks = creep.pos.findInRange(FIND_MY_STRUCTURES, 1, {
+      filter: { structureType: STRUCTURE_LINK },
+    }) as StructureLink[];
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
+    const nearContainers = creep.pos.findInRange(FIND_MY_STRUCTURES, 1, {
+      filter: { structureType: STRUCTURE_CONTAINER },
+    }) as StructureContainer[];
+
+    // If there is a link that needs energy, and
+    // a container that has it, and we have room
+    for (const link of nearLinks)
+      if (link.store.getFreeCapacity(RESOURCE_ENERGY) > 0)
+        for (const container of nearContainers)
+          if (creep.store.getFreeCapacity(RESOURCE_ENERGY) > 0 && container.store.getUsedCapacity(RESOURCE_ENERGY) > 0)
+            creep.withdraw(container, RESOURCE_ENERGY);
+          else this.TransferToNeighbours(creep, RESOURCE_ENERGY, link);
+
     this.PickupDropped(creep);
     this.TransferToNeighbours(creep);
   }
 
-  TransferToNeighbours(creep: CreepExtra): void {
-    let needSupply: CreepExtra | AnyStoreStructure | undefined;
-    for (const [rt, amt] of Object.entries(creep.store)) {
-      if ((amt as number) !== null && (amt as number) !== undefined && (amt as number) > 0) {
+  TransferToNeighbours(
+    creep: CreepExtra,
+    preferredResource?: ResourceConstant,
+    preferredDest?: AnyStoreStructure,
+  ): void {
+    let needSupply: CreepExtra | AnyStoreStructure | undefined = preferredDest;
+
+    const transferResource = (rt: ResourceConstant) => {
+      if (needSupply === undefined)
         needSupply = creep.pos
           .findInRange(
             [
               ...creep.AssignedRoom.AssignedCreeps.filter(c => c.role.groupName === 'Worker'),
               ...creep.pos.findInRange(FIND_STRUCTURES, 1, {
-                filter: s => ('store' in s && s.store.getFreeCapacity(rt as ResourceConstant)) ?? 0 > 0,
+                filter: s => ('store' in s && s.store.getFreeCapacity(rt)) ?? 0 > 0,
               }),
               ...creep.AssignedRoom.LinkSenders,
             ] as (CreepExtra | AnyStoreStructure)[],
             1,
             {
               filter: (target): target is CreepExtra | AnyStoreStructure =>
-                'store' in target && (target.store.getFreeCapacity(rt as ResourceConstant) ?? 0) > 0,
+                'store' in target && (target.store.getFreeCapacity(rt) ?? 0) > 0,
             },
           )
-          .sort(
-            (b, a) =>
-              (a.store.getFreeCapacity(rt as ResourceConstant) ?? 0) -
-              (b.store.getFreeCapacity(rt as ResourceConstant) ?? 0),
-          )
+          .sort((b, a) => (a.store.getFreeCapacity(rt) ?? 0) - (b.store.getFreeCapacity(rt) ?? 0))
           .pop();
-      }
-      if (needSupply) creep.transfer(needSupply, rt as ResourceConstant);
+      if (needSupply) creep.transfer(needSupply, rt);
+    };
+
+    if (preferredResource) transferResource(preferredResource);
+    else {
+      for (const [res, amt] of Object.entries(creep.store))
+        if ((amt as number) !== null && (amt as number) !== undefined && (amt as number) > 0)
+          transferResource(res as ResourceConstant);
     }
   }
 }
