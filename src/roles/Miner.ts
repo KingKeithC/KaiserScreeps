@@ -42,25 +42,15 @@ export class Miner extends CreepRoleBase implements CreepRole {
     return null;
   }
 
-  TickCreep(creep: CreepExtra): void {
-    // If we have space for energy, and there is energy below us, pick it up
-    if (creep.store.getUsedCapacity(RESOURCE_ENERGY) === 0)
-      for (const dropped of creep.pos.findInRange(FIND_DROPPED_RESOURCES, 1, {
-        filter: r => r.resourceType === RESOURCE_ENERGY,
-      }))
-        if (dropped.resourceType === RESOURCE_ENERGY) creep.pickup(dropped);
-
-    // Give away energy we have to consumers
-    this.TransferToNeighbours(creep);
+  PickupDropped(creep: CreepExtra): void {
+    // If we have space for resources, and there are some around us, pick it up
+    if (creep.store.getUsedCapacity() > 0)
+      for (const dropped of creep.pos.findInRange(FIND_DROPPED_RESOURCES, 1)) creep.pickup(dropped);
   }
 
-  WithdrawFromContainers(creep: CreepExtra): void {
-    const nearbyContainer = creep.pos
-      .findInRange(FIND_STRUCTURES, 1, {
-        filter: s => s.structureType === STRUCTURE_CONTAINER && s.store.getUsedCapacity(RESOURCE_ENERGY) > 0,
-      })
-      .pop();
-    if (nearbyContainer) creep.withdraw(nearbyContainer, RESOURCE_ENERGY);
+  TickCreep(creep: CreepExtra): void {
+    this.PickupDropped(creep);
+    this.TransferToNeighbours(creep);
   }
 
   TransferToNeighbours(creep: CreepExtra): void {
