@@ -212,12 +212,14 @@ export function GetMiningPositions(room: Room): MiningPosition[] {
  */
 export function MakeRoomReport(rRoom: Room): RoomReport {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const minerals = rRoom.find(FIND_MINERALS).map(({ room, pos, prototype, effects, ...rest }) => rest as MineralInfo);
+  const minerals = rRoom.find(FIND_MINERALS);
   if (minerals.length > 1) Logger.crit(`Room ${rRoom.name} has more than 1 mineral to harvest!`, { '<room>': rRoom });
+  const mineral = minerals.pop();
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const deposits = rRoom.find(FIND_DEPOSITS).map(({ room, pos, prototype, effects, ...rest }) => rest as DepositInfo);
+  const deposits = rRoom.find(FIND_DEPOSITS);
   if (deposits.length > 1) Logger.crit(`Room ${rRoom.name} has more than 1 commodity deposit!`, { '<room>': rRoom });
+  const deposit = deposits.pop();
 
   return {
     roomName: rRoom.name,
@@ -229,8 +231,24 @@ export function MakeRoomReport(rRoom: Room): RoomReport {
     describeExits: Game.map.describeExits(rRoom.name),
     owner: rRoom.controller?.owner?.username,
     reservation: rRoom.controller?.reservation,
-    mineral: minerals.pop(),
-    deposit: deposits.pop(),
+    mineral: mineral
+      ? {
+          id: mineral.id,
+          density: mineral.density,
+          mineralAmount: mineral.mineralAmount,
+          mineralType: mineral.mineralType,
+          ticksToRegeneration: mineral.ticksToRegeneration,
+        }
+      : undefined,
+    deposit: deposit
+      ? {
+          id: deposit.id,
+          cooldown: deposit.cooldown,
+          depositType: deposit.depositType,
+          lastCooldown: deposit.lastCooldown,
+          ticksToDecay: deposit.ticksToDecay,
+        }
+      : undefined,
     hostiles: GetHostileInfo(rRoom),
   };
 }
