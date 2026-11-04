@@ -1,4 +1,5 @@
 import { CreepExtra } from 'Creep';
+import { RoomExtra } from 'Room';
 import { Move, Dismantle } from 'tasks';
 import { Attack } from 'tasks/Attack';
 import { CreepTask } from 'tasks/types';
@@ -165,9 +166,11 @@ export class Attacker extends CreepRoleBase implements CreepRole {
   override GetRoomQuota(): number {
     return this.AttackSize;
   }
-  IsSpawnNeeded(): boolean {
+  IsSpawnNeeded(room: RoomExtra): boolean {
+    if (!this.IsRoleUnderQuota(room)) return false;
     return this.GetCurrentStep() != null;
   }
+
   SelectNextTask(): CreepTask | null {
     const step = this.GetCurrentStep();
     if (!step) return null;

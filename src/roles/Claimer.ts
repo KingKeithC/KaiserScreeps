@@ -17,6 +17,7 @@ export class Claimer extends CreepRoleBase implements CreepRole {
   }
 
   IsSpawnNeeded(room: RoomExtra): boolean {
+    if (!this.IsRoleUnderQuota(room)) return false;
     return this.UnworkedClaims(room).length > 0;
   }
 
@@ -25,7 +26,7 @@ export class Claimer extends CreepRoleBase implements CreepRole {
   }
 
   WorkedClaims(room: RoomExtra): string[] {
-    return unique(room.GetAssignedTasks(TaskAction.Claim).map(p => (p as Claim).targetId));
+    return unique([...room.AssignedTasks(TaskAction.Claim)].map(p => p.targetId));
   }
 
   UnworkedClaims(room: RoomExtra): string[] {

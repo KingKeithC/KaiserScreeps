@@ -19,6 +19,8 @@ export const TaskAction = {
   Dismantle: '🔱',
 } as const;
 
+export type TaskActionValue = (typeof TaskAction)[keyof typeof TaskAction];
+
 export interface TaskActionResult {
   target: { pos: RoomPosition };
   result: number;
@@ -46,7 +48,7 @@ export const CreepActionRanges = {
   withdraw: 1,
 };
 
-export interface CreepTask<Action extends string = string> {
+export interface CreepTask<Action extends TaskActionValue = TaskActionValue> {
   readonly kind: string;
   readonly action: Action;
   isCompleteFlag: boolean;

@@ -40,6 +40,7 @@ export abstract class CreepRoleBase implements CreepRole {
   abstract GetNewCreepBody(room: RoomExtra): BodyPartConstant[];
   abstract SelectNextTask(creep: CreepExtra): CreepTask | null;
   abstract GetRoomQuota(room: RoomExtra): number;
+  abstract IsSpawnNeeded(room: RoomExtra): boolean;
 
   // Init
   protected readonly log: Logger<CreepRoleBase> = new Logger(this, { formatArgs: { '<role>': this } });
@@ -49,9 +50,7 @@ export abstract class CreepRoleBase implements CreepRole {
   }
 
   // Default Implementations
-  IsSpawnNeeded(room: RoomExtra): boolean {
-    return this.GetRoomCreepsInRole(room).length < this.GetRoomQuota(room);
-  }
+
   GetGlobalCreepsInRole(): CreepExtra[] {
     return this.colony.MyCreeps.filter(c => c.memory.role === this.name);
   }
@@ -59,7 +58,7 @@ export abstract class CreepRoleBase implements CreepRole {
     return GetRandomName();
   }
   GetRoomCreepsInRole(room: RoomExtra): CreepExtra[] {
-    return room.AssignedCreeps.filter(c => c.memory.role === this.name);
+    return room.GetAssignedCreepsOfRole(this.name);
   }
   OnCleanup(): void {
     return;
@@ -84,5 +83,11 @@ export abstract class CreepRoleBase implements CreepRole {
   }
   StartOfTick(): void {
     return;
+  }
+
+  // Extra utilities
+  IsRoleUnderQuota(room: RoomExtra): boolean {
+    const quota = this.GetRoomQuota(room);
+    return quota > 0 && this.GetRoomCreepsInRole(room).length < quota;
   }
 }

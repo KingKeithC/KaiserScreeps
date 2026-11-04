@@ -33,7 +33,7 @@ export class Scout extends CreepRoleBase implements CreepRole {
   // Ensure a scout is only spawned once every `ScoutReportTTL` ticks.
   // And when no other scout assigned to this room is living.
   IsSpawnNeeded(room: RoomExtra): boolean {
-    if (!super.IsSpawnNeeded(room)) return false;
+    if (!this.IsRoleUnderQuota(room)) return false;
     return Game.time - room.LastSpawnTick(this.name) > this.ScoutReportTTL;
   }
 

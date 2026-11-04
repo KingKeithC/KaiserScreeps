@@ -1,11 +1,14 @@
 import { CreepExtra } from 'Creep';
-import { CreepTask, TaskActionResult } from 'tasks/types';
+import { CreepTask, TaskActionResult, TaskActionValue } from 'tasks/types';
 import { DeserializeRoomPosition, SerializeRoomPosition } from 'utils/Collections';
 import { Logger } from 'utils/Logger';
 
 export type Targetable = _HasId & _HasRoomPosition;
 
-export abstract class TargetTask<Action extends string, Target extends Targetable> implements CreepTask<Action> {
+export abstract class TargetTask<
+  Action extends TaskActionValue,
+  Target extends Targetable,
+> implements CreepTask<Action> {
   abstract kind: string;
   public readonly targetId: Id<Target>;
   public readonly targetPos: string;

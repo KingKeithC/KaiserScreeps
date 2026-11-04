@@ -1,5 +1,7 @@
 import { Dictionary, flatten, range, unique } from 'lodash';
-import { Collect, Mine, UpgradeController } from 'tasks';
+import { UpgradeController } from 'tasks';
+import type { Attack, Build, Claim, Collect, Dismantle, GuardTask, Mine, Move, Repair, Supply } from 'tasks';
+import type { Retire } from 'tasks/Retire';
 import {
   CollectionPlan,
   ContainerAndAmount,
@@ -18,12 +20,33 @@ import { Colours } from 'Data';
 import { CreepRole } from 'roles/Role';
 import { Logger } from 'utils/Logger';
 import { BodyCost } from 'utils/CreepUtils';
-import { CreepTask, TaskAction } from 'tasks/types';
+import { CreepTask, TaskAction, TaskActionValue } from 'tasks/types';
 import {
   CreatePendingRepairs,
   FindHighestPriorityRepairGroup,
   PendingRepairs as PendingRepairCollection,
 } from 'utils/RepairUtils';
+
+interface AssignedTaskByAction {
+  [TaskAction.Mine]: Mine;
+  [TaskAction.Collect]: Collect;
+  [TaskAction.Build]: Build;
+  [TaskAction.Repair]: Repair;
+  [TaskAction.Retire]: Retire;
+  [TaskAction.Supply]: Supply;
+  [TaskAction.UpgradeController]: UpgradeController;
+  [TaskAction.Attack]: Attack;
+  [TaskAction.Guard]: GuardTask;
+  [TaskAction.Claim]: Claim;
+  [TaskAction.Move]: Move;
+  [TaskAction.Dismantle]: Dismantle;
+}
+
+type AssignedTask<Action extends TaskActionValue | undefined> = Action extends TaskActionValue
+  ? Action extends keyof AssignedTaskByAction
+    ? AssignedTaskByAction[Action]
+    : CreepTask<Action>
+  : CreepTask;
 
 declare global {
   interface RoomMemory {
@@ -77,26 +100,30 @@ export class RoomExtra extends Room {
     this.AssignedCreeps = colony.MyCreeps.filter(c => c.memory.room === room.name);
   }
 
+  private cachedAssignedCreepsOfRole: { [roleName: CreepRole['name']]: CreepExtra[] } = {};
   GetAssignedCreepsOfRole(roleName: string): CreepExtra[] {
-    return this.AssignedCreeps.filter(c => c.role.name === roleName);
+    return (this.cachedAssignedCreepsOfRole[roleName] ??= this.AssignedCreeps.filter(c => c.role.name === roleName));
   }
 
+  private cachedAssignedCreepsOfRoleGroup: { [roleGroupName: CreepRole['groupName']]: CreepExtra[] } = {};
   GetAssignedCreepsOfRoleGroup(roleGroupName: string): CreepExtra[] {
-    return this.AssignedCreeps.filter(c => c.role.groupName === roleGroupName);
+    return (this.cachedAssignedCreepsOfRole[roleGroupName] ??= this.AssignedCreeps.filter(
+      c => c.role.groupName === roleGroupName,
+    ));
   }
 
-  GetAssignedTasks(taskAction?: string): CreepTask[] {
-    return this.GetAssignedTasksWithCreep(taskAction).map(s => s[1]);
+  *AssignedTasks<Action extends TaskActionValue | undefined = undefined>(
+    taskAction?: Action,
+  ): IterableIterator<AssignedTask<Action>> {
+    for (const [_creep, task] of this.AssignedTasksWithCreep(taskAction)) yield task;
   }
 
-  GetAssignedTasksWithCreep(taskAction?: string): [CreepExtra, CreepTask][] {
-    const ret: [CreepExtra, CreepTask][] = [];
-    for (const c of this.AssignedCreeps) {
-      const currentTask = c.currentTask;
-      if (currentTask !== null && (taskAction === undefined || currentTask.action === taskAction))
-        ret.push([c, currentTask]);
-    }
-    return ret;
+  *AssignedTasksWithCreep<Action extends TaskActionValue | undefined = undefined>(
+    taskAction?: Action,
+  ): IterableIterator<[CreepExtra, AssignedTask<Action>]> {
+    for (const c of this.AssignedCreeps)
+      if (c.currentTask !== null && (taskAction === undefined || c.currentTask.action === taskAction))
+        yield [c, c.currentTask as AssignedTask<Action>];
   }
 
   get StoreOverUpgrade() {
@@ -429,7 +456,7 @@ export class RoomExtra extends Room {
    */
   AvailableMiningPositions(): MiningPosition[] {
     const ret = [];
-    const assignedMiningPositions = this.GetAssignedTasks(TaskAction.Mine).map(p => (p as Mine).miningPosition);
+    const assignedMiningPositions = [...this.AssignedTasks(TaskAction.Mine)].map(p => p.miningPosition);
     for (const [_room, mines] of this.WorkableClaimedMiningPositions)
       for (const mine of mines) if (!assignedMiningPositions.some(amp => amp.source === mine.source)) ret.push(mine);
     return ret;
@@ -547,8 +574,8 @@ export class RoomExtra extends Room {
       }
 
     const reservedCapacityBySource = new Map<string, number>();
-    for (const [collector, task] of this.GetAssignedTasksWithCreep(TaskAction.Collect)) {
-      const sourceId = (task as Collect).targetId;
+    for (const [collector, task] of this.AssignedTasksWithCreep(TaskAction.Collect)) {
+      const sourceId = task.targetId;
       reservedCapacityBySource.set(
         sourceId,
         (reservedCapacityBySource.get(sourceId) ?? 0) + collector.store.getFreeCapacity(),

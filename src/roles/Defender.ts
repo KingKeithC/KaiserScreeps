@@ -16,7 +16,7 @@ export class Defender extends CreepRoleBase implements CreepRole {
   }
 
   IsSpawnNeeded(room: RoomExtra): boolean {
-    return this.GetRoomQuota(room) > 1;
+    return this.IsRoleUnderQuota(room);
   }
 
   // 1 For each hostile
@@ -81,7 +81,7 @@ export class Defender extends CreepRoleBase implements CreepRole {
   }
 
   FindLeastTargetedHostile(room: RoomExtra): Creep | null {
-    const attacksByTarget = groupBy(room.GetAssignedTasks(TaskAction.Attack), a => (a as Attack).target);
+    const attacksByTarget = groupBy([...room.AssignedTasks(TaskAction.Attack)], a => a.target);
     for (const [_, creeps] of room.HostilesByRoom)
       for (const c of creeps) if ((attacksByTarget[c.id] ?? []).length === 0) return c;
     return null;

@@ -1,5 +1,4 @@
 import { Colony } from 'Colony';
-import { sortBy } from 'lodash';
 import { RoomExtra } from 'Room';
 import { Logger } from 'utils/Logger';
 

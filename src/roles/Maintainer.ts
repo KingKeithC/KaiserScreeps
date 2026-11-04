@@ -21,7 +21,7 @@ export class Maintainer extends Worker implements CreepRole {
     return FirstBodyByEnergyCapacity(room, ...this.PossibleBodies) ?? this.PossibleBodies[-1];
   }
 
-  SelectNextTask(creep: CreepExtra): CreepTask<string> | null {
+  SelectNextTask(creep: CreepExtra): CreepTask | null {
     return this.DoWithLocalEnergy(creep, c => this.MaintainControllerOrSpawn(c));
   }
 
@@ -67,10 +67,7 @@ export class Maintainer extends Worker implements CreepRole {
    * @param findMainSpendingTask A callback on the creep that returns a task to spend the energy on.
    * @returns The next task for the creep to perform as part of the loop.
    */
-  DoWithLocalEnergy(
-    creep: CreepExtra,
-    findMainSpendingTask: (c: CreepExtra) => CreepTask | null,
-  ): CreepTask<string> | null {
+  DoWithLocalEnergy(creep: CreepExtra, findMainSpendingTask: (c: CreepExtra) => CreepTask | null): CreepTask | null {
     if (creep.store.getUsedCapacity(RESOURCE_ENERGY) > 0) {
       // Get main spending task
       const mainTask = findMainSpendingTask(creep);
