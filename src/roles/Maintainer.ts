@@ -77,6 +77,9 @@ export class Maintainer extends Worker implements CreepRole {
         creep.AssignedRoom.storage.store.getUsedCapacity(RESOURCE_ENERGY) > 0
       )
         return new Collect(creep.AssignedRoom.storage);
+
+      // If no storage, mine
+      return this.MineAnyFreePosition(creep);
     }
 
     return null;
