@@ -223,7 +223,8 @@ export class CreepExtra extends Creep {
     if (this.fatigue === 0 || this.spawning) return; // Nothing more to do, these situations don't count as idle
 
     // If we didn't move and didn't act, and aren't tired, increment the idle counter
-    if (!(this.MovedBetweenRooms || this.MovedBetweenTicks || this.ActedThisTick)) this.LifetimeIdle++;
+    if (!(this.MovedBetweenRooms || this.MovedBetweenTicks || this.ActedThisTick))
+      this.LifetimeIdle = this.LifetimeIdle + 1;
   }
 
   MovedBetweenRooms = false;
