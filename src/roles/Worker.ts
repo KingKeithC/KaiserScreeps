@@ -193,8 +193,14 @@ export class Worker extends CreepRoleBase implements CreepRole {
       const spend = this.FindSpendingTask(creep, supplyTasks);
       if (spend) return spend;
 
-      // If still no spending task, and there is storage, then store
-      if (storage !== undefined && storage.store.getFreeCapacity() > 0) return new Supply(storage);
+      if (creep.AssignedRoom.controller?.level ?? 0 < 6) {
+        // Leftover goes to controller upgrade
+        const upgrade = this.UpgradeController(creep);
+        if (upgrade) return upgrade;
+      } else {
+        // Or storage if we are RCL 6 or above
+        if (storage !== undefined && storage.store.getFreeCapacity() > 0) return new Supply(storage);
+      }
     }
 
     // ------ GATHER ------

@@ -34,10 +34,6 @@ export class Maintainer extends Worker implements CreepRole {
     const spawnSupply = this.FindSpawnSupply(creep, 0);
     if (spawnSupply) return spawnSupply;
 
-    // Leftover goes to controller upgrade
-    const upgrade = this.UpgradeController(creep);
-    if (upgrade) return upgrade;
-
     return null;
   }
 
