@@ -1,6 +1,8 @@
 import { CreepExtra } from 'Creep';
+import { RoomExtra } from 'Room';
 import { Collect, Supply } from 'tasks';
 import { CreepTask } from 'tasks/types';
+import { FirstBodyByEnergyCapacity } from 'utils/RoomUtils';
 import { CreepRole } from './Role';
 import { Worker } from './Worker';
 
@@ -9,6 +11,14 @@ export class Maintainer extends Worker implements CreepRole {
 
   GetRoomQuota(): number {
     return 2;
+  }
+
+  /**
+   * Maintainers use the same logic as Workers,
+   * except without the barebones Zygote or 'emergency' spawn logic.
+   */
+  override GetNewCreepBody(room: RoomExtra): BodyPartConstant[] {
+    return FirstBodyByEnergyCapacity(room, ...this.PossibleBodies) ?? this.PossibleBodies[-1];
   }
 
   SelectNextTask(creep: CreepExtra): CreepTask<string> | null {

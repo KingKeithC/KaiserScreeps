@@ -13,21 +13,18 @@ export class Worker extends CreepRoleBase implements CreepRole {
   readonly groupName = 'Workers';
   readonly name: string = 'Worker';
 
+  PossibleBodies = [
+    MakeBody([WORK, 10], [CARRY, 7], [MOVE, 9]), // 1800
+    MakeBody([WORK, 6], [CARRY, 7], [MOVE, 7]), // 1300
+    MakeBody([WORK, 2], [CARRY, 4], [MOVE, 3]), // 550
+  ];
+
   GetNewCreepBody(room: RoomExtra): BodyPartConstant[] {
     const zygote = MakeBody([CARRY, 2], [WORK, 1], [MOVE, 2]); // 300
-
     // If we haven't spawned a worker in a long time, then default to a zygote
     // This should help prevent death spirals...
     if (Game.time - room.LastSpawnTick(this.name) > 1000) return zygote;
-
-    const body = FirstBodyByEnergyCapacity(
-      room,
-      MakeBody([WORK, 10], [CARRY, 7], [MOVE, 9]), // 1800
-      MakeBody([WORK, 6], [CARRY, 7], [MOVE, 7]), // 1300
-      MakeBody([WORK, 2], [CARRY, 4], [MOVE, 3]), // 550
-      zygote,
-    );
-
+    const body = FirstBodyByEnergyCapacity(room, ...this.PossibleBodies, zygote);
     if (body) return body;
     else return zygote;
   }
