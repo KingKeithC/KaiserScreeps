@@ -98,7 +98,7 @@ export abstract class CreepRoleBase implements CreepRole {
     // Change the Quota if needed
 
     // If no check has ever been done, then wait a full cycle and check on the next one
-    const ticksSinceLastChange = Game.time - (this.roomQuotaCheckTimes[this.name] ??= Game.time);
+    const ticksSinceLastChange = Game.time - (this.roomQuotaCheckTimes[room.name] ??= Game.time);
     if (ticksSinceLastChange > this.RoleQuotaChangeFrequency) {
       // Change for a change in quota
       const diff = this.GetQuotaChange(room);
@@ -120,7 +120,7 @@ export abstract class CreepRoleBase implements CreepRole {
           );
       }
     }
-    this.roomQuotaCheckTimes[this.name] = Game.time; // Update check time
+    this.roomQuotaCheckTimes[room.name] = Game.time; // Update check time
 
     return current;
   }
