@@ -111,7 +111,7 @@ export abstract class CreepRoleBase {
   private roomQuotaSetTimes: { [roleName: string]: { [roomName: RoomExtra['name']]: number } } = {};
 
   // Default number of ticks between invocations of `GetQuotaChange`
-  protected RoleQuotaChangeFrequency = 1000;
+  protected RoleQuotaChangeFrequency = 200;
 
   /**
    * Base quota lookup for current value from cache, while respecting a
