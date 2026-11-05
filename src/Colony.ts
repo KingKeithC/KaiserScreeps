@@ -129,11 +129,9 @@ export class Colony {
 
     this.RefreshCaches();
 
-    // Rebuild stats to migrate persisted data to the current schema, then record this reset.
-    const stats = GetColonyStats(this);
-    // eslint-disable-next-line camelcase
-    stats.data.program_reset_time_ticks = Game.time;
-    this.stats = stats;
+    if (Memory.stats !== undefined && Memory.stats.data !== undefined)
+      // eslint-disable-next-line camelcase
+      Memory.stats.data.program_reset_time_ticks = Game.time;
 
     this.log.crit('Global state reset.', {
       profilingEnabled: this.GlobalEnableProfiling,

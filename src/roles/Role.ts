@@ -99,7 +99,12 @@ export abstract class CreepRoleBase implements CreepRole {
    * room's `roleLimits`, and without updating the `roomQuotaCheckTimes`.
    */
   private CurrentQuota(room: RoomExtra): number {
-    const current = (this.currentRoomQuotas[this.name][room.name] ??= this.GetMinQuota(room));
+    if (!(this.name in this.currentRoomQuotas))
+      this.currentRoomQuotas[this.name] = { [room.name]: this.GetMinQuota(room) };
+    if (!(room.name in this.currentRoomQuotas[this.name]))
+      this.currentRoomQuotas[this.name][room.name] = this.GetMinQuota(room);
+
+    const current = this.currentRoomQuotas[this.name][room.name];
     const overridenQuota = (room.memory.roleLimits ??= {})[this.name];
     if (overridenQuota !== undefined) {
       this.log.warn('Quota overridden.', { '<room>': room, current, overridenQuota });
@@ -158,6 +163,8 @@ export abstract class CreepRoleBase implements CreepRole {
   }
 
   protected TimeSinceQuotaUpdate(room: RoomExtra): number {
+    if (!(this.name in this.roomQuotaSetTimes)) this.roomQuotaSetTimes[this.name] = { [room.name]: Game.time };
+    if (!(room.name in this.roomQuotaSetTimes[this.name])) this.roomQuotaSetTimes[this.name][room.name] = Game.time;
     return Game.time - (this.roomQuotaSetTimes[this.name][room.name] ??= Game.time);
   }
 
