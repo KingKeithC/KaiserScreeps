@@ -457,11 +457,6 @@ export class RoomExtra extends Room {
     (this.memory.lastSpawnTick ??= {})[roleName] = value;
   }
 
-  GetRoleQuota(roleName: string): number {
-    // Otherwise, return the quota from the role instance.
-    return this.colony.GetRole(roleName).GetQuota(this);
-  }
-
   get SpawnsOrExtensions(): (StructureExtension | StructureSpawn)[] {
     return this.find(FIND_MY_STRUCTURES, {
       filter: s => s.structureType === STRUCTURE_SPAWN || s.structureType === STRUCTURE_EXTENSION,
@@ -734,7 +729,7 @@ export class RoomExtra extends Room {
     let completedSpawns = 0;
 
     for (const role of Object.values(this.colony.Roles)) {
-      const roomQuota = this.GetRoleQuota(role.name);
+      const roomQuota = role.GetQuota(this);
       const roomCount = role.GetRoomCreepsInRole(this).length;
       const timeSinceLastSpawn = Game.time - this.LastSpawnTick(role.name);
       const msg = 'Checking Spawns for ${role} (${roomCount}/${roomQuota}, ${timeSinceLastSpawn})... ';
@@ -826,7 +821,7 @@ export class RoomExtra extends Room {
       }
 
       const spawnNeeded = role.IsSpawnNeeded(this);
-      const roomQuota = this.GetRoleQuota(role.name);
+      const roomQuota = role.GetQuota(this);
       const roomCount = role.GetRoomCreepsInRole(this).length;
       const spawnable = roomCount >= roomQuota;
       const spawnableStr = spawnable ? '+' : '';
