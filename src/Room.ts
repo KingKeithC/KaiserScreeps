@@ -719,6 +719,25 @@ export class RoomExtra extends Room {
       this.log.report(`!!! Hostiles Spotted in ${this.name}:\n\t${FormatHostileInfos(this.HostileInfo)}`);
   }
 
+  GetSpawnableRoles(): SpawnableRoleDetails[] {
+    const rolesSpawnable: SpawnableRoleDetails[] = [];
+    for (const role of Object.values(this.colony.Roles)) {
+      const roomQuota = role.GetQuota(this);
+      const roomCount = role.GetRoomCreepsInRole(this).length;
+      const timeSinceLastSpawn = Game.time - this.LastSpawnTick(role.name);
+
+      if (role.IsSpawnNeeded(this)) {
+        const name = `${role.GetNewCreepName(this)}, ${role.name}`;
+        const body = role.GetNewCreepBody(this);
+        const available = this.energyAvailable;
+        const needed = BodyCost(body);
+        if (available < needed) continue;
+        rolesSpawnable.push({ role, name, body, available, needed, roomQuota, roomCount, timeSinceLastSpawn });
+      }
+    }
+    return rolesSpawnable;
+  }
+
   CheckSpawns(): void {
     const maxSpawns = this.find(FIND_MY_SPAWNS, { filter: s => !s.spawning }).length;
     if (maxSpawns === 0) {
@@ -726,62 +745,30 @@ export class RoomExtra extends Room {
       return;
     }
 
+    const spawnable = this.GetSpawnableRoles().sort((b, a) => a.role.priority - b.role.priority);
     let completedSpawns = 0;
 
-    for (const role of Object.values(this.colony.Roles)) {
-      const roomQuota = role.GetQuota(this);
-      const roomCount = role.GetRoomCreepsInRole(this).length;
-      const timeSinceLastSpawn = Game.time - this.LastSpawnTick(role.name);
+    for (const { role, name, body, available, needed, roomCount, roomQuota, timeSinceLastSpawn } of spawnable) {
       const msg = 'Checking Spawns for ${role} (${roomCount}/${roomQuota}, ${timeSinceLastSpawn})... ';
-
-      if (roomCount >= roomQuota)
-        this.log.debug(msg + 'Quota Met.', { '<rate>': 50, '<role>': role, roomCount, roomQuota, timeSinceLastSpawn });
-      else if (role.IsSpawnNeeded(this)) {
-        const name = `${role.GetNewCreepName(this)}, ${role.name}`;
-        const body = role.GetNewCreepBody(this);
-        const available = this.energyAvailable;
-        const needed = BodyCost(body);
-
-        if (available < needed) {
-          this.log.debug(msg + 'Given body too expensive or room energy too low (${available}/${needed}).', {
-            '<rate>': 10,
-            '<role>': role,
-            roomCount,
-            roomQuota,
-            timeSinceLastSpawn,
-            available,
-            needed,
-          });
-          continue;
-        }
-
-        const success = this.TrySpawnRole(role, name, body);
-        if (!success) {
-          this.log.crit(msg + 'Spawn failed despite having enough energy (${available}/${needed}).', {
-            '<role>': role,
-            roomCount,
-            roomQuota,
-            timeSinceLastSpawn,
-            available,
-            needed,
-          });
-          continue;
-        }
-
-        this.log.info(msg + 'Spawn scheduled successfully.');
-        this.SetLastSpawnTick(role.name, Game.time);
-        role.OnSpawnScheduled(this, name);
-
-        // If we used up all the spawn points, then return early.
-        if (++completedSpawns >= maxSpawns) return;
+      const success = this.TrySpawnRole(role, name, body);
+      if (!success) {
+        this.log.crit(msg + 'Spawn failed despite having enough energy (${available}/${needed}).', {
+          '<role>': role,
+          roomCount,
+          roomQuota,
+          timeSinceLastSpawn,
+          available,
+          needed,
+        });
+        continue;
       }
-      // else
-      // this.log.debug(msg + 'Role under quota (${roomCount} < ${roomQuota}) but does not need spawn.', {
-      //   '<role>': role,
-      //   roomCount,
-      //   timeSinceLastSpawn,
-      //   roomQuota,
-      // });
+
+      this.log.info(msg + 'Spawn scheduled successfully.');
+      this.SetLastSpawnTick(role.name, Game.time);
+      role.OnSpawnScheduled(this, name);
+
+      // If we used up all the spawn points, then return early.
+      if (++completedSpawns >= maxSpawns) return;
     }
   }
 
@@ -973,4 +960,15 @@ export class RoomExtra extends Room {
       }
     }
   }
+}
+
+interface SpawnableRoleDetails {
+  role: CreepRole;
+  name: string;
+  body: BodyPartConstant[];
+  available: number;
+  needed: number;
+  roomQuota: number;
+  roomCount: number;
+  timeSinceLastSpawn: number;
 }

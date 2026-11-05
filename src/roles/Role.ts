@@ -9,6 +9,7 @@ import { Logger } from 'utils/Logger';
 export interface CreepRole {
   readonly name: string;
   readonly groupName: string;
+  readonly priority: number;
 
   toString(): string;
   TickCreep(creep: CreepExtra): void;
@@ -37,16 +38,28 @@ export abstract class CreepRoleBase implements CreepRole {
   // Must be supplied by derived roles.
   abstract readonly name: string;
   abstract readonly groupName: string;
+  abstract readonly priority: number;
   abstract GetNewCreepBody(room: RoomExtra): BodyPartConstant[];
   abstract SelectNextTask(creep: CreepExtra): CreepTask | null;
   abstract GetMinQuota(room: RoomExtra): number;
+
+  /**
+   *
+   * Returns true if the room should try to spawn this role.
+   *
+   * Highly recommended to call `IsRoleUnderQuota` and return false early,
+   * since the room won't do it automatically.
+   *
+   * @param room The room in which to check if a spwan is needed.
+   */
   abstract IsSpawnNeeded(room: RoomExtra): boolean;
 
   // Init
   protected readonly log: Logger<CreepRoleBase> = new Logger(this, { formatArgs: { '<role>': this } });
   constructor(protected readonly colony: Colony) {}
 
-  // Default Implementations
+  // Defaults
+
   toString(): string {
     return `[role ${this.name}]`;
   }
@@ -72,10 +85,19 @@ export abstract class CreepRoleBase implements CreepRole {
     return this.GetMinQuota(room);
   }
 
-  private roomQuotaCheckTimes: { [roomName: RoomExtra['name']]: number } = {};
+  // Mapping of room name to the current live quota value for the role.
   private currentRoomQuotas: { [roomName: RoomExtra['name']]: number } = {};
+
+  // Mapping of room name to the last time we called `SetQuota` for it.
+  private roomQuotaSetTimes: { [roomName: RoomExtra['name']]: number } = {};
+
+  // Default number of ticks between invocations of `GetQuotaChange`
   protected RoleQuotaChangeFrequency = 1000;
 
+  /**
+   * Base quota lookup for current value from cache, while respecting a
+   * room's `roleLimits`, and without updating the `roomQuotaCheckTimes`.
+   */
   private CurrentQuota(room: RoomExtra): number {
     const current = (this.currentRoomQuotas[room.name] ??= this.GetMinQuota(room));
     const overridenQuota = (room.memory.roleLimits ??= {})[this.name];
@@ -90,39 +112,66 @@ export abstract class CreepRoleBase implements CreepRole {
     return current;
   }
 
-  SetQuota(
+  /**
+   * Set a new quota for this role in the given room.
+   *
+   * This function updates the check times for the role, so
+   * automated checking will be delayed until the next cycle by calling this.
+   *
+   * @param room The room to change the quota in.
+   * @param newQuota Either a new number for the quota, or a function on the current quota to a new quota.
+   * @param current The current quota, optional to save the lookup if you already have the amount.
+   * @param minQuota The minimum quota, optional to save the lookup if you already have the amount.
+   * @param maxQuota The maximum quota, optional to save the lookup if you already have the amount.
+   * @returns The new (or current if unchanged) quota for the role.
+   */
+  protected SetQuota(
     room: RoomExtra,
-    newQuota: number,
+    newQuota: number | ((curr: number) => number),
     current = this.CurrentQuota(room),
     minQuota = this.GetMinQuota(room),
     maxQuota = this.GetMaxQuota(room),
   ): number {
-    this.roomQuotaCheckTimes[room.name] = Game.time; // Update check time
+    this.roomQuotaSetTimes[room.name] = Game.time;
+    if (typeof newQuota !== 'number') newQuota = newQuota(current); // Resolve on current if we got a function
     const diff = newQuota - current;
     if (diff === 0) return current;
-
-    if (newQuota >= minQuota && newQuota <= maxQuota) {
-      // If new quota is acceptible, update cache and return.
-      this.log.info('Changing Quota from ${current} to ${newQuota} (${diff})');
-      return (this.currentRoomQuotas[room.name] = newQuota);
-    } else if (newQuota > maxQuota)
-      this.log.warn(
-        'Cannot change Quota from ${current} to ${newQuota} (${diff}), since it is above max of ${maxQuota}',
-        { '<room>': room, diff, current, newQuota, maxQuota },
-      );
-    else if (newQuota < minQuota)
-      this.log.warn(
-        'Cannot change Quota from ${current} to ${newQuota} (${diff}), since it is below min of ${minQuota}',
-        { '<room>': room, diff, current, newQuota, minQuota },
-      );
+    if (newQuota)
+      if (newQuota >= minQuota && newQuota <= maxQuota) {
+        // If new quota is acceptible, update cache and return.
+        this.log.info('Changing Quota from ${current} to ${newQuota} (${diff})');
+        return (this.currentRoomQuotas[room.name] = newQuota);
+      } else if (newQuota > maxQuota)
+        this.log.warn(
+          'Cannot change Quota from ${current} to ${newQuota} (${diff}), since it is above max of ${maxQuota}',
+          { '<room>': room, diff, current, newQuota, maxQuota },
+        );
+      else if (newQuota < minQuota)
+        this.log.warn(
+          'Cannot change Quota from ${current} to ${newQuota} (${diff}), since it is below min of ${minQuota}',
+          { '<room>': room, diff, current, newQuota, minQuota },
+        );
 
     return current;
   }
 
-  GetQuota(room: RoomExtra) {
-    const current = this.CurrentQuota(room);
-    const ticksSinceLastChange = Game.time - (this.roomQuotaCheckTimes[room.name] ??= Game.time);
-    if (ticksSinceLastChange > this.RoleQuotaChangeFrequency)
+  protected TimeSinceQuotaUpdate(room: RoomExtra): number {
+    return Game.time - (this.roomQuotaSetTimes[room.name] ??= Game.time);
+  }
+
+  /**
+   * Get the current quota for the role in the room.
+   *
+   * Also periodically checks if the quota needs to be changed, and if so
+   * invokes `GetQuotaChange` to fetch changes to the quota, and updates it
+   * accordingly before returning the new value.
+   *
+   * @param room The room in which to get the quota setting.
+   * @param current The current quota, optional to save the lookup if you already have the amount.
+   * @returns The current number of Creeps with this role that should be spawned in the room.
+   */
+  GetQuota(room: RoomExtra, current = this.CurrentQuota(room)) {
+    if (this.TimeSinceQuotaUpdate(room) > this.RoleQuotaChangeFrequency)
       return this.SetQuota(room, this.GetQuotaChange(room), current);
     return current;
   }
@@ -162,8 +211,17 @@ export abstract class CreepRoleBase implements CreepRole {
   }
 
   // Extra utilities
+
+  /**
+   * Return true if living amount of creeps is under the desired amount of creeps.
+   *
+   * Will result in periodic quota changes if the role is configured to use them.
+   *
+   * @param room The room in which to check the quota.
+   * @returns True if the room needs
+   */
   IsRoleUnderQuota(room: RoomExtra): boolean {
-    const quota = this.GetMinQuota(room);
+    const quota = this.GetQuota(room);
     return quota > 0 && this.GetRoomCreepsInRole(room).length < quota;
   }
 }

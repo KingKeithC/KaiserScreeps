@@ -21,6 +21,7 @@ declare global {
 export class Attacker extends CreepRoleBase implements CreepRole {
   readonly groupName = 'Warriors';
   readonly name = 'Attacker';
+  readonly priority = 2;
 
   RallyDistance = 2;
   AttackSize = 3;

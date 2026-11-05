@@ -10,6 +10,7 @@ import { CreepRoleBase, CreepRole } from './Role';
 export class Defender extends CreepRoleBase implements CreepRole {
   readonly groupName = 'Warriors';
   readonly name = 'Defender';
+  readonly priority = 2;
 
   GetNewCreepBody(): BodyPartConstant[] {
     return MakeBody([TOUGH, 2], [ATTACK, 2], [MOVE, 3], [HEAL, 1]);

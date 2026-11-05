@@ -9,6 +9,7 @@ import { CreepRoleBase, CreepRole } from './Role';
 export class Claimer extends CreepRoleBase implements CreepRole {
   readonly groupName = 'Warriors';
   readonly name = 'Claimer';
+  readonly priority = 2;
 
   GetNewCreepBody(room: RoomExtra): BodyPartConstant[] {
     if (room.energyCapacityAvailable >= 1300) return MakeBody([MOVE, 2], [CLAIM, 2]);

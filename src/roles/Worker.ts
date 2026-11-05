@@ -12,6 +12,7 @@ import { CreatePendingRepairs, FindHighestPriorityRepairGroup } from 'utils/Repa
 import { CreepRoleBase, CreepRole } from './Role';
 
 export class Worker extends CreepRoleBase implements CreepRole {
+  readonly priority: number = 10;
   readonly groupName = 'Workers';
   readonly name: string = 'Worker';
 

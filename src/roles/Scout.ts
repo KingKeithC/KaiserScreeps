@@ -14,6 +14,7 @@ export interface ScoutingReport extends RoomReport {
 export class Scout extends CreepRoleBase implements CreepRole {
   readonly groupName = 'Scouts';
   readonly name = 'Scout';
+  readonly priority = 20;
 
   RandomMoveRadius = 3;
   MaxSearchAttempts = 10;
