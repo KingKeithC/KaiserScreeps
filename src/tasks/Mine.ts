@@ -1,6 +1,6 @@
 import { CreepExtra } from 'Creep';
 import { CreepTask, RegisterTask, TaskActionResult, TaskBase } from 'tasks/types';
-import { DeserializeRoomPosition, SerializeRoomPosition } from 'utils/Collections';
+import { DeserializeRoomPosition } from 'utils/Collections';
 import { Logger } from 'utils/Logger';
 import { MiningPosition } from 'utils/RoomUtils';
 
