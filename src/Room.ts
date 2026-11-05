@@ -761,7 +761,7 @@ export class RoomExtra extends Room {
       return;
     }
 
-    const spawnable = this.GetSpawnableRoles().sort((b, a) => a.role.priority - b.role.priority);
+    const spawnable = this.GetSpawnableRoles().sort((a, b) => a.role.priority - b.role.priority);
     if (spawnable.length === 0) {
       this.spawnBlocked = true;
       return;
