@@ -52,19 +52,19 @@ export const CreepActionRanges = {
   withdraw: 1,
 };
 
-export interface CreepTask<Action extends string = string> {
-  readonly action: Action;
+export interface CreepTask {
+  readonly action: string;
   isCompleteFlag: boolean;
   toString(): string;
   act(creep: CreepExtra): TaskActionResult | null;
   handleOutcome(creep: CreepExtra, outcome: TaskActionResult | null): TaskActionResult | null;
 }
 
-export abstract class TaskBase<Action extends string> {
-  public readonly action: Action;
+export abstract class TaskBase {
+  public readonly action: string;
 
   protected constructor() {
-    const action = (this.constructor as { action?: Action }).action;
+    const action = (this.constructor as { action?: string }).action;
     if (action === undefined) throw new Error('Task action is not registered.');
     this.action = action;
   }

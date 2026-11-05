@@ -3,10 +3,7 @@ import { CreepTask, Targetable, TaskActionResult, TaskBase } from 'tasks/types';
 import { DeserializeRoomPosition, SerializeRoomPosition } from 'utils/Collections';
 import { Logger } from 'utils/Logger';
 
-export abstract class TargetTask<Action extends string, Target extends Targetable>
-  extends TaskBase<Action>
-  implements CreepTask<Action>
-{
+export abstract class TargetTask<Target extends Targetable> extends TaskBase implements CreepTask {
   public readonly targetId: Id<Target>;
   public readonly targetPos: string;
   public isCompleteFlag = false;

@@ -2,7 +2,7 @@ import { CreepExtra } from 'Creep';
 import { CreepTask, RegisterTask, TaskActionResult, TaskBase } from 'tasks/types';
 import { DeserializeRoomPosition, SerializeRoomPosition } from 'utils/Collections';
 
-export class Move extends TaskBase<typeof Move.action> implements CreepTask<typeof Move.action> {
+export class Move extends TaskBase implements CreepTask {
   static readonly action = '👣' as const;
   public isCompleteFlag = false;
 

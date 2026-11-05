@@ -2,7 +2,7 @@ import { CreepExtra } from 'Creep';
 import { RegisterTask, TaskActionResult } from 'tasks/types';
 import { TargetTask } from './TargetTask';
 
-export class Dismantle extends TargetTask<typeof Dismantle.action, AnyStructure> {
+export class Dismantle extends TargetTask<AnyStructure> {
   static readonly action = '🔱' as const;
 
   static {

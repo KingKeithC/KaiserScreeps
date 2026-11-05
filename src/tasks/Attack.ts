@@ -2,7 +2,7 @@ import type { CreepExtra } from 'Creep';
 import { CreepTask, RegisterTask, TaskActionResult } from 'tasks/types';
 import { TargetTask } from './TargetTask';
 
-export class Attack extends TargetTask<typeof Attack.action, Creep> implements CreepTask<typeof Attack.action> {
+export class Attack extends TargetTask<Creep> implements CreepTask {
   static readonly action = '⚔️' as const;
 
   static {

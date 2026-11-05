@@ -4,7 +4,7 @@ import { ResourceContainerUsedRatio } from 'utils/Collections';
 import { ResourceContainer } from 'utils/RoomUtils';
 import { TargetTask } from './TargetTask';
 
-export class Collect extends TargetTask<typeof Collect.action, ResourceContainer> {
+export class Collect extends TargetTask<ResourceContainer> {
   static readonly action = '🔌' as const;
 
   static {

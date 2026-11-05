@@ -4,7 +4,7 @@ import { DeserializeRoomPosition, SerializeRoomPosition } from 'utils/Collection
 import { Logger } from 'utils/Logger';
 import { MiningPosition } from 'utils/RoomUtils';
 
-export class Mine extends TaskBase<typeof Mine.action> implements CreepTask<typeof Mine.action> {
+export class Mine extends TaskBase implements CreepTask {
   static readonly action = '⛏️' as const;
   public isCompleteFlag = false;
 

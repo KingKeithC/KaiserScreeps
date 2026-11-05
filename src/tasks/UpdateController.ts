@@ -2,7 +2,7 @@ import { CreepExtra } from 'Creep';
 import { RegisterTask, TaskActionResult } from 'tasks/types';
 import { TargetTask } from './TargetTask';
 
-export class UpgradeController extends TargetTask<typeof UpgradeController.action, StructureController> {
+export class UpgradeController extends TargetTask<StructureController> {
   static readonly action = '🔼' as const;
 
   static {

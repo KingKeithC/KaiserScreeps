@@ -2,7 +2,7 @@ import { CreepExtra } from 'Creep';
 import { RegisterTask, TaskActionResult } from 'tasks/types';
 import { TargetTask } from './TargetTask';
 
-export class GuardTask extends TargetTask<typeof GuardTask.action, StructureRampart> {
+export class GuardTask extends TargetTask<StructureRampart> {
   static readonly action = '🛡️' as const;
 
   static {
