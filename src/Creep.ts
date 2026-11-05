@@ -5,6 +5,7 @@ import { Colony } from 'Colony';
 import { CreepRole } from 'roles/Role';
 import { DeserializeRoomPosition, RoomPositionString, SerializeRoomPosition } from 'utils/Collections';
 import { CreepTask, DeserializeTask } from 'tasks/types';
+import { FromEdgeIntoRoom as DirectionIntoRoomFromEdge, EdgeStoodOn } from 'utils/CreepUtils';
 
 declare global {
   interface CreepMemory {
@@ -262,12 +263,17 @@ export class CreepExtra extends Creep {
 
   MaxTasksDone = 5;
   CanStillAct(): boolean {
+    // Don't act if we already enqueued a move
+    if (this.IntendedToMove) return true;
+
+    // If we have done less than the limit of tasks, then we're ok to keep trying
     return this.tasksDone <= this.MaxTasksDone;
   }
 
   private tasksDone = 0;
   DoTask(): void {
     if (this.currentTask === null || this.currentTask.isCompleteFlag) this.ChangeTask();
+    if (!this.CanStillAct()) return;
 
     // Early return for no task
     const task = this.currentTask;
@@ -275,9 +281,6 @@ export class CreepExtra extends Creep {
       this.say('🤷');
       return;
     }
-
-    // Early return for limit reached
-    if (!this.CanStillAct()) return;
 
     const outcome = task.handleOutcome(this, task.act(this));
     this.currentTask = task; // Save task back to itself since acting on it might have changed it
@@ -323,20 +326,9 @@ export class CreepExtra extends Creep {
   }
 
   MoveIntoRoomIfOnEdge(): void {
-    if (this.pos.y === 0)
-      // TOP
-      this.move(BOTTOM);
-    else if (this.pos.x === 49)
-      // RIGHT
-      this.move(LEFT);
-    else if (this.pos.y === 49)
-      // BOTTOM
-      this.move(TOP);
-    else if (this.pos.x === 0)
-      // LEFT
-      this.move(RIGHT);
-    else return;
-
+    const awayFromEdge = DirectionIntoRoomFromEdge(EdgeStoodOn(this.pos));
+    if (!awayFromEdge) return;
+    this.move(awayFromEdge);
     this.ActedThisTick = true;
     this.IntendedToMove = true;
   }
