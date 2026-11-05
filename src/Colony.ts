@@ -129,9 +129,14 @@ export class Colony {
 
     this.RefreshCaches();
 
+    // Update reset tick on stats
     if (Memory.stats !== undefined && Memory.stats.data !== undefined)
+      // Existing:
       // eslint-disable-next-line camelcase
       Memory.stats.data.program_reset_time_ticks = Game.time;
+    else
+      // New, which generates a reset tick for missing data
+      Memory.stats = GetColonyStats(this);
 
     this.log.crit('Global state reset.', {
       profilingEnabled: this.GlobalEnableProfiling,
@@ -169,7 +174,12 @@ export class Colony {
     return this.cachedOtherRooms;
   }
 
+  private lastRefreshCaches = 0;
   private RefreshCaches(): void {
+    // Prevent a wasteful double refresh on global resets
+    if (this.lastRefreshCaches === Game.time) return;
+    this.lastRefreshCaches = Game.time;
+
     this.Rooms.clear();
     this.Creeps.clear();
     this.cachedMyRooms = [];
