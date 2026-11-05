@@ -75,6 +75,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
       ),
     );
 
+    this.log.info('Checking if quota needs to be changed.', { '<room>': room, energyInContainers });
     if (energyInContainers > this.GrowQuotaWhenEnergyAbove) return this.GrowAmount;
     if (energyInContainers < this.ShrinkQuotaWhenEnergyBelow) return -this.ShrinkAmount;
     return 0;
