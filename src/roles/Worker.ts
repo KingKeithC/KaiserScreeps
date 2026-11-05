@@ -47,8 +47,34 @@ export class Worker extends CreepRoleBase implements CreepRole {
     }
   }
 
-  override GetMinQuota(room: RoomExtra) {
+  GetMinQuota(room: RoomExtra) {
     return room.ClaimedSources.length * 2;
+  }
+
+  GetMaxQuota(room: RoomExtra) {
+    return room.ClaimedSources.length * 4;
+  }
+
+  QuotaDelta = 1;
+  GrowQuotaWhenEnergyAbove = 3000;
+  ShrinkQuotaWhenEnergyBelow = 500;
+
+  GetQuotaChange(room: RoomExtra): number {
+    const energyInContainers = sum(
+      room.FlatMapOverRoomsInClaimedArea(r =>
+        r instanceof Room
+          ? r
+              .find(FIND_STRUCTURES, {
+                filter: (s): s is StructureContainer => s.structureType === STRUCTURE_CONTAINER,
+              })
+              .map(s => s.store.getUsedCapacity(RESOURCE_ENERGY))
+          : [],
+      ),
+    );
+
+    if (energyInContainers > this.GrowQuotaWhenEnergyAbove) return this.QuotaDelta;
+    if (energyInContainers < this.ShrinkQuotaWhenEnergyBelow) return -this.QuotaDelta;
+    return 0;
   }
 
   IsSpawnNeeded(room: RoomExtra) {
