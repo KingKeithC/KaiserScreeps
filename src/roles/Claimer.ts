@@ -8,7 +8,7 @@ import { CreepRoleBase, CreepRole } from './Role';
 
 export class Claimer extends CreepRoleBase implements CreepRole {
   readonly groupName = 'Warriors';
-  readonly name = 'Claimer';
+  readonly roleName = 'Claimer';
   readonly priority = 2;
 
   GetNewCreepBody(room: RoomExtra): BodyPartConstant[] {

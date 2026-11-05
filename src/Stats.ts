@@ -276,7 +276,7 @@ export function GetColonyStats(colony: Colony): ColonyStats {
       role_room_my_creep_count: colony.MapNameable(Object.values(colony.Roles), r =>
         colony.MapNameable(
           colony.MyRooms,
-          ro => ro.find(FIND_MY_CREEPS, { filter: c => c.memory.role === r.name }).length,
+          ro => ro.find(FIND_MY_CREEPS, { filter: c => c.memory.role === r.roleName }).length,
         ),
       ),
       room_neutral_structure_count: colony.MapNameable(Object.values(Game.rooms), vr =>

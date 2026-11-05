@@ -40,7 +40,7 @@ export class UpgradeController extends TargetTask<StructureController> {
     // and spawns need energy, end early
     if (
       this.mode === 'upgrade' &&
-      creep.role.name === 'Maintainer' &&
+      creep.role.roleName === 'Maintainer' &&
       creep.AssignedRoom.energyAvailable < creep.AssignedRoom.energyCapacityAvailable
     )
       return false;

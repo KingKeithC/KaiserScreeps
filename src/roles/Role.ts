@@ -7,7 +7,7 @@ import { CreepTask } from 'tasks/types';
 import { Logger } from 'utils/Logger';
 
 export interface CreepRole {
-  readonly name: string;
+  readonly roleName: string;
   readonly groupName: string;
   readonly priority: number; // Lower means higher priority
 
@@ -34,11 +34,21 @@ export interface CreepRole {
   OnCleanup(room: RoomExtra, creepName: string, creepMemory: CreepMemory): void;
 }
 
-export abstract class CreepRoleBase implements CreepRole {
+export interface RoleClass<Role extends CreepRole = CreepRole> {
+  readonly name: Role['roleName'];
+  readonly roleName: Role['roleName'];
+  readonly groupName: Role['groupName'];
+  readonly priority: Role['priority'];
+  readonly prototype: Role;
+  new (colony: Colony): Role;
+}
+
+export abstract class CreepRoleBase {
+  readonly roleName: string;
+  readonly groupName: string;
+  readonly priority: number;
+
   // Must be supplied by derived roles.
-  abstract readonly name: string;
-  abstract readonly groupName: string;
-  abstract readonly priority: number;
   abstract GetNewCreepBody(room: RoomExtra): BodyPartConstant[];
   abstract SelectNextTask(creep: CreepExtra): CreepTask | null;
   abstract GetMinQuota(room: RoomExtra): number;
@@ -56,12 +66,21 @@ export abstract class CreepRoleBase implements CreepRole {
 
   // Init
   protected readonly log: Logger<CreepRoleBase> = new Logger(this, { formatArgs: { '<role>': this } });
-  constructor(protected readonly colony: Colony) {}
+  constructor(protected readonly colony: Colony) {
+    const roleClass = this.constructor as RoleClass;
+    this.roleName = roleClass.roleName;
+    this.groupName = roleClass.groupName;
+    this.priority = roleClass.priority;
+  }
 
   // Defaults
 
+  get name(): string {
+    return this.roleName;
+  }
+
   toString(): string {
-    return `[role ${this.name}]`;
+    return `[role ${this.roleName}]`;
   }
 
   /**
@@ -99,13 +118,13 @@ export abstract class CreepRoleBase implements CreepRole {
    * room's `roleLimits`, and without updating the `roomQuotaCheckTimes`.
    */
   private CurrentQuota(room: RoomExtra): number {
-    if (!(this.name in this.currentRoomQuotas))
-      this.currentRoomQuotas[this.name] = { [room.name]: this.GetMinQuota(room) };
-    if (!(room.name in this.currentRoomQuotas[this.name]))
-      this.currentRoomQuotas[this.name][room.name] = this.GetMinQuota(room);
+    if (!(this.roleName in this.currentRoomQuotas))
+      this.currentRoomQuotas[this.roleName] = { [room.name]: this.GetMinQuota(room) };
+    if (!(room.name in this.currentRoomQuotas[this.roleName]))
+      this.currentRoomQuotas[this.roleName][room.name] = this.GetMinQuota(room);
 
-    const current = this.currentRoomQuotas[this.name][room.name];
-    const overridenQuota = (room.memory.roleLimits ??= {})[this.name];
+    const current = this.currentRoomQuotas[this.roleName][room.name];
+    const overridenQuota = (room.memory.roleLimits ??= {})[this.roleName];
     if (overridenQuota !== undefined) {
       this.log.warn('Quota overridden.', { '<room>': room, current, overridenQuota });
       return overridenQuota;
@@ -133,7 +152,7 @@ export abstract class CreepRoleBase implements CreepRole {
     minQuota = this.GetMinQuota(room),
     maxQuota = this.GetMaxQuota(room),
   ): number {
-    this.roomQuotaSetTimes[this.name][room.name] = Game.time;
+    this.roomQuotaSetTimes[this.roleName][room.name] = Game.time;
     if (typeof newQuota !== 'number') newQuota = newQuota(current); // Resolve on current if we got a function
     const diff = newQuota - current;
     if (diff === 0) return current;
@@ -141,7 +160,7 @@ export abstract class CreepRoleBase implements CreepRole {
       if (newQuota >= minQuota && newQuota <= maxQuota) {
         // If new quota is acceptible, update cache and return.
         this.log.info('Changing quota.', { '<room>': room, current, newQuota, diff });
-        return (this.currentRoomQuotas[this.name][room.name] = newQuota);
+        return (this.currentRoomQuotas[this.roleName][room.name] = newQuota);
       } else if (newQuota > maxQuota)
         this.log.warn('Cannot change quota because it is above the maximum.', {
           '<room>': room,
@@ -163,9 +182,10 @@ export abstract class CreepRoleBase implements CreepRole {
   }
 
   protected TimeSinceQuotaUpdate(room: RoomExtra): number {
-    if (!(this.name in this.roomQuotaSetTimes)) this.roomQuotaSetTimes[this.name] = { [room.name]: Game.time };
-    if (!(room.name in this.roomQuotaSetTimes[this.name])) this.roomQuotaSetTimes[this.name][room.name] = Game.time;
-    return Game.time - (this.roomQuotaSetTimes[this.name][room.name] ??= Game.time);
+    if (!(this.roleName in this.roomQuotaSetTimes)) this.roomQuotaSetTimes[this.roleName] = { [room.name]: Game.time };
+    if (!(room.name in this.roomQuotaSetTimes[this.roleName]))
+      this.roomQuotaSetTimes[this.roleName][room.name] = Game.time;
+    return Game.time - (this.roomQuotaSetTimes[this.roleName][room.name] ??= Game.time);
   }
 
   /**
@@ -186,13 +206,13 @@ export abstract class CreepRoleBase implements CreepRole {
   }
 
   GetGlobalCreepsInRole(): CreepExtra[] {
-    return this.colony.MyCreeps.filter(c => c.memory.role === this.name);
+    return this.colony.MyCreeps.filter(c => c.memory.role === this.roleName);
   }
   GetNewCreepName(_room: RoomExtra): string {
     return GetRandomName();
   }
   GetRoomCreepsInRole(room: RoomExtra): CreepExtra[] {
-    return room.GetAssignedCreepsOfRole(this.name);
+    return room.GetAssignedCreepsOfRole(this.roleName);
   }
   OnCleanup(): void {
     return;

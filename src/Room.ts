@@ -79,9 +79,11 @@ export class RoomExtra extends Room {
     this.AssignedCreeps = colony.MyCreeps.filter(c => c.memory.room === room.name);
   }
 
-  private cachedAssignedCreepsOfRole: { [roleName: CreepRole['name']]: CreepExtra[] } = {};
+  private cachedAssignedCreepsOfRole: { [roleName: CreepRole['roleName']]: CreepExtra[] } = {};
   GetAssignedCreepsOfRole(roleName: string): CreepExtra[] {
-    return (this.cachedAssignedCreepsOfRole[roleName] ??= this.AssignedCreeps.filter(c => c.role.name === roleName));
+    return (this.cachedAssignedCreepsOfRole[roleName] ??= this.AssignedCreeps.filter(
+      c => c.role.roleName === roleName,
+    ));
   }
 
   private cachedAssignedCreepsOfRoleGroup: { [roleGroupName: CreepRole['groupName']]: CreepExtra[] } = {};
@@ -734,10 +736,10 @@ export class RoomExtra extends Room {
     for (const role of Object.values(this.colony.Roles)) {
       const roomQuota = role.GetQuota(this);
       const roomCount = role.GetRoomCreepsInRole(this).length;
-      const timeSinceLastSpawn = Game.time - this.LastSpawnTick(role.name);
+      const timeSinceLastSpawn = Game.time - this.LastSpawnTick(role.roleName);
 
       if (role.IsSpawnNeeded(this)) {
-        const name = `${role.GetNewCreepName(this)}, ${role.name}`;
+        const name = `${role.GetNewCreepName(this)}, ${role.roleName}`;
         const body = role.GetNewCreepBody(this);
         const available = this.energyAvailable;
         const needed = BodyCost(body);
@@ -791,7 +793,7 @@ export class RoomExtra extends Room {
         available,
         needed,
       });
-      this.SetLastSpawnTick(role.name, Game.time);
+      this.SetLastSpawnTick(role.roleName, Game.time);
       role.OnSpawnScheduled(this, name);
 
       // If we used up all the spawn points, then return early.
@@ -809,7 +811,7 @@ export class RoomExtra extends Room {
         directions: nearbyRoads.length > 0 ? nearbyRoads : undefined,
         memory: {
           room: this.name,
-          role: role.name,
+          role: role.roleName,
           stuckTicks: 0,
           lastPos: SerializeRoomPosition(sp.pos),
           spawning: true,

@@ -20,7 +20,7 @@ declare global {
 
 export class Attacker extends CreepRoleBase implements CreepRole {
   readonly groupName = 'Warriors';
-  readonly name = 'Attacker';
+  readonly roleName = 'Attacker';
   readonly priority = 2;
 
   RallyDistance = 2;

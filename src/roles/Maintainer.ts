@@ -8,7 +8,7 @@ import { Worker } from './Worker';
 
 export class Maintainer extends Worker implements CreepRole {
   override readonly priority = 1;
-  override name = 'Maintainer';
+  override roleName = 'Maintainer';
 
   override GetMinQuota(): number {
     return 2;

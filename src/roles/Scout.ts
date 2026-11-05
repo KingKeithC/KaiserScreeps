@@ -13,7 +13,7 @@ export interface ScoutingReport extends RoomReport {
 
 export class Scout extends CreepRoleBase implements CreepRole {
   readonly groupName = 'Scouts';
-  readonly name = 'Scout';
+  readonly roleName = 'Scout';
   readonly priority = 20;
 
   RandomMoveRadius = 3;
@@ -35,7 +35,7 @@ export class Scout extends CreepRoleBase implements CreepRole {
   // And when no other scout assigned to this room is living.
   IsSpawnNeeded(room: RoomExtra): boolean {
     if (!this.IsRoleUnderQuota(room)) return false;
-    return Game.time - room.LastSpawnTick(this.name) > this.ScoutReportTTL;
+    return Game.time - room.LastSpawnTick(this.roleName) > this.ScoutReportTTL;
   }
 
   OnSpawn(creep: CreepExtra): void {

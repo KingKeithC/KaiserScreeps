@@ -14,7 +14,7 @@ import { CreepRoleBase, CreepRole } from './Role';
 export class Worker extends CreepRoleBase implements CreepRole {
   readonly priority: number = 10;
   readonly groupName = 'Workers';
-  readonly name: string = 'Worker';
+  readonly roleName: string = 'Worker';
 
   PossibleBodies = [
     MakeBody([WORK, 10], [CARRY, 7], [MOVE, 9]), // 1800
@@ -26,7 +26,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
     const zygote = MakeBody([CARRY, 2], [WORK, 1], [MOVE, 2]); // 300
     // If we haven't spawned a worker in a long time, then default to a zygote
     // This should help prevent death spirals...
-    if (Game.time - room.LastSpawnTick(this.name) > 1000) return zygote;
+    if (Game.time - room.LastSpawnTick(this.roleName) > 1000) return zygote;
     const body = FirstBodyByEnergyCapacity(room, ...this.PossibleBodies, zygote);
     if (body) return body;
     else return zygote;

@@ -40,7 +40,7 @@ declare global {
 declare const global: { Colony: Colony };
 
 export class Colony {
-  readonly Roles: { [name in CreepRole['name']]: CreepRoleBase } = {
+  readonly Roles: { [name in CreepRole['roleName']]: CreepRoleBase } = {
     Maintainer: new Maintainer(this),
     Miner: new Miner(this),
     Worker: new Worker(this),

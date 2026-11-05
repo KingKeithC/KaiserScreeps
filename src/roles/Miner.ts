@@ -8,7 +8,7 @@ import { CreepRole, CreepRoleBase } from './Role';
 
 export class Miner extends CreepRoleBase implements CreepRole {
   readonly groupName = 'Miners';
-  override readonly name: string = 'Miner';
+  override readonly roleName: string = 'Miner';
   readonly priority = 5;
 
   IsSpawnNeeded(room: RoomExtra): boolean {

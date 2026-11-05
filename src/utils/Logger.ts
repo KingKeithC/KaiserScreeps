@@ -136,7 +136,7 @@ export class Logger<T extends Loggable> {
 
     // Replace objects with their string identifiers
     if (typeof format.get('<creep>') === 'object') format.set('<creep>', (format.get('<creep>') as CreepExtra).name);
-    if (typeof format.get('<role>') === 'object') format.set('<role>', (format.get('<role>') as CreepRole).name);
+    if (typeof format.get('<role>') === 'object') format.set('<role>', (format.get('<role>') as CreepRole).roleName);
     if (typeof format.get('<room>') === 'object') format.set('<room>', (format.get('<room>') as Room).name);
 
     // !! Important - After this point, values inside formatArgs must be
