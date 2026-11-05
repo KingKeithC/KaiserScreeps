@@ -152,36 +152,31 @@ export abstract class CreepRoleBase {
     minQuota = this.GetMinQuota(room),
     maxQuota = this.GetMaxQuota(room),
   ): number {
-    // SetQuota can be called without GetQuota/TimeSinceQuotaUpdate having
-    // initialized this role's entry first.
     if (!(this.roleName in this.roomQuotaSetTimes)) this.roomQuotaSetTimes[this.roleName] = {};
     if (!(room.name in this.roomQuotaSetTimes[this.roleName]))
       this.roomQuotaSetTimes[this.roleName][room.name] = Game.time;
+
     this.roomQuotaSetTimes[this.roleName][room.name] = Game.time;
+
+    // Calculate new Quota based on input
     if (typeof newQuota !== 'number') newQuota = newQuota(current); // Resolve on current if we got a function
     const diff = newQuota - current;
     if (diff === 0) return current;
-    if (newQuota)
-      if (newQuota >= minQuota && newQuota <= maxQuota) {
-        // If new quota is acceptible, update cache and return.
-        this.log.info('Changing quota.', { '<room>': room, current, newQuota, diff });
-        return (this.currentRoomQuotas[this.roleName][room.name] = newQuota);
-      } else if (newQuota > maxQuota)
-        this.log.warn('Cannot change quota because it is above the maximum.', {
-          '<room>': room,
-          diff,
-          current,
-          newQuota,
-          maxQuota,
-        });
-      else if (newQuota < minQuota)
-        this.log.warn('Cannot change quota because it is below the minimum.', {
-          '<room>': room,
-          diff,
-          current,
-          newQuota,
-          minQuota,
-        });
+
+    // Clamp newQuota to Min/Max Range
+    if (newQuota > maxQuota) {
+      this.log.warn('Clamping newQuota to maximum.', { '<room>': room, diff, current, newQuota, maxQuota });
+      newQuota = maxQuota;
+    } else if (newQuota < minQuota) {
+      this.log.warn('Clamping newQuota to minimum.', { '<room>': room, diff, current, newQuota, minQuota });
+      newQuota = minQuota;
+    }
+
+    if (newQuota >= minQuota && newQuota <= maxQuota) {
+      // If new quota is acceptible, update cache and return.
+      this.log.info('Changing quota.', { '<room>': room, current, newQuota, diff });
+      return (this.currentRoomQuotas[this.roleName][room.name] = newQuota);
+    }
 
     return current;
   }
