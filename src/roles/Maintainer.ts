@@ -43,6 +43,12 @@ export class Maintainer extends Worker implements CreepRole {
         filter: st => st.structureType === STRUCTURE_EXTENSION || st.structureType === STRUCTURE_SPAWN,
       }) as (StructureSpawn | StructureExtension)[])
         if (s.store.getFreeCapacity(RESOURCE_ENERGY) > 0) creep.transfer(s, RESOURCE_ENERGY);
+
+    // Otherwise, if we are near a link receiver, that has
+    // energy, and we have space, withdraw energy from it.
+    if (creep.store.getFreeCapacity(RESOURCE_ENERGY) > 0)
+      for (const l of creep.AssignedRoom.LinkReceivers)
+        if (l.store.getUsedCapacity(RESOURCE_ENERGY) > 0 && creep.pos.isNearTo(l)) creep.withdraw(l, RESOURCE_ENERGY);
   }
 
   /**
