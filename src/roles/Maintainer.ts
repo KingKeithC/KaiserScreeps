@@ -45,22 +45,6 @@ export class Maintainer extends Worker implements CreepRole {
         if (s.store.getFreeCapacity(RESOURCE_ENERGY) > 0) creep.transfer(s, RESOURCE_ENERGY);
   }
 
-  MaintainControllerOrSpawn(creep: CreepExtra): CreepTask | null {
-    // Main task is to prevent the controller from downgrading
-    const maintain = this.MaintainController(creep);
-    if (maintain) return maintain;
-
-    // Secondary task is to resupply the spawns/extensions
-    const spawnSupply = this.FindSpawnSupply(creep, 0);
-    if (spawnSupply) return spawnSupply;
-
-    const roomTowers = creep.AssignedRoom.find(FIND_MY_STRUCTURES, { filter: { structureType: STRUCTURE_TOWER } });
-    const tower = this.FindSupplyByPath(creep, roomTowers as StructureTower[], 'towers');
-    if (tower) return new Supply(tower);
-
-    return null;
-  }
-
   /**
    * Control loop for Maintainers.
    *

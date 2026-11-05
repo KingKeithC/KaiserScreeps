@@ -194,12 +194,29 @@ export class Worker extends CreepRoleBase implements CreepRole {
     return null;
   }
 
+  MaintainControllerOrSpawn(creep: CreepExtra): CreepTask | null {
+    // Main task is to prevent the controller from downgrading
+    const maintain = this.MaintainController(creep);
+    if (maintain) return maintain;
+
+    // Secondary task is to resupply the spawns/extensions
+    const spawnSupply = this.FindSpawnSupply(creep, 0);
+    if (spawnSupply) return spawnSupply;
+
+    const roomTowers = creep.AssignedRoom.find(FIND_MY_STRUCTURES, { filter: { structureType: STRUCTURE_TOWER } });
+    const tower = this.FindSupplyByPath(creep, roomTowers as StructureTower[], 'towers');
+    if (tower) return new Supply(tower);
+
+    return null;
+  }
+
   WorkersMineBelowMinerBodyTotalCost = 1000;
   DesiredStorageTasks = 2;
   RetireEnabled = true;
   RetireWhenIdleFor = 30;
   SelectNextTask(creep: CreepExtra): CreepTask | null {
     const storage = creep.AssignedRoom.storage;
+    const maintainers = creep.AssignedRoom.GetAssignedCreepsOfRole('Maintainer');
 
     // ------ SUPPLY ------
     if (storage !== undefined && creep.store.getUsedCapacity() - creep.store.getUsedCapacity(RESOURCE_ENERGY) > 0) {
@@ -210,8 +227,8 @@ export class Worker extends CreepRoleBase implements CreepRole {
     if (creep.store.getUsedCapacity() > 0) {
       // Need to spend hauled energy
 
-      // Look for a spending task amongst typical targets
-      const spend = this.FindSpendingTask(creep);
+      // Look for a spending task amongst typical targets, unless we are short on maintainers
+      const spend = maintainers.length === 0 ? this.MaintainControllerOrSpawn(creep) : this.FindSpendingTask(creep);
       if (spend) return spend;
 
       if (creep.AssignedRoom.controller?.level ?? 0 < 6) {
@@ -226,8 +243,12 @@ export class Worker extends CreepRoleBase implements CreepRole {
 
     // ------ GATHER ------
     if (creep.store.getUsedCapacity() === 0) {
-      // Try to find a gathering task
-      const gather = this.CollectResources(creep, RESOURCES_ALL, false, 50);
+      // Try to find a gathering task, for any energy if we are low on maintainers,
+      // otherwise for general resources
+      const gather =
+        maintainers.length === 0
+          ? this.CollectResources(creep, [RESOURCE_ENERGY])
+          : this.CollectResources(creep, RESOURCES_ALL, false, 50);
       if (gather) return gather;
 
       // If there aren't enough miners, then do mining
