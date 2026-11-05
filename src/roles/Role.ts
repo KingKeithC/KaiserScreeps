@@ -9,7 +9,7 @@ import { Logger } from 'utils/Logger';
 export interface CreepRole {
   readonly name: string;
   readonly groupName: string;
-  readonly priority: number;
+  readonly priority: number; // Lower means higher priority
 
   toString(): string;
   TickCreep(creep: CreepExtra): void;

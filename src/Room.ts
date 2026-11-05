@@ -745,15 +745,16 @@ export class RoomExtra extends Room {
       return;
     }
 
-    const spawnable = this.GetSpawnableRoles().sort((b, a) => a.role.priority - b.role.priority);
+    const spawnable = this.GetSpawnableRoles().sort((a, b) => a.role.priority - b.role.priority);
     let completedSpawns = 0;
 
     for (const { role, name, body, available, needed, roomCount, roomQuota, timeSinceLastSpawn } of spawnable) {
-      const msg = 'Checking Spawns for ${role} (${roomCount}/${roomQuota}, ${timeSinceLastSpawn})... ';
+      const msg = 'Checking Spawns for ${role} (P${priority}) (${roomCount}/${roomQuota}, ${timeSinceLastSpawn})... ';
       const success = this.TrySpawnRole(role, name, body);
       if (!success) {
         this.log.crit(msg + 'Spawn failed despite having enough energy (${available}/${needed}).', {
           '<role>': role,
+          priority: role.priority,
           roomCount,
           roomQuota,
           timeSinceLastSpawn,
@@ -763,7 +764,15 @@ export class RoomExtra extends Room {
         continue;
       }
 
-      this.log.info(msg + 'Spawn scheduled successfully.');
+      this.log.info(msg + 'Spawn scheduled successfully.', {
+        '<role>': role,
+        priority: role.priority,
+        roomCount,
+        roomQuota,
+        timeSinceLastSpawn,
+        available,
+        needed,
+      });
       this.SetLastSpawnTick(role.name, Game.time);
       role.OnSpawnScheduled(this, name);
 
