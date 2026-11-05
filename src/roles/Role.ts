@@ -152,6 +152,11 @@ export abstract class CreepRoleBase {
     minQuota = this.GetMinQuota(room),
     maxQuota = this.GetMaxQuota(room),
   ): number {
+    // SetQuota can be called without GetQuota/TimeSinceQuotaUpdate having
+    // initialized this role's entry first.
+    if (!(this.roleName in this.roomQuotaSetTimes)) this.roomQuotaSetTimes[this.roleName] = {};
+    if (!(room.name in this.roomQuotaSetTimes[this.roleName]))
+      this.roomQuotaSetTimes[this.roleName][room.name] = Game.time;
     this.roomQuotaSetTimes[this.roleName][room.name] = Game.time;
     if (typeof newQuota !== 'number') newQuota = newQuota(current); // Resolve on current if we got a function
     const diff = newQuota - current;
