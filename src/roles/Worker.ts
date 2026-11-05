@@ -104,7 +104,6 @@ export class Worker extends CreepRoleBase implements CreepRole {
   }
 
   // Dispatch a collection task if possible.
-  // This function is expected to return a value, and logs a warning when it cannot.
   CollectFromRoomStorage(creep: CreepExtra): Collect | null {
     const stored = creep.AssignedRoom.storage?.store.getUsedCapacity(RESOURCE_ENERGY) ?? 0;
     if (creep.AssignedRoom.storage !== undefined && stored > creep.AssignedRoom.StorageWartimeEnergyBuffer)
@@ -228,7 +227,10 @@ export class Worker extends CreepRoleBase implements CreepRole {
       // Need to spend hauled energy
 
       // Look for a spending task amongst typical targets, unless we are short on maintainers
-      const spend = maintainers.length === 0 ? this.MaintainControllerOrSpawn(creep) : this.FindSpendingTask(creep);
+      const spend =
+        maintainers.length === 0
+          ? this.MaintainControllerOrSpawn(creep)
+          : this.FindSpendingTask(creep, undefined, maintainers.length);
       if (spend) return spend;
 
       if (creep.AssignedRoom.controller?.level ?? 0 < 6) {
@@ -243,11 +245,11 @@ export class Worker extends CreepRoleBase implements CreepRole {
 
     // ------ GATHER ------
     if (creep.store.getUsedCapacity() === 0) {
-      // Try to find a gathering task, for any energy if we are low on maintainers,
+      // Try to find a gathering task, for any energy from storage or locally if we are low on maintainers,
       // otherwise for general resources
       const gather =
         maintainers.length === 0
-          ? this.CollectResources(creep, [RESOURCE_ENERGY])
+          ? (this.CollectFromRoomStorage(creep) ?? this.CollectResources(creep, [RESOURCE_ENERGY]))
           : this.CollectResources(creep, RESOURCES_ALL, false, 50);
       if (gather) return gather;
 
@@ -334,8 +336,8 @@ export class Worker extends CreepRoleBase implements CreepRole {
   public FindSpendingTask(
     creep: CreepExtra,
     supplyTasks = [...creep.AssignedRoom.AssignedTasks(Supply)],
+    maintainers = creep.AssignedRoom.GetAssignedCreepsOfRole('Maintainer').length,
   ): CreepTask | null {
-    const maintainers = creep.AssignedRoom.GetAssignedCreepsOfRole('Maintainer').length;
     if (maintainers === 0) {
       const spawnSupply = this.FindSpawnSupply(creep, 0, supplyTasks);
       if (spawnSupply) return spawnSupply;
