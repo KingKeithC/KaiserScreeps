@@ -32,7 +32,7 @@ export class Miner extends CreepRoleBase implements CreepRole {
     return MakeBody([CARRY, 2], [WORK, 1], [MOVE, 2]); // 300, Zygote
   }
 
-  override GetRoomQuota(room: RoomExtra) {
+  override GetMinQuota(room: RoomExtra) {
     return room.ClaimedSources.length;
   }
 

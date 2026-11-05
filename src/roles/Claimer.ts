@@ -21,7 +21,7 @@ export class Claimer extends CreepRoleBase implements CreepRole {
     return this.UnworkedClaims(room).length > 0;
   }
 
-  override GetRoomQuota(room: RoomExtra): number {
+  override GetMinQuota(room: RoomExtra): number {
     return room.ClaimedRoomNames.length;
   }
 

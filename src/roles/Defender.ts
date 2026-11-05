@@ -20,7 +20,7 @@ export class Defender extends CreepRoleBase implements CreepRole {
   }
 
   // 1 For each hostile
-  override GetRoomQuota(room: RoomExtra): number {
+  override GetMinQuota(room: RoomExtra): number {
     let total = 0;
     for (const [_, v] of room.HostilesByRoom) total += v.length;
     return total;

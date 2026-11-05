@@ -47,7 +47,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
     }
   }
 
-  override GetRoomQuota(room: RoomExtra) {
+  override GetMinQuota(room: RoomExtra) {
     return room.ClaimedSources.length * 2;
   }
 

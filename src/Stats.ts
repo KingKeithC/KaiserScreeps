@@ -262,7 +262,7 @@ export function GetColonyStats(colony: Colony): ColonyStats {
       resource_amount: resources,
       heap_stat_bytes: meminfo,
       role_room_quota: colony.MapNameable(Object.values(colony.Roles), r =>
-        colony.MapNameable(colony.MyRooms, ro => r.GetRoomQuota(ro)),
+        colony.MapNameable(colony.MyRooms, ro => r.GetQuota(ro)),
       ),
       role_room_assigned_creep_count: colony.MapNameable(Object.values(colony.Roles), r =>
         colony.MapNameable(colony.MyRooms, ro => r.GetRoomCreepsInRole(ro).length),

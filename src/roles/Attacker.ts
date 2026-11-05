@@ -163,7 +163,7 @@ export class Attacker extends CreepRoleBase implements CreepRole {
     RalliedAllies: (pos: RoomPosition) => pos.findInRange(this.GetGlobalCreepsInRole(), this.RallyDistance + 1),
   } as const;
 
-  override GetRoomQuota(): number {
+  override GetMinQuota(): number {
     return this.AttackSize;
   }
   IsSpawnNeeded(room: RoomExtra): boolean {

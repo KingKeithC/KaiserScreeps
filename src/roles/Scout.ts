@@ -26,7 +26,7 @@ export class Scout extends CreepRoleBase implements CreepRole {
   ScoutReportTTL = 2000;
 
   // 1 per owned room
-  GetRoomQuota(): number {
+  GetMinQuota(): number {
     return 1;
   }
 

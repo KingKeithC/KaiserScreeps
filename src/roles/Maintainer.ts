@@ -9,7 +9,7 @@ import { Worker } from './Worker';
 export class Maintainer extends Worker implements CreepRole {
   override name = 'Maintainer';
 
-  GetRoomQuota(): number {
+  GetMinQuota(): number {
     return 2;
   }
 
