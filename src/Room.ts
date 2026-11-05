@@ -60,6 +60,8 @@ export class RoomExtra extends Room {
   readonly log: Logger<RoomExtra> = new Logger(this, { formatArgs: { '<room>': this } });
   readonly AssignedCreeps: CreepExtra[];
 
+  private eventsAccumulatedThisTick = false;
+
   parent?: RoomExtra;
 
   constructor(room: Room, colony: Colony, parent?: RoomExtra) {
@@ -620,6 +622,9 @@ export class RoomExtra extends Room {
   }
 
   AcumulateEvents(): void {
+    if (this.eventsAccumulatedThisTick) return;
+    this.eventsAccumulatedThisTick = true;
+
     const existingCount = this.EventCounts;
     const existingAmount = this.EventAmounts;
     const events = this.getEventLog();

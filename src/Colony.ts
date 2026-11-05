@@ -127,6 +127,8 @@ export class Colony {
     Memory.scoutingReports ??= {};
     Memory.scoutInterval ??= CREEP_LIFE_TIME * 2;
 
+    this.RefreshCaches();
+
     // Rebuild stats to migrate persisted data to the current schema, then record this reset.
     const stats = GetColonyStats(this);
     // eslint-disable-next-line camelcase
