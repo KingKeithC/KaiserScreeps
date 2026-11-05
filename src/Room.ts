@@ -669,9 +669,9 @@ export class RoomExtra extends Room {
   RunCreeps(): void {
     // Run each creep in the room.
     for (const c of this.AssignedCreeps.filter(ac => !ac.spawning)) {
-      if (c.currentTask === null || c.currentTask.isCompleteFlag) c.ChangeTask();
       c.role.TickCreep(c);
-      c.DoTask();
+      // Keep calling DoTask until we either log a move, finish the task, or hit the act limit
+      for (let i = 0; i < c.MaxTasksDone; i++) if (!c.currentTask?.isCompleteFlag && !c.IntendedToMove) c.DoTask();
       c.MoveIntoRoomIfOnEdge();
     }
   }

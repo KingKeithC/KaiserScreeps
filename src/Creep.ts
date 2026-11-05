@@ -151,7 +151,6 @@ export class CreepExtra extends Creep {
     this.memory.stuckTicks ??= 0;
     this.memory.successfulAvoidMoves ??= 0;
 
-    this.IntendedToMove = true;
     const targetPos = target instanceof RoomPosition ? target : target.pos;
 
     // Target room may not be visible, so don't inspect anything more than what is in position object.
@@ -261,7 +260,15 @@ export class CreepExtra extends Creep {
     this.say(newTask.action);
   }
 
+  MaxTasksDone = 5;
+  CanStillAct(): boolean {
+    return this.tasksDone <= this.MaxTasksDone;
+  }
+
+  private tasksDone = 0;
   DoTask(): void {
+    if (this.currentTask === null || this.currentTask.isCompleteFlag) this.ChangeTask();
+
     // Early return for no task
     const task = this.currentTask;
     if (task === null) {
@@ -269,9 +276,13 @@ export class CreepExtra extends Creep {
       return;
     }
 
+    // Early return for limit reached
+    if (!this.CanStillAct()) return;
+
     const outcome = task.handleOutcome(this, task.act(this));
     this.currentTask = task; // Save task back to itself since acting on it might have changed it
     this.ActedThisTick = true; // Update non-idle flag since we acted
+    this.tasksDone = this.tasksDone + 1; // Increment Tasks done
 
     // Handle follow up actions
 
@@ -285,6 +296,8 @@ export class CreepExtra extends Creep {
     else if (outcome.result === ERR_NOT_IN_RANGE) {
       // We have to move to the task's target
       const moveResult = this.MoveCreep(outcome.target.pos, { range: outcome.range });
+
+      if (moveResult === OK) this.IntendedToMove = true;
 
       if (moveResult !== OK && moveResult !== ERR_TIRED)
         // Log bad moves
