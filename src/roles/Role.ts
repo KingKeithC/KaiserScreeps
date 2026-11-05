@@ -159,21 +159,35 @@ export abstract class CreepRoleBase {
 
     // Calculate new Quota based on input
     if (typeof quotaDelta !== 'number') quotaDelta = quotaDelta(current);
-    const diff = current + quotaDelta;
-    if (diff === 0) return current;
+    const newQuota = current + quotaDelta;
+    if (quotaDelta === 0 || newQuota === current) return current;
 
     // Clamp newQuota to Min/Max Range
     if (quotaDelta > maxQuota) {
-      this.log.warn('Clamping newQuota to maximum.', { '<room>': room, diff, current, newQuota: quotaDelta, maxQuota });
+      this.log.warn('Clamping newQuota to maximum.', {
+        '<room>': room,
+        current,
+        minQuota,
+        newQuota,
+        quotaDelta,
+        maxQuota,
+      });
       quotaDelta = maxQuota;
     } else if (quotaDelta < minQuota) {
-      this.log.warn('Clamping newQuota to minimum.', { '<room>': room, diff, current, newQuota: quotaDelta, minQuota });
+      this.log.warn('Clamping newQuota to minimum.', {
+        '<room>': room,
+        current,
+        minQuota,
+        newQuota,
+        quotaDelta,
+        maxQuota,
+      });
       quotaDelta = minQuota;
     }
 
     if (quotaDelta >= minQuota && quotaDelta <= maxQuota) {
       // If new quota is acceptible, update cache and return.
-      this.log.info('Changing quota.', { '<room>': room, current, newQuota: quotaDelta, diff });
+      this.log.info('Changing quota.', { '<room>': room, current, newQuota: quotaDelta, diff: newQuota });
       return (this.currentRoomQuotas[room.name] = quotaDelta);
     }
 
