@@ -55,8 +55,10 @@ export class Worker extends CreepRoleBase implements CreepRole {
     return room.ClaimedSources.length * 4;
   }
 
-  QuotaDelta = 1;
+  GrowAmount = 2;
   GrowQuotaWhenEnergyAbove = 3000;
+
+  ShrinkAmount = 1;
   ShrinkQuotaWhenEnergyBelow = 500;
 
   GetQuotaChange(room: RoomExtra): number {
@@ -72,8 +74,8 @@ export class Worker extends CreepRoleBase implements CreepRole {
       ),
     );
 
-    if (energyInContainers > this.GrowQuotaWhenEnergyAbove) return this.QuotaDelta;
-    if (energyInContainers < this.ShrinkQuotaWhenEnergyBelow) return -this.QuotaDelta;
+    if (energyInContainers > this.GrowQuotaWhenEnergyAbove) return this.GrowAmount;
+    if (energyInContainers < this.ShrinkQuotaWhenEnergyBelow) return -this.ShrinkAmount;
     return 0;
   }
 
