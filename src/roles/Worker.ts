@@ -56,11 +56,11 @@ export class Worker extends CreepRoleBase implements CreepRole {
     return room.ClaimedSources.length * 5;
   }
 
-  GrowAmount = 2;
-  GrowQuotaWhenEnergyAbove = 3000;
+  GrowAmount = 1;
+  GrowQuotaWhenEnergyAbove = 6000;
 
   ShrinkAmount = 1;
-  ShrinkQuotaWhenEnergyBelow = 500;
+  ShrinkQuotaWhenEnergyBelow = 1500;
 
   GetQuotaChange(room: RoomExtra): number {
     const energyInContainers = sum(
