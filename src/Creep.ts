@@ -167,8 +167,6 @@ export class CreepExtra extends Creep {
       this.memory.stuckTicks = 0;
       this.memory.successfulAvoidMoves = 0;
       this.memory.moveMode = 'long';
-      // eslint-disable-next-line no-underscore-dangle
-      delete this.memory._move; // Clear out saved path
       return 1;
     }
 
@@ -183,8 +181,6 @@ export class CreepExtra extends Creep {
 
     // Switch move mode
     if (this.memory.moveMode === 'long' && (this.memory.stuckTicks ?? 0) > this.MaxStuckTicks) {
-      // eslint-disable-next-line no-underscore-dangle
-      delete this.memory._move; // Clear out saved path
       this.memory.moveMode = 'avoidCreeps';
       this.memory.stuckTicks = 0;
       this.memory.successfulAvoidMoves = 0;
@@ -192,8 +188,6 @@ export class CreepExtra extends Creep {
       this.memory.moveMode === 'avoidCreeps' &&
       (this.memory.successfulAvoidMoves ?? 0) >= this.MaxAvoidTicks
     ) {
-      // eslint-disable-next-line no-underscore-dangle
-      delete this.memory._move; // Clear out saved path
       this.memory.moveMode = 'long';
       this.memory.stuckTicks = 0;
       this.memory.successfulAvoidMoves = 0;

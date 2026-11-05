@@ -50,8 +50,8 @@ export function DeserializeTask(value: unknown): CreepTask | null {
   const action = value.action as CreepTask['action'];
   const taskPrototype = TaskPrototypes.get(action);
   if (!taskPrototype) throw new Error(`No Prototype for ${action} exists.`);
-  const task = Object.assign(Object.create(taskPrototype), value) as CreepTask;
-  delete (task as { action?: CreepTask['action'] }).action;
+  const task = Object.assign({}, value) as CreepTask;
+  Object.setPrototypeOf(task, taskPrototype);
   return task;
 }
 
