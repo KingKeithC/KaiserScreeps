@@ -76,12 +76,8 @@ export abstract class CreepRoleBase implements CreepRole {
   private currentRoomQuotas: { [roomName: RoomExtra['name']]: number } = {};
   protected RoleQuotaChangeFrequency = 1000;
 
-  GetQuota(room: RoomExtra) {
-    // Get current quota (or min if not defined) from the derived role
-    const min = this.GetMinQuota(room);
-    let current = (this.currentRoomQuotas[room.name] ??= min);
-
-    // If the room have an overridden quota for us, use it instead, but log a warning
+  private CurrentQuota(room: RoomExtra): number {
+    const current = (this.currentRoomQuotas[room.name] ??= this.GetMinQuota(room));
     const overridenQuota = (room.memory.roleLimits ??= {})[this.name];
     if (overridenQuota !== undefined) {
       this.log.warn('Quota overridden from ${current} to ${overridenQuota}', {
@@ -91,37 +87,43 @@ export abstract class CreepRoleBase implements CreepRole {
       });
       return overridenQuota;
     }
+    return current;
+  }
 
-    const max = this.GetMaxQuota(room);
-    if (max === min) return current; // No room to change
-
-    // Change the Quota if needed
-
-    // If no check has ever been done, then wait a full cycle and check on the next one
-    const ticksSinceLastChange = Game.time - (this.roomQuotaCheckTimes[room.name] ??= Game.time);
-    if (ticksSinceLastChange > this.RoleQuotaChangeFrequency) {
-      // Change for a change in quota
-      const diff = this.GetQuotaChange(room);
-      if (diff !== 0) {
-        const newQuota = current + diff;
-        if (newQuota >= min && newQuota <= max) {
-          // If new quota is acceptible, update cache and return.
-          this.log.warn('Changing Quota from ${current} to ${newQuota}');
-          current = this.currentRoomQuotas[room.name] = newQuota;
-        } else if (newQuota > max)
-          this.log.warn(
-            'Cannot change Quota from ${current} to ${newQuota} (${diff}), since it is above max of ${max}',
-            { '<room>': room, diff, current, newQuota, max },
-          );
-        else if (newQuota < min)
-          this.log.warn(
-            'Cannot change Quota from ${current} to ${newQuota} (${diff}), since it is below min of ${min}',
-            { '<room>': room, diff, current, newQuota, min },
-          );
-      }
-    }
+  SetQuota(
+    room: RoomExtra,
+    newQuota: number,
+    current = this.CurrentQuota(room),
+    minQuota = this.GetMinQuota(room),
+    maxQuota = this.GetMaxQuota(room),
+  ): number {
     this.roomQuotaCheckTimes[room.name] = Game.time; // Update check time
+    const diff = newQuota - current;
+    if (diff === 0) return current;
 
+    if (newQuota >= minQuota && newQuota <= maxQuota) {
+      // If new quota is acceptible, update cache and return.
+      this.log.info('Changing Quota from ${current} to ${newQuota} (${diff})');
+      return (this.currentRoomQuotas[room.name] = newQuota);
+    } else if (newQuota > maxQuota)
+      this.log.warn(
+        'Cannot change Quota from ${current} to ${newQuota} (${diff}), since it is above max of ${maxQuota}',
+        { '<room>': room, diff, current, newQuota, maxQuota },
+      );
+    else if (newQuota < minQuota)
+      this.log.warn(
+        'Cannot change Quota from ${current} to ${newQuota} (${diff}), since it is below min of ${minQuota}',
+        { '<room>': room, diff, current, newQuota, minQuota },
+      );
+
+    return current;
+  }
+
+  GetQuota(room: RoomExtra) {
+    const current = this.CurrentQuota(room);
+    const ticksSinceLastChange = Game.time - (this.roomQuotaCheckTimes[room.name] ??= Game.time);
+    if (ticksSinceLastChange > this.RoleQuotaChangeFrequency)
+      return this.SetQuota(room, this.GetQuotaChange(room), current);
     return current;
   }
 
