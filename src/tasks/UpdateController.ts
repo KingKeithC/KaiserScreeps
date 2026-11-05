@@ -52,6 +52,7 @@ export class UpgradeController extends TargetTask<StructureController> {
   }
 
   public handleOutcome(creep: CreepExtra, results: TaskActionResult | null): TaskActionResult | null {
+    results = super.handleOutcome(creep, results);
     if (results?.result === ERR_NOT_ENOUGH_RESOURCES) this.isCompleteFlag = true;
     if (results?.result === ERR_NOT_OWNER) this.isCompleteFlag = true;
     if (results?.result === ERR_INVALID_TARGET) this.isCompleteFlag = true;
