@@ -445,7 +445,23 @@ export class RoomExtra extends Room {
   UnfilledMiningPositions(): MiningPosition[] {
     const ret = [];
     for (const [_room, mines] of this.WorkableClaimedMiningPositions)
-      for (const mine of mines) if (DeserializeRoomPosition(mine.pos).lookFor(LOOK_CREEPS).length === 0) ret.push(mine);
+      for (const mine of mines) {
+        const pos = DeserializeRoomPosition(mine.pos);
+        if (!(pos.roomName in Game.rooms)) {
+          ret.push(mine);
+          continue;
+        }
+
+        try {
+          if (pos.lookFor(LOOK_CREEPS).length === 0) ret.push(mine);
+        } catch (error) {
+          const message = `${error instanceof Error ? error.message : String(error)} (checking mine position ${mine.pos})`;
+          const contextualError = new Error(message);
+          if (error instanceof Error && error.stack)
+            contextualError.stack = `${contextualError.name}: ${message}\n${error.stack.split('\n').slice(1).join('\n')}`;
+          throw contextualError;
+        }
+      }
     return ret;
   }
 

@@ -331,7 +331,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
       for (const task of repairTasks) repairsByTarget.set(task.targetId, (repairsByTarget.get(task.targetId) ?? 0) + 1);
 
       for (const [room] of creep.AssignedRoom.MapWithRoomsInClaimedArea<RoomExtra | Room | string>(r => r)) {
-        if (!(room instanceof Room)) continue;
+        if (typeof room === 'string') continue;
         const roomTowers = room.find(FIND_MY_STRUCTURES, { filter: s => s.structureType === STRUCTURE_TOWER });
         if (roomTowers.length > 0) continue;
 

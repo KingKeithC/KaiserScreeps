@@ -154,8 +154,7 @@ export class CreepExtra extends Creep {
     this.IntendedToMove = true;
     const targetPos = target instanceof RoomPosition ? target : target.pos;
 
-    if (!(targetPos.roomName in Game.rooms))
-      this.log.warn('MoveCreep invoked for a target in a room that is not visible.', { targetPos });
+    // Target room may not be visible, so don't inspect anything more than what is in position object.
 
     if (this.pos.roomName === targetPos.roomName && this.pos.getRangeTo(targetPos) <= (opts?.range ?? 1)) {
       this.log.debug('MoveCreep: arrived.');

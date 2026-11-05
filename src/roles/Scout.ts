@@ -28,7 +28,7 @@ export class Scout extends CreepRoleBase implements CreepRole {
 
   // 1 per owned room
   GetMinQuota(): number {
-    return 1;
+    return 0;
   }
 
   // Ensure a scout is only spawned once every `ScoutReportTTL` ticks.
