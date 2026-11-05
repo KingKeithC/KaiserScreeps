@@ -30,7 +30,7 @@ export class Supply extends TargetTask<AnyStoreStructure> {
   }
 
   public isCompleteWhenTargetValid(_creep: CreepExtra, target: NonNullable<AnyStoreStructure>): boolean {
-    return (target.store.getFreeCapacity(this.resourceType) ?? 0) < this.freeCapacityToConsiderComplete;
+    return (target.store.getFreeCapacity(this.resourceType) ?? 0) <= this.freeCapacityToConsiderComplete;
   }
 
   public override handleOutcome(creep: CreepExtra, results: TaskActionResult | null): TaskActionResult | null {
