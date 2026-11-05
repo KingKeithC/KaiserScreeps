@@ -1,7 +1,5 @@
 import { Dictionary, flatten, range, unique } from 'lodash';
 import { UpgradeController } from 'tasks';
-import type { Attack, Build, Claim, Collect, Dismantle, GuardTask, Mine, Move, Repair, Supply } from 'tasks';
-import type { Retire } from 'tasks/Retire';
 import {
   CollectionPlan,
   ContainerAndAmount,
@@ -20,33 +18,12 @@ import { Colours } from 'Data';
 import { CreepRole } from 'roles/Role';
 import { Logger } from 'utils/Logger';
 import { BodyCost } from 'utils/CreepUtils';
-import { CreepTask, TaskAction, TaskActionValue } from 'tasks/types';
+import { AssignedTask, TaskAction } from 'tasks/types';
 import {
   CreatePendingRepairs,
   FindHighestPriorityRepairGroup,
   PendingRepairs as PendingRepairCollection,
 } from 'utils/RepairUtils';
-
-interface AssignedTaskByAction {
-  [TaskAction.Mine]: Mine;
-  [TaskAction.Collect]: Collect;
-  [TaskAction.Build]: Build;
-  [TaskAction.Repair]: Repair;
-  [TaskAction.Retire]: Retire;
-  [TaskAction.Supply]: Supply;
-  [TaskAction.UpgradeController]: UpgradeController;
-  [TaskAction.Attack]: Attack;
-  [TaskAction.Guard]: GuardTask;
-  [TaskAction.Claim]: Claim;
-  [TaskAction.Move]: Move;
-  [TaskAction.Dismantle]: Dismantle;
-}
-
-type AssignedTask<Action extends TaskActionValue | undefined> = Action extends TaskActionValue
-  ? Action extends keyof AssignedTaskByAction
-    ? AssignedTaskByAction[Action]
-    : CreepTask<Action>
-  : CreepTask;
 
 declare global {
   interface RoomMemory {
@@ -112,13 +89,13 @@ export class RoomExtra extends Room {
     ));
   }
 
-  *AssignedTasks<Action extends TaskActionValue | undefined = undefined>(
+  *AssignedTasks<Action extends TaskAction | undefined = undefined>(
     taskAction?: Action,
   ): IterableIterator<AssignedTask<Action>> {
     for (const [_creep, task] of this.AssignedTasksWithCreep(taskAction)) yield task;
   }
 
-  *AssignedTasksWithCreep<Action extends TaskActionValue | undefined = undefined>(
+  *AssignedTasksWithCreep<Action extends TaskAction | undefined = undefined>(
     taskAction?: Action,
   ): IterableIterator<[CreepExtra, AssignedTask<Action>]> {
     for (const c of this.AssignedCreeps)

@@ -10,3 +10,6 @@ export { Supply } from './Supply';
 export { Attack } from './Attack';
 export { GuardTask } from './Guard';
 export { Claim } from './Claim';
+export { Retire } from './Retire';
+export { TaskPrototypes } from './types';
+export { DeserializeTask } from './types';

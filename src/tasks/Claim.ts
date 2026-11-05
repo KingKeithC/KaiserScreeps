@@ -1,15 +1,17 @@
 import { CreepExtra } from 'Creep';
-import { TaskAction, TaskActionResult } from 'tasks/types';
+import { RegisterTask, TaskAction, TaskActionResult } from 'tasks/types';
 import { TargetTask } from './TargetTask';
 
 export class Claim extends TargetTask<typeof TaskAction.Claim, StructureController> {
-  public readonly kind = 'claim' as const;
+  static {
+    RegisterTask(TaskAction.Claim, this.prototype);
+  }
 
   public constructor(
     controller: StructureController,
     public readonly claim = false, // false = 'reserve'
   ) {
-    super(TaskAction.Claim, controller);
+    super(controller);
   }
 
   isCreepAbleToContinue(): boolean {

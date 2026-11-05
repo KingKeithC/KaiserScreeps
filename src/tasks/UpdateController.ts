@@ -1,19 +1,22 @@
 import { CreepExtra } from 'Creep';
-import { TaskAction, TaskActionResult } from 'tasks/types';
+import { RegisterTask, TaskAction, TaskActionResult } from 'tasks/types';
 import { TargetTask } from './TargetTask';
 
 export class UpgradeController extends TargetTask<typeof TaskAction.UpgradeController, StructureController> {
+  static {
+    RegisterTask(TaskAction.UpgradeController, this.prototype);
+  }
+
   static readonly DowngradeMaintenanceRatio = 1 / 4; // Start repairs when ticksToDowngrade drop below this.
   static readonly MaintenanceBuffer = 2000;
 
-  public readonly kind = 'updateController' as const;
   private readonly startingProgress: number = 0;
 
   public constructor(
     controller: StructureController,
     public readonly mode: 'upgrade' | 'maintain',
   ) {
-    super(TaskAction.UpgradeController, controller);
+    super(controller);
     this.startingProgress = controller.progress;
   }
 

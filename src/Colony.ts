@@ -11,21 +11,7 @@ import { Worker } from 'roles/Worker';
 import { RoomExtra } from 'Room';
 import profiler from 'screeps-profiler';
 import { GetColonyStats, ColonyStats } from 'Stats';
-import {
-  Attack,
-  Build,
-  Collect,
-  Claim,
-  Dismantle,
-  GuardTask,
-  Mine,
-  Move,
-  Repair,
-  Supply,
-  UpgradeController,
-} from 'tasks';
-import { Retire } from 'tasks/Retire';
-import { CreepTask } from 'tasks/types';
+import { TaskPrototypes } from 'tasks';
 import { TradingSystem } from 'Trading';
 import { FmtRatios } from 'utils/Collections';
 import { ErrorMapper } from 'utils/ErrorMapper';
@@ -54,22 +40,6 @@ declare global {
 declare const global: { Colony: Colony };
 
 export class Colony {
-  readonly Tasks: { [name in CreepTask['kind']]: CreepTask } = {
-    mine: Mine.prototype,
-    collectEnergy: Collect.prototype,
-    collect: Collect.prototype, // New Alias
-    updateController: UpgradeController.prototype,
-    build: Build.prototype,
-    repair: Repair.prototype,
-    retire: Retire.prototype,
-    supply: Supply.prototype,
-    attack: Attack.prototype,
-    guard: GuardTask.prototype,
-    move: Move.prototype,
-    claim: Claim.prototype,
-    dismantle: Dismantle.prototype,
-  } as const;
-
   readonly Roles: { [name in CreepRole['name']]: CreepRoleBase } = {
     Maintainer: new Maintainer(this),
     Miner: new Miner(this),
@@ -79,16 +49,6 @@ export class Colony {
     Attacker: new Attacker(this),
     Claimer: new Claimer(this),
   } as const;
-
-  DeserializeTask(value: unknown): CreepTask | null {
-    if (value === null || value === undefined) return null;
-    if (typeof value !== 'object') throw new Error(`Creep Task is not null or object.`);
-    if (!('kind' in value)) throw new Error(`Creep Task contains no 'kind' property.`);
-    const kind: string = value.kind as string;
-    const taskPrototype = this.Tasks[kind];
-    if (!taskPrototype) throw new Error(`No Prototype for ${kind} exists.`);
-    return Object.assign(Object.create(taskPrototype), value) as CreepTask;
-  }
 
   // Lookup a role from the registry, and throw an error if not found
   GetRole(roleName: string): CreepRole {
@@ -116,7 +76,7 @@ export class Colony {
     profiler.registerClass(CreepExtra, 'CreepExtra');
     profiler.registerClass(RoomExtra, 'RoomExtra');
     for (const [name, roleType] of Object.entries(this.Roles)) profiler.registerClass(roleType.constructor, name);
-    for (const [name, taskType] of Object.entries(this.Tasks)) profiler.registerClass(taskType, name);
+    for (const [action, taskType] of TaskPrototypes) profiler.registerClass(taskType, action);
     profiler.registerClass(Colony, 'Colony');
     profiler.enable();
     return () => profiler.wrap(lambda);

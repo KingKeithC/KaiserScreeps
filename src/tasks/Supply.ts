@@ -1,16 +1,18 @@
 import { CreepExtra } from 'Creep';
-import { TaskAction, TaskActionResult } from 'tasks/types';
+import { RegisterTask, TaskAction, TaskActionResult } from 'tasks/types';
 import { TargetTask } from './TargetTask';
 
 export class Supply extends TargetTask<typeof TaskAction.Supply, AnyStoreStructure> {
-  public readonly kind = 'supply' as const;
+  static {
+    RegisterTask(TaskAction.Supply, this.prototype);
+  }
 
   public constructor(
     target: AnyStoreStructure,
     public readonly resourceType: ResourceConstant = RESOURCE_ENERGY,
     public freeCapacityToConsiderComplete: number = 0,
   ) {
-    super(TaskAction.Supply, target);
+    super(target);
   }
 
   extraToString(target: AnyStoreStructure): string {

@@ -1,12 +1,14 @@
 import { CreepExtra } from 'Creep';
-import { TaskAction, TaskActionResult } from 'tasks/types';
+import { RegisterTask, TaskAction, TaskActionResult } from 'tasks/types';
 import { TargetTask } from './TargetTask';
 
 export class Repair extends TargetTask<typeof TaskAction.Repair, AnyStructure> {
-  public readonly kind = 'repair' as const;
+  static {
+    RegisterTask(TaskAction.Repair, this.prototype);
+  }
 
   public constructor(target: AnyStructure) {
-    super(TaskAction.Repair, target);
+    super(target);
   }
 
   public extraToString(target: AnyStructure): string {

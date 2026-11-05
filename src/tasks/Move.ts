@@ -1,11 +1,14 @@
 import { CreepExtra } from 'Creep';
-import { CreepTask, TaskAction, TaskActionResult } from 'tasks/types';
+import { CreepTask, RegisterTask, TaskAction, TaskActionResult } from 'tasks/types';
 import { DeserializeRoomPosition, SerializeRoomPosition } from 'utils/Collections';
 
-export class Move implements CreepTask {
-  public readonly action = TaskAction.Move;
-  public readonly kind = 'move' as const;
+export class Move implements CreepTask<TaskAction.Move> {
+  declare readonly action: TaskAction.Move;
   public isCompleteFlag = false;
+
+  static {
+    RegisterTask(TaskAction.Move, this.prototype);
+  }
 
   public readonly targetPos: string;
 

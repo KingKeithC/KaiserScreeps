@@ -1,23 +1,17 @@
 import { CreepExtra } from 'Creep';
-import { CreepTask, TaskActionResult, TaskActionValue } from 'tasks/types';
+import { CreepTask, TaskAction, TaskActionResult } from 'tasks/types';
 import { DeserializeRoomPosition, SerializeRoomPosition } from 'utils/Collections';
 import { Logger } from 'utils/Logger';
 
 export type Targetable = _HasId & _HasRoomPosition;
 
-export abstract class TargetTask<
-  Action extends TaskActionValue,
-  Target extends Targetable,
-> implements CreepTask<Action> {
-  abstract kind: string;
+export abstract class TargetTask<Action extends TaskAction, Target extends Targetable> implements CreepTask<Action> {
+  declare readonly action: Action;
   public readonly targetId: Id<Target>;
   public readonly targetPos: string;
   public isCompleteFlag = false;
 
-  public constructor(
-    public readonly action: Action,
-    target: Target,
-  ) {
+  public constructor(target: Target) {
     this.targetId = target.id;
     this.targetPos = SerializeRoomPosition(target.pos);
   }

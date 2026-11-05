@@ -1,12 +1,14 @@
 import type { CreepExtra } from 'Creep';
-import { TaskAction, CreepTask, TaskActionResult } from 'tasks/types';
+import { TaskAction, CreepTask, RegisterTask, TaskActionResult } from 'tasks/types';
 import { TargetTask } from './TargetTask';
 
 export class Attack extends TargetTask<typeof TaskAction.Attack, Creep> implements CreepTask<typeof TaskAction.Attack> {
-  public readonly kind = 'attack' as const;
+  static {
+    RegisterTask(TaskAction.Attack, this.prototype);
+  }
 
   public constructor(creep: Creep) {
-    super(TaskAction.Attack, creep);
+    super(creep);
   }
 
   actWhenTargetValid(creep: CreepExtra, target: NonNullable<Creep>): TaskActionResult | null {

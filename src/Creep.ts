@@ -4,7 +4,7 @@ import { Logger } from 'utils/Logger';
 import { Colony } from 'Colony';
 import { CreepRole } from 'roles/Role';
 import { DeserializeRoomPosition, RoomPositionString, SerializeRoomPosition } from 'utils/Collections';
-import { CreepTask } from 'tasks/types';
+import { CreepTask, DeserializeTask } from 'tasks/types';
 
 declare global {
   interface CreepMemory {
@@ -50,11 +50,22 @@ export class CreepExtra extends Creep {
   private cachedCurrentTask?: CreepTask | null;
   get currentTask(): CreepTask | null {
     if (this.cachedCurrentTask !== undefined) return this.cachedCurrentTask;
-    return (this.cachedCurrentTask = this.colony.DeserializeTask(this.memory.currentTask));
+    try {
+      return (this.cachedCurrentTask = DeserializeTask(this.memory.currentTask));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.log.crit('Failed to deserialize task for ${creepName}; clearing it: ${error}', {
+        creepName: this.name,
+        error: message,
+      });
+      delete this.memory.currentTask;
+      return (this.cachedCurrentTask = null);
+    }
   }
 
   private set currentTask(value: CreepTask | null) {
-    this.memory.currentTask = this.cachedCurrentTask = value;
+    this.cachedCurrentTask = value;
+    this.memory.currentTask = value === null ? null : { ...value, action: value.action };
   }
 
   private cachedAssignedRoom?: RoomExtra;

@@ -1,12 +1,14 @@
 import { CreepExtra } from 'Creep';
-import { TaskAction, TaskActionResult } from 'tasks/types';
+import { RegisterTask, TaskAction, TaskActionResult } from 'tasks/types';
 import { TargetTask } from './TargetTask';
 
 export class Dismantle extends TargetTask<typeof TaskAction.Dismantle, AnyStructure> {
-  public readonly kind = 'dismantle' as const;
+  static {
+    RegisterTask(TaskAction.Dismantle, this.prototype);
+  }
 
   public constructor(target: AnyStructure) {
-    super(TaskAction.Dismantle, target);
+    super(target);
   }
 
   actWhenTargetValid(creep: CreepExtra, target: NonNullable<AnyStructure>): TaskActionResult | null {

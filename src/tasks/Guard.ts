@@ -1,12 +1,14 @@
 import { CreepExtra } from 'Creep';
-import { TaskAction, TaskActionResult } from 'tasks/types';
+import { RegisterTask, TaskAction, TaskActionResult } from 'tasks/types';
 import { TargetTask } from './TargetTask';
 
 export class GuardTask extends TargetTask<typeof TaskAction.Guard, StructureRampart> {
-  public readonly kind = 'guard' as const;
+  static {
+    RegisterTask(TaskAction.Guard, this.prototype);
+  }
 
   public constructor(post: StructureRampart) {
-    super(TaskAction.Guard, post);
+    super(post);
   }
 
   public isCompleteWhenTargetValid(): boolean {

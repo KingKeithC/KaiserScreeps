@@ -1,11 +1,13 @@
 import { CreepExtra } from 'Creep';
-import { TaskAction, TaskActionResult } from 'tasks/types';
+import { RegisterTask, TaskAction, TaskActionResult } from 'tasks/types';
 import { ResourceContainerUsedRatio } from 'utils/Collections';
 import { ResourceContainer } from 'utils/RoomUtils';
 import { TargetTask } from './TargetTask';
 
 export class Collect extends TargetTask<typeof TaskAction.Collect, ResourceContainer> {
-  public readonly kind = 'collectEnergy' as const;
+  static {
+    RegisterTask(TaskAction.Collect, this.prototype);
+  }
 
   private attempts = 0;
   private lastInventory = 0;
@@ -16,7 +18,7 @@ export class Collect extends TargetTask<typeof TaskAction.Collect, ResourceConta
     public readonly maxAttempts = 5,
     public readonly smallPickupThreshold = 50,
   ) {
-    super(TaskAction.Collect, target);
+    super(target);
   }
 
   public extraToString(target: ResourceContainer): string {
