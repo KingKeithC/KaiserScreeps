@@ -2,7 +2,7 @@ import { CreepExtra } from 'Creep';
 import { unique } from 'lodash';
 import type { RoomExtra } from 'Room';
 import { Claim, Move } from 'tasks';
-import { TaskAction, CreepTask } from 'tasks/types';
+import { CreepTask } from 'tasks/types';
 import { MakeBody } from 'utils/Collections';
 import { CreepRoleBase, CreepRole } from './Role';
 
@@ -27,7 +27,7 @@ export class Claimer extends CreepRoleBase implements CreepRole {
   }
 
   WorkedClaims(room: RoomExtra): string[] {
-    return unique([...room.AssignedTasks(TaskAction.Claim)].map(p => p.targetId));
+    return unique([...room.AssignedTasks(Claim)].map(p => p.targetId));
   }
 
   UnworkedClaims(room: RoomExtra): string[] {

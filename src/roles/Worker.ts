@@ -4,7 +4,7 @@ import { RoomExtra } from 'Room';
 
 import { Build, Collect, Mine, Repair, Supply, UpgradeController } from 'tasks';
 import { Retire } from 'tasks/Retire';
-import { CreepTask, TaskAction } from 'tasks/types';
+import { CreepTask } from 'tasks/types';
 import { MakeBody } from 'utils/Collections';
 import { BodyCost } from 'utils/CreepUtils';
 import { ContainerAndAmount, ResourceContainer, FirstBodyByEnergyCapacity } from 'utils/RoomUtils';
@@ -232,7 +232,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
 
       // If there aren't enough miners, then do mining
       if (
-        sum([...creep.AssignedRoom.AssignedTasksWithCreep(TaskAction.Mine)], m => BodyCost(m[0].body)) <
+        sum([...creep.AssignedRoom.AssignedTasksWithCreep(Mine)], m => BodyCost(m[0].body)) <
         this.WorkersMineBelowMinerBodyTotalCost
       )
         return this.MineAnyFreePosition(creep);
@@ -293,7 +293,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
   FindSpawnSupply(
     creep: CreepExtra,
     maxSupplyForSpawns = 0, // 0 = unlimited
-    supplyTasks: Supply[] = [...creep.AssignedRoom.AssignedTasks(TaskAction.Supply)],
+    supplyTasks: Supply[] = [...creep.AssignedRoom.AssignedTasks(Supply)],
     spawnsOrExtensions = creep.AssignedRoom.SpawnsOrExtensions,
   ): Supply | null {
     const spawnExtensionIds = new Set<string>(spawnsOrExtensions.map(structure => structure.id));
@@ -309,7 +309,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
   MaxUpgradePerRoom = 2;
   public FindSpendingTask(
     creep: CreepExtra,
-    supplyTasks = [...creep.AssignedRoom.AssignedTasks(TaskAction.Supply)],
+    supplyTasks = [...creep.AssignedRoom.AssignedTasks(Supply)],
   ): CreepTask | null {
     const maintainers = creep.AssignedRoom.GetAssignedCreepsOfRole('Maintainer').length;
     if (maintainers === 0) {
@@ -323,7 +323,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
       this.log.crit('Assigned room has no controller.', { '<creep>': creep, assignedRoom: creep.AssignedRoom.name });
 
     if (creep.AssignedRoom.controller?.level ?? 0 >= 3) {
-      const repairTasks = [...creep.AssignedRoom.AssignedTasks(TaskAction.Repair)];
+      const repairTasks = [...creep.AssignedRoom.AssignedTasks(Repair)];
       const repairsByTarget = new Map<string, number>();
       for (const task of repairTasks) repairsByTarget.set(task.targetId, (repairsByTarget.get(task.targetId) ?? 0) + 1);
 
@@ -406,7 +406,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
     supplier: CreepExtra,
     candidates: AnyStoreStructure[],
     candidateName?: string,
-    inProgressSupplyTasks: Supply[] = [...supplier.AssignedRoom.AssignedTasks(TaskAction.Supply)],
+    inProgressSupplyTasks: Supply[] = [...supplier.AssignedRoom.AssignedTasks(Supply)],
   ): AnyStoreStructure | null {
     const suppliersByTarget = new Map<string, number>();
     for (const task of inProgressSupplyTasks)

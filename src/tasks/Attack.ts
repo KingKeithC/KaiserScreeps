@@ -1,10 +1,12 @@
 import type { CreepExtra } from 'Creep';
-import { TaskAction, CreepTask, RegisterTask, TaskActionResult } from 'tasks/types';
+import { CreepTask, RegisterTask, TaskActionResult } from 'tasks/types';
 import { TargetTask } from './TargetTask';
 
-export class Attack extends TargetTask<typeof TaskAction.Attack, Creep> implements CreepTask<typeof TaskAction.Attack> {
+export class Attack extends TargetTask<typeof Attack.action, Creep> implements CreepTask<typeof Attack.action> {
+  static readonly action = '⚔️' as const;
+
   static {
-    RegisterTask(TaskAction.Attack, this.prototype);
+    RegisterTask(this);
   }
 
   public constructor(creep: Creep) {

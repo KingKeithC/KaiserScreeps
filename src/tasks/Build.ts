@@ -1,10 +1,12 @@
 import type { CreepExtra } from 'Creep';
-import { RegisterTask, TaskAction, TaskActionResult } from 'tasks/types';
+import { RegisterTask, TaskActionResult } from 'tasks/types';
 import { TargetTask } from './TargetTask';
 
-export class Build extends TargetTask<typeof TaskAction.Build, ConstructionSite<BuildableStructureConstant>> {
+export class Build extends TargetTask<typeof Build.action, ConstructionSite<BuildableStructureConstant>> {
+  static readonly action = '🏗️' as const;
+
   static {
-    RegisterTask(TaskAction.Build, this.prototype);
+    RegisterTask(this);
   }
 
   public constructor(target: ConstructionSite<BuildableStructureConstant>) {

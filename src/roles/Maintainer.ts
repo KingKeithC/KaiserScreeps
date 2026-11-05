@@ -1,7 +1,7 @@
 import { CreepExtra } from 'Creep';
 import { RoomExtra } from 'Room';
 import { Collect, Supply } from 'tasks';
-import { CreepTask, TaskAction } from 'tasks/types';
+import { CreepTask } from 'tasks/types';
 import { FirstBodyByEnergyCapacity } from 'utils/RoomUtils';
 import { CreepRole } from './Role';
 import { Worker } from './Worker';
@@ -88,7 +88,7 @@ export class Maintainer extends Worker implements CreepRole {
         creep.AssignedRoom.storage !== undefined &&
         creep.currentTask !== null &&
         !(
-          creep.currentTask.action === TaskAction.Collect &&
+          creep.currentTask.action === Collect.action &&
           (creep.currentTask as Collect).targetId === creep.room.storage?.id
         )
       )

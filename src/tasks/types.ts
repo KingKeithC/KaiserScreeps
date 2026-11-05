@@ -1,44 +1,14 @@
 import type { CreepExtra } from 'Creep';
-import type { Attack } from './Attack';
-import type { Build } from './Build';
-import type { Claim } from './Claim';
-import type { Collect } from './CollectEnergy';
-import type { Dismantle } from './Dismantle';
-import type { GuardTask } from './Guard';
-import type { Mine } from './Mine';
-import type { Move } from './Move';
-import type { Repair } from './Repair';
-import type { Retire } from './Retire';
-import type { Supply } from './Supply';
-import type { UpgradeController } from './UpdateController';
-
-export enum TaskAction {
-  Mine = '⛏️',
-  Collect = '🔌',
-  Build = '🏗️',
-  Repair = '🛠️',
-  Retire = '🥀',
-  Supply = '🫴',
-  UpgradeController = '🔼',
-  Attack = '⚔️',
-  Guard = '🛡️',
-  Claim = '🏁',
-  Move = '👣',
-  Dismantle = '🔱',
+export interface TaskClass<Task extends CreepTask = CreepTask> {
+  readonly action: Task['action'];
+  readonly prototype: Task;
 }
 
-type RegisteredTask =
-  Mine | Collect | Build | Repair | Retire | Supply | UpgradeController | Attack | GuardTask | Claim | Move | Dismantle;
+export const TaskPrototypes = new Map<string, CreepTask>();
 
-export type AssignedTask<Action extends TaskAction | undefined> = Action extends TaskAction
-  ? Extract<RegisteredTask, { action: Action }>
-  : CreepTask;
-
-export const TaskPrototypes = new Map<TaskAction, CreepTask>();
-
-export function RegisterTask<Action extends TaskAction>(action: Action, prototype: CreepTask<Action>): void {
+export function RegisterTask<Task extends CreepTask>(taskClass: TaskClass<Task>): void {
+  const { action, prototype } = taskClass;
   if (TaskPrototypes.has(action)) throw new Error(`Task prototype already registered for ${action}.`);
-  Object.defineProperty(prototype, 'action', { value: action, enumerable: true });
   TaskPrototypes.set(action, prototype);
 }
 
@@ -47,7 +17,7 @@ export function DeserializeTask(value: unknown): CreepTask | null {
   if (typeof value !== 'object') throw new Error(`Creep Task is not null or object.`);
   if (!('action' in value) || typeof value.action !== 'string')
     throw new Error(`Creep Task contains no valid 'action' property.`);
-  const action = value.action as CreepTask['action'];
+  const action = value.action;
   const taskPrototype = TaskPrototypes.get(action);
   if (!taskPrototype) throw new Error(`No Prototype for ${action} exists.`);
   const task = Object.assign({}, value) as CreepTask;
@@ -82,7 +52,7 @@ export const CreepActionRanges = {
   withdraw: 1,
 };
 
-export interface CreepTask<Action extends TaskAction = TaskAction> {
+export interface CreepTask<Action extends string = string> {
   readonly action: Action;
   isCompleteFlag: boolean;
   toString(): string;
@@ -90,13 +60,13 @@ export interface CreepTask<Action extends TaskAction = TaskAction> {
   handleOutcome(creep: CreepExtra, outcome: TaskActionResult | null): TaskActionResult | null;
 }
 
-export abstract class TaskBase<Action extends TaskAction> {
-  abstract readonly action: Action;
+export abstract class TaskBase<Action extends string> {
+  public readonly action: Action;
 
   protected constructor() {
-    const action = (Object.getPrototypeOf(this) as CreepTask<Action>).action;
+    const action = (this.constructor as { action?: Action }).action;
     if (action === undefined) throw new Error('Task action is not registered.');
-    Object.defineProperty(this, 'action', { value: action, enumerable: true });
+    this.action = action;
   }
 
   protected abstract toStringDetails(): string;

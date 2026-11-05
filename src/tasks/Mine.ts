@@ -1,14 +1,15 @@
 import { CreepExtra } from 'Creep';
-import { CreepTask, RegisterTask, TaskAction, TaskActionResult, TaskBase } from 'tasks/types';
+import { CreepTask, RegisterTask, TaskActionResult, TaskBase } from 'tasks/types';
 import { DeserializeRoomPosition, SerializeRoomPosition } from 'utils/Collections';
 import { Logger } from 'utils/Logger';
 import { MiningPosition } from 'utils/RoomUtils';
 
-export class Mine extends TaskBase<TaskAction.Mine> implements CreepTask<TaskAction.Mine> {
+export class Mine extends TaskBase<typeof Mine.action> implements CreepTask<typeof Mine.action> {
+  static readonly action = '⛏️' as const;
   public isCompleteFlag = false;
 
   static {
-    RegisterTask(TaskAction.Mine, this.prototype);
+    RegisterTask(this);
   }
 
   public constructor(public readonly miningPosition: MiningPosition) {

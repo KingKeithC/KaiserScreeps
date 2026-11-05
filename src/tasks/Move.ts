@@ -1,12 +1,13 @@
 import { CreepExtra } from 'Creep';
-import { CreepTask, RegisterTask, TaskAction, TaskActionResult, TaskBase } from 'tasks/types';
+import { CreepTask, RegisterTask, TaskActionResult, TaskBase } from 'tasks/types';
 import { DeserializeRoomPosition, SerializeRoomPosition } from 'utils/Collections';
 
-export class Move extends TaskBase<TaskAction.Move> implements CreepTask<TaskAction.Move> {
+export class Move extends TaskBase<typeof Move.action> implements CreepTask<typeof Move.action> {
+  static readonly action = '👣' as const;
   public isCompleteFlag = false;
 
   static {
-    RegisterTask(TaskAction.Move, this.prototype);
+    RegisterTask(this);
   }
 
   public readonly targetPos: string;

@@ -1,10 +1,12 @@
 import { CreepExtra } from 'Creep';
-import { RegisterTask, TaskAction, TaskActionResult } from 'tasks/types';
+import { RegisterTask, TaskActionResult } from 'tasks/types';
 import { TargetTask } from './TargetTask';
 
-export class Claim extends TargetTask<typeof TaskAction.Claim, StructureController> {
+export class Claim extends TargetTask<typeof Claim.action, StructureController> {
+  static readonly action = '🏁' as const;
+
   static {
-    RegisterTask(TaskAction.Claim, this.prototype);
+    RegisterTask(this);
   }
 
   public constructor(

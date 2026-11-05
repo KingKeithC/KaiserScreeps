@@ -1,10 +1,12 @@
 import { CreepExtra } from 'Creep';
-import { RegisterTask, TaskAction, TaskActionResult } from 'tasks/types';
+import { RegisterTask, TaskActionResult } from 'tasks/types';
 import { TargetTask } from './TargetTask';
 
-export class UpgradeController extends TargetTask<typeof TaskAction.UpgradeController, StructureController> {
+export class UpgradeController extends TargetTask<typeof UpgradeController.action, StructureController> {
+  static readonly action = '🔼' as const;
+
   static {
-    RegisterTask(TaskAction.UpgradeController, this.prototype);
+    RegisterTask(this);
   }
 
   static readonly DowngradeMaintenanceRatio = 1 / 4; // Start repairs when ticksToDowngrade drop below this.

@@ -1,12 +1,14 @@
 import { CreepExtra } from 'Creep';
-import { RegisterTask, TaskAction, TaskActionResult } from 'tasks/types';
+import { RegisterTask, TaskActionResult } from 'tasks/types';
 import { ResourceContainerUsedRatio } from 'utils/Collections';
 import { ResourceContainer } from 'utils/RoomUtils';
 import { TargetTask } from './TargetTask';
 
-export class Collect extends TargetTask<typeof TaskAction.Collect, ResourceContainer> {
+export class Collect extends TargetTask<typeof Collect.action, ResourceContainer> {
+  static readonly action = '🔌' as const;
+
   static {
-    RegisterTask(TaskAction.Collect, this.prototype);
+    RegisterTask(this);
   }
 
   private attempts = 0;
