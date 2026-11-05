@@ -90,4 +90,20 @@ export interface CreepTask<Action extends TaskAction = TaskAction> {
   handleOutcome(creep: CreepExtra, outcome: TaskActionResult | null): TaskActionResult | null;
 }
 
+export abstract class TaskBase<Action extends TaskAction> {
+  abstract readonly action: Action;
+
+  protected constructor() {
+    const action = (Object.getPrototypeOf(this) as CreepTask<Action>).action;
+    if (action === undefined) throw new Error('Task action is not registered.');
+    Object.defineProperty(this, 'action', { value: action, enumerable: true });
+  }
+
+  protected abstract toStringDetails(): string;
+
+  public toString(): string {
+    return `${this.action} ${this.toStringDetails()}`;
+  }
+}
+
 export type Targetable = _HasId & _HasRoomPosition;

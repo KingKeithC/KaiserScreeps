@@ -1,15 +1,18 @@
 import { CreepExtra } from 'Creep';
-import { CreepTask, Targetable, TaskAction, TaskActionResult } from 'tasks/types';
+import { CreepTask, Targetable, TaskAction, TaskActionResult, TaskBase } from 'tasks/types';
 import { DeserializeRoomPosition, SerializeRoomPosition } from 'utils/Collections';
 import { Logger } from 'utils/Logger';
 
-export abstract class TargetTask<Action extends TaskAction, Target extends Targetable> implements CreepTask<Action> {
-  declare readonly action: Action;
+export abstract class TargetTask<Action extends TaskAction, Target extends Targetable>
+  extends TaskBase<Action>
+  implements CreepTask<Action>
+{
   public readonly targetId: Id<Target>;
   public readonly targetPos: string;
   public isCompleteFlag = false;
 
   public constructor(target: Target) {
+    super();
     this.targetId = target.id;
     this.targetPos = SerializeRoomPosition(target.pos);
   }
@@ -81,9 +84,9 @@ export abstract class TargetTask<Action extends TaskAction, Target extends Targe
   }
 
   abstract extraToString?(target: NonNullable<Target>): string;
-  public toString(): string {
+  protected toStringDetails(): string {
     let extra = '';
     if (this.target !== null && this.extraToString !== undefined) extra = '(' + this.extraToString(this.target) + ')';
-    return `${this.action} on ${this.target ? String(this.target) : `[id ${this.targetId} @ ${this.targetPos}]`}${extra}`;
+    return `on ${this.target ? String(this.target) : `[id ${this.targetId} @ ${this.targetPos}]`}${extra}`;
   }
 }

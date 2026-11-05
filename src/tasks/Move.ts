@@ -1,9 +1,8 @@
 import { CreepExtra } from 'Creep';
-import { CreepTask, RegisterTask, TaskAction, TaskActionResult } from 'tasks/types';
+import { CreepTask, RegisterTask, TaskAction, TaskActionResult, TaskBase } from 'tasks/types';
 import { DeserializeRoomPosition, SerializeRoomPosition } from 'utils/Collections';
 
-export class Move implements CreepTask<TaskAction.Move> {
-  declare readonly action: TaskAction.Move;
+export class Move extends TaskBase<TaskAction.Move> implements CreepTask<TaskAction.Move> {
   public isCompleteFlag = false;
 
   static {
@@ -16,6 +15,7 @@ export class Move implements CreepTask<TaskAction.Move> {
     targetPos: RoomPosition | { pos: RoomPosition },
     public readonly minDistance: number = 5,
   ) {
+    super();
     this.targetPos = SerializeRoomPosition('pos' in targetPos ? targetPos.pos : targetPos);
   }
 
@@ -23,8 +23,8 @@ export class Move implements CreepTask<TaskAction.Move> {
     return DeserializeRoomPosition(this.targetPos);
   }
 
-  public toString(): string {
-    return `${this.action} on ${this.toRoomPosition()} (minDistance: ${this.minDistance})`;
+  protected toStringDetails(): string {
+    return `on ${this.toRoomPosition()} (minDistance: ${this.minDistance})`;
   }
 
   public act(): TaskActionResult | null {

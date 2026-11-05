@@ -1,20 +1,21 @@
 import { CreepExtra } from 'Creep';
-import { CreepTask, RegisterTask, TaskAction, TaskActionResult } from 'tasks/types';
+import { CreepTask, RegisterTask, TaskAction, TaskActionResult, TaskBase } from 'tasks/types';
 import { DeserializeRoomPosition, SerializeRoomPosition } from 'utils/Collections';
 import { Logger } from 'utils/Logger';
 import { MiningPosition } from 'utils/RoomUtils';
 
-export class Mine implements CreepTask<TaskAction.Mine> {
-  declare readonly action: TaskAction.Mine;
+export class Mine extends TaskBase<TaskAction.Mine> implements CreepTask<TaskAction.Mine> {
   public isCompleteFlag = false;
 
   static {
     RegisterTask(TaskAction.Mine, this.prototype);
   }
 
-  public constructor(public readonly miningPosition: MiningPosition) {}
+  public constructor(public readonly miningPosition: MiningPosition) {
+    super();
+  }
 
-  public toString(): string {
+  protected toStringDetails(): string {
     const source = Game.getObjectById(this.miningPosition.source);
 
     let extra: string | undefined;
@@ -32,7 +33,7 @@ export class Mine implements CreepTask<TaskAction.Mine> {
     }
 
     const sourceId = source !== null ? String(source) : `[source ${this.miningPosition.source}]`;
-    return `${this.action} on ${sourceId} @ ${this.miningPosition.pos}${extra}`;
+    return `on ${sourceId} @ ${this.miningPosition.pos}${extra}`;
   }
 
   public act(creep: CreepExtra): TaskActionResult | null {
