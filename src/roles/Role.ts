@@ -136,21 +136,21 @@ export abstract class CreepRoleBase {
   }
 
   /**
-   * Set a new quota for this role in the given room.
+   * Change the quota for this role in the given room by some amount.
    *
    * This function updates the check times for the role, so
    * automated checking will be delayed until the next cycle by calling this.
    *
    * @param room The room to change the quota in.
-   * @param newQuota Either a new number for the quota, or a function on the current quota to a new quota.
+   * @param quotaDelta Either a new number for the quota, or a function on the current quota to a new quota.
    * @param current The current quota, optional to save the lookup if you already have the amount.
    * @param minQuota The minimum quota, optional to save the lookup if you already have the amount.
    * @param maxQuota The maximum quota, optional to save the lookup if you already have the amount.
    * @returns The new (or current if unchanged) quota for the role.
    */
-  protected SetQuota(
+  protected ChangeQuota(
     room: RoomExtra,
-    newQuota: number | ((curr: number) => number),
+    quotaDelta: number | ((curr: number) => number),
     current = this.CurrentQuota(room),
     minQuota = this.GetMinQuota(room),
     maxQuota = this.GetMaxQuota(room),
@@ -158,23 +158,23 @@ export abstract class CreepRoleBase {
     this.roomQuotaSetTimes[room.name] = Game.time;
 
     // Calculate new Quota based on input
-    if (typeof newQuota !== 'number') newQuota = newQuota(current); // Resolve on current if we got a function
-    const diff = newQuota - current;
+    if (typeof quotaDelta !== 'number') quotaDelta = quotaDelta(current);
+    const diff = current + quotaDelta;
     if (diff === 0) return current;
 
     // Clamp newQuota to Min/Max Range
-    if (newQuota > maxQuota) {
-      this.log.warn('Clamping newQuota to maximum.', { '<room>': room, diff, current, newQuota, maxQuota });
-      newQuota = maxQuota;
-    } else if (newQuota < minQuota) {
-      this.log.warn('Clamping newQuota to minimum.', { '<room>': room, diff, current, newQuota, minQuota });
-      newQuota = minQuota;
+    if (quotaDelta > maxQuota) {
+      this.log.warn('Clamping newQuota to maximum.', { '<room>': room, diff, current, newQuota: quotaDelta, maxQuota });
+      quotaDelta = maxQuota;
+    } else if (quotaDelta < minQuota) {
+      this.log.warn('Clamping newQuota to minimum.', { '<room>': room, diff, current, newQuota: quotaDelta, minQuota });
+      quotaDelta = minQuota;
     }
 
-    if (newQuota >= minQuota && newQuota <= maxQuota) {
+    if (quotaDelta >= minQuota && quotaDelta <= maxQuota) {
       // If new quota is acceptible, update cache and return.
-      this.log.info('Changing quota.', { '<room>': room, current, newQuota, diff });
-      return (this.currentRoomQuotas[room.name] = newQuota);
+      this.log.info('Changing quota.', { '<room>': room, current, newQuota: quotaDelta, diff });
+      return (this.currentRoomQuotas[room.name] = quotaDelta);
     }
 
     return current;
@@ -197,7 +197,7 @@ export abstract class CreepRoleBase {
    */
   GetQuota(room: RoomExtra, current = this.CurrentQuota(room)) {
     if (this.TimeSinceQuotaUpdate(room) > this.RoleQuotaChangeFrequency)
-      return this.SetQuota(room, this.GetQuotaChange(room), current);
+      return this.ChangeQuota(room, this.GetQuotaChange(room), current);
     return current;
   }
 
