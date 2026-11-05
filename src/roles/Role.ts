@@ -102,27 +102,23 @@ export abstract class CreepRoleBase implements CreepRole {
     if (ticksSinceLastChange > this.RoleQuotaChangeFrequency) {
       // Change for a change in quota
       const diff = this.GetQuotaChange(room);
-      const newQuota = current + diff;
-      if (newQuota >= min && newQuota <= max) {
-        // If new quota is acceptible, update cache and return.
-        this.log.warn('Changing Quota from ${current} to ${newQuota}');
-        current = this.currentRoomQuotas[room.name] = newQuota;
-      } else if (newQuota > max)
-        this.log.warn('Cannot change Quota from ${current} to ${newQuota} (${diff}), since it is above max of ${max}', {
-          '<room>': room,
-          diff,
-          current,
-          newQuota,
-          max,
-        });
-      else if (newQuota < min)
-        this.log.warn('Cannot change Quota from ${current} to ${newQuota} (${diff}), since it is below min of ${min}', {
-          '<room>': room,
-          diff,
-          current,
-          newQuota,
-          min,
-        });
+      if (diff !== 0) {
+        const newQuota = current + diff;
+        if (newQuota >= min && newQuota <= max) {
+          // If new quota is acceptible, update cache and return.
+          this.log.warn('Changing Quota from ${current} to ${newQuota}');
+          current = this.currentRoomQuotas[room.name] = newQuota;
+        } else if (newQuota > max)
+          this.log.warn(
+            'Cannot change Quota from ${current} to ${newQuota} (${diff}), since it is above max of ${max}',
+            { '<room>': room, diff, current, newQuota, max },
+          );
+        else if (newQuota < min)
+          this.log.warn(
+            'Cannot change Quota from ${current} to ${newQuota} (${diff}), since it is below min of ${min}',
+            { '<room>': room, diff, current, newQuota, min },
+          );
+      }
     }
     this.roomQuotaCheckTimes[this.name] = Game.time; // Update check time
 
