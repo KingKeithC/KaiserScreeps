@@ -750,26 +750,27 @@ export class RoomExtra extends Room {
     return rolesSpawnable;
   }
 
+  private spawnBlocked = false;
   CheckSpawns(): void {
+    if (this.spawnBlocked) return;
+
     const maxSpawns = this.find(FIND_MY_SPAWNS, { filter: s => !s.spawning }).length;
     if (maxSpawns === 0) {
       this.log.info('All spawns are in use.', { '<rate>': 20 });
+      this.spawnBlocked = true;
       return;
     }
 
     const spawnable = this.GetSpawnableRoles().sort((b, a) => a.role.priority - b.role.priority);
+    if (spawnable.length === 0) {
+      this.spawnBlocked = true;
+      return;
+    }
+
     let completedSpawns = 0;
+    this.log.info('Attempting Spawn of spawnable.', { spawnable, completedSpawns, maxSpawns });
 
     for (const { role, name, body, available, needed, roomCount, roomQuota, timeSinceLastSpawn } of spawnable) {
-      this.log.info('Attempting Spawn.', {
-        '<role>': role,
-        priority: role.priority,
-        roomCount,
-        roomQuota,
-        timeSinceLastSpawn,
-        available,
-        needed,
-      });
       const success = this.TrySpawnRole(role, name, body);
       if (!success) {
         this.log.crit('Spawn failed despite having enough energy.', {
@@ -797,7 +798,10 @@ export class RoomExtra extends Room {
       role.OnSpawnScheduled(this, name);
 
       // If we used up all the spawn points, then return early.
-      if (++completedSpawns >= maxSpawns) return;
+      if (++completedSpawns >= maxSpawns) {
+        this.spawnBlocked = true;
+        return;
+      }
     }
   }
 
