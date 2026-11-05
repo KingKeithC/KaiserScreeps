@@ -267,7 +267,7 @@ export function ResourceContainersForRoomByType(room: string | Room): Map<Resour
         [tomb, tomb.store.getUsedCapacity(rt as ResourceConstant)],
       ]);
 
-  for (const ruin of room.find(FIND_RUINS, { filter: r => r.store.getUsedCapacity(RESOURCE_ENERGY) > 0 }))
+  for (const ruin of room.find(FIND_RUINS, { filter: r => r.store.getUsedCapacity() > 0 }))
     for (const rt in ruin.store)
       ret.set(rt as ResourceConstant, [
         ...(ret.get(rt as ResourceConstant) ?? []),
@@ -276,7 +276,7 @@ export function ResourceContainersForRoomByType(room: string | Room): Map<Resour
 
   // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
   for (const container of room.find(FIND_STRUCTURES, {
-    filter: s => s.structureType === STRUCTURE_CONTAINER && s.store.getUsedCapacity(RESOURCE_ENERGY) > 0,
+    filter: s => s.structureType === STRUCTURE_CONTAINER && s.store.getUsedCapacity() > 0,
   }) as StructureContainer[])
     for (const rt in container.store)
       ret.set(rt as ResourceConstant, [
