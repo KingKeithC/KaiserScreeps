@@ -28,4 +28,12 @@ export class Retire extends TargetTask<StructureSpawn> {
   public isCompleteWhenTargetValid(): boolean {
     return false;
   }
+
+  public handleOutcome(creep: CreepExtra, result: TaskActionResult | null): TaskActionResult | null {
+    if (result?.result === OK) {
+      // Gonna die at the end of this tick
+      creep.OnLastTickOfLife();
+    }
+    return result;
+  }
 }
