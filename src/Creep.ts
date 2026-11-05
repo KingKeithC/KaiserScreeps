@@ -19,7 +19,7 @@ declare global {
     spawning?: boolean; // Whether or not we were spawning on the LAST tick.
     lifetimeIdle?: number; // How many ticks have we gone without moving or performing an action (and not due to fatigue)?
     lifetimeStuck?: number; // For how many ticks have we tried to move, but ended up not (and not due to fatigue)?
-    intendToMove?: boolean; // Whether or not we intended to move on the LAST tick.
+    intendedToMove?: boolean; // Whether or not we intended to move on the LAST tick.
     _move?: {
       // Move object tracked by screeps' internal moveTo method.
       dest: { x: number; y: number; room: string };
@@ -88,7 +88,7 @@ export class CreepExtra extends Creep {
     // Return fetched.
     return this.cachedAssignedRoom;
   }
-
+  MovedBetweenTicks = false;
   StartOfTick(): void {
     if (this.spawning) return; // Ignore spawning creeps.
 
@@ -102,7 +102,7 @@ export class CreepExtra extends Creep {
     // Update state based on last tick's expectations.
     this.MovedBetweenTicks = !this.LastPos.isEqualTo(this.pos);
     if (this.MovedBetweenTicks && this.room.name !== this.LastPos.roomName) this.OnLeaveRoom();
-    if (this.IntendedToMove && !this.MovedBetweenTicks) this.LifetimeStuck = this.LifetimeStuck + 1;
+    if (this.IntendedToMove && !this.MovedBetweenTicks) this.IncrementStuck();
 
     // Reset after using its value:
     this.IntendedToMove = false;
@@ -145,7 +145,6 @@ export class CreepExtra extends Creep {
   }
 
   // Returns 1 when in range; otherwise returns the moveTo result.
-  MovedBetweenTicks = false;
   MoveCreep(target: RoomPosition | { pos: RoomPosition }, opts?: MoveToOpts): number {
     // Init move trackers
     this.memory.moveMode ??= 'long';
@@ -193,42 +192,45 @@ export class CreepExtra extends Creep {
   }
 
   get LastPos(): RoomPosition {
-    return this.memory.lastPos ? DeserializeRoomPosition(this.memory.lastPos) : this.pos;
+    if (this.memory.lastPos === undefined) {
+      this.memory.lastPos = SerializeRoomPosition(this.pos);
+      return this.pos;
+    }
+    return DeserializeRoomPosition(this.memory.lastPos);
   }
   set LastPos(value: RoomPosition) {
     this.memory.lastPos = SerializeRoomPosition(value);
   }
 
-  private set LifetimeIdle(value: number) {
-    this.memory.lifetimeIdle = value;
+  private IncrementIdle() {
+    this.memory.lifetimeIdle = this.LifetimeIdle + 1;
   }
   get LifetimeIdle(): number {
     return (this.memory.lifetimeIdle ??= 0);
   }
 
-  private set LifetimeStuck(value: number) {
-    this.memory.lifetimeStuck = value;
+  private IncrementStuck() {
+    this.memory.lifetimeStuck = this.LifetimeStuck + 1;
   }
   get LifetimeStuck(): number {
     return (this.memory.lifetimeStuck ??= 0);
   }
 
   private set IntendedToMove(value: boolean) {
-    this.memory.intendToMove = value;
+    this.memory.intendedToMove = value;
   }
   get IntendedToMove(): boolean {
-    return (this.memory.intendToMove ??= false);
+    return (this.memory.intendedToMove ??= false);
   }
 
   ActedThisTick = false;
   EndOfTick(): void {
-    this.memory.lastPos = SerializeRoomPosition(this.pos);
+    this.LastPos = this.pos;
 
     if (this.fatigue > 0 || this.spawning) return; // Fatigue and spawning don't count as idle
 
     // If we didn't move and didn't act, and aren't tired, increment the idle counter
-    if (!(this.MovedBetweenRooms || this.MovedBetweenTicks || this.ActedThisTick))
-      this.LifetimeIdle = this.LifetimeIdle + 1;
+    if (!(this.MovedBetweenRooms || this.MovedBetweenTicks || this.ActedThisTick)) this.IncrementIdle();
   }
 
   MovedBetweenRooms = false;
@@ -244,38 +246,45 @@ export class CreepExtra extends Creep {
     this.say('☠️☠️☠️', true);
   }
 
-  ChangeTask(): void {
+  JobsAvailable = true;
+  private ChangeTask(newTask = this.role.SelectNextTask(this)): void {
     const oldTask = this.currentTask;
-    const newTask = this.role.SelectNextTask(this);
     this.currentTask = newTask;
 
-    // Log the transition as long as it's not Idle -> Idle.
+    // Log the transition as long as it's not None -> None.
     if (!newTask && oldTask) this.log.info('Task unassigned.', { oldTask });
     else if (newTask && !oldTask) this.log.info('Task assigned.', { newTask });
     else if (oldTask && newTask) this.log.info('Task reassigned.', { oldTask, newTask });
 
-    // If the transition was to nothing, end here
-    if (!newTask) return;
-
-    // If the transition ended with a new task, speak its action
-    this.say(newTask.action);
+    if (newTask)
+      // If the transition ended with a new task, speak its action
+      this.say(newTask.action);
+    else
+      // If the transition was to nothing, set no jobs available
+      // flag to prevent further task selecting
+      this.JobsAvailable = false;
   }
 
-  MaxTasksDone = 5;
   CanStillAct(): boolean {
+    // Don't act if we know we won't find a new job
+    if (!this.JobsAvailable) return false;
+
     // Don't act if we already enqueued a move
-    if (this.IntendedToMove) return true;
+    if (this.IntendedToMove) return false;
 
     // If we have done less than the limit of tasks, then we're ok to keep trying
-    return this.tasksDone <= this.MaxTasksDone;
+    return this.tasksAttempted <= this.MaxTasksToAttemptPerTick;
   }
 
-  private tasksDone = 0;
+  MaxTasksToAttemptPerTick = 5;
+  private tasksAttempted = 0;
   DoTask(): void {
-    if (this.currentTask === null || this.currentTask.isCompleteFlag) this.ChangeTask();
     if (!this.CanStillAct()) return;
 
-    // Early return for no task
+    // Select new Task if no current one, or it's complete
+    if (this.currentTask === null || this.currentTask.isCompleteFlag) this.ChangeTask();
+
+    // Early return for no task found
     const task = this.currentTask;
     if (task === null) {
       this.say('🤷');
@@ -285,7 +294,7 @@ export class CreepExtra extends Creep {
     const outcome = task.handleOutcome(this, task.act(this));
     this.currentTask = task; // Save task back to itself since acting on it might have changed it
     this.ActedThisTick = true; // Update non-idle flag since we acted
-    this.tasksDone = this.tasksDone + 1; // Increment Tasks done
+    this.tasksAttempted = this.tasksAttempted + 1; // Increment Tasks done
 
     // Handle follow up actions
 
