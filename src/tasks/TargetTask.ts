@@ -1,9 +1,7 @@
 import { CreepExtra } from 'Creep';
-import { CreepTask, TaskAction, TaskActionResult } from 'tasks/types';
+import { CreepTask, Targetable, TaskAction, TaskActionResult } from 'tasks/types';
 import { DeserializeRoomPosition, SerializeRoomPosition } from 'utils/Collections';
 import { Logger } from 'utils/Logger';
-
-export type Targetable = _HasId & _HasRoomPosition;
 
 export abstract class TargetTask<Action extends TaskAction, Target extends Targetable> implements CreepTask<Action> {
   declare readonly action: Action;

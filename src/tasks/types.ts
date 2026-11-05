@@ -89,3 +89,5 @@ export interface CreepTask<Action extends TaskAction = TaskAction> {
   act(creep: CreepExtra): TaskActionResult | null;
   handleOutcome(creep: CreepExtra, outcome: TaskActionResult | null): TaskActionResult | null;
 }
+
+export type Targetable = _HasId & _HasRoomPosition;
