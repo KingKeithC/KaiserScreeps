@@ -51,25 +51,34 @@ export class Miner extends CreepRoleBase implements CreepRole {
   }
 
   TickCreep(creep: CreepExtra): void {
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
-    const nearLinks = creep.pos.findInRange(FIND_MY_STRUCTURES, 1, {
-      filter: { structureType: STRUCTURE_LINK },
-    }) as StructureLink[];
+    const nearbySenders = creep.AssignedRoom.LinkSenders.filter(l => l.pos.isNearTo(creep));
+
     // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
     const nearContainers = creep.pos.findInRange(FIND_MY_STRUCTURES, 1, {
       filter: { structureType: STRUCTURE_CONTAINER },
     }) as StructureContainer[];
 
-    // If there is a link that needs energy, and
-    // a container that has it, and we have room
-    for (const link of nearLinks)
-      if (link.store.getFreeCapacity(RESOURCE_ENERGY) > 0)
-        for (const container of nearContainers)
-          if (creep.store.getFreeCapacity(RESOURCE_ENERGY) > 0 && container.store.getUsedCapacity(RESOURCE_ENERGY) > 0)
-            creep.withdraw(container, RESOURCE_ENERGY);
-          else this.TransferToNeighbours(creep, RESOURCE_ENERGY, link);
+    // If there is a container nearby that has energy,
+    // and the links nearby need energy
+    // and we also have room, withdraw from the container
+    for (const container of nearContainers)
+      if (
+        nearbySenders.some(l => l.store.getFreeCapacity(RESOURCE_ENERGY) > 0) &&
+        creep.store.getFreeCapacity(RESOURCE_ENERGY) > 0 &&
+        container.store.getUsedCapacity(RESOURCE_ENERGY) > 0
+      )
+        creep.withdraw(container, RESOURCE_ENERGY);
 
+    // If there is a link nearby that needs energy,
+    // and we have energy, transfer ours to it
+    for (const link of nearbySenders)
+      if (creep.store.getUsedCapacity(RESOURCE_ENERGY) > 0 && link.store.getFreeCapacity(RESOURCE_ENERGY) > 0)
+        this.TransferToNeighbours(creep, RESOURCE_ENERGY, link);
+
+    // Otherwise pickup any dropped resources under us
     this.PickupDropped(creep);
+
+    // Or transfer leftover held anything to any neighbour we can
     this.TransferToNeighbours(creep);
   }
 
