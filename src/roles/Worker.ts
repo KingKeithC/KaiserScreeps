@@ -439,8 +439,6 @@ export class Worker extends CreepRoleBase implements CreepRole {
     for (const task of inProgressSupplyTasks)
       suppliersByTarget.set(task.targetId, (suppliersByTarget.get(task.targetId) ?? 0) + 1);
 
-    let considered = 0;
-    let groups = 0;
     for (const [p, maxSuppliers] of this.SupplyPriorities) {
       const group: AnyStoreStructure[] = [];
       for (const structure of candidates)
@@ -450,7 +448,6 @@ export class Worker extends CreepRoleBase implements CreepRole {
           (suppliersByTarget.get(structure.id) ?? 0) < maxSuppliers
         )
           group.push(structure);
-      considered += group.length;
 
       const sameRoomCandidates = group.filter(s => s.room.name === supplier.room.name);
       const sameRoom =
@@ -470,13 +467,8 @@ export class Worker extends CreepRoleBase implements CreepRole {
         )
         .pop();
       if (remoteRoom) return remoteRoom;
-      groups++;
     }
 
-    // this.log.info(
-    //   `Nothing needs supply${candidateName === undefined ? '' : ` in group: '${candidateName}'`}. Considered ${considered}/${candidates.length} eligible objects across ${groups} groups.`,
-    //   { '<creep>': supplier },
-    // );
     return null;
   }
 }
