@@ -421,13 +421,6 @@ export class RoomExtra extends Room {
     return unique(flatten(this.WorkableClaimedMiningPositions.map(pair => pair[1].map(mp => mp.source))));
   }
 
-  get ClaimedMinePositions(): RoomPosition[] {
-    const ret = [];
-    for (const [_room, mines] of this.WorkableClaimedMiningPositions)
-      for (const mine of mines) ret.push(DeserializeRoomPosition(mine.pos));
-    return ret;
-  }
-
   /**
    * Get positions next to Sources/Extractors that are not the target of any other miners in the colony.
    */
@@ -448,19 +441,13 @@ export class RoomExtra extends Room {
       for (const mine of mines) {
         const pos = DeserializeRoomPosition(mine.pos);
         if (!(pos.roomName in Game.rooms)) {
+          // If we can't see the room, it must be free.
           ret.push(mine);
           continue;
         }
 
-        try {
-          if (pos.lookFor(LOOK_CREEPS).length === 0) ret.push(mine);
-        } catch (error) {
-          const message = `${error instanceof Error ? error.message : String(error)} (checking mine position ${mine.pos})`;
-          const contextualError = new Error(message);
-          if (error instanceof Error && error.stack)
-            contextualError.stack = `${contextualError.name}: ${message}\n${error.stack.split('\n').slice(1).join('\n')}`;
-          throw contextualError;
-        }
+        // If we can see the room, rule out positions that are filled
+        if (pos.lookFor(LOOK_CREEPS).length === 0) ret.push(mine);
       }
     return ret;
   }
@@ -772,6 +759,15 @@ export class RoomExtra extends Room {
     let completedSpawns = 0;
 
     for (const { role, name, body, available, needed, roomCount, roomQuota, timeSinceLastSpawn } of spawnable) {
+      this.log.info('Attempting Spawn.', {
+        '<role>': role,
+        priority: role.priority,
+        roomCount,
+        roomQuota,
+        timeSinceLastSpawn,
+        available,
+        needed,
+      });
       const success = this.TrySpawnRole(role, name, body);
       if (!success) {
         this.log.crit('Spawn failed despite having enough energy.', {

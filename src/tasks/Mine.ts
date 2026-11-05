@@ -76,8 +76,12 @@ export class Mine extends TaskBase implements CreepTask {
       return { ...outcome, result: OK } as TaskActionResult;
     }
 
+    const isStillClaimed = creep.AssignedRoom.WorkableClaimedMiningPositions.some(amp =>
+      amp[1].some(mp => mp.pos === this.miningPosition.pos),
+    );
+
     // If the target is no longer claimed, we're done
-    if (!creep.AssignedRoom.ClaimedMinePositions.some(p => SerializeRoomPosition(p) === this.miningPosition.pos)) {
+    if (!isStillClaimed) {
       this.isCompleteFlag = true;
       return { ...outcome, result: OK } as TaskActionResult;
     }
