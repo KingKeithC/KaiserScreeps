@@ -5,7 +5,7 @@ import { Attack } from 'tasks/Attack';
 import { CreepTask } from 'tasks/types';
 import { FormatStructureHits, MakeBody, SerializeRoomPosition } from 'utils/Collections';
 import { BodyCost, PartCounts } from 'utils/CreepUtils';
-import { FormatHostileInfos, HostileInfo } from 'utils/RoomUtils';
+import { HostileInfo } from 'utils/RoomUtils';
 import { CreepRoleBase, CreepRole } from './Role';
 
 type AttackType = 'Rally' | 'NearestStructure' | 'Creeps';
@@ -67,21 +67,30 @@ export class Attacker extends CreepRoleBase implements CreepRole {
     if (!(step.pos.roomName in Game.rooms)) {
       // Step is no longer accessible, mark as incomplete
       if (Game.time % 10 === 0)
-        this.log.info(`Attack Step ${step.name} in progress, traveling to ${step.pos.roomName}...`);
+        this.log.info('Attack step in progress; traveling to target room.', {
+          '<room>': step.pos.roomName,
+          stepName: step.name,
+          attackIndex: step.memory.attackIndex,
+          attackType: step.memory.attackType,
+        });
       step.memory.done = false;
       return;
     } else if (step.memory.attackType === 'Rally') {
       // Rally step is complete when enough attackers in range to rally site
       const found = this.Searches.RalliedAllies(step.pos);
       if (found.length >= this.AttackSize) {
-        this.log.warn(`Rally Step ${step.name} completed.`);
+        this.log.warn('Rally step completed.', { '<room>': step.pos.roomName, stepName: step.name });
         step.memory.done = true;
         return;
       } else {
         if (Game.time % 10 === 0)
-          this.log.info(
-            `Attack ${step.memory.attackIndex}: ${step.memory.attackType} (${found.length}/${this.AttackSize})...`,
-          );
+          this.log.info('Rally step in progress.', {
+            '<room>': step.pos.roomName,
+            attackIndex: step.memory.attackIndex,
+            attackType: step.memory.attackType,
+            found: found.length,
+            attackSize: this.AttackSize,
+          });
         step.memory.done = false;
         return;
       }
@@ -89,14 +98,22 @@ export class Attacker extends CreepRoleBase implements CreepRole {
       // NearestStructure is complete when
       const nearby = this.Searches.AttackNearestStructure(step.pos);
       if (nearby.length === 0) {
-        this.log.warn(`Attack ${step.memory.attackIndex}: ${step.memory.attackType} completed.`);
+        this.log.warn('Attack step completed.', {
+          '<room>': step.pos.roomName,
+          attackIndex: step.memory.attackIndex,
+          attackType: step.memory.attackType,
+        });
         step.memory.done = true;
         return;
       } else {
         if (Game.time % 10 === 0) {
-          this.log.info(
-            `Attack ${step.memory.attackIndex}: ${step.memory.attackType} in progress on (${nearby.length}), ${[...nearby.map(n => FormatStructureHits(n))]}...`,
-          );
+          this.log.info('Attack step in progress against structures.', {
+            '<room>': step.pos.roomName,
+            attackIndex: step.memory.attackIndex,
+            attackType: step.memory.attackType,
+            targetCount: nearby.length,
+            targets: nearby.map(structure => FormatStructureHits(structure)),
+          });
         }
         step.memory.done = false;
         return;
@@ -105,7 +122,10 @@ export class Attacker extends CreepRoleBase implements CreepRole {
       // Default is to attack nearby creeps
       const nearby = this.Searches.AttackCreeps(step.pos);
       if (nearby.length === 0) {
-        this.log.warn(`Attack ${step.memory.attackIndex}: Creeps completed.`);
+        this.log.warn('Creep attack step completed.', {
+          '<room>': step.pos.roomName,
+          attackIndex: step.memory.attackIndex,
+        });
         step.memory.done = true;
         return;
       } else {
@@ -119,9 +139,13 @@ export class Attacker extends CreepRoleBase implements CreepRole {
         }));
 
         if (Game.time % 10 === 0)
-          this.log.info(
-            `Attack ${step.memory.attackIndex}: ${step.memory.attackType} in progress on (${nearby}), ${FormatHostileInfos(hostileInfo)}...`,
-          );
+          this.log.info('Attack step in progress against hostile creeps.', {
+            '<room>': step.pos.roomName,
+            attackIndex: step.memory.attackIndex,
+            attackType: step.memory.attackType,
+            targetCount: nearby.length,
+            hostiles: hostileInfo,
+          });
         step.memory.done = false;
         return;
       }

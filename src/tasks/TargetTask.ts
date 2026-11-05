@@ -73,7 +73,7 @@ export abstract class TargetTask<Action extends TaskAction, Target extends Targe
         this.isCompleteFlag = this.CompleteWhenTargetIsNullAndInVisibleRoom;
         return result;
       } else {
-        Logger.warn('Target is null, and in room that is neither visible nor invisible...');
+        Logger.warn('Target is null in a room that is not visible.', { '<creep>': creep, targetPos });
         this.isCompleteFlag = true;
         return result;
       }

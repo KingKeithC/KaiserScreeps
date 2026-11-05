@@ -54,10 +54,7 @@ export class CreepExtra extends Creep {
       return (this.cachedCurrentTask = DeserializeTask(this.memory.currentTask));
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      this.log.crit('Failed to deserialize task for ${creepName}; clearing it: ${error}', {
-        creepName: this.name,
-        error: message,
-      });
+      this.log.crit('Failed to deserialize task; clearing it.', { errorMessage: message });
       delete this.memory.currentTask;
       return (this.cachedCurrentTask = null);
     }
@@ -75,13 +72,13 @@ export class CreepExtra extends Creep {
 
     // Fetch and memoize our assigned room.
     if (!this.memory.room) {
-      this.log.crit('Creep ${creepName} has no assigned room!', { creepName: this.name });
+      this.log.crit('Creep has no assigned room.');
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       return null!;
     }
     const room = this.colony.MyRooms.filter(r => r.name === this.memory.room).pop();
     if (!room) {
-      this.log.crit('Assigned Room ${roomName} not in colony.MyRooms!', { roomName: this.memory.room });
+      this.log.crit('Assigned room is not in the colony.', { assignedRoom: this.memory.room });
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       return null!;
     }
@@ -97,7 +94,7 @@ export class CreepExtra extends Creep {
     // Invoke callback if we just finished spawning
     if (!this.spawning && (this.memory.spawning ?? false)) {
       this.memory.spawning = false;
-      this.log.info(`Ready for service!`);
+      this.log.info('Ready for service.');
       if (this.role) this.role.OnSpawn(this);
     } else if (this.ticksToLive === 1) this.OnLastTickOfLife();
 
@@ -113,7 +110,7 @@ export class CreepExtra extends Creep {
   MaxStuckTicks = 2;
   MaxAvoidTicks = 4;
   MoveLong(pos: RoomPosition, opts?: MoveToOpts): number {
-    // this.log.debug('Invoking MoveLong to ${pos} with ${opts}', { pos, opts });
+    // this.log.debug('Invoking MoveLong.', { '<creep>': this, pos, opts });
     return this.moveTo(pos, {
       ...opts,
       costCallback: (rn: string, cm: CostMatrix) => this.CostCallback(rn, cm, false),
@@ -127,7 +124,7 @@ export class CreepExtra extends Creep {
   }
 
   MoveAvoidCreeps(pos: RoomPosition, opts?: MoveToOpts): number {
-    // this.log.debug('Invoking MoveAvoidCreeps to ${pos} with ${opts}', { pos, opts });
+    // this.log.debug('Invoking MoveAvoidCreeps.', { '<creep>': this, pos, opts });
     // eslint-disable-next-line no-underscore-dangle
     return this.moveTo(pos, {
       ...opts,
@@ -158,10 +155,10 @@ export class CreepExtra extends Creep {
     const targetPos = target instanceof RoomPosition ? target : target.pos;
 
     if (!(targetPos.roomName in Game.rooms))
-      this.log.warn('MoveCreep invoked to target room that is not visible: ${target}', { target: targetPos });
+      this.log.warn('MoveCreep invoked for a target in a room that is not visible.', { targetPos });
 
     if (this.pos.roomName === targetPos.roomName && this.pos.getRangeTo(targetPos) <= (opts?.range ?? 1)) {
-      this.log.debug(`MoveCreep: arrived!`);
+      this.log.debug('MoveCreep: arrived.');
       // Arrived / Base case
       // Reset to clean, long move mode
       this.memory.stuckTicks = 0;
@@ -241,7 +238,10 @@ export class CreepExtra extends Creep {
   }
 
   OnLastTickOfLife(): void {
-    this.log.info(`Goodbye cruel world :(  (LifetimeIdle: ${this.LifetimeIdle}, LifetimeStuck: ${this.LifetimeStuck})`);
+    this.log.info('Creep reached its final tick.', {
+      lifetimeIdle: this.LifetimeIdle,
+      lifetimeStuck: this.LifetimeStuck,
+    });
     this.say('☠️☠️☠️', true);
   }
 
@@ -251,9 +251,9 @@ export class CreepExtra extends Creep {
     this.currentTask = newTask;
 
     // Log the transition as long as it's not Idle -> Idle.
-    if (!newTask && oldTask) this.log.info('Unassigned ${oldTask}', { oldTask });
-    else if (newTask && !oldTask) this.log.info('Assigned ${newTask}', { newTask });
-    else if (oldTask && newTask) this.log.info('Reassigned ${oldTask} -> ${newTask}', { oldTask, newTask });
+    if (!newTask && oldTask) this.log.info('Task unassigned.', { oldTask });
+    else if (newTask && !oldTask) this.log.info('Task assigned.', { newTask });
+    else if (oldTask && newTask) this.log.info('Task reassigned.', { oldTask, newTask });
 
     // If the transition was to nothing, end here
     if (!newTask) return;
@@ -289,16 +289,19 @@ export class CreepExtra extends Creep {
 
       if (moveResult !== OK && moveResult !== ERR_TIRED)
         // Log bad moves
-        this.log.debug(
-          'DoTask: MoveNotOK - ${moveResult}, ${task} Outcome ${outcome}, Follow up move from ${thisPos} to ${targetPos} failed.',
-          { moveResult, task, outcome, thisPos: this.pos, targetPos: outcome.target.pos },
-        );
+        this.log.debug('DoTask follow-up move failed.', {
+          moveResult,
+          task,
+          outcome,
+          thisPos: this.pos,
+          targetPos: outcome.target.pos,
+        });
 
       // If pathfinding failed, select a new task
       if (moveResult === ERR_NO_PATH) this.ChangeTask();
     } else {
       // Task result was not ok and not a move
-      this.log.debug('DoTask: NotOK - Task ${task} Outcome ${outcome}.', {
+      this.log.debug('DoTask returned a non-OK result.', {
         task,
         outcome,
         thisPos: this.pos,

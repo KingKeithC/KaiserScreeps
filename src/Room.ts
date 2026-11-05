@@ -215,18 +215,18 @@ export class RoomExtra extends Room {
           //  My room
           if (room.find(FIND_MY_SPAWNS).length === 0) {
             // Not Self-Sufficient - keep working
-            this.log.info(`Claimed Room ${name} is still under support by ${this.name}!`, { '<rate>': 20 });
+            this.log.info('Claimed room is still under support.', { '<rate>': 20, claimedRoomName: name });
             this.cachedWorkableClaimedRooms.push(room);
           } else {
             // Self-Sufficient - disown
-            this.log.warn(`Claimed Room ${name} is up and running, no longer supported by ${this.name}, disowning!`);
+            this.log.warn('Claimed room is self-sufficient; removing support.', { claimedRoomName: name });
             this.ClaimedRoomNames = this.ClaimedRoomNames.filter(cr => cr !== name);
           }
         else if (room.find(FIND_HOSTILE_SPAWNS).length > 0)
-          this.log.warn(`Claimed Room ${name} is hostile!`, { '<rate>': 10 });
-        else this.log.warn(`Claimed Room ${name} is ripe for the taking!`, { '<rate>': 10 });
+          this.log.warn('Claimed room is hostile.', { '<rate>': 10, claimedRoomName: name });
+        else this.log.warn('Claimed room is unowned and available.', { '<rate>': 10, claimedRoomName: name });
       } else {
-        this.log.warn(`Claimed Room ${name} is not visible!`, { '<rate>': 30 });
+        this.log.warn('Claimed room is not visible.', { '<rate>': 30, claimedRoomName: name });
       }
     }
 
@@ -282,7 +282,7 @@ export class RoomExtra extends Room {
   }
 
   public ClearStructureDependentData(): void {
-    this.log.warn(`ClearStructureDependentData...`);
+    this.log.warn('Clearing structure-dependent room data.');
 
     // Clear cost matricies
     this.memory.pathfindingCostMatrix = undefined;
@@ -305,7 +305,7 @@ export class RoomExtra extends Room {
 
   CostMatrixIsStale = false;
   private UpdateStructuresCostMatrix(): void {
-    this.log.info(`Updating Cost Matrix...`);
+    this.log.info('Updating cost matrix.');
     const matrix = new PathFinder.CostMatrix();
     const terrain = this.getTerrain();
 
@@ -577,7 +577,7 @@ export class RoomExtra extends Room {
     for (const name in Memory.creeps) {
       // If the creep is dead and was assigned to this room
       if (!(name in Game.creeps) && Memory.creeps[name].room === this.name) {
-        this.log.info(`Generic Cleanup memory for ${name}`);
+        this.log.info('Cleaning up memory for a dead creep.', { creepName: name });
         const oldMem = Memory.creeps[name];
         delete Memory.creeps[name];
 
@@ -709,14 +709,18 @@ export class RoomExtra extends Room {
     if (receiver.store.getFreeCapacity(RESOURCE_ENERGY) === 0) return; // No ability to receive
     const ret = sender.transferEnergy(receiver);
     if (ret !== OK)
-      this.log.warn(
-        `Link Transfer from ${sender} (Used: ${sender.store.getUsedCapacity()}) -> ${receiver} (Free: ${receiver.store.getFreeCapacity()}) failed: ${ret}`,
-      );
+      this.log.warn('Link energy transfer failed.', {
+        sender: sender.id,
+        senderUsedCapacity: sender.store.getUsedCapacity(),
+        receiver: receiver.id,
+        receiverFreeCapacity: receiver.store.getFreeCapacity(),
+        result: ret,
+      });
   }
 
   ReportHostiles(): void {
     if (this.HostileInfo.length >= this.HostileNotificationThreshold && Game.time % 10 === 0)
-      this.log.report(`!!! Hostiles Spotted in ${this.name}:\n\t${FormatHostileInfos(this.HostileInfo)}`);
+      this.log.report('Hostiles spotted.', { hostiles: this.HostileInfo });
   }
 
   GetSpawnableRoles(): SpawnableRoleDetails[] {
@@ -741,7 +745,7 @@ export class RoomExtra extends Room {
   CheckSpawns(): void {
     const maxSpawns = this.find(FIND_MY_SPAWNS, { filter: s => !s.spawning }).length;
     if (maxSpawns === 0) {
-      this.log.info(`All spawns in use.`, { '<rate>': 20 });
+      this.log.info('All spawns are in use.', { '<rate>': 20 });
       return;
     }
 
@@ -749,10 +753,9 @@ export class RoomExtra extends Room {
     let completedSpawns = 0;
 
     for (const { role, name, body, available, needed, roomCount, roomQuota, timeSinceLastSpawn } of spawnable) {
-      const msg = 'Checking Spawns for ${role} (P${priority}) (${roomCount}/${roomQuota}, ${timeSinceLastSpawn})... ';
       const success = this.TrySpawnRole(role, name, body);
       if (!success) {
-        this.log.crit(msg + 'Spawn failed despite having enough energy (${available}/${needed}).', {
+        this.log.crit('Spawn failed despite having enough energy.', {
           '<role>': role,
           priority: role.priority,
           roomCount,
@@ -764,7 +767,7 @@ export class RoomExtra extends Room {
         continue;
       }
 
-      this.log.info(msg + 'Spawn scheduled successfully.', {
+      this.log.info('Spawn scheduled successfully.', {
         '<role>': role,
         priority: role.priority,
         roomCount,
@@ -812,7 +815,7 @@ export class RoomExtra extends Room {
       totalRoles++;
       const role = this.colony.Roles[name];
       if (!role) {
-        this.log.crit(`No instance for ${name}`);
+        this.log.crit('Role registry has no instance.', { roleName: name });
         continue;
       }
 
@@ -912,9 +915,13 @@ export class RoomExtra extends Room {
       }
       if (weakestHostile) {
         const res = tower.attack(weakestHostile);
-        this.log.debug(
-          `!!! Tower Attacked ${weakestHostile.name} from ${weakestHostile.owner.username} (${weakestHostile.hits}/${weakestHostile.hits}) with result ${res}!`,
-        );
+        this.log.debug('Tower attacked a hostile creep.', {
+          targetName: weakestHostile.name,
+          owner: weakestHostile.owner.username,
+          hits: weakestHostile.hits,
+          hitsMax: weakestHostile.hitsMax,
+          result: res,
+        });
         return;
       }
     }
@@ -922,9 +929,12 @@ export class RoomExtra extends Room {
     // My creeps in need of healing, weakest first
     if (weakestFriendly) {
       const res = tower.heal(weakestFriendly);
-      this.log.debug(
-        `Tower Healed ${weakestFriendly.name} (${weakestFriendly.hits}/${weakestFriendly.hitsMax}) with result ${res}!`,
-      );
+      this.log.debug('Tower healed a friendly creep.', {
+        targetName: weakestFriendly.name,
+        hits: weakestFriendly.hits,
+        hitsMax: weakestFriendly.hitsMax,
+        result: res,
+      });
       return;
     }
 

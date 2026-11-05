@@ -104,9 +104,9 @@ export class TradingSystem {
       ) {
         const deal = Game.market.deal(o.order.id, o.fulfillableQty, room.name);
         if (deal === OK) {
-          Logger.crit('Deal!!! ${details}', { '<room>': room, details: o });
+          Logger.crit('Market deal completed.', { '<room>': room, deal: o });
           return;
-        } else Logger.warn('Deal fell through due to ${rc}: ${details}', { '<room>': room, rc: deal, details: o });
+        } else Logger.warn('Market deal failed.', { '<room>': room, result: deal, deal: o });
       }
     }
   }

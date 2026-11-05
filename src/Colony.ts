@@ -55,7 +55,7 @@ export class Colony {
     const role = this.Roles[roleName];
     if (!role) {
       // It's a game breaking error to have no role
-      this.log.crit('Role is not in Registry: ${roleName}', { roleName });
+      this.log.crit('Role is not in registry.', { roleName });
     }
     return role;
   }
@@ -133,9 +133,10 @@ export class Colony {
     stats.data.program_reset_time_ticks = Game.time;
     this.stats = stats;
 
-    this.log.crit(
-      `GLOBALS RESET | Profiling Configured: ${this.GlobalEnableProfiling}, ErrorMapper: ${this.GlobalEnableErrorMapper}`,
-    );
+    this.log.crit('Global state reset.', {
+      profilingEnabled: this.GlobalEnableProfiling,
+      errorMapperEnabled: this.GlobalEnableErrorMapper,
+    });
   }
 
   // This function is rarely invoked (hundreds of ticks between); when globals reset or code is uploaded.
@@ -230,21 +231,22 @@ export class Colony {
   CleanupStaleFlags(): void {
     for (const name in Memory.flags)
       if (!(name in Game.flags)) {
-        this.log.info(`Cleanup memory for removed flag: ${name}`);
+        this.log.info('Cleaning up memory for a removed flag.', { flagName: name });
         delete Memory.flags[name];
       }
   }
 
   OnRoomSuccessfullyClaimed(newRoom: Room) {
-    this.log.crit(`!!!! WE CLAIMED A ROOM ${newRoom} !!!!`);
+    this.log.crit('Successfully claimed a room.', { '<room>': newRoom });
   }
 
   RegenerateCostMatrixes(): void {
     this.MyRooms.forEach(r => {
       r.ClearStructureDependentData();
-      this.log.report(
-        `Regenerated ${r.name} PathfindingCostMatrix ${r.StructuresCostMatrix !== null ? 'Yes' : 'Error'}`,
-      );
+      this.log.report('Regenerated pathfinding cost matrix.', {
+        '<room>': r,
+        generated: r.StructuresCostMatrix !== null,
+      });
     });
   }
 
@@ -270,7 +272,7 @@ export class Colony {
     if (newRoom in claimer.AssignedRoom.ClaimedRoomNames) return;
 
     if (newRoom in this.AllClaimedRoomNames) {
-      this.log.info(`Sorry ${claimer} but ${newRoom} is claimed elsewhere.`);
+      this.log.info('Room is already claimed elsewhere.', { '<creep>': claimer, targetRoom: newRoom });
       return;
     }
 
@@ -286,14 +288,14 @@ export class Colony {
   TryGeneratingPixel(): void {
     if (Game.cpu.bucket >= this.PixelCost) {
       const res = Game.cpu.generatePixel();
-      if (res === OK) this.log.info(`!!! Generated a pixel :)`);
+      if (res === OK) this.log.info('Generated a pixel.');
     }
   }
 
   Restart(): void {
     this.UnassignAllTasks();
 
-    if (Game.cpu.halt === undefined) this.log.crit(`Game.cpu.halt() is undefined. Game must in in Isolated VM mode.`);
+    if (Game.cpu.halt === undefined) this.log.crit('Game.cpu.halt() is undefined; isolated VM mode is required.');
     else Game.cpu.halt();
   }
 
@@ -305,12 +307,12 @@ export class Colony {
 
   DisplayCurrentStats(): void {
     this.stats = GetColonyStats(this); // Force a stat refresh
-    this.log.report(JSON.stringify(this.stats, undefined, 2)); // Print up-to-date stats
+    this.log.report('Current colony stats.', { stats: this.stats });
   }
 
   UnassignAllTasks(): void {
     for (const c of this.MyCreeps) {
-      this.log.warn(`Clearing Job Memory from ${c.name}... was ${JSON.stringify(c.memory.currentTask)}`);
+      this.log.warn('Clearing creep task memory.', { '<creep>': c, currentTask: c.memory.currentTask });
       c.memory.currentTask = undefined;
     }
   }
@@ -336,6 +338,6 @@ export class Colony {
     for (const myRoom of this.MyRooms) msg = msg.concat(`    ${myRoom.RoomStateReport()}\n`);
 
     // Print
-    this.log.report(msg);
+    this.log.report('Colony state report.', { report: msg });
   }
 }

@@ -195,12 +195,7 @@ export function GetMiningPositions(room: Room): MiningPosition[] {
         }
       }
 
-  Logger.info('GetMinerPositions: Found (${found}/${searched}) Sources: ${sources}.', {
-    '<room>': room,
-    found,
-    searched,
-    sources,
-  });
+  Logger.info('Found mineable positions.', { '<room>': room, found, searched, sources });
   return ret;
 }
 
@@ -213,12 +208,14 @@ export function GetMiningPositions(room: Room): MiningPosition[] {
 export function MakeRoomReport(rRoom: Room): RoomReport {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const minerals = rRoom.find(FIND_MINERALS);
-  if (minerals.length > 1) Logger.crit(`Room ${rRoom.name} has more than 1 mineral to harvest!`, { '<room>': rRoom });
+  if (minerals.length > 1)
+    Logger.crit('Room has more than one mineral to harvest.', { '<room>': rRoom, mineralCount: minerals.length });
   const mineral = minerals.pop();
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const deposits = rRoom.find(FIND_DEPOSITS);
-  if (deposits.length > 1) Logger.crit(`Room ${rRoom.name} has more than 1 commodity deposit!`, { '<room>': rRoom });
+  if (deposits.length > 1)
+    Logger.crit('Room has more than one commodity deposit.', { '<room>': rRoom, depositCount: deposits.length });
   const deposit = deposits.pop();
 
   return {
@@ -349,10 +346,7 @@ export function GetMinesForRoom(room: Room | string, myUsername: string): Mining
           room.controller.owner !== undefined &&
           room.controller.owner.username === myUsername
         ) {
-          Logger.warn('GetMinesForRoom: Skipping unminable hostile room: ${roomName}', {
-            '<rate>': 20,
-            roomName: room.name,
-          });
+          Logger.warn('Skipping unminable hostile room.', { '<rate>': 20, '<room>': room, roomName: room.name });
           return [];
         }
 

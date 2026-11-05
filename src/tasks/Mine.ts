@@ -45,7 +45,7 @@ export class Mine extends TaskBase<TaskAction.Mine> implements CreepTask<TaskAct
     const mineral: Mineral | undefined = source.pos.lookFor(LOOK_MINERALS)[0];
     if (!mineral && source instanceof StructureExtractor) {
       this.isCompleteFlag = true;
-      Logger.crit('Assigned Extractor ${extractor}, at ${pos} that has no Mineral under it!!', {
+      Logger.crit('Assigned extractor has no mineral beneath it.', {
         '<creep>': creep,
         extractor: source,
         pos: source.pos,
@@ -112,7 +112,7 @@ export class Mine extends TaskBase<TaskAction.Mine> implements CreepTask<TaskAct
     const mineral: Mineral | undefined = source.pos.lookFor(LOOK_MINERALS)[0];
     if (!mineral && source instanceof StructureExtractor) {
       this.isCompleteFlag = true;
-      Logger.crit('Assigned Extractor ${extractor}, at ${pos} that has no Mineral under it!!', {
+      Logger.crit('Assigned extractor has no mineral beneath it.', {
         '<creep>': creep,
         extractor: source,
         pos: source.pos,

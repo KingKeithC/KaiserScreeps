@@ -75,10 +75,12 @@ export class ErrorMapper {
       } catch (e) {
         if (e instanceof Error) {
           if ('sim' in Game.rooms) {
-            const message = `Source maps don't work in the simulator - displaying original error`;
-            ErrorMapper.log.error(this.withStack(e, `${message}\n${e.stack ?? e.toString()}`));
+            const simulatorMessage = "Source maps don't work in the simulator; displaying the original error.";
+            const originalStack = e.stack ?? e.toString();
+            const stack = [simulatorMessage, originalStack].join('\n');
+            ErrorMapper.log.error(this.withStack(e, stack), { errorMessage: e.message });
           } else {
-            ErrorMapper.log.error(this.withStack(e, this.sourceMappedStackTrace(e)));
+            ErrorMapper.log.error(this.withStack(e, this.sourceMappedStackTrace(e)), { errorMessage: e.message });
           }
         } else {
           // can't handle it

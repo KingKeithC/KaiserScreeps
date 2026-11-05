@@ -102,11 +102,7 @@ export abstract class CreepRoleBase implements CreepRole {
     const current = (this.currentRoomQuotas[room.name] ??= this.GetMinQuota(room));
     const overridenQuota = (room.memory.roleLimits ??= {})[this.name];
     if (overridenQuota !== undefined) {
-      this.log.warn('Quota overridden from ${current} to ${overridenQuota}', {
-        '<room>': room,
-        current,
-        overridenQuota,
-      });
+      this.log.warn('Quota overridden.', { '<room>': room, current, overridenQuota });
       return overridenQuota;
     }
     return current;
@@ -139,18 +135,24 @@ export abstract class CreepRoleBase implements CreepRole {
     if (newQuota)
       if (newQuota >= minQuota && newQuota <= maxQuota) {
         // If new quota is acceptible, update cache and return.
-        this.log.info('Changing Quota from ${current} to ${newQuota} (${diff})');
+        this.log.info('Changing quota.', { '<room>': room, current, newQuota, diff });
         return (this.currentRoomQuotas[room.name] = newQuota);
       } else if (newQuota > maxQuota)
-        this.log.warn(
-          'Cannot change Quota from ${current} to ${newQuota} (${diff}), since it is above max of ${maxQuota}',
-          { '<room>': room, diff, current, newQuota, maxQuota },
-        );
+        this.log.warn('Cannot change quota because it is above the maximum.', {
+          '<room>': room,
+          diff,
+          current,
+          newQuota,
+          maxQuota,
+        });
       else if (newQuota < minQuota)
-        this.log.warn(
-          'Cannot change Quota from ${current} to ${newQuota} (${diff}), since it is below min of ${minQuota}',
-          { '<room>': room, diff, current, newQuota, minQuota },
-        );
+        this.log.warn('Cannot change quota because it is below the minimum.', {
+          '<room>': room,
+          diff,
+          current,
+          newQuota,
+          minQuota,
+        });
 
     return current;
   }

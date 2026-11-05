@@ -244,7 +244,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
     // Ignore the warning if all the sources are out of energy, as
     // that can cause it to spam when everything is running at peak efficiency
     if (creep.AssignedRoom.find(FIND_SOURCES_ACTIVE).length > 0) {
-      this.log.warn('SelectNextTask: Literally nothing for me to do, are we overspawned ${idle}?', {
+      this.log.warn('No task is available despite active energy sources.', {
         '<creep>': creep,
         idle: creep.LifetimeIdle,
       });
@@ -276,7 +276,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
       if (creep.AssignedRoom.controller.ticksToDowngrade < downgradeMaintenanceThreshold)
         return new UpgradeController(creep.AssignedRoom.controller, 'maintain');
     } else {
-      this.log.crit(`Assigned room ${creep.AssignedRoom} has no controller!`);
+      this.log.crit('Assigned room has no controller.', { '<creep>': creep, assignedRoom: creep.AssignedRoom.name });
     }
     return null;
   }
@@ -285,7 +285,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
     if (creep.AssignedRoom.controller) {
       return new UpgradeController(creep.AssignedRoom.controller, 'upgrade');
     } else {
-      this.log.crit(`Assigned room ${creep.AssignedRoom} has no controller!`);
+      this.log.crit('Assigned room has no controller.', { '<creep>': creep, assignedRoom: creep.AssignedRoom.name });
     }
     return null;
   }
@@ -320,7 +320,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
     const upgrade = this.UpgradeController(creep);
     if (upgrade && maintainers === 0) return upgrade;
     else if (!upgrade)
-      this.log.crit('Assigned Room ${room} as no controller!', { '<creep>': creep, room: creep.AssignedRoom });
+      this.log.crit('Assigned room has no controller.', { '<creep>': creep, assignedRoom: creep.AssignedRoom.name });
 
     if (creep.AssignedRoom.controller?.level ?? 0 >= 3) {
       const repairTasks = [...creep.AssignedRoom.AssignedTasks(TaskAction.Repair)];
