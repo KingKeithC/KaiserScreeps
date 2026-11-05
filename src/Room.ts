@@ -768,7 +768,11 @@ export class RoomExtra extends Room {
     }
 
     let completedSpawns = 0;
-    this.log.info('Attempting Spawn of spawnable.', { spawnable, completedSpawns, maxSpawns });
+    this.log.info('Attempting Spawns.', {
+      spawnable: spawnable.map(s => [s.role.roleName, s.name]),
+      completedSpawns,
+      maxSpawns,
+    });
 
     for (const { role, name, body, available, needed, roomCount, roomQuota, timeSinceLastSpawn } of spawnable) {
       const success = this.TrySpawnRole(role, name, body);
