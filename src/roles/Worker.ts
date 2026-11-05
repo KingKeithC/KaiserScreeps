@@ -473,10 +473,10 @@ export class Worker extends CreepRoleBase implements CreepRole {
       groups++;
     }
 
-    this.log.info(
-      `Nothing needs supply${candidateName === undefined ? '' : ` in group: '${candidateName}'`}. Considered ${considered}/${candidates.length} eligible objects across ${groups} groups.`,
-      { '<creep>': supplier },
-    );
+    // this.log.info(
+    //   `Nothing needs supply${candidateName === undefined ? '' : ` in group: '${candidateName}'`}. Considered ${considered}/${candidates.length} eligible objects across ${groups} groups.`,
+    //   { '<creep>': supplier },
+    // );
     return null;
   }
 }
