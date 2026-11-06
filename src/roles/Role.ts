@@ -230,7 +230,7 @@ export abstract class CreepRoleBase {
   RoomTickEnd(): void {
     return;
   }
-  RoomTickStart(): void {
+  RoomTickStart(_room: RoomExtra): void {
     return;
   }
   TickCreep(_creep: CreepExtra): void {

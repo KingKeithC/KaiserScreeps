@@ -667,6 +667,8 @@ export class RoomExtra extends Room {
   }
 
   RunCreeps(): void {
+    for (const role of Object.values(this.colony.Roles)) role.RoomTickStart(this);
+
     // Run each creep in the room.
     for (const c of this.AssignedCreeps.filter(ac => !ac.spawning)) {
       c.role.TickCreep(c);

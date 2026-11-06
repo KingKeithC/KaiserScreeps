@@ -5,7 +5,7 @@ import { RoomExtra } from 'Room';
 import { Build, Collect, Mine, Repair, Supply, UpgradeController } from 'tasks';
 import { Retire } from 'tasks/Retire';
 import { CreepTask } from 'tasks/types';
-import { MakeBody } from 'utils/Collections';
+import { GetValueByName, MakeBody } from 'utils/Collections';
 import { BodyCost } from 'utils/CreepUtils';
 import { ContainerAndAmount, ResourceContainer, FirstBodyByEnergyCapacity } from 'utils/RoomUtils';
 import { CreatePendingRepairs, FindHighestPriorityRepairGroup } from 'utils/RepairUtils';
@@ -62,22 +62,30 @@ export class Worker extends CreepRoleBase implements CreepRole {
   ShrinkAmount = 1;
   ShrinkQuotaWhenEnergyBelow = 1500;
 
-  GetQuotaChange(room: RoomExtra): number {
-    const energyInContainers = sum(
-      room.FlatMapOverRoomsInClaimedArea(r =>
-        r instanceof Room
-          ? r
-              .find(FIND_STRUCTURES, {
-                filter: (s): s is StructureContainer => s.structureType === STRUCTURE_CONTAINER,
-              })
-              .map(s => s.store.getUsedCapacity(RESOURCE_ENERGY))
-          : [],
-      ),
-    );
+  rollingAvgEnergyInCollectionPlan: { [roomName: Room['name']]: number } = {};
+  private energySamplesByRoom: { [roomName: Room['name']]: number } = {};
 
-    this.log.info('Checking if quota needs to be changed.', { '<room>': room, energyInContainers });
-    if (energyInContainers > this.GrowQuotaWhenEnergyAbove) return this.GrowAmount;
-    if (energyInContainers < this.ShrinkQuotaWhenEnergyBelow) return -this.ShrinkAmount;
+  RoomTickStart(room: RoomExtra): void {
+    const energyInCollectionPlan = (room.CollectionPlan.sourcesByType.get(RESOURCE_ENERGY) ?? []).reduce(
+      (total, source) => total + source[1],
+      0,
+    );
+    const sampleCount = GetValueByName(this.energySamplesByRoom, room, () => 0) + 1;
+    const previousAverage = GetValueByName(this.rollingAvgEnergyInCollectionPlan, room, () => 0);
+
+    this.rollingAvgEnergyInCollectionPlan[room.name] =
+      previousAverage + (energyInCollectionPlan - previousAverage) / sampleCount;
+    this.energySamplesByRoom[room.name] = sampleCount;
+  }
+
+  GetQuotaChange(room: RoomExtra): number {
+    const energyInCollectionPlan = GetValueByName(this.rollingAvgEnergyInCollectionPlan, room, () => 0);
+    this.rollingAvgEnergyInCollectionPlan[room.name] = 0;
+    this.energySamplesByRoom[room.name] = 0;
+
+    this.log.info('Checking if quota needs to be changed.', { '<room>': room, energyInCollectionPlan });
+    if (energyInCollectionPlan > this.GrowQuotaWhenEnergyAbove) return this.GrowAmount;
+    if (energyInCollectionPlan < this.ShrinkQuotaWhenEnergyBelow) return -this.ShrinkAmount;
     return 0;
   }
 
