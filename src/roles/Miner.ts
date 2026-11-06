@@ -44,76 +44,64 @@ export class Miner extends CreepRoleBase implements CreepRole {
     return null;
   }
 
-  PickupDropped(creep: CreepExtra): void {
-    // If we have space for resources, and there are some around us, pick it up
-    if (creep.store.getUsedCapacity() > 0)
-      for (const dropped of creep.pos.findInRange(FIND_DROPPED_RESOURCES, 1)) creep.pickup(dropped);
-  }
-
   TickCreep(creep: CreepExtra): void {
-    // Ambient-non move tasks to perform every tick
-    // Higher priorities last since last intent registered wins
-    this.PickupDropped(creep);
-    this.TransferToNeighbours(creep);
+    const nearbyContainers = creep.pos
+      .findInRange(FIND_STRUCTURES, 1)
+      .filter((structure): structure is StructureContainer => structure.structureType === STRUCTURE_CONTAINER);
+    const nearbyTowers = creep.pos
+      .findInRange(FIND_MY_STRUCTURES, 1)
+      .filter((structure): structure is StructureTower => structure.structureType === STRUCTURE_TOWER);
+    const nearbyLinks = creep.AssignedRoom.LinkSenders.filter(link => link.pos.isNearTo(creep));
+    const nearbyEnergyDemand =
+      nearbyTowers.some(tower => tower.store.getFreeCapacity(RESOURCE_ENERGY) > 0) ||
+      nearbyLinks.some(link => link.store.getFreeCapacity(RESOURCE_ENERGY) > 0);
 
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
-    const nearContainers = creep.pos.findInRange(FIND_MY_STRUCTURES, 1, {
-      filter: { structureType: STRUCTURE_CONTAINER },
-    }) as StructureContainer[];
-
-    const nearbySenders = creep.AssignedRoom.LinkSenders.filter(l => l.pos.isNearTo(creep));
-    // If there is a container nearby that has energy,
-    // and the links nearby need energy
-    // and we also have room, withdraw from the container
-    for (const container of nearContainers)
-      if (
-        nearbySenders.some(l => l.store.getFreeCapacity(RESOURCE_ENERGY) > 0) &&
-        creep.store.getFreeCapacity(RESOURCE_ENERGY) > 0 &&
-        container.store.getUsedCapacity(RESOURCE_ENERGY) > 0
-      )
-        creep.withdraw(container, RESOURCE_ENERGY);
-
-    // If there is a link nearby that needs energy,
-    // and we have energy, transfer ours to it
-    for (const link of nearbySenders)
-      if (creep.store.getUsedCapacity(RESOURCE_ENERGY) > 0 && link.store.getFreeCapacity(RESOURCE_ENERGY) > 0)
-        this.TransferToNeighbours(creep, RESOURCE_ENERGY, link);
+    if (this.TryCollectFromContainer(creep, nearbyContainers, nearbyEnergyDemand)) return;
+    if (this.TryPickupDroppedEnergy(creep)) return;
+    if (this.TryTransferEnergy(creep, nearbyTowers, 50)) return;
+    if (this.TryTransferEnergy(creep, nearbyLinks, 0)) return;
+    if (this.TryTransferEnergy(creep, nearbyContainers, 0)) return;
   }
 
-  TransferToNeighbours(
-    creep: CreepExtra,
-    preferredResource?: ResourceConstant,
-    preferredDest?: AnyStoreStructure,
-  ): void {
-    let needSupply: CreepExtra | AnyStoreStructure | undefined = preferredDest;
+  private TryCollectFromContainer(
+    creep: Creep,
+    containers: StructureContainer[],
+    nearbyEnergyDemand: boolean,
+  ): boolean {
+    if (!nearbyEnergyDemand || creep.store.getFreeCapacity(RESOURCE_ENERGY) <= 0) return false;
 
-    const transferResource = (rt: ResourceConstant) => {
-      if (needSupply === undefined)
-        needSupply = creep.pos
-          .findInRange(
-            [
-              ...creep.AssignedRoom.AssignedCreeps.filter(c => c.role.groupName === 'Worker'),
-              ...creep.pos.findInRange(FIND_STRUCTURES, 1, {
-                filter: s => ('store' in s && s.store.getFreeCapacity(rt)) ?? 0 > 0,
-              }),
-              ...creep.AssignedRoom.LinkSenders,
-            ] as (CreepExtra | AnyStoreStructure)[],
-            1,
-            {
-              filter: (target): target is CreepExtra | AnyStoreStructure =>
-                'store' in target && (target.store.getFreeCapacity(rt) ?? 0) > 0,
-            },
-          )
-          .sort((b, a) => (a.store.getFreeCapacity(rt) ?? 0) - (b.store.getFreeCapacity(rt) ?? 0))
-          .pop();
-      if (needSupply) creep.transfer(needSupply, rt);
-    };
+    for (const container of containers)
+      if (container.store.getUsedCapacity(RESOURCE_ENERGY) > 0 && creep.withdraw(container, RESOURCE_ENERGY) === OK)
+        return true;
 
-    if (preferredResource) transferResource(preferredResource);
-    else {
-      for (const [res, amt] of Object.entries(creep.store))
-        if ((amt as number) !== null && (amt as number) !== undefined && (amt as number) > 0)
-          transferResource(res as ResourceConstant);
-    }
+    return false;
+  }
+
+  private TryPickupDroppedEnergy(creep: Creep): boolean {
+    if (creep.store.getFreeCapacity(RESOURCE_ENERGY) <= 0) return false;
+
+    const droppedEnergy = creep.pos.findInRange(FIND_DROPPED_RESOURCES, 1, {
+      filter: resource => resource.resourceType === RESOURCE_ENERGY,
+    });
+    for (const resource of droppedEnergy) if (creep.pickup(resource) === OK) return true;
+
+    return false;
+  }
+
+  private TryTransferEnergy<T extends AnyStoreStructure>(
+    creep: Creep,
+    targets: T[],
+    minimumFreeCapacity: number,
+  ): boolean {
+    if (creep.store.getUsedCapacity(RESOURCE_ENERGY) <= 0) return false;
+
+    for (const target of targets)
+      if (
+        target.store.getFreeCapacity(RESOURCE_ENERGY) > minimumFreeCapacity &&
+        creep.transfer(target, RESOURCE_ENERGY) === OK
+      )
+        return true;
+
+    return false;
   }
 }
