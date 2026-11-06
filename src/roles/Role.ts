@@ -4,6 +4,7 @@ import { CreepExtra } from 'Creep';
 import { GetRandomName } from 'Data';
 import { RoomExtra } from 'Room';
 import { CreepTask } from 'tasks/types';
+import { GetValueByName } from 'utils/Collections';
 import { Logger } from 'utils/Logger';
 
 export interface CreepRole {
@@ -110,14 +111,6 @@ export abstract class CreepRoleBase {
   // Mapping of room name to the last time we called `SetQuota` for it.
   private roomQuotaChangeCheckTimes: { [roomName: RoomExtra['name']]: number } = {};
 
-  private GetRoomCacheValue(
-    cache: { [roomName: RoomExtra['name']]: number },
-    room: RoomExtra,
-    initialValue: () => number,
-  ): number {
-    return (cache[room.name] ??= initialValue());
-  }
-
   // Default number of ticks between invocations of `GetQuotaChange`
   protected RoleQuotaChangeFrequency = 500;
 
@@ -126,7 +119,7 @@ export abstract class CreepRoleBase {
    * room's `roleLimits`, and without updating the `roomQuotaCheckTimes`.
    */
   private CurrentQuota(room: RoomExtra): number {
-    const current = this.GetRoomCacheValue(this.currentRoomQuotas, room, () => this.GetMinQuota(room));
+    const current = GetValueByName(this.currentRoomQuotas, room, () => this.GetMinQuota(room));
     const overridenQuota = (room.memory.roleLimits ??= {})[this.roleName];
     if (overridenQuota !== undefined) {
       this.log.warn('Quota overridden.', { '<room>': room, current, overridenQuota });
@@ -196,7 +189,7 @@ export abstract class CreepRoleBase {
   }
 
   protected TimeSinceQuotaUpdate(room: RoomExtra): number {
-    return Game.time - this.GetRoomCacheValue(this.roomQuotaChangeCheckTimes, room, () => Game.time);
+    return Game.time - GetValueByName(this.roomQuotaChangeCheckTimes, room, () => Game.time);
   }
 
   /**

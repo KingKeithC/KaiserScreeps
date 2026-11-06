@@ -112,3 +112,11 @@ export function ResourceContainerUsedRatio(target: ResourceContainer): string {
   } else throw new Error(`Unhandled ResourceContainer: ${target}`);
   return ((current / capacity) * 100).toFixed(2);
 }
+
+export function GetValueByName(
+  dict: { [name: string]: number },
+  obj: { name: string },
+  initialValue: () => number,
+): number {
+  return (dict[obj.name] ??= initialValue());
+}

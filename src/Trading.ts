@@ -36,7 +36,7 @@ export class TradingSystem {
     return;
   }
 
-  TradeEnabled = true;
+  TradeEnabled = false;
   ProfitableAbovePPU = 20;
   ProfitableAboveUnits = 200;
   LowCostFullfill = 20;
