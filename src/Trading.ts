@@ -40,9 +40,15 @@ export class TradingSystem {
   ProfitableAbovePPU = 2;
   ProfitableAboveUnits = 200;
   LowCostFullfill = 20;
+  LastRefreshed?: number;
 
   // 'Opportunity: ${estProfit} (${estProfitPerUnit}/u) of ${resourceType} sell ${fulfillableQty} @ ${price} from ${origin} to ${dest}: ${order}',
   RefreshWatchedOrders(terminal: StructureTerminal): void {
+    if (this.LastRefreshed !== undefined) return;
+    this.LastRefreshed = Game.time;
+
+    Logger.info('Refreshing List of Watched Market Orders.', { '<room>': terminal.room, terminal });
+
     for (const rt in terminal.store)
       for (const o of Game.market.getAllOrders({ type: ORDER_BUY, resourceType: rt as ResourceConstant })) {
         // Not sure why it would be undefined, but we can't calc a distance so skip it
