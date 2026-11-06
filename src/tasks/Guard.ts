@@ -10,7 +10,7 @@ export class GuardTask extends TargetTask<StructureRampart> {
   }
 
   public constructor(post: StructureRampart) {
-    super(post);
+    super(post, 0, post.pos);
   }
 
   public isCompleteWhenTargetValid(): boolean {
@@ -31,6 +31,6 @@ export class GuardTask extends TargetTask<StructureRampart> {
     if (creep.pos.isEqualTo(target.pos)) return null;
 
     // Otherwise, move to the rampart
-    return { range: 0, result: ERR_NOT_IN_RANGE, target };
+    return this.movementResult(ERR_NOT_IN_RANGE, target);
   }
 }

@@ -18,7 +18,7 @@ export class Repair extends TargetTask<AnyStructure> {
   }
 
   public actWhenTargetValid(creep: CreepExtra, target: NonNullable<AnyStructure>): TaskActionResult | null {
-    return { range: 1, result: creep.repair(target), target };
+    return this.movementResult(creep.repair(target), target);
   }
 
   public isCreepAbleToContinue(creep: CreepExtra): boolean {

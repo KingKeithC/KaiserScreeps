@@ -1,17 +1,60 @@
 import { CreepExtra } from 'Creep';
 import { CreepTask, Targetable, TaskActionResult, TaskBase } from 'tasks/types';
-import { DeserializeRoomPosition, SerializeRoomPosition } from 'utils/Collections';
+import { DeserializeRoomPosition, RoomPositionString, SerializeRoomPosition } from 'utils/Collections';
 import { Logger } from 'utils/Logger';
 
 export abstract class TargetTask<Target extends Targetable> extends TaskBase implements CreepTask {
-  public readonly targetId: Id<Target>;
-  public readonly targetPos: string;
+  public targetId: Id<Target>;
+  public targetPos: string;
+  public movementRange: number | undefined;
   public isCompleteFlag = false;
+  protected static readonly minRangeToAct: number = 3;
 
-  public constructor(target: Target) {
+  public constructor(target: Target, range?: number);
+  public constructor(target: Id<Target>, range?: number);
+  public constructor(target: Target | Id<Target>, range: 0, preferredPosition: RoomPosition | RoomPositionString);
+  public constructor(
+    targetOrId: Target | Id<Target>,
+    range = TargetTask.minRangeToAct,
+    preferredPosition?: RoomPosition | RoomPositionString,
+  ) {
     super();
-    this.targetId = target.id;
-    this.targetPos = SerializeRoomPosition(target.pos);
+    this.targetId = typeof targetOrId === 'string' ? targetOrId : targetOrId.id;
+    const target = typeof targetOrId === 'string' ? Game.getObjectById(this.targetId) : targetOrId;
+
+    if (preferredPosition === undefined) {
+      if (!target) throw new Error('A target ID requires a preferred position when the target is unresolved.');
+      this.movementRange = range;
+      this.targetPos = SerializeRoomPosition(target.pos);
+    } else {
+      if (range !== 0) throw new Error('A preferred position requires a movement range of 0.');
+      const position =
+        typeof preferredPosition === 'string' ? DeserializeRoomPosition(preferredPosition) : preferredPosition;
+      this.targetPos = SerializeRoomPosition(position);
+      this.movementRange = 0;
+
+      if (!target) return;
+      const actualRange = target.pos.getRangeTo(position);
+      const minRangeToAct = (this.constructor as typeof TargetTask).minRangeToAct;
+      if (actualRange > minRangeToAct)
+        Logger.crit('Preferred target position is outside the task movement range.', {
+          target: targetOrId,
+          targetPosition: target.pos,
+          allowedRange: minRangeToAct,
+          preferredPosition: position,
+          actualRange,
+        });
+    }
+  }
+
+  protected movementResult(
+    result: number,
+    target?: Targetable,
+    range = this.movementRange ?? (this.constructor as typeof TargetTask).minRangeToAct,
+    movementPosition?: RoomPosition,
+  ): TaskActionResult {
+    const pos = movementPosition ?? (target && range > 0 ? target.pos : DeserializeRoomPosition(this.targetPos));
+    return { target: { pos }, range, result };
   }
 
   // Convenent accessor to target
@@ -26,9 +69,9 @@ export abstract class TargetTask<Target extends Targetable> extends TaskBase imp
     return null;
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   actWhenTargetInNonVisibleRoom(_creep: CreepExtra, targetPos: RoomPosition): TaskActionResult | null {
-    // Return a move instruction to the target's room
-    return { range: 15, result: ERR_NOT_IN_RANGE, target: { pos: targetPos } };
+    return this.movementResult(ERR_NOT_IN_RANGE, undefined, 23, targetPos);
   }
 
   public act(creep: CreepExtra): TaskActionResult | null {

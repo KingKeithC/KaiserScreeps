@@ -19,7 +19,7 @@ export class Build extends TargetTask<ConstructionSite<BuildableStructureConstan
   }
 
   actWhenTargetValid(creep: CreepExtra, target: ConstructionSite<BuildableStructureConstant>): TaskActionResult | null {
-    return { range: 3, result: creep.build(target), target };
+    return this.movementResult(creep.build(target), target);
   }
 
   public isCreepAbleToContinue(creep: CreepExtra): boolean {

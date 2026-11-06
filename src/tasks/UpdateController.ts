@@ -11,7 +11,6 @@ export class UpgradeController extends TargetTask<StructureController> {
 
   static readonly DowngradeMaintenanceRatio = 1 / 4; // Start repairs when ticksToDowngrade drop below this.
   static readonly MaintenanceBuffer = 2000;
-
   private readonly startingProgress: number = 0;
 
   public constructor(
@@ -31,7 +30,7 @@ export class UpgradeController extends TargetTask<StructureController> {
   }
 
   public actWhenTargetValid(creep: CreepExtra, target: StructureController): TaskActionResult | null {
-    return { range: 3, result: creep.upgradeController(target), target };
+    return this.movementResult(creep.upgradeController(target), target);
   }
 
   isCreepAbleToContinue(creep: CreepExtra): boolean {

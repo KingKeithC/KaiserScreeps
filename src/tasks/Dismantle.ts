@@ -10,11 +10,11 @@ export class Dismantle extends TargetTask<AnyStructure> {
   }
 
   public constructor(target: AnyStructure) {
-    super(target);
+    super(target, 1);
   }
 
   actWhenTargetValid(creep: CreepExtra, target: NonNullable<AnyStructure>): TaskActionResult | null {
-    return { range: 1, result: creep.dismantle(target), target };
+    return this.movementResult(creep.dismantle(target), target);
   }
 
   isCreepAbleToContinue(): boolean {

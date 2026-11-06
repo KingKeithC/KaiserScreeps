@@ -307,8 +307,8 @@ export class Worker extends CreepRoleBase implements CreepRole {
   }
 
   MineAnyFreePosition(creep: CreepExtra): Mine | null {
-    const source = creep.AssignedRoom.UnfilledMiningPositions().pop();
-    if (source) return new Mine(source);
+    const mp = creep.AssignedRoom.UnfilledMiningPositions().pop();
+    if (mp) return new Mine(mp.source, mp.pos);
     return null;
   }
 

@@ -31,6 +31,10 @@ export interface MiningPosition {
   pos: RoomPositionString;
 }
 
+export function isEqualTo(a: MiningPosition, b: MiningPosition): boolean {
+  return a.pos === b.pos && a.source === b.source;
+}
+
 interface MineralInfo {
   id: Id<Mineral>;
   density: DensityConstant;

@@ -20,7 +20,7 @@ export class Collect extends TargetTask<ResourceContainer> {
     public readonly maxAttempts = 5,
     public readonly smallPickupThreshold = 50,
   ) {
-    super(target);
+    super(target, 1);
   }
 
   public extraToString(target: ResourceContainer): string {
@@ -46,7 +46,7 @@ export class Collect extends TargetTask<ResourceContainer> {
     if (result === OK && inventoryChange <= this.smallPickupThreshold) this.attempts++;
     else if (result !== OK && result !== ERR_NOT_IN_RANGE) this.attempts++;
     this.lastInventory = inventoryChange;
-    return { target, range: 1, result };
+    return this.movementResult(result, target);
   }
 
   public isCreepAbleToContinue(creep: CreepExtra): boolean {

@@ -10,11 +10,11 @@ export class Attack extends TargetTask<Creep> implements CreepTask {
   }
 
   public constructor(creep: Creep) {
-    super(creep);
+    super(creep, 1);
   }
 
   actWhenTargetValid(creep: CreepExtra, target: NonNullable<Creep>): TaskActionResult | null {
-    return { range: 1, result: creep.attack(target), target };
+    return this.movementResult(creep.attack(target), target);
   }
 
   isCreepAbleToContinue(): boolean {

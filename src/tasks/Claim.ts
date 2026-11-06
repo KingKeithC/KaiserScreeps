@@ -13,7 +13,7 @@ export class Claim extends TargetTask<StructureController> {
     controller: StructureController,
     public readonly claim = false, // false = 'reserve'
   ) {
-    super(controller);
+    super(controller, 1);
   }
 
   isCreepAbleToContinue(): boolean {
@@ -30,8 +30,8 @@ export class Claim extends TargetTask<StructureController> {
 
   public actWhenTargetValid(creep: CreepExtra, target: StructureController): TaskActionResult | null {
     if (target.owner?.username !== undefined && target.owner?.username !== creep.owner.username)
-      return { range: 1, result: creep.attackController(target), target };
-    else if (this.claim) return { range: 1, result: creep.claimController(target), target };
-    else return { range: 1, result: creep.reserveController(target), target };
+      return this.movementResult(creep.attackController(target), target);
+    else if (this.claim) return this.movementResult(creep.claimController(target), target);
+    else return this.movementResult(creep.reserveController(target), target);
   }
 }

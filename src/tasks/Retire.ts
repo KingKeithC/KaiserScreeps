@@ -10,7 +10,7 @@ export class Retire extends TargetTask<StructureSpawn> {
   }
 
   public constructor(target: StructureSpawn) {
-    super(target);
+    super(target, 1);
   }
 
   public extraToString(): string {
@@ -18,7 +18,7 @@ export class Retire extends TargetTask<StructureSpawn> {
   }
 
   public actWhenTargetValid(creep: CreepExtra, target: NonNullable<StructureSpawn>): TaskActionResult | null {
-    return { range: 1, result: target.recycleCreep(creep), target };
+    return this.movementResult(target.recycleCreep(creep), target);
   }
 
   public isCreepAbleToContinue(): boolean {

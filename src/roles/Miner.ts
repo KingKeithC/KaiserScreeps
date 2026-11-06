@@ -38,8 +38,8 @@ export class Miner extends CreepRoleBase implements CreepRole {
   }
 
   SelectNextTask(creep: CreepExtra): CreepTask | null {
-    for (const mp of creep.AssignedRoom.AvailableMiningPositions()) return new Mine(mp);
-    for (const mp of creep.AssignedRoom.UnfilledMiningPositions()) return new Mine(mp);
+    for (const mp of creep.AssignedRoom.AvailableMiningPositions()) return new Mine(mp.source, mp.pos);
+    for (const mp of creep.AssignedRoom.UnfilledMiningPositions()) return new Mine(mp.source, mp.pos);
     // this.log.warn('No suitable mining position found.', { '<creep>': creep });
     return null;
   }

@@ -14,7 +14,7 @@ export class Supply extends TargetTask<AnyStoreStructure> {
     public readonly resourceType: ResourceConstant = RESOURCE_ENERGY,
     public freeTargetCapacityToConsiderComplete: number = 0,
   ) {
-    super(target);
+    super(target, 1);
   }
 
   extraToString(target: AnyStoreStructure): string {
@@ -22,7 +22,7 @@ export class Supply extends TargetTask<AnyStoreStructure> {
   }
 
   public actWhenTargetValid(creep: CreepExtra, target: NonNullable<AnyStoreStructure>): TaskActionResult | null {
-    return { range: 1, result: creep.transfer(target, this.resourceType), target };
+    return this.movementResult(creep.transfer(target, this.resourceType), target);
   }
 
   public isCreepAbleToContinue(creep: CreepExtra): boolean {
