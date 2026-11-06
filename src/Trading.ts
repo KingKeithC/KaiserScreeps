@@ -36,8 +36,8 @@ export class TradingSystem {
     return;
   }
 
-  TradeEnabled = false;
-  ProfitableAbovePPU = 2;
+  TradeEnabled = true;
+  ProfitableAbovePPU = 20;
   ProfitableAboveUnits = 200;
   LowCostFullfill = 20;
 
@@ -112,11 +112,13 @@ export class TradingSystem {
   }
 
   ExecuteDeals(room: RoomExtra, terminal: StructureTerminal): void {
+    if (terminal.cooldown) return;
+
     // Execute First deal from best to worst
     for (const o of this.GetWatchedOrders()) {
       if (
         o.isProfitable &&
-        terminal.store.getUsedCapacity(RESOURCE_ENERGY) >= o.costToTransact &&
+        terminal.store.getUsedCapacity(RESOURCE_ENERGY) >= o.fulfillableQty + o.costToTransact &&
         o.terminalRoom === room.name
       ) {
         const deal = Game.market.deal(o.order.id, o.fulfillableQty, room.name);
