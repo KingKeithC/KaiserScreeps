@@ -250,6 +250,11 @@ export class Colony {
     this.log.crit('Successfully claimed a room.', { '<room>': newRoom });
   }
 
+  WatchedMarketOrders() {
+    for (const [id, analysis] of this.trading.WatchedOrders)
+      this.log.report('Details of Watched Order', { id, analysis });
+  }
+
   RegenerateCostMatrixes(): void {
     this.MyRooms.forEach(r => {
       r.ClearStructureDependentData();
