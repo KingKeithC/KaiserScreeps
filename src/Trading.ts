@@ -34,8 +34,10 @@ export class TradingSystem {
     return;
   }
 
-  IgnoreProfitPerUnitOnSellUnder = 100;
   TradeEnabled = false;
+  ProfitableAbovePPU = 2;
+  ProfitableAboveUnits = 200;
+  LowCostFullfill = 20;
 
   // 'Opportunity: ${estProfit} (${estProfitPerUnit}/u) of ${resourceType} sell ${fulfillableQty} @ ${price} from ${origin} to ${dest}: ${order}',
   RefreshWatchedOrders(terminal: StructureTerminal): void {
@@ -64,7 +66,12 @@ export class TradingSystem {
 
         const estProfit = fulfillableQty * o.price;
         const estProfitPerUnit = estProfit / fulfillableQty;
-        const isProfitable = estProfit < this.IgnoreProfitPerUnitOnSellUnder;
+        const costToTransact = Game.market.calcTransactionCost(fulfillableQty, terminal.room.name, o.roomName);
+        const isProfitable =
+          // Profitable if at a high qty and profit ratio
+          (estProfitPerUnit > this.ProfitableAbovePPU && fulfillableQty > this.ProfitableAboveUnits) ||
+          // Profitable if we stand to make anything on low cost orders.
+          (estProfitPerUnit > 0 && costToTransact < this.LowCostFullfill);
 
         if (!isProfitable) continue;
 
@@ -73,7 +80,7 @@ export class TradingSystem {
           time: Game.time,
           terminal: terminal.id,
           terminalRoom: terminal.room.name,
-          costToTransact: Game.market.calcTransactionCost(fulfillableQty, terminal.room.name, o.roomName),
+          costToTransact,
           fulfillableQty,
           isProfitable,
           estProfit,
