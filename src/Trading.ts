@@ -111,23 +111,23 @@ export class TradingSystem {
     Memory.terminals[terminal.id].lastInventory = terminal.store;
   }
 
-  ExecuteDeals(room: RoomExtra, terminal: StructureTerminal): void {
+  ExecuteBestDeal(room: RoomExtra, terminal: StructureTerminal): void {
     if (terminal.cooldown) return;
 
-    // Execute First deal from best to worst
-    for (const o of this.GetWatchedOrders()) {
-      if (
-        o.isProfitable &&
-        terminal.store.getUsedCapacity(RESOURCE_ENERGY) >= o.fulfillableQty + o.costToTransact &&
-        o.terminalRoom === room.name
-      ) {
-        const deal = Game.market.deal(o.order.id, o.fulfillableQty, room.name);
-        this.WatchedOrders.delete(o.order.id);
-        if (deal === OK) {
-          Logger.crit('Market deal completed.', { '<room>': room, deal: o });
-          return;
-        } else Logger.warn('Market deal failed.', { '<room>': room, result: deal, deal: o });
-      }
+    const o = this.GetWatchedOrders().pop();
+    if (o === undefined) return;
+    this.WatchedOrders.delete(o.order.id);
+
+    if (
+      o.isProfitable &&
+      terminal.store.getUsedCapacity(RESOURCE_ENERGY) >= o.fulfillableQty + o.costToTransact &&
+      o.terminalRoom === room.name
+    ) {
+      const deal = Game.market.deal(o.order.id, o.fulfillableQty, room.name);
+      if (deal === OK) {
+        Logger.crit('Market deal completed.', { '<room>': room, deal: o });
+        return;
+      } else Logger.warn('Market deal failed.', { '<room>': room, result: deal, deal: o });
     }
   }
 
@@ -135,7 +135,7 @@ export class TradingSystem {
     if (room.terminal === undefined) return;
     Memory.terminals[room.terminal.id] ??= this.InitializeTerminal(room.terminal);
     this.RefreshWatchedOrders(room.terminal);
-    if (this.TradeEnabled) this.ExecuteDeals(room, room.terminal);
+    if (this.TradeEnabled) this.ExecuteBestDeal(room, room.terminal);
     this.UpdateTerminal(room.terminal);
   }
 }
