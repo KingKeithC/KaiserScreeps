@@ -203,9 +203,17 @@ export class Worker extends CreepRoleBase implements CreepRole {
     const spawnSupply = this.FindSpawnSupply(creep, 0);
     if (spawnSupply) return spawnSupply;
 
-    const roomTowers = creep.AssignedRoom.find(FIND_MY_STRUCTURES, { filter: { structureType: STRUCTURE_TOWER } });
+    // Or refill towers needing lots of energy
+    const roomTowers = creep.AssignedRoom.find(FIND_MY_STRUCTURES, {
+      filter: st => st.structureType === STRUCTURE_TOWER && st.store.getFreeCapacity(RESOURCE_ENERGY) >= 50,
+    });
     const tower = this.FindSupplyByPath(creep, roomTowers as StructureTower[], 'towers');
     if (tower) return new Supply(tower);
+
+    // Or refill the terminal with a base amount of energy
+    const terminal = creep.AssignedRoom.terminal;
+    if (terminal !== undefined && terminal.store.getUsedCapacity(RESOURCE_ENERGY) <= 20_000)
+      return new Supply(terminal);
 
     return null;
   }
