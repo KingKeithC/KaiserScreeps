@@ -66,10 +66,11 @@ export class TradingSystem {
         const fulfillableQty = Math.min(o.remainingAmount, terminal.store.getUsedCapacity(o.resourceType));
         if (fulfillableQty <= 0) continue;
 
-        const estProfit = fulfillableQty * o.price;
+        const estRevenue = fulfillableQty * o.price;
+        const costToTransact = Game.market.calcTransactionCost(fulfillableQty, terminal.room.name, o.roomName);
+        const estProfit = estRevenue - costToTransact;
         const estProfitPerUnit = estProfit / fulfillableQty;
         const linearDist = Game.map.getRoomLinearDistance(terminal.room.name, o.roomName);
-        const costToTransact = Game.market.calcTransactionCost(fulfillableQty, terminal.room.name, o.roomName);
         const isProfitable =
           // Profitable if at a high qty and profit ratio
           (estProfitPerUnit > this.ProfitableAbovePPU && fulfillableQty > this.ProfitableAboveUnits) ||
