@@ -165,7 +165,7 @@ export abstract class CreepRoleBase {
     if (quotaDelta === 0 || newQuota === current) return current;
 
     // Clamp newQuota to Max
-    if (quotaDelta > maxQuota) {
+    if (newQuota > maxQuota) {
       this.log.warn('Clamping newQuota to maximum.', {
         '<room>': room,
         current,
@@ -178,7 +178,7 @@ export abstract class CreepRoleBase {
     }
 
     // Clamp newQuota to Min
-    if (quotaDelta < minQuota) {
+    if (newQuota < minQuota) {
       this.log.warn('Clamping newQuota to minimum.', {
         '<room>': room,
         current,
