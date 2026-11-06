@@ -15,11 +15,13 @@ interface OrderAnalysis {
   terminalRoom: Room['name'];
   order: Order;
 
+  age: number;
   fulfillableQty: number;
   isProfitable: boolean;
   estProfit: number;
   estProfitPerUnit: number;
   costToTransact: number;
+  linearDist: number;
 }
 
 export class TradingSystem {
@@ -66,6 +68,7 @@ export class TradingSystem {
 
         const estProfit = fulfillableQty * o.price;
         const estProfitPerUnit = estProfit / fulfillableQty;
+        const linearDist = Game.map.getRoomLinearDistance(terminal.room.name, o.roomName);
         const costToTransact = Game.market.calcTransactionCost(fulfillableQty, terminal.room.name, o.roomName);
         const isProfitable =
           // Profitable if at a high qty and profit ratio
@@ -80,6 +83,8 @@ export class TradingSystem {
           time: Game.time,
           terminal: terminal.id,
           terminalRoom: terminal.room.name,
+          age: Game.time - o.created,
+          linearDist,
           costToTransact,
           fulfillableQty,
           isProfitable,
@@ -98,9 +103,7 @@ export class TradingSystem {
   }
 
   ExecuteDeals(room: RoomExtra, terminal: StructureTerminal): void {
-    const orders = Array.from(this.WatchedOrders.values()).sort(
-      (o2, o1) => o1.estProfitPerUnit / o1.costToTransact - o2.estProfitPerUnit / o2.costToTransact,
-    );
+    const orders = Array.from(this.WatchedOrders.values()).sort((o2, o1) => o1.estProfit - o2.estProfit);
 
     // Execute First deal from best to worst
     for (const o of orders) {
