@@ -251,8 +251,8 @@ export class Colony {
   }
 
   WatchedMarketOrders() {
-    for (const [id, analysis] of this.trading.WatchedOrders)
-      this.log.report('Details of Watched Order', { id, analysis });
+    for (const watchedOrder of this.trading.GetWatchedOrders())
+      this.log.report('Details of Watched Order', { watchedOrder });
   }
 
   RegenerateCostMatrixes(): void {

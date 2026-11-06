@@ -40,12 +40,10 @@ export class TradingSystem {
   ProfitableAbovePPU = 2;
   ProfitableAboveUnits = 200;
   LowCostFullfill = 20;
-  LastRefreshed?: number;
 
   // 'Opportunity: ${estProfit} (${estProfitPerUnit}/u) of ${resourceType} sell ${fulfillableQty} @ ${price} from ${origin} to ${dest}: ${order}',
   RefreshWatchedOrders(terminal: StructureTerminal): void {
-    if (this.LastRefreshed !== undefined) return;
-    this.LastRefreshed = Game.time;
+    if (this.WatchedOrders.size > 0) return;
 
     Logger.info('Refreshing List of Watched Market Orders.', { '<room>': terminal.room, terminal });
 
@@ -101,6 +99,10 @@ export class TradingSystem {
       }
   }
 
+  GetWatchedOrders(): OrderAnalysis[] {
+    return Array.from(this.WatchedOrders.values()).sort((o2, o1) => o1.estProfit - o2.estProfit);
+  }
+
   InitializeTerminal(terminal: StructureTerminal): TerminalMemory {
     return { roomName: terminal.room.name, lastInventory: terminal.store };
   }
@@ -110,16 +112,15 @@ export class TradingSystem {
   }
 
   ExecuteDeals(room: RoomExtra, terminal: StructureTerminal): void {
-    const orders = Array.from(this.WatchedOrders.values()).sort((o2, o1) => o1.estProfit - o2.estProfit);
-
     // Execute First deal from best to worst
-    for (const o of orders) {
+    for (const o of this.GetWatchedOrders()) {
       if (
         o.isProfitable &&
         terminal.store.getUsedCapacity(RESOURCE_ENERGY) >= o.costToTransact &&
         o.terminalRoom === room.name
       ) {
         const deal = Game.market.deal(o.order.id, o.fulfillableQty, room.name);
+        this.WatchedOrders.delete(o.order.id);
         if (deal === OK) {
           Logger.crit('Market deal completed.', { '<room>': room, deal: o });
           return;
