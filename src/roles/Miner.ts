@@ -53,22 +53,20 @@ export class Miner extends CreepRoleBase implements CreepRole {
       .filter((structure): structure is StructureTower => structure.structureType === STRUCTURE_TOWER);
     const nearbyLinks = creep.AssignedRoom.LinkSenders.filter(link => link.pos.isNearTo(creep));
     const nearbyEnergyDemand =
-      nearbyTowers.some(tower => tower.store.getFreeCapacity(RESOURCE_ENERGY) > 0) ||
-      nearbyLinks.some(link => link.store.getFreeCapacity(RESOURCE_ENERGY) > 0);
+      nearbyTowers.reduce((total, tower) => total + tower.store.getFreeCapacity(RESOURCE_ENERGY), 0) +
+      nearbyLinks.reduce((total, link) => total + link.store.getFreeCapacity(RESOURCE_ENERGY), 0);
+    const collectionLimit = nearbyEnergyDemand * 2;
 
-    if (this.TryCollectFromContainer(creep, nearbyContainers, nearbyEnergyDemand)) return;
+    if (this.TryCollectFromContainer(creep, nearbyContainers, collectionLimit)) return;
     if (this.TryPickupDroppedEnergy(creep)) return;
     if (this.TryTransferEnergy(creep, nearbyTowers, 50)) return;
     if (this.TryTransferEnergy(creep, nearbyLinks, 0)) return;
     if (this.TryTransferEnergy(creep, nearbyContainers, 0)) return;
   }
 
-  private TryCollectFromContainer(
-    creep: Creep,
-    containers: StructureContainer[],
-    nearbyEnergyDemand: boolean,
-  ): boolean {
-    if (!nearbyEnergyDemand || creep.store.getFreeCapacity(RESOURCE_ENERGY) <= 0) return false;
+  private TryCollectFromContainer(creep: Creep, containers: StructureContainer[], collectionLimit: number): boolean {
+    const amountToCollect = Math.min(collectionLimit, creep.store.getFreeCapacity(RESOURCE_ENERGY));
+    if (amountToCollect <= 0) return false;
 
     for (const container of containers)
       if (container.store.getUsedCapacity(RESOURCE_ENERGY) > 0 && creep.withdraw(container, RESOURCE_ENERGY) === OK)
@@ -77,13 +75,15 @@ export class Miner extends CreepRoleBase implements CreepRole {
     return false;
   }
 
-  private TryPickupDroppedEnergy(creep: Creep): boolean {
-    if (creep.store.getFreeCapacity(RESOURCE_ENERGY) <= 0) return false;
+  private TryPickupDroppedEnergy(creep: Creep, collectionLimit: number = creep.store.getFreeCapacity()): boolean {
+    const amountToCollect = Math.min(collectionLimit, creep.store.getFreeCapacity(RESOURCE_ENERGY));
+    if (amountToCollect <= 0) return false;
 
     const droppedEnergy = creep.pos.findInRange(FIND_DROPPED_RESOURCES, 1, {
       filter: resource => resource.resourceType === RESOURCE_ENERGY,
     });
-    for (const resource of droppedEnergy) if (creep.pickup(resource) === OK) return true;
+    for (const resource of droppedEnergy)
+      if (resource.amount <= amountToCollect && creep.pickup(resource) === OK) return true;
 
     return false;
   }
