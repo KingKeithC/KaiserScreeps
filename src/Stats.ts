@@ -232,6 +232,7 @@ export function GetColonyStats(colony: Colony): ColonyStats {
 
   const resources: NumericRecord = {};
   for (const r of Object.entries(Game.resources)) resources[r[0]] = r[1] as number;
+  resources.credits = Game.market.credits;
 
   const meminfo: NumericRecord = {};
   if (Game.cpu.getHeapStatistics) {
