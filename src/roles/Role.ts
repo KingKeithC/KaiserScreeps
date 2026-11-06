@@ -119,7 +119,7 @@ export abstract class CreepRoleBase {
   }
 
   // Default number of ticks between invocations of `GetQuotaChange`
-  protected RoleQuotaChangeFrequency = 200;
+  protected RoleQuotaChangeFrequency = 500;
 
   /**
    * Base quota lookup for current value from cache, while respecting a
