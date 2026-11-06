@@ -108,7 +108,7 @@ export abstract class CreepRoleBase {
   private currentRoomQuotas: { [roomName: RoomExtra['name']]: number } = {};
 
   // Mapping of room name to the last time we called `SetQuota` for it.
-  private roomQuotaSetTimes: { [roomName: RoomExtra['name']]: number } = {};
+  private roomQuotaChangeCheckTimes: { [roomName: RoomExtra['name']]: number } = {};
 
   private GetRoomCacheValue(
     cache: { [roomName: RoomExtra['name']]: number },
@@ -155,14 +155,16 @@ export abstract class CreepRoleBase {
     minQuota = this.GetMinQuota(room),
     maxQuota = this.GetMaxQuota(room),
   ): number {
-    this.roomQuotaSetTimes[room.name] = Game.time;
+    this.roomQuotaChangeCheckTimes[room.name] = Game.time;
 
     // Calculate new Quota based on input
     if (typeof quotaDelta !== 'number') quotaDelta = quotaDelta(current);
-    const newQuota = current + quotaDelta;
+    let newQuota = current + quotaDelta;
+
+    // Early return for no change
     if (quotaDelta === 0 || newQuota === current) return current;
 
-    // Clamp newQuota to Min/Max Range
+    // Clamp newQuota to Max
     if (quotaDelta > maxQuota) {
       this.log.warn('Clamping newQuota to maximum.', {
         '<room>': room,
@@ -172,8 +174,11 @@ export abstract class CreepRoleBase {
         quotaDelta,
         maxQuota,
       });
-      quotaDelta = maxQuota;
-    } else if (quotaDelta < minQuota) {
+      newQuota = maxQuota;
+    }
+
+    // Clamp newQuota to Min
+    if (quotaDelta < minQuota) {
       this.log.warn('Clamping newQuota to minimum.', {
         '<room>': room,
         current,
@@ -182,20 +187,16 @@ export abstract class CreepRoleBase {
         quotaDelta,
         maxQuota,
       });
-      quotaDelta = minQuota;
+      newQuota = minQuota;
     }
 
-    if (quotaDelta >= minQuota && quotaDelta <= maxQuota) {
-      // If new quota is acceptible, update cache and return.
-      this.log.info('Changing quota.', { '<room>': room, current, newQuota: quotaDelta, diff: newQuota });
-      return (this.currentRoomQuotas[room.name] = quotaDelta);
-    }
-
-    return current;
+    // Assign to cache to be served on later requests, and return
+    this.log.info('Changing quota.', { '<room>': room, current, quotaDelta, newQuota });
+    return (this.currentRoomQuotas[room.name] = newQuota);
   }
 
   protected TimeSinceQuotaUpdate(room: RoomExtra): number {
-    return Game.time - this.GetRoomCacheValue(this.roomQuotaSetTimes, room, () => Game.time);
+    return Game.time - this.GetRoomCacheValue(this.roomQuotaChangeCheckTimes, room, () => Game.time);
   }
 
   /**
