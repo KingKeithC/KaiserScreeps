@@ -70,8 +70,8 @@ export class Miner extends CreepRoleBase implements CreepRole {
     if (TryPickupDropped(creep)) return;
     if (TryCollectFromContainer(creep, nearbyContainers, nearbyEnergyDemand * 2, [RESOURCE_ENERGY])) return;
     if (TryTransferTo(creep, nearbyContainers, notEnergy)) return;
-    if (TryTransferTo(creep, nearbyLinks, [RESOURCE_ENERGY])) return;
     if (TryTransferTo(creep, nearbyTowers, [RESOURCE_ENERGY])) return;
+    if (TryTransferTo(creep, nearbyLinks, [RESOURCE_ENERGY])) return;
     if (TryTransferTo(creep, nearbyContainers, [RESOURCE_ENERGY])) return;
 
     if (!(creep.currentTask instanceof Mine && creep.currentTask.target instanceof Source)) return;
