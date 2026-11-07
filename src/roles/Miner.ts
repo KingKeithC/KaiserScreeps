@@ -68,14 +68,14 @@ export class Miner extends CreepRoleBase implements CreepRole {
   private TryCollectFromContainer(
     creep: Creep,
     containers: StructureContainer[],
-    collectionLimit: number,
+    collectionLimit?: number,
     resources: ResourceConstant[] = RESOURCES_ALL,
   ): boolean {
     for (const rt of resources) {
-      const amountToCollect = Math.min(collectionLimit, creep.store.getFreeCapacity(rt));
-      if (amountToCollect <= 0) continue;
+      if (collectionLimit && collectionLimit <= 0) continue;
       for (const container of containers)
-        if ((container.store.getUsedCapacity(rt) ?? 0) > 0 && creep.withdraw(container, rt) === OK) return true;
+        if ((container.store.getUsedCapacity(rt) ?? 0) > 0 && creep.withdraw(container, rt, collectionLimit) === OK)
+          return true;
     }
     return false;
   }
