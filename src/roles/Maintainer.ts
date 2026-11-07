@@ -31,7 +31,7 @@ export class Maintainer extends Worker implements CreepRole {
   }
 
   SelectNextTask(creep: CreepExtra): CreepTask | null {
-    return this.DoWithLocalEnergy(creep, c => this.MaintainControllerOrSpawn(c));
+    return this.DoWithLocalEnergy(creep, c => this.MaintainSpawnThenLocalRoom(c));
   }
 
   TickCreep(creep: CreepExtra): void {

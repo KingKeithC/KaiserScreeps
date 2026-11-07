@@ -200,7 +200,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
     return null;
   }
 
-  MaintainControllerOrSpawn(creep: CreepExtra): CreepTask | null {
+  MaintainSpawnThenLocalRoom(creep: CreepExtra): CreepTask | null {
     // Main task is to prevent the controller from downgrading
     const maintain = this.MaintainController(creep);
     if (maintain) return maintain;
@@ -210,11 +210,14 @@ export class Worker extends CreepRoleBase implements CreepRole {
     if (spawnSupply) return spawnSupply;
 
     // Or refill towers needing lots of energy
-    const roomTowers = creep.AssignedRoom.find(FIND_MY_STRUCTURES, {
-      filter: st => st.structureType === STRUCTURE_TOWER && st.store.getFreeCapacity(RESOURCE_ENERGY) >= 100,
+    const towers = creep.AssignedRoom.find(FIND_MY_STRUCTURES, {
+      filter: (st): st is StructureTower => st.structureType === STRUCTURE_TOWER && st.isActive(),
     });
-    const tower = this.FindSupplyByPath(creep, roomTowers as StructureTower[], 'towers');
-    if (tower) return new Supply(tower);
+    const towersNeedingEnergy = towers.filter(st => st.store.getFreeCapacity(RESOURCE_ENERGY) >= 100);
+    if (towersNeedingEnergy.length > 0) {
+      const towerNeedingEnergy = this.FindSupplyByPath(creep, towersNeedingEnergy, 'towers');
+      if (towerNeedingEnergy) return new Supply(towerNeedingEnergy);
+    }
 
     // Or refill the terminal with a base amount of energy
     const terminal = creep.AssignedRoom.terminal;
@@ -223,9 +226,22 @@ export class Worker extends CreepRoleBase implements CreepRole {
 
     // Or refill lab energy
     const labs: StructureLab[] = creep.AssignedRoom.find(FIND_MY_STRUCTURES, {
-      filter: s => s.structureType === STRUCTURE_LAB && s.store.getFreeCapacity(RESOURCE_ENERGY) > 0,
+      filter: s => s.structureType === STRUCTURE_LAB && s.isActive() && s.store.getFreeCapacity(RESOURCE_ENERGY) > 0,
     });
-    for (const lab of labs) if (lab.isActive()) return new Supply(lab);
+    for (const lab of labs) return new Supply(lab);
+
+    // Or do construction
+    const construction = this.FindConstructionByPriorityAndPath(
+      creep,
+      creep.AssignedRoom.find(FIND_MY_CONSTRUCTION_SITES),
+    );
+    if (construction) return new Build(construction);
+
+    // Or do repairs if there are no towers
+    if (towers.length === 0) {
+      const repair = creep.AssignedRoom.PendingRepairGroup;
+      if (repair && repair.repairs.length >= 1) return new Repair(repair.repairs[-1]);
+    }
 
     return null;
   }
@@ -261,7 +277,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
       // Look for a spending task amongst typical targets, unless we are short on maintainers
       const spend =
         maintainers.length === 0
-          ? this.MaintainControllerOrSpawn(creep)
+          ? this.MaintainSpawnThenLocalRoom(creep)
           : this.WorkerSpendingTask(creep, undefined, maintainers.length);
       if (spend) return spend;
 
