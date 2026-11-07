@@ -358,8 +358,7 @@ export class CreepExtra extends Creep {
         // Log unhandled move result
         this.log.debug('DoTask follow-up move unhandled.', { moveResult, task, outcome, thisPos: this.pos });
     } else {
-      // Task result was not ok and not a move
-      this.log.debug('DoTask returned unhandled result.', { task, thisPos: this.pos, outcome });
+      this.log.debug('DoTask result was not ok and not a move.', { task, thisPos: this.pos, outcome });
       task.isCompleteFlag = true;
     }
 
