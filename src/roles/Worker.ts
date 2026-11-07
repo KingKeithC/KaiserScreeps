@@ -218,8 +218,14 @@ export class Worker extends CreepRoleBase implements CreepRole {
 
     // Or refill the terminal with a base amount of energy
     const terminal = creep.AssignedRoom.terminal;
-    if (terminal !== undefined && terminal.store.getUsedCapacity(RESOURCE_ENERGY) <= 20_000)
+    if (terminal && terminal.isActive() && terminal.store.getUsedCapacity(RESOURCE_ENERGY) <= 20_000)
       return new Supply(terminal);
+
+    // Or refill lab energy
+    const labs: StructureLab[] = creep.AssignedRoom.find(FIND_MY_STRUCTURES, {
+      filter: s => s.structureType === STRUCTURE_LAB && s.store.getFreeCapacity(RESOURCE_ENERGY) > 0,
+    });
+    for (const lab of labs) if (lab.isActive()) return new Supply(lab);
 
     return null;
   }
