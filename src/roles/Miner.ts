@@ -55,12 +55,14 @@ export class Miner extends CreepRoleBase implements CreepRole {
     const nearbyEnergyDemand =
       nearbyTowers.reduce((total, tower) => total + tower.store.getFreeCapacity(RESOURCE_ENERGY), 0) +
       nearbyLinks.reduce((total, link) => total + link.store.getFreeCapacity(RESOURCE_ENERGY), 0);
+    const notEnergy = RESOURCES_ALL.filter(rt => rt !== RESOURCE_ENERGY);
 
     if (this.TryCollectFromContainer(creep, nearbyContainers, nearbyEnergyDemand * 2, [RESOURCE_ENERGY])) return;
     if (this.TryPickupDropped(creep)) return;
+    if (this.TryTransfer(creep, nearbyContainers, notEnergy)) return;
     if (this.TryTransfer(creep, nearbyTowers, [RESOURCE_ENERGY])) return;
     if (this.TryTransfer(creep, nearbyLinks, [RESOURCE_ENERGY])) return;
-    if (this.TryTransfer(creep, nearbyContainers)) return;
+    if (this.TryTransfer(creep, nearbyContainers, [RESOURCE_ENERGY])) return;
   }
 
   private TryCollectFromContainer(
