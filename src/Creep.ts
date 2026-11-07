@@ -6,6 +6,8 @@ import { CreepRole } from 'roles/Role';
 import { DeserializeRoomPosition, RoomPositionString, SerializeRoomPosition } from 'utils/Collections';
 import { CreepTask, DeserializeTask } from 'tasks/types';
 import { FromEdgeIntoRoom as DirectionIntoRoomFromEdge, EdgeStoodOn } from 'utils/CreepUtils';
+import { Scout, ScoutingReport } from 'roles/Scout';
+import { MakeRoomReport } from 'utils/RoomUtils';
 
 declare global {
   interface CreepMemory {
@@ -105,6 +107,8 @@ export class CreepExtra extends Creep {
 
     // Reset after using its value:
     this.IntendedToMove = false;
+
+    this.UpdateScoutingReportForStoodInRoom();
   }
 
   MaxStuckTicks = 2;
@@ -220,6 +224,48 @@ export class CreepExtra extends Creep {
   }
   get IntendedToMove(): boolean {
     return (this.memory.intendedToMove ??= false);
+  }
+
+  NewScoutingReport(): ScoutingReport {
+    const dist = Game.map.getRoomLinearDistance(this.room.name, this.AssignedRoom.name);
+    if (
+      Memory.scoutingReports &&
+      this.room.name in Memory.scoutingReports &&
+      'lastSeen' in Memory.scoutingReports[this.room.name]
+    )
+      this.log.info('Updating scouting report.', {
+        reportRoomName: this.room.name,
+        distanceFromAssignedRoom: dist,
+        ticksSinceLastSeen: Game.time - Memory.scoutingReports[this.room.name].lastSeen,
+      });
+    else this.log.info('Creating scouting report.', { reportRoomName: this.room.name, distanceFromAssignedRoom: dist });
+
+    return { ...MakeRoomReport(this.room), scoutedFromOutpost: this.memory.room, distFromOutpost: dist };
+  }
+
+  UpdateScoutingReportForStoodInRoom(): void {
+    Memory.scoutingReports ??= {};
+    let newReport: ScoutingReport | undefined;
+
+    // Create or update a new scouting report for the current room.
+    if (
+      this.MovedBetweenRooms ||
+      !(this.room.name in Memory.scoutingReports) ||
+      Memory.scoutingReports[this.room.name] === undefined ||
+      Memory.scoutingReports[this.room.name].lastSeen === undefined ||
+      (Game.time - Memory.scoutingReports[this.room.name].lastSeen ?? 0) > Scout.ScoutReportTTL
+    )
+      newReport = this.NewScoutingReport();
+
+    if (newReport !== undefined) {
+      // If we made a new report, replace the one in memory.
+      Memory.scoutingReports[this.room.name] = newReport;
+
+      // If the new report has hostiles, print a message.
+      if (Game.time % 10 === 0 && newReport.hostiles !== undefined) {
+        this.log.warn('Hostiles found.', { hostiles: newReport.hostiles, room: newReport.roomName });
+      }
+    }
   }
 
   ActedThisTick = false;
