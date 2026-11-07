@@ -65,7 +65,7 @@ export class Mine extends TargetTask<Source | StructureExtractor> {
     if (miningPosition.pos !== undefined) {
       const position = DeserializeRoomPosition(miningPosition.pos);
       const occupier = position.lookFor(LOOK_CREEPS).pop();
-      if (occupier !== undefined && occupier.id !== creep.id && occupier.memory.role !== 'Maintainer') return true;
+      if (occupier !== undefined && occupier.id !== creep.id) return true;
     }
 
     const mineral: Mineral | undefined = source.pos.lookFor(LOOK_MINERALS)[0];
