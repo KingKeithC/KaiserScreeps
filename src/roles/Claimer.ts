@@ -3,7 +3,7 @@ import { unique } from 'lodash';
 import type { RoomExtra } from 'Room';
 import { Claim, Move } from 'tasks';
 import { CreepTask } from 'tasks/types';
-import { MakeBody } from 'utils/Collections';
+import { GetValueByName, MakeBody } from 'utils/Collections';
 import { FirstBodyByEnergyCapacity } from 'utils/RoomUtils';
 import { CreepRoleBase, CreepRole } from './Role';
 
@@ -21,12 +21,24 @@ export class Claimer extends CreepRoleBase implements CreepRole {
     return FirstBodyByEnergyCapacity(room, ...this.PossibleBodies) ?? this.PossibleBodies[-1];
   }
 
+  private dontSpawnBefore: { [roomName: RoomExtra['name']]: number } = {};
+
   IsSpawnNeeded(room: RoomExtra): boolean {
     if (!this.IsRoleUnderQuota(room)) return false;
+    const dontSpawnHereBefore = GetValueByName(this.dontSpawnBefore, room, () => Game.time);
+    if (dontSpawnHereBefore > Game.time) return false;
     return this.UnworkedClaims(room).length > 0;
   }
 
+  override GetMaxQuota(): number {
+    return 1;
+  }
+
   override GetMinQuota(): number {
+    return 0;
+  }
+
+  override GetQuotaChange(): number {
     return 1;
   }
 
@@ -42,9 +54,21 @@ export class Claimer extends CreepRoleBase implements CreepRole {
   UnworkedClaims(room: RoomExtra): string[] {
     const worked = this.WorkedClaims(room);
     const ret = [];
-    for (const claim of this.PotentialClaims(room))
+    for (const claim of this.PotentialClaims(room)) {
+      const claimedRoom = Game.rooms[claim];
       if (worked.includes(claim)) continue;
-      else ret.push(claim);
+      else if (
+        claimedRoom &&
+        claimedRoom.controller?.owner !== undefined &&
+        claimedRoom.controller.owner.username !== this.colony.username &&
+        claimedRoom.controller.safeMode !== undefined
+      ) {
+        this.log.warn('Claimed room in safe mode, delaying spawn and lowering quota.');
+        this.ChangeQuota(room, -1);
+        this.dontSpawnBefore[room.name] = Game.time + claimedRoom.controller.safeMode;
+        continue;
+      } else ret.push(claim);
+    }
     return ret;
   }
 
