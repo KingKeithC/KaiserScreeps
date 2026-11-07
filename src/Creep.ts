@@ -263,7 +263,7 @@ export class CreepExtra extends Creep {
       Memory.scoutingReports[this.room.name] = newReport;
 
       // If the new report has hostiles, print a message.
-      if (Game.time % 10 === 0 && newReport.hostiles !== undefined) {
+      if (Game.time % 10 === 0 && newReport.hostiles && newReport.hostiles.length > 0) {
         this.log.warn('Hostiles found.', { hostiles: newReport.hostiles, room: newReport.roomName });
       }
     }
