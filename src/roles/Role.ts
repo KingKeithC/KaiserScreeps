@@ -125,7 +125,7 @@ export abstract class CreepRoleBase {
       this.log.warn('Quota overridden.', { '<room>': room, current, overridenQuota });
       return overridenQuota;
     }
-    return current;
+    return Math.min(this.GetMaxQuota(room), Math.max(this.GetMinQuota(room), current));
   }
 
   /**
