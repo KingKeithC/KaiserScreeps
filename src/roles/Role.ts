@@ -119,7 +119,7 @@ export abstract class CreepRoleBase {
    * room's `roleLimits`, and without updating the `roomQuotaCheckTimes`.
    */
   private CurrentQuota(room: RoomExtra): number {
-    const current = GetValueByName(this.currentRoomQuotas, room, () => this.GetMinQuota(room));
+    const current = GetValueByName(this.currentRoomQuotas, room, () => this.GetRoomCreepsInRole(room).length);
     const overridenQuota = (room.memory.roleLimits ??= {})[this.roleName];
     if (overridenQuota !== undefined) {
       this.log.warn('Quota overridden.', { '<room>': room, current, overridenQuota });
