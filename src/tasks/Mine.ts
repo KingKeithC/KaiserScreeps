@@ -87,19 +87,23 @@ export class Mine extends TargetTask<Source | StructureExtractor> {
     );
   }
 
-  public override handleOutcome(creep: CreepExtra, outcome: TaskActionResult | null): TaskActionResult | null {
+  protected override handleOutcomeExtra(creep: CreepExtra, outcome: TaskActionResult | null): TaskActionResult | null {
     // If the source is out of energy, and we're not a miner, then we're done
-    if (outcome?.result === ERR_NOT_ENOUGH_RESOURCES && creep.role?.groupName === 'Miners') {
-      // Since we're a miner, we can ignore the error result
-      outcome.result = OK;
-    } else if (outcome?.result === ERR_NOT_ENOUGH_RESOURCES) {
-      // Non miner, if the source if out of energy, we're done.
-      this.isCompleteFlag = true;
-      return { ...outcome, result: OK } as TaskActionResult;
-    } else if (outcome?.result === ERR_TIRED) {
+    if (outcome?.result === ERR_NOT_ENOUGH_RESOURCES)
+      if (creep.role?.groupName === 'Miners') {
+        // Since we're a miner, we can ignore the error result
+        return { ...outcome, result: OK } as TaskActionResult;
+      } else {
+        // Non miner, if the source if out of energy, we're done.
+        this.isCompleteFlag = true;
+        return { ...outcome, result: OK } as TaskActionResult;
+      }
+
+    if (outcome?.result === ERR_TIRED) {
       // Extractor is on cooldown, ignore
       return { ...outcome, result: OK } as TaskActionResult;
     }
-    return super.handleOutcome(creep, outcome);
+
+    return outcome;
   }
 }

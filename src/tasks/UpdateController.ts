@@ -50,8 +50,7 @@ export class UpgradeController extends TargetTask<StructureController> {
     return this.mode === 'maintain' && target.progress >= this.ExpectedFinalProgress(target);
   }
 
-  public handleOutcome(creep: CreepExtra, results: TaskActionResult | null): TaskActionResult | null {
-    results = super.handleOutcome(creep, results);
+  protected override handleOutcomeExtra(creep: CreepExtra, results: TaskActionResult | null): TaskActionResult | null {
     if (results?.result === ERR_NOT_ENOUGH_RESOURCES) this.isCompleteFlag = true;
     if (results?.result === ERR_NOT_OWNER) this.isCompleteFlag = true;
     if (results?.result === ERR_INVALID_TARGET) this.isCompleteFlag = true;

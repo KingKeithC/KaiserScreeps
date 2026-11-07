@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { CreepExtra } from 'Creep';
 import { CreepTask, Targetable, TaskActionResult, TaskBase } from 'tasks/types';
 import { DeserializeRoomPosition, RoomPositionString, SerializeRoomPosition } from 'utils/Collections';
@@ -64,12 +65,10 @@ export abstract class TargetTask<Target extends Targetable> extends TaskBase imp
 
   abstract actWhenTargetValid(creep: CreepExtra, target: NonNullable<Target>): TaskActionResult | null;
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   actWhenTargetInvalid(_creep: CreepExtra, _targetRoom: Room): TaskActionResult | null {
     return null;
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   actWhenTargetInNonVisibleRoom(_creep: CreepExtra, targetPos: RoomPosition): TaskActionResult | null {
     return this.movementResult(ERR_NOT_IN_RANGE, undefined, 23, targetPos);
   }
@@ -84,42 +83,55 @@ export abstract class TargetTask<Target extends Targetable> extends TaskBase imp
     return this.actWhenTargetValid(creep, this.target);
   }
 
-  CompleteWhenTargetIsNullAndInVisibleRoom = true;
-  CompleteWhenTargetInNonVisibleRoom = false;
+  protected get completeWhenTargetIsNullAndInVisibleRoom() {
+    return true;
+  }
+  protected get completeWhenTargetInNonVisibleRoom() {
+    return false;
+  }
+
   abstract isCreepAbleToContinue(creep: CreepExtra): boolean;
   abstract isCompleteWhenTargetValid(creep: CreepExtra, target: NonNullable<Target>): boolean;
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   public handleOutcome(creep: CreepExtra, result: TaskActionResult | null): TaskActionResult | null {
+    this.handleTargetCompletion(creep);
+    return this.handleOutcomeExtra(creep, result);
+  }
+
+  private handleTargetCompletion(creep: CreepExtra): void {
     // If creep can't continue, then we're done
     if (!this.isCreepAbleToContinue(creep)) {
       this.isCompleteFlag = true;
-      return result;
+      return;
     }
 
     // Check if we're in a different room than the target
     const targetPos = DeserializeRoomPosition(this.targetPos);
     if (targetPos.roomName !== creep.pos.roomName)
       if (!(targetPos.roomName in Game.rooms)) {
-        this.isCompleteFlag = this.CompleteWhenTargetInNonVisibleRoom;
+        this.isCompleteFlag = this.completeWhenTargetInNonVisibleRoom;
         // TODO: Invoke move logic early before bothering to act?
-        return result;
+        return;
       }
 
     // We're in the same room as the target
 
     if (this.target === null || this.target === undefined) {
       if (targetPos.roomName in Game.rooms) {
-        this.isCompleteFlag = this.CompleteWhenTargetIsNullAndInVisibleRoom;
-        return result;
+        this.isCompleteFlag = this.completeWhenTargetIsNullAndInVisibleRoom;
+        return;
       } else {
         Logger.warn('Target is null in a room that is not visible.', { '<creep>': creep, targetPos });
         this.isCompleteFlag = true;
-        return result;
+        return;
       }
     }
 
     this.isCompleteFlag = this.isCompleteWhenTargetValid(creep, this.target);
+  }
+
+  // Override for task-specific result handling; the shared completion logic always runs first.
+  protected handleOutcomeExtra(creep: CreepExtra, result: TaskActionResult | null): TaskActionResult | null {
     return result;
   }
 

@@ -33,8 +33,7 @@ export class Supply extends TargetTask<AnyStoreStructure> {
     return (target.store.getFreeCapacity(this.resourceType) ?? 0) <= this.freeTargetCapacityToConsiderComplete;
   }
 
-  public override handleOutcome(creep: CreepExtra, results: TaskActionResult | null): TaskActionResult | null {
-    results = super.handleOutcome(creep, results);
+  protected override handleOutcomeExtra(creep: CreepExtra, results: TaskActionResult | null): TaskActionResult | null {
     if (results?.result === ERR_FULL) this.isCompleteFlag = true;
     if (results?.result === ERR_NOT_ENOUGH_RESOURCES) this.isCompleteFlag = true;
     if (this.isCompleteFlag) return { ...results, result: OK } as TaskActionResult;

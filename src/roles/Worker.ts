@@ -1,5 +1,5 @@
 import { CreepExtra } from 'Creep';
-import { isBoolean, some, sum } from 'lodash';
+import { some, sum } from 'lodash';
 import { RoomExtra } from 'Room';
 
 import { Build, Collect, Mine, Repair, Supply, UpgradeController } from 'tasks';

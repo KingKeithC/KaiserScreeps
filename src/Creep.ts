@@ -290,7 +290,7 @@ export class CreepExtra extends Creep {
       return;
     }
 
-    const outcome = task.act(this);
+    const outcome = task.handleOutcome(this, task.act(this));
 
     // Task may be modified from what's serialized, save it back at the end
     // of the function
@@ -323,12 +323,7 @@ export class CreepExtra extends Creep {
       if (moveResult === ERR_NO_PATH) task.isCompleteFlag = true;
     } else {
       // Task result was not ok and not a move
-      this.log.debug('DoTask returned a non-OK result.', {
-        task,
-        outcome,
-        thisPos: this.pos,
-        targetPos: outcome.target.pos,
-      });
+      this.log.debug('DoTask returned a non-OK result.', { task, thisPos: this.pos, outcome });
       task.isCompleteFlag = true;
     }
 
