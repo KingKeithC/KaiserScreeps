@@ -293,7 +293,7 @@ export class CreepExtra extends Creep {
   }
 
   JobsAvailable = true;
-  private ChangeTask(newTask = this.role.SelectNextTask(this)): void {
+  private ChangeTask(newTask = this.role.SelectNextTask(this)): CreepTask | null {
     const oldTask = this.currentTask;
     this.currentTask = newTask;
 
@@ -309,9 +309,11 @@ export class CreepExtra extends Creep {
       // If the transition was to nothing, set no jobs available
       // flag to prevent further task selecting
       this.JobsAvailable = false;
+
+    return newTask;
   }
 
-  CanStillAct(): boolean {
+  CanStillAct(maxAttempts: number): boolean {
     // Don't act if we know we won't find a new job
     if (!this.JobsAvailable) return false;
 
@@ -319,22 +321,25 @@ export class CreepExtra extends Creep {
     if (this.IntendedToMove) return false;
 
     // If we have done less than the limit of tasks, then we're ok to keep trying
-    return this.tasksAttempted <= this.MaxTasksToAttemptPerTick;
+    return this.tasksAttempted <= maxAttempts;
   }
 
-  MaxTasksToAttemptPerTick = 5;
-  private tasksAttempted = 0;
-  DoTask(): void {
-    if (!this.CanStillAct()) return;
+  DoTasks(maxAttempts = 5): void {
+    for (let i = 0; i < maxAttempts; i++) {
+      if (!this.CanStillAct(maxAttempts)) return;
+      this.currentTask = this.DoTask(this.currentTask);
+    }
+  }
 
+  private tasksAttempted = 0;
+  private DoTask(currentTask: CreepTask | null): CreepTask | null {
     // Select new Task if no current one, or it's complete
-    if (this.currentTask === null || this.currentTask.isCompleteFlag) this.ChangeTask();
+    const task = currentTask === null || currentTask.isCompleteFlag ? this.ChangeTask() : currentTask;
 
     // Early return for no task found
-    const task = this.currentTask;
     if (task === null) {
       this.say('🤷');
-      return;
+      return null;
     }
 
     const outcome = task.handleOutcome(this, task.act(this));
@@ -350,7 +355,8 @@ export class CreepExtra extends Creep {
     } else if (outcome.result === ERR_NOT_IN_RANGE) {
       // We have to move
       const moveResult = this.MoveCreep(outcome.target.pos, { range: outcome.range });
-      if (moveResult === OK) this.IntendedToMove = true;
+      if (moveResult === OK_MOVE_DONE) task.isCompleteFlag = true;
+      else if (moveResult === OK) this.IntendedToMove = true;
       else if (moveResult === ERR_NO_PATH)
         // If pathfinding failed, cancel the task
         task.isCompleteFlag = true;
@@ -362,8 +368,7 @@ export class CreepExtra extends Creep {
       task.isCompleteFlag = true;
     }
 
-    // Save task back to memory
-    this.currentTask = task;
+    return task;
   }
 
   MoveIntoRoomIfOnEdge(): void {

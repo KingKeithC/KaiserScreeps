@@ -682,7 +682,7 @@ export class RoomExtra extends Room {
     // Run each creep in the room.
     for (const c of this.AssignedCreeps.filter(ac => !ac.spawning)) {
       c.role.TickCreep(c);
-      for (let i = 0; i < c.MaxTasksToAttemptPerTick; i++) c.DoTask();
+      c.DoTasks();
       c.MoveIntoRoomIfOnEdge();
     }
   }
