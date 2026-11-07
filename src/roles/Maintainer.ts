@@ -72,17 +72,8 @@ export class Maintainer extends Worker implements CreepRole {
       const mainTask = findMainSpendingTask(creep);
       if (mainTask) return mainTask;
 
-      // Excess goes into storage,
-      // Unless last task was to Collect from storage or was null
-      if (
-        creep.AssignedRoom.storage !== undefined &&
-        creep.currentTask !== null &&
-        !(
-          creep.currentTask.action === Collect.action &&
-          (creep.currentTask as Collect).targetId === creep.room.storage?.id
-        )
-      )
-        return new Supply(creep.AssignedRoom.storage);
+      // Excess goes into storage
+      if (creep.AssignedRoom.storage !== undefined) return new Supply(creep.AssignedRoom.storage);
     }
 
     if (creep.store.getUsedCapacity() === 0) {
@@ -90,19 +81,16 @@ export class Maintainer extends Worker implements CreepRole {
       const link = creep.AssignedRoom.LinkReceivers.pop();
       if (link && link.store.getUsedCapacity(RESOURCE_ENERGY) > 0) return new Collect(link);
 
-      // Collect energy from sources in the same room that have more than 100
-      const mainSource = this.CollectResources(creep, [RESOURCE_ENERGY], true, 30);
+      // Collect energy from sources in the same room
+      const mainSource = this.CollectResources(creep, [RESOURCE_ENERGY], true);
       if (mainSource) return mainSource;
 
+      // If no source found, collect from storage
       if (
         creep.AssignedRoom.storage !== undefined &&
         creep.AssignedRoom.storage.store.getUsedCapacity(RESOURCE_ENERGY) > 0
       )
-        // If no source found, use any storage
         return new Collect(creep.AssignedRoom.storage);
-      else if (creep.AssignedRoom.GetAssignedCreepsOfRole('Miner').length === 0)
-        // If no storage, and no miners, mine
-        return this.MineAnyFreePosition(creep);
     }
 
     return null;
