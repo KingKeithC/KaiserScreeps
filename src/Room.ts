@@ -206,8 +206,11 @@ export class RoomExtra extends Room {
   private cachedWorkableClaimedRooms: Room[] = [];
   get WorkableClaimedRooms(): Room[] {
     if (this.cachedWorkableClaimedRooms.length > 0) return this.cachedWorkableClaimedRooms;
+    Memory.scoutingReports ??= {};
 
     for (const name of this.ClaimedNearby) {
+      const scoutingReport = Memory.scoutingReports[name];
+
       if (name in Game.rooms) {
         const room = Game.rooms[name];
         if (room.controller === undefined || room.controller.owner === undefined)
@@ -224,7 +227,11 @@ export class RoomExtra extends Room {
             this.ClaimedNearby = this.ClaimedNearby.filter(cr => cr !== name);
             this.OnClaimBecomesSelfSufficient(room);
           }
-        else {
+        else if (
+          scoutingReport !== undefined &&
+          scoutingReport.owner !== undefined &&
+          scoutingReport.owner !== this.colony.username
+        ) {
           // Hostile Room
           this.log.crit('Claimed room is hostile; removing claim.', { '<rate>': 10, claimedRoomName: name });
           this.ClaimedNearby = this.ClaimedNearby.filter(cr => cr !== name);

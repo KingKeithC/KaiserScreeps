@@ -4,6 +4,7 @@ import type { RoomExtra } from 'Room';
 import { Claim, Move } from 'tasks';
 import { CreepTask } from 'tasks/types';
 import { MakeBody } from 'utils/Collections';
+import { FirstBodyByEnergyCapacity } from 'utils/RoomUtils';
 import { CreepRoleBase, CreepRole } from './Role';
 
 export class Claimer extends CreepRoleBase implements CreepRole {
@@ -11,10 +12,13 @@ export class Claimer extends CreepRoleBase implements CreepRole {
   readonly roleName = 'Claimer';
   readonly priority = 2;
 
-  GetNewCreepBody(room: RoomExtra): BodyPartConstant[] {
-    if (room.energyCapacityAvailable >= 1300) return MakeBody([MOVE, 2], [CLAIM, 2]);
+  PossibleBodies = [
+    MakeBody([MOVE, 2], [CLAIM, 2]), // 1300
+    MakeBody([MOVE, 1], [CLAIM, 1]), // 650
+  ];
 
-    return MakeBody([MOVE, 1], [CLAIM, 1]);
+  GetNewCreepBody(room: RoomExtra): BodyPartConstant[] {
+    return FirstBodyByEnergyCapacity(room, ...this.PossibleBodies) ?? this.PossibleBodies[-1];
   }
 
   IsSpawnNeeded(room: RoomExtra): boolean {
@@ -22,18 +26,23 @@ export class Claimer extends CreepRoleBase implements CreepRole {
     return this.UnworkedClaims(room).length > 0;
   }
 
-  override GetMinQuota(room: RoomExtra): number {
-    return room.ClaimedNearby.length;
+  override GetMinQuota(): number {
+    return 1;
   }
 
   WorkedClaims(room: RoomExtra): string[] {
     return unique([...room.AssignedTasks(Claim)].map(p => p.targetId));
   }
 
+  PotentialClaims(room: RoomExtra): string[] {
+    const claimFlags = Object.values(Game.flags).filter(f => f.name.startsWith('Claim'));
+    return unique(room.ClaimedNearby.concat(claimFlags.map(f => f.pos.roomName)));
+  }
+
   UnworkedClaims(room: RoomExtra): string[] {
     const worked = this.WorkedClaims(room);
     const ret = [];
-    for (const claim of room.ClaimedNearby)
+    for (const claim of this.PotentialClaims(room))
       if (worked.includes(claim)) continue;
       else ret.push(claim);
     return ret;
