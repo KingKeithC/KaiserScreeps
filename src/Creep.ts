@@ -3,7 +3,7 @@ import type { RoomExtra } from 'Room';
 import { Logger } from 'utils/Logger';
 import { Colony } from 'Colony';
 import { CreepRole } from 'roles/Role';
-import { DeserializeRoomPosition, RoomPositionString, SerializeRoomPosition } from 'utils/Collections';
+import { DeserializeRoomPosition, OK_MOVE_DONE, RoomPositionString, SerializeRoomPosition } from 'utils/Collections';
 import { CreepTask, DeserializeTask } from 'tasks/types';
 import { FromEdgeIntoRoom as DirectionIntoRoomFromEdge, EdgeStoodOn } from 'utils/CreepUtils';
 import { Scout, ScoutingReport } from 'roles/Scout';
@@ -89,6 +89,7 @@ export class CreepExtra extends Creep {
     // Return fetched.
     return this.cachedAssignedRoom;
   }
+
   MovedBetweenTicks = false;
   StartOfTick(): void {
     if (this.spawning) return; // Ignore spawning creeps.
@@ -113,7 +114,7 @@ export class CreepExtra extends Creep {
 
   MaxStuckTicks = 2;
   MaxAvoidTicks = 4;
-  MoveLong(pos: RoomPosition, opts?: MoveToOpts): number {
+  MoveLong(pos: RoomPosition, opts?: MoveToOpts): ScreepsReturnCode {
     // this.log.debug('Invoking MoveLong.', { '<creep>': this, pos, opts });
     return this.moveTo(pos, {
       ...opts,
@@ -127,7 +128,7 @@ export class CreepExtra extends Creep {
     });
   }
 
-  MoveAvoidCreeps(pos: RoomPosition, opts?: MoveToOpts): number {
+  MoveAvoidCreeps(pos: RoomPosition, opts?: MoveToOpts): ScreepsReturnCode {
     // this.log.debug('Invoking MoveAvoidCreeps.', { '<creep>': this, pos, opts });
     // eslint-disable-next-line no-underscore-dangle
     return this.moveTo(pos, {
@@ -148,7 +149,7 @@ export class CreepExtra extends Creep {
   }
 
   // Returns 1 when in range; otherwise returns the moveTo result.
-  MoveCreep(target: RoomPosition | { pos: RoomPosition }, opts?: MoveToOpts): number {
+  MoveCreep(target: RoomPosition | { pos: RoomPosition }, opts?: MoveToOpts): ScreepsReturnCode | typeof OK_MOVE_DONE {
     // Init move trackers
     this.memory.moveMode ??= 'long';
     this.memory.stuckTicks ??= 0;
@@ -165,7 +166,7 @@ export class CreepExtra extends Creep {
       this.memory.stuckTicks = 0;
       this.memory.successfulAvoidMoves = 0;
       this.memory.moveMode = 'long';
-      return 1;
+      return OK_MOVE_DONE;
     }
 
     // Increment counters
@@ -337,50 +338,38 @@ export class CreepExtra extends Creep {
     }
 
     const outcome = task.handleOutcome(this, task.act(this));
-
-    // Task may be modified from what's serialized, save it back at the end
-    // of the function
-
-    this.ActedThisTick = true; // Update non-idle flag since we acted
     this.tasksAttempted = this.tasksAttempted + 1; // Increment Tasks done
 
-    // Handle follow up actions
+    // Handle error / movement
 
-    if (task.isCompleteFlag) {
+    if (outcome === null || outcome === undefined) {
       // Noop
-    } else if (outcome === null || outcome === undefined || outcome.result === OK) {
-      // Task was ok or couldn't act, but still isn't complete, and don't need to move.
-      // Noop
+    } else if (task.isCompleteFlag || outcome.result === OK) {
+      // Update non-idle flag since we acted successfully
+      this.ActedThisTick = true;
     } else if (outcome.result === ERR_NOT_IN_RANGE) {
-      // We have to move to the task's target
+      // We have to move
       const moveResult = this.MoveCreep(outcome.target.pos, { range: outcome.range });
       if (moveResult === OK) this.IntendedToMove = true;
-      if (moveResult !== OK && moveResult !== ERR_TIRED)
-        // Log bad moves
-        this.log.debug('DoTask follow-up move failed.', {
-          moveResult,
-          task,
-          outcome,
-          thisPos: this.pos,
-          targetPos: outcome.target.pos,
-        });
-
-      // If pathfinding failed, end the task
-      if (moveResult === ERR_NO_PATH) task.isCompleteFlag = true;
+      else if (moveResult === ERR_NO_PATH)
+        // If pathfinding failed, cancel the task
+        task.isCompleteFlag = true;
+      else if (moveResult !== ERR_TIRED)
+        // Log unhandled move result
+        this.log.debug('DoTask follow-up move unhandled.', { moveResult, task, outcome, thisPos: this.pos });
     } else {
       // Task result was not ok and not a move
-      this.log.debug('DoTask returned a non-OK result.', { task, thisPos: this.pos, outcome });
+      this.log.debug('DoTask returned unhandled result.', { task, thisPos: this.pos, outcome });
       task.isCompleteFlag = true;
     }
 
-    this.currentTask = task; // Save task back to itself since acting on it might have changed it
+    // Save task back to memory
+    this.currentTask = task;
   }
 
   MoveIntoRoomIfOnEdge(): void {
     const awayFromEdge = DirectionIntoRoomFromEdge(EdgeStoodOn(this.pos));
     if (!awayFromEdge) return;
-
-    this.ActedThisTick = true;
     if (this.move(awayFromEdge) === OK) this.IntendedToMove = true;
   }
 }

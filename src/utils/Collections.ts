@@ -125,3 +125,5 @@ export const Sorts: { [name: string]: (a: any, b: any) => number } = {
   StructureHitsRatioAsc: (a: AnyStructure, b: AnyStructure) => a.hits / a.hitsMax - b.hits / b.hitsMax,
   StructureHitsRatioDesc: (a, b) => Sorts.StructureHitsRatioAsc(b, a),
 } as const;
+
+export const OK_MOVE_DONE = 1 as const;

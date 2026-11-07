@@ -23,7 +23,7 @@ export class Claimer extends CreepRoleBase implements CreepRole {
   }
 
   override GetMinQuota(room: RoomExtra): number {
-    return room.ClaimedRoomNames.length;
+    return room.ClaimedNearby.length;
   }
 
   WorkedClaims(room: RoomExtra): string[] {
@@ -33,7 +33,7 @@ export class Claimer extends CreepRoleBase implements CreepRole {
   UnworkedClaims(room: RoomExtra): string[] {
     const worked = this.WorkedClaims(room);
     const ret = [];
-    for (const claim of room.ClaimedRoomNames)
+    for (const claim of room.ClaimedNearby)
       if (worked.includes(claim)) continue;
       else ret.push(claim);
     return ret;

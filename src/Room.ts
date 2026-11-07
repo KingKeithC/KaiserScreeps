@@ -184,11 +184,11 @@ export class RoomExtra extends Room {
   get Mines(): MiningPosition[] {
     return (this.memory.mines ??= GetMiningPositions(this));
   }
-  set ClaimedRoomNames(value: string[]) {
+  set ClaimedNearby(value: string[]) {
     this.memory.claimedNearby = unique(value);
   }
-  get ClaimedRoomNames(): string[] {
-    return unique((this.memory.claimedNearby ??= []));
+  get ClaimedNearby(): string[] {
+    return (this.memory.claimedNearby ??= []);
   }
   private set EventCounts(value: Dictionary<number>) {
     this.memory.eventCounts = value;
@@ -207,7 +207,7 @@ export class RoomExtra extends Room {
   get WorkableClaimedRooms(): Room[] {
     if (this.cachedWorkableClaimedRooms.length > 0) return this.cachedWorkableClaimedRooms;
 
-    for (const name of this.ClaimedRoomNames) {
+    for (const name of this.ClaimedNearby) {
       if (name in Game.rooms) {
         const room = Game.rooms[name];
         if (room.controller === undefined || room.controller.owner === undefined)
@@ -217,22 +217,32 @@ export class RoomExtra extends Room {
           //  My room
           if (room.find(FIND_MY_SPAWNS).length === 0) {
             // Not Self-Sufficient - keep working
-            this.log.info('Claimed room is still under support.', { '<rate>': 20, claimedRoomName: name });
             this.cachedWorkableClaimedRooms.push(room);
           } else {
             // Self-Sufficient - disown
-            this.log.warn('Claimed room is self-sufficient; removing support.', { claimedRoomName: name });
-            this.ClaimedRoomNames = this.ClaimedRoomNames.filter(cr => cr !== name);
+            this.log.info('Claimed room is self-sufficient; removing claim.', { claimedRoomName: name });
+            this.ClaimedNearby = this.ClaimedNearby.filter(cr => cr !== name);
+            this.OnClaimBecomesSelfSufficient(room);
           }
-        else if (room.find(FIND_HOSTILE_SPAWNS).length > 0)
-          this.log.warn('Claimed room is hostile.', { '<rate>': 10, claimedRoomName: name });
-        else this.log.warn('Claimed room is unowned and available.', { '<rate>': 10, claimedRoomName: name });
-      } else {
-        this.log.warn('Claimed room is not visible.', { '<rate>': 30, claimedRoomName: name });
+        else {
+          // Hostile Room
+          this.log.crit('Claimed room is hostile; removing claim.', { '<rate>': 10, claimedRoomName: name });
+          this.ClaimedNearby = this.ClaimedNearby.filter(cr => cr !== name);
+          this.OnClaimBecomesHostile(room);
+        }
       }
     }
-
     return this.cachedWorkableClaimedRooms;
+  }
+
+  OnClaimBecomesHostile(room: Room) {
+    Game.notify(
+      `OH NO! Room ${room.name} (claimed by ${this.name}) is now hostile as of ${Game.time}!\n${JSON.stringify(GetHostileInfo(room))}`,
+    );
+  }
+
+  OnClaimBecomesSelfSufficient(room: Room) {
+    Game.notify(`HOORAY! Room ${room.name} (claimed by ${this.name}) is now self-sufficient as of ${Game.time} :)`);
   }
 
   get HostilesByRoom(): [string | Room | RoomExtra, Creep[]][] {
@@ -565,7 +575,7 @@ export class RoomExtra extends Room {
     const ret: [RoomExtra | Room | string, T][] = [];
 
     if (includeMainRoom) ret.push([this, mapper(this)]);
-    for (const name of this.ClaimedRoomNames) {
+    for (const name of this.ClaimedNearby) {
       const otherRoom = this.colony.Rooms.get(name);
       if (otherRoom && !otherRoom.controller?.my) ret.push([otherRoom, mapper(otherRoom)]);
       else ret.push([name, mapper(name)]);
@@ -889,7 +899,7 @@ export class RoomExtra extends Room {
     msg += `\n\tClaimedSources: ${[...this.ClaimedSources]}`;
 
     // Get info about claimed rooms
-    for (const claim of this.ClaimedRoomNames)
+    for (const claim of this.ClaimedNearby)
       msg += `\n\tClaims: ${claim}: Visible ${this.WorkableClaimedRooms.map(r => r.name).includes(claim)}`;
 
     return msg;

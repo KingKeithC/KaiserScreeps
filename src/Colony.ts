@@ -266,8 +266,8 @@ export class Colony {
     });
   }
 
-  get AllClaimedRoomNames(): string[] {
-    return unique(flatten(this.MyRooms.map(mr => mr.ClaimedRoomNames)));
+  get AllClaimedNearby(): string[] {
+    return unique(flatten(this.MyRooms.map(mr => mr.ClaimedNearby)));
   }
 
   TickOtherVisibleRoom(room: Room): void {
@@ -285,9 +285,9 @@ export class Colony {
   }
 
   StakeClaimOnRoom(claimer: CreepExtra, newRoom: string): void {
-    if (newRoom in claimer.AssignedRoom.ClaimedRoomNames) return;
+    if (newRoom in claimer.AssignedRoom.ClaimedNearby) return;
 
-    if (newRoom in this.AllClaimedRoomNames) {
+    if (newRoom in this.AllClaimedNearby) {
       this.log.info('Room is already claimed elsewhere.', { '<creep>': claimer, targetRoom: newRoom });
       return;
     }
@@ -297,7 +297,7 @@ export class Colony {
 
     if (room.controller?.owner?.username !== this.username) return;
 
-    claimer.AssignedRoom.ClaimedRoomNames.push(newRoom);
+    claimer.AssignedRoom.ClaimedNearby.push(newRoom);
   }
 
   PixelCost = 9000;
