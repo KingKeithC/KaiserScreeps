@@ -46,8 +46,8 @@ export class Worker extends CreepRoleBase implements CreepRole {
     if (TryCollectFromTombs(creep)) return;
   }
 
-  GetMinQuota(room: RoomExtra) {
-    return room.ClaimedSources.length;
+  GetMinQuota() {
+    return 1;
   }
 
   GetMaxQuota(room: RoomExtra) {
