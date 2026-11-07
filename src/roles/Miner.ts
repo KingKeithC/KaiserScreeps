@@ -56,46 +56,62 @@ export class Miner extends CreepRoleBase implements CreepRole {
       nearbyTowers.reduce((total, tower) => total + tower.store.getFreeCapacity(RESOURCE_ENERGY), 0) +
       nearbyLinks.reduce((total, link) => total + link.store.getFreeCapacity(RESOURCE_ENERGY), 0);
 
-    if (this.TryCollectFromContainer(creep, nearbyContainers, nearbyEnergyDemand * 2)) return;
-    if (this.TryPickupDroppedEnergy(creep)) return;
-    if (this.TryTransferEnergy(creep, nearbyTowers)) return;
-    if (this.TryTransferEnergy(creep, nearbyLinks)) return;
-    if (this.TryTransferEnergy(creep, nearbyContainers)) return;
+    if (this.TryCollectFromContainer(creep, nearbyContainers, nearbyEnergyDemand * 2, [RESOURCE_ENERGY])) return;
+    if (this.TryPickupDropped(creep)) return;
+    if (this.TryTransfer(creep, nearbyTowers, [RESOURCE_ENERGY])) return;
+    if (this.TryTransfer(creep, nearbyLinks, [RESOURCE_ENERGY])) return;
+    if (this.TryTransfer(creep, nearbyContainers)) return;
   }
 
-  private TryCollectFromContainer(creep: Creep, containers: StructureContainer[], collectionLimit: number): boolean {
-    const amountToCollect = Math.min(collectionLimit, creep.store.getFreeCapacity(RESOURCE_ENERGY));
-    if (amountToCollect <= 0) return false;
+  private TryCollectFromContainer(
+    creep: Creep,
+    containers: StructureContainer[],
+    collectionLimit: number,
+    resources: ResourceConstant[] = RESOURCES_ALL,
+  ): boolean {
+    for (const rt of resources) {
+      const amountToCollect = Math.min(collectionLimit, creep.store.getFreeCapacity(rt));
+      if (amountToCollect <= 0) continue;
+      for (const container of containers)
+        if ((container.store.getUsedCapacity(rt) ?? 0) > 0 && creep.withdraw(container, rt) === OK) return true;
+    }
+    return false;
+  }
 
-    for (const container of containers)
-      if (container.store.getUsedCapacity(RESOURCE_ENERGY) > 0 && creep.withdraw(container, RESOURCE_ENERGY) === OK)
-        return true;
+  private TryPickupDropped(
+    creep: Creep,
+    resources: ResourceConstant[] = RESOURCES_ALL,
+    collectionLimit: number = creep.store.getFreeCapacity(),
+  ): boolean {
+    for (const rt of resources) {
+      const amountToCollect = Math.min(collectionLimit, creep.store.getFreeCapacity(rt));
+      if (amountToCollect <= 0) continue;
+
+      for (const d of creep.pos.findInRange(FIND_DROPPED_RESOURCES, 1, {
+        filter: resource => resource.resourceType === rt,
+      }))
+        if (d.amount <= amountToCollect && creep.pickup(d) === OK) return true;
+    }
 
     return false;
   }
 
-  private TryPickupDroppedEnergy(creep: Creep, collectionLimit: number = creep.store.getFreeCapacity()): boolean {
-    const amountToCollect = Math.min(collectionLimit, creep.store.getFreeCapacity(RESOURCE_ENERGY));
-    if (amountToCollect <= 0) return false;
+  private TryTransfer<T extends AnyStoreStructure>(
+    creep: Creep,
+    targets: T[],
+    resources: ResourceConstant[] = RESOURCES_ALL,
+    minimumFreeCapacity = 0,
+  ): boolean {
+    for (const resource of resources) {
+      if (creep.store.getUsedCapacity(resource) <= 0) continue;
 
-    const droppedEnergy = creep.pos.findInRange(FIND_DROPPED_RESOURCES, 1, {
-      filter: resource => resource.resourceType === RESOURCE_ENERGY,
-    });
-    for (const resource of droppedEnergy)
-      if (resource.amount <= amountToCollect && creep.pickup(resource) === OK) return true;
-
-    return false;
-  }
-
-  private TryTransferEnergy<T extends AnyStoreStructure>(creep: Creep, targets: T[], minimumFreeCapacity = 0): boolean {
-    if (creep.store.getUsedCapacity(RESOURCE_ENERGY) <= 0) return false;
-
-    for (const target of targets)
-      if (
-        target.store.getFreeCapacity(RESOURCE_ENERGY) > minimumFreeCapacity &&
-        creep.transfer(target, RESOURCE_ENERGY) === OK
-      )
-        return true;
+      for (const target of targets)
+        if (
+          (target.store.getFreeCapacity(resource) ?? 0) > minimumFreeCapacity &&
+          creep.transfer(target, resource) === OK
+        )
+          return true;
+    }
 
     return false;
   }
