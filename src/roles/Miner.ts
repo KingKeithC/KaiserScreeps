@@ -2,7 +2,7 @@ import { CreepExtra } from 'Creep';
 import { RoomExtra } from 'Room';
 import { Mine } from 'tasks';
 import { CreepTask } from 'tasks/types';
-import { MakeBody } from 'utils/Collections';
+import { Sorts, MakeBody } from 'utils/Collections';
 import { BodyCost } from 'utils/CreepUtils';
 import { CreepRole, CreepRoleBase } from './Role';
 
@@ -63,6 +63,17 @@ export class Miner extends CreepRoleBase implements CreepRole {
     if (this.TryTransfer(creep, nearbyTowers, [RESOURCE_ENERGY])) return;
     if (this.TryTransfer(creep, nearbyLinks, [RESOURCE_ENERGY])) return;
     if (this.TryTransfer(creep, nearbyContainers, [RESOURCE_ENERGY])) return;
+
+    if (!(creep.currentTask instanceof Mine && creep.currentTask.target instanceof Source)) return;
+    if (creep.currentTask.target.energy > 0) return;
+
+    // Source is out of energy, so can't mine, repair whatever is around us
+    for (const repair of creep.pos
+      .findInRange(FIND_STRUCTURES, 3, {
+        filter: s => s.hits < s.hitsMax && ![STRUCTURE_WALL, STRUCTURE_RAMPART].some(v => s.structureType === v),
+      })
+      .sort(Sorts.StructureHitsRatioAsc))
+      if (creep.repair(repair) === OK) return;
   }
 
   private TryCollectFromContainer(
