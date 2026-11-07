@@ -142,7 +142,6 @@ export class Worker extends CreepRoleBase implements CreepRole {
     const fullestSameRoom =
       fullSupply.length > 0
         ? creep.pos.findClosestByPath(fullSupply, {
-            ignoreCreeps: true,
             costCallback: (rn: string, cm: CostMatrix) => creep.CostCallback(rn, cm, false),
           })
         : null;

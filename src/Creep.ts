@@ -138,7 +138,6 @@ export class CreepExtra extends Creep {
       visualizePathStyle: Memory.globalEnablePathVisuals
         ? { stroke: Colours.PATH_LONG, lineStyle: 'solid' }
         : undefined,
-      ignoreCreeps: true,
       reusePath: 50,
       plainCost: 2,
     });
