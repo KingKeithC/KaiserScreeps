@@ -1,5 +1,5 @@
 import { CreepExtra } from 'Creep';
-import { sum } from 'lodash';
+import { isBoolean, some, sum } from 'lodash';
 import { RoomExtra } from 'Room';
 
 import { Build, Collect, Mine, Repair, Supply, UpgradeController } from 'tasks';
@@ -226,18 +226,29 @@ export class Worker extends CreepRoleBase implements CreepRole {
     return null;
   }
 
+  SupplyStorage(creep: CreepExtra, storage: StructureStorage): Supply | null {
+    for (const resourceType in creep.store) return new Supply(storage, resourceType as ResourceConstant);
+    return null;
+  }
+
   WorkersMineBelowMinerBodyTotalCost = 1000;
   DesiredStorageTasks = 2;
   RetireEnabled = true;
   RetireWhenIdleFor = 30;
   SelectNextTask(creep: CreepExtra): CreepTask | null {
     const storage = creep.AssignedRoom.storage;
+    const storageLow =
+      storage !== undefined &&
+      storage.store.getUsedCapacity(RESOURCE_ENERGY) < creep.AssignedRoom.StorageWartimeEnergyBuffer;
     const maintainers = creep.AssignedRoom.GetAssignedCreepsOfRole('Maintainer');
+    const creepEnergy = creep.store.getUsedCapacity(RESOURCE_ENERGY);
+    const creepHasNonEnergy = creep.store.getUsedCapacity() - creepEnergy > 0;
 
     // ------ SUPPLY ------
-    if (storage !== undefined && creep.store.getUsedCapacity() - creep.store.getUsedCapacity(RESOURCE_ENERGY) > 0) {
-      for (const resourceType in creep.store)
-        if (resourceType !== RESOURCE_ENERGY) return new Supply(storage, resourceType as ResourceConstant);
+    if (storage && (creepHasNonEnergy || (creepEnergy > 0 && storageLow))) {
+      // Need to store resources
+      const store = this.SupplyStorage(creep, storage);
+      if (store) return store;
     }
 
     if (creep.store.getUsedCapacity() > 0) {
@@ -247,7 +258,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
       const spend =
         maintainers.length === 0
           ? this.MaintainControllerOrSpawn(creep)
-          : this.FindSpendingTask(creep, undefined, maintainers.length);
+          : this.WorkerSpendingTask(creep, undefined, maintainers.length);
       if (spend) return spend;
 
       if (creep.AssignedRoom.controller?.level ?? 0 < 6) {
@@ -283,14 +294,20 @@ export class Worker extends CreepRoleBase implements CreepRole {
     // Log a warning if we found nothing to do
     // Ignore the warning if all the sources are out of energy, as
     // that can cause it to spam when everything is running at peak efficiency
-    if (creep.AssignedRoom.find(FIND_SOURCES_ACTIVE).length > 0) {
+    if (
+      some(
+        creep.AssignedRoom.FlatMapOverRoomsInClaimedArea(r =>
+          r instanceof Room ? [r.find(FIND_SOURCES_ACTIVE).length > 0] : [false],
+        ),
+      )
+    ) {
       this.log.warn('No task is available despite active energy sources.', {
         '<creep>': creep,
         idle: creep.LifetimeIdle,
       });
       const retire = this.ConsiderRetirement(creep);
       if (retire) {
-        this.ChangeQuota(creep.AssignedRoom, -2); // We must be overspawned, so lower the quota
+        this.ChangeQuota(creep.AssignedRoom, this.ShrinkAmount); // We must be overspawned, so lower the quota
         return retire;
       }
     }
@@ -350,7 +367,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
 
   MaxSupplyForTowers = 1;
   MaxUpgradePerRoom = 2;
-  public FindSpendingTask(
+  public WorkerSpendingTask(
     creep: CreepExtra,
     supplyTasks = [...creep.AssignedRoom.AssignedTasks(Supply)],
     maintainers = creep.AssignedRoom.GetAssignedCreepsOfRole('Maintainer').length,
