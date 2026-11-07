@@ -213,10 +213,11 @@ export class RoomExtra extends Room {
 
       if (name in Game.rooms) {
         const room = Game.rooms[name];
-        if (room.controller === undefined || room.controller.owner === undefined)
+        if (room.controller === undefined || room.controller.owner === undefined) {
           // Neutral Room - safe to work
           this.cachedWorkableClaimedRooms.push(room);
-        else if (room.controller.owner.username === this.colony.username)
+          continue;
+        } else if (room.controller.owner.username === this.colony.username) {
           //  My room
           if (room.find(FIND_MY_SPAWNS).length === 0) {
             // Not Self-Sufficient - keep working
@@ -227,25 +228,41 @@ export class RoomExtra extends Room {
             this.ClaimedNearby = this.ClaimedNearby.filter(cr => cr !== name);
             this.OnClaimBecomesSelfSufficient(room);
           }
-        else if (
-          scoutingReport !== undefined &&
-          scoutingReport.owner !== undefined &&
-          scoutingReport.owner !== this.colony.username
-        ) {
+          continue;
+        } else if (room.controller.owner.username !== this.colony.username) {
           // Hostile Room
-          this.log.crit('Claimed room is hostile; removing claim.', { '<rate>': 10, claimedRoomName: name });
+          this.log.crit('Claimed room is now hostile; removing claim.', {
+            '<rate>': 10,
+            claimedRoomName: name,
+            newOwner: room.controller.owner.username,
+          });
           this.ClaimedNearby = this.ClaimedNearby.filter(cr => cr !== name);
           this.OnClaimBecomesHostile(room);
+          continue;
         }
+      } else if (
+        scoutingReport !== undefined &&
+        scoutingReport.owner !== undefined &&
+        scoutingReport.owner !== this.colony.username
+      ) {
+        // Hostile Room
+        this.log.crit('Claimed room is not invisible, but reports say hostile; removing claim.', {
+          '<rate>': 10,
+          claimedRoomName: name,
+          scoutingReportOwner: scoutingReport.owner,
+        });
+        this.ClaimedNearby = this.ClaimedNearby.filter(cr => cr !== name);
+        this.OnClaimBecomesHostile(name);
+        continue;
       }
     }
     return this.cachedWorkableClaimedRooms;
   }
 
-  OnClaimBecomesHostile(room: Room) {
-    Game.notify(
-      `OH NO! Room ${room.name} (claimed by ${this.name}) is now hostile as of ${Game.time}!\n${JSON.stringify(GetHostileInfo(room))}`,
-    );
+  OnClaimBecomesHostile(disowned: Room | string) {
+    const hostileInfo = disowned instanceof Room ? '\n' + JSON.stringify(GetHostileInfo(disowned)) : '';
+    const roomName = disowned instanceof Room ? disowned.name : disowned;
+    Game.notify(`OH NO! Room ${roomName} (claimed by ${this.name}) is now hostile as of ${Game.time}!${hostileInfo}`);
   }
 
   OnClaimBecomesSelfSufficient(room: Room) {
