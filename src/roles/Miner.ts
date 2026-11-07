@@ -2,7 +2,7 @@ import { CreepExtra } from 'Creep';
 import { RoomExtra } from 'Room';
 import { Mine } from 'tasks';
 import { CreepTask } from 'tasks/types';
-import { Sorts, MakeBody } from 'utils/Collections';
+import { Sorts, MakeBody, SerializeRoomPosition } from 'utils/Collections';
 import { BodyCost, TryCollectFromContainer, TryPickupDropped, TryTransferTo } from 'utils/CreepUtils';
 import { CreepRole, CreepRoleBase } from './Role';
 
@@ -45,6 +45,16 @@ export class Miner extends CreepRoleBase implements CreepRole {
   }
 
   TickCreep(creep: CreepExtra): void {
+    if (!creep.IsInAssignedMiningPosition()) return; // Don't make us tired
+
+    // Skip ambient actions when we are a miner assigned to a mining task and we are not in position
+    if (
+      creep.role instanceof Miner &&
+      creep.currentTask?.action === Mine.action &&
+      (creep.currentTask as Mine).targetPos !== SerializeRoomPosition(creep.pos)
+    )
+      return;
+
     const nearbyContainers = creep.pos
       .findInRange(FIND_STRUCTURES, 1)
       .filter((structure): structure is StructureContainer => structure.structureType === STRUCTURE_CONTAINER);

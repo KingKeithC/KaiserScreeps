@@ -8,6 +8,8 @@ import { CreepTask, DeserializeTask } from 'tasks/types';
 import { FromEdgeIntoRoom as DirectionIntoRoomFromEdge, EdgeStoodOn } from 'utils/CreepUtils';
 import { Scout, ScoutingReport } from 'roles/Scout';
 import { MakeRoomReport } from 'utils/RoomUtils';
+import { Mine } from 'tasks';
+import { Miner } from 'roles/Miner';
 
 declare global {
   interface CreepMemory {
@@ -62,9 +64,23 @@ export class CreepExtra extends Creep {
       return (this.cachedCurrentTask = null);
     }
   }
-
   private set currentTask(value: CreepTask | null) {
     this.memory.currentTask = this.cachedCurrentTask = value;
+  }
+
+  IsAMiningMiner(): boolean {
+    if (!(this.role instanceof Miner)) return false;
+    if (this.currentTask?.action !== Mine.action) return false;
+    return true;
+  }
+
+  IsInAssignedMiningPosition(): boolean {
+    if (!this.IsAMiningMiner()) return false;
+
+    const miningTask: Mine = this.currentTask as Mine;
+    if (miningTask.movementRange === 0 && SerializeRoomPosition(this.pos) === miningTask.miningPosition.pos)
+      return true;
+    return false;
   }
 
   private cachedAssignedRoom?: RoomExtra;
