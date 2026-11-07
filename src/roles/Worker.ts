@@ -6,7 +6,12 @@ import { Build, Collect, Mine, Repair, Supply, UpgradeController } from 'tasks';
 import { Retire } from 'tasks/Retire';
 import { CreepTask } from 'tasks/types';
 import { GetValueByName, MakeBody } from 'utils/Collections';
-import { BodyCost } from 'utils/CreepUtils';
+import {
+  BodyCost,
+  TryCollectFromContainer as TryCollectFromContainers,
+  TryCollectFromTombs,
+  TryPickupDropped,
+} from 'utils/CreepUtils';
 import { ContainerAndAmount, ResourceContainer, FirstBodyByEnergyCapacity } from 'utils/RoomUtils';
 import { CreatePendingRepairs, FindHighestPriorityRepairGroup } from 'utils/RepairUtils';
 import { CreepRoleBase, CreepRole } from './Role';
@@ -33,19 +38,12 @@ export class Worker extends CreepRoleBase implements CreepRole {
   }
 
   TickCreep(creep: CreepExtra): void {
-    if (creep.store.getFreeCapacity(RESOURCE_ENERGY) > 0) {
-      // If we run across a tombstone containing energy, pick it up
-      const tomb = creep.pos.findInRange(FIND_TOMBSTONES, 1, {
-        filter: t => t.store.getUsedCapacity(RESOURCE_ENERGY) > 0,
-      });
-      for (const t of tomb) creep.withdraw(t, RESOURCE_ENERGY);
-
-      // If there is energy next to us, pick it up
-      const dropped = creep.pos.findInRange(FIND_DROPPED_RESOURCES, 1, {
-        filter: r => r.resourceType === RESOURCE_ENERGY && r.amount > 0,
-      });
-      for (const d of dropped) creep.pickup(d);
-    }
+    const containers = creep.pos
+      .findInRange(FIND_STRUCTURES, 1)
+      .filter((structure): structure is StructureContainer => structure.structureType === STRUCTURE_CONTAINER);
+    if (TryCollectFromContainers(creep, containers)) return;
+    if (TryPickupDropped(creep)) return;
+    if (TryCollectFromTombs(creep)) return;
   }
 
   GetMinQuota(room: RoomExtra) {

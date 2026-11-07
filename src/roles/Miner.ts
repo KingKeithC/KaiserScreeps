@@ -3,7 +3,7 @@ import { RoomExtra } from 'Room';
 import { Mine } from 'tasks';
 import { CreepTask } from 'tasks/types';
 import { Sorts, MakeBody } from 'utils/Collections';
-import { BodyCost } from 'utils/CreepUtils';
+import { BodyCost, TryCollectFromContainer, TryPickupDropped, TryTransferTo } from 'utils/CreepUtils';
 import { CreepRole, CreepRoleBase } from './Role';
 
 export class Miner extends CreepRoleBase implements CreepRole {
@@ -57,12 +57,12 @@ export class Miner extends CreepRoleBase implements CreepRole {
       nearbyLinks.reduce((total, link) => total + link.store.getFreeCapacity(RESOURCE_ENERGY), 0);
     const notEnergy = RESOURCES_ALL.filter(rt => rt !== RESOURCE_ENERGY);
 
-    if (this.TryCollectFromContainer(creep, nearbyContainers, nearbyEnergyDemand * 2, [RESOURCE_ENERGY])) return;
-    if (this.TryPickupDropped(creep)) return;
-    if (this.TryTransfer(creep, nearbyContainers, notEnergy)) return;
-    if (this.TryTransfer(creep, nearbyTowers, [RESOURCE_ENERGY])) return;
-    if (this.TryTransfer(creep, nearbyLinks, [RESOURCE_ENERGY])) return;
-    if (this.TryTransfer(creep, nearbyContainers, [RESOURCE_ENERGY])) return;
+    if (TryPickupDropped(creep)) return;
+    if (TryCollectFromContainer(creep, nearbyContainers, nearbyEnergyDemand * 2, [RESOURCE_ENERGY])) return;
+    if (TryTransferTo(creep, nearbyContainers, notEnergy)) return;
+    if (TryTransferTo(creep, nearbyLinks, [RESOURCE_ENERGY])) return;
+    if (TryTransferTo(creep, nearbyTowers, [RESOURCE_ENERGY])) return;
+    if (TryTransferTo(creep, nearbyContainers, [RESOURCE_ENERGY])) return;
 
     if (!(creep.currentTask instanceof Mine && creep.currentTask.target instanceof Source)) return;
     if (creep.currentTask.target.energy > 0) return;
@@ -74,58 +74,5 @@ export class Miner extends CreepRoleBase implements CreepRole {
       })
       .sort(Sorts.StructureHitsRatioAsc))
       if (creep.repair(repair) === OK) return;
-  }
-
-  private TryCollectFromContainer(
-    creep: Creep,
-    containers: StructureContainer[],
-    collectionLimit?: number,
-    resources: ResourceConstant[] = RESOURCES_ALL,
-  ): boolean {
-    for (const rt of resources) {
-      if (collectionLimit && collectionLimit <= 0) continue;
-      for (const container of containers)
-        if ((container.store.getUsedCapacity(rt) ?? 0) > 0 && creep.withdraw(container, rt, collectionLimit) === OK)
-          return true;
-    }
-    return false;
-  }
-
-  private TryPickupDropped(
-    creep: Creep,
-    resources: ResourceConstant[] = RESOURCES_ALL,
-    collectionLimit: number = creep.store.getFreeCapacity(),
-  ): boolean {
-    for (const rt of resources) {
-      const amountToCollect = Math.min(collectionLimit, creep.store.getFreeCapacity(rt));
-      if (amountToCollect <= 0) continue;
-
-      for (const d of creep.pos.findInRange(FIND_DROPPED_RESOURCES, 1, {
-        filter: resource => resource.resourceType === rt,
-      }))
-        if (d.amount <= amountToCollect && creep.pickup(d) === OK) return true;
-    }
-
-    return false;
-  }
-
-  private TryTransfer<T extends AnyStoreStructure>(
-    creep: Creep,
-    targets: T[],
-    resources: ResourceConstant[] = RESOURCES_ALL,
-    minimumFreeCapacity = 0,
-  ): boolean {
-    for (const resource of resources) {
-      if (creep.store.getUsedCapacity(resource) <= 0) continue;
-
-      for (const target of targets)
-        if (
-          (target.store.getFreeCapacity(resource) ?? 0) > minimumFreeCapacity &&
-          creep.transfer(target, resource) === OK
-        )
-          return true;
-    }
-
-    return false;
   }
 }
