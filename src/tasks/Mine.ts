@@ -88,8 +88,13 @@ export class Mine extends TargetTask<Source | StructureExtractor> {
 
   protected override handleOutcomeExtra(creep: CreepExtra, outcome: TaskActionResult | null): TaskActionResult | null {
     // If the source is out of energy, and we're not a miner, then we're done
-    if (outcome && outcome.result === ERR_NOT_ENOUGH_RESOURCES && creep.role.groupName !== 'Miners')
-      this.isCompleteFlag = true;
+    if (outcome && outcome.result === ERR_NOT_ENOUGH_RESOURCES) {
+      // Force mines to refresh, to clear empty saved extractors
+      if (this.target && this.target instanceof StructureExtractor) creep.AssignedRoom.memory.mines = undefined;
+
+      // Mark task as complete if we are not a miner
+      if (creep.role.groupName !== 'Miners') this.isCompleteFlag = true;
+    }
 
     // Otherwise, check if we're in our mining position, and return out of range if not
     if (outcome && creep.role?.groupName === 'Miners' && !creep.IsInAssignedMiningPosition())
