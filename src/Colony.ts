@@ -127,6 +127,7 @@ export class Colony {
     Memory.scoutingReports ??= {};
     Memory.scoutInterval ??= CREEP_LIFE_TIME * 2;
 
+    this.UnassignAllTasks();
     this.RefreshCaches();
 
     // Update reset tick on stats
@@ -308,8 +309,6 @@ export class Colony {
   }
 
   Restart(): void {
-    this.UnassignAllTasks();
-
     if (Game.cpu.halt === undefined) this.log.crit('Game.cpu.halt() is undefined; isolated VM mode is required.');
     else Game.cpu.halt();
   }
@@ -326,9 +325,9 @@ export class Colony {
   }
 
   UnassignAllTasks(): void {
-    for (const c of this.MyCreeps) {
-      this.log.warn('Clearing creep task memory.', { '<creep>': c, currentTask: c.memory.currentTask });
-      c.memory.currentTask = undefined;
+    for (const name of Object.keys(Memory.creeps)) {
+      this.log.warn('Clearing creep task memory.', { creep: name, currentTask: Memory.creeps[name].currentTask });
+      Memory.creeps[name].currentTask = undefined;
     }
   }
 
