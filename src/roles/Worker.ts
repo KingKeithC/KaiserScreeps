@@ -57,10 +57,10 @@ export class Worker extends CreepRoleBase implements CreepRole {
   }
 
   GrowAmount = 1;
-  GrowQuotaWhenEnergyAbove = 5000;
+  GrowQuotaWhenEnergyAbove = 7000;
 
   ShrinkAmount = 1;
-  ShrinkQuotaWhenEnergyBelow = 2000;
+  ShrinkQuotaWhenEnergyBelow = 3500;
 
   rollingAvgEnergyInCollectionPlan: { [roomName: Room['name']]: number } = {};
   private energySamplesByRoom: { [roomName: Room['name']]: number } = {};
