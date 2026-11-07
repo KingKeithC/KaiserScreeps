@@ -200,7 +200,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
     return null;
   }
 
-  MaintainSpawnThenLocalRoom(creep: CreepExtra): CreepTask | null {
+  MaintainAssignedRoom(creep: CreepExtra): CreepTask | null {
     // Main task is to prevent the controller from downgrading
     const maintain = this.MaintainController(creep);
     if (maintain) return maintain;
@@ -209,9 +209,12 @@ export class Worker extends CreepRoleBase implements CreepRole {
     const spawnSupply = this.FindSpawnSupply(creep, 0);
     if (spawnSupply) return spawnSupply;
 
-    // Or refill towers needing lots of energy
+    // Or refill towers needing energy that aren't next to a miner
     const towers = creep.AssignedRoom.find(FIND_MY_STRUCTURES, {
-      filter: (st): st is StructureTower => st.structureType === STRUCTURE_TOWER && st.isActive(),
+      filter: (st): st is StructureTower =>
+        st.structureType === STRUCTURE_TOWER &&
+        st.isActive() &&
+        !(st.pos.findInRange(creep.AssignedRoom.GetAssignedCreepsOfRoleGroup('Miners') ?? [], 1).length > 0),
     });
     const towersNeedingEnergy = towers.filter(st => st.store.getFreeCapacity(RESOURCE_ENERGY) >= 100);
     if (towersNeedingEnergy.length > 0) {
@@ -240,7 +243,8 @@ export class Worker extends CreepRoleBase implements CreepRole {
     // Or do repairs if there are no towers
     if (towers.length === 0) {
       const repair = creep.AssignedRoom.PendingRepairGroup;
-      if (repair && repair.repairs.length >= 1) return new Repair(repair.repairs[-1]);
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      if (repair && repair.repairs.length >= 1) return new Repair(repair.repairs.pop()!);
     }
 
     return null;
@@ -277,7 +281,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
       // Look for a spending task amongst typical targets, unless we are short on maintainers
       const spend =
         maintainers.length === 0
-          ? this.MaintainSpawnThenLocalRoom(creep)
+          ? this.MaintainAssignedRoom(creep)
           : this.WorkerSpendingTask(creep, undefined, maintainers.length);
       if (spend) return spend;
 
