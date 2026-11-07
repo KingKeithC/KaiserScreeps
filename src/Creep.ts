@@ -50,7 +50,7 @@ export class CreepExtra extends Creep {
 
   private cachedCurrentTask?: CreepTask | null;
   get currentTask(): CreepTask | null {
-    if (this.cachedCurrentTask !== undefined) return this.cachedCurrentTask;
+    if (this.cachedCurrentTask) return this.cachedCurrentTask;
     try {
       return (this.cachedCurrentTask = DeserializeTask(this.memory.currentTask));
     } catch (error) {
@@ -62,8 +62,7 @@ export class CreepExtra extends Creep {
   }
 
   private set currentTask(value: CreepTask | null) {
-    this.cachedCurrentTask = value;
-    this.memory.currentTask = value === null ? null : { ...value, action: value.action };
+    this.memory.currentTask = this.cachedCurrentTask = value;
   }
 
   private cachedAssignedRoom?: RoomExtra;
@@ -291,26 +290,25 @@ export class CreepExtra extends Creep {
       return;
     }
 
-    const outcome = task.handleOutcome(this, task.act(this));
-    this.currentTask = task; // Save task back to itself since acting on it might have changed it
+    const outcome = task.act(this);
+
+    // Task may be modified from what's serialized, save it back at the end
+    // of the function
+
     this.ActedThisTick = true; // Update non-idle flag since we acted
     this.tasksAttempted = this.tasksAttempted + 1; // Increment Tasks done
 
     // Handle follow up actions
 
     if (task.isCompleteFlag) {
-      // Task finshed, so change it now proactively
-      this.ChangeTask();
-      return;
-    } else if (outcome === null || outcome === undefined || outcome.result === OK)
+      // Noop
+    } else if (outcome === null || outcome === undefined || outcome.result === OK) {
       // Task was ok or couldn't act, but still isn't complete, and don't need to move.
-      return;
-    else if (outcome.result === ERR_NOT_IN_RANGE) {
+      // Noop
+    } else if (outcome.result === ERR_NOT_IN_RANGE) {
       // We have to move to the task's target
       const moveResult = this.MoveCreep(outcome.target.pos, { range: outcome.range });
-
       if (moveResult === OK) this.IntendedToMove = true;
-
       if (moveResult !== OK && moveResult !== ERR_TIRED)
         // Log bad moves
         this.log.debug('DoTask follow-up move failed.', {
@@ -321,8 +319,8 @@ export class CreepExtra extends Creep {
           targetPos: outcome.target.pos,
         });
 
-      // If pathfinding failed, select a new task
-      if (moveResult === ERR_NO_PATH) this.ChangeTask();
+      // If pathfinding failed, end the task
+      if (moveResult === ERR_NO_PATH) task.isCompleteFlag = true;
     } else {
       // Task result was not ok and not a move
       this.log.debug('DoTask returned a non-OK result.', {
@@ -331,14 +329,17 @@ export class CreepExtra extends Creep {
         thisPos: this.pos,
         targetPos: outcome.target.pos,
       });
+      task.isCompleteFlag = true;
     }
+
+    this.currentTask = task; // Save task back to itself since acting on it might have changed it
   }
 
   MoveIntoRoomIfOnEdge(): void {
     const awayFromEdge = DirectionIntoRoomFromEdge(EdgeStoodOn(this.pos));
     if (!awayFromEdge) return;
-    this.move(awayFromEdge);
+
     this.ActedThisTick = true;
-    this.IntendedToMove = true;
+    if (this.move(awayFromEdge) === OK) this.IntendedToMove = true;
   }
 }
