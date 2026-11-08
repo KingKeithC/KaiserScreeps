@@ -4,7 +4,7 @@ import { CreepExtra } from 'Creep';
 import { GetRandomName } from 'Data';
 import { RoomExtra } from 'Room';
 import { CreepTask } from 'tasks/types';
-import { GetValueByName } from 'utils/Collections';
+import { Filters, GetValueByName } from 'utils/Collections';
 import { Logger } from 'utils/Logger';
 
 export interface CreepRole {
@@ -213,7 +213,7 @@ export abstract class CreepRoleBase {
   }
 
   GetGlobalCreepsInRole(): CreepExtra[] {
-    return this.colony.MyCreeps.filter(c => c.memory.role === this.roleName);
+    return this.colony.MyCreeps.filter(Filters.CreepMemoryRoleName(this.roleName));
   }
   GetNewCreepName(_room: RoomExtra): string {
     return GetRandomName();

@@ -1,5 +1,5 @@
 import { groupBy } from 'lodash';
-import { RoomPositionString, SerializeRoomPosition, SerializeRoomPositionTriple } from './Collections';
+import { Filters, RoomPositionString, SerializeRoomPosition, SerializeRoomPositionTriple } from './Collections';
 import { BodyCost, PartCounts } from './CreepUtils';
 import { Logger } from './Logger';
 
@@ -143,17 +143,11 @@ export function CouldCreepStandAt(x: number, y: number, room: Room, terrain: Roo
   if (terrain.get(x, y) === TERRAIN_MASK_WALL) return false;
 
   for (const structure of pos.lookFor(LOOK_STRUCTURES)) {
-    if (structure.structureType === STRUCTURE_CONTAINER) continue; // Can stand on containers.
-    if (structure.structureType === STRUCTURE_ROAD) continue; // Can stand on roads.
-    if (structure.structureType === STRUCTURE_RAMPART && structure.my) continue; // Can stand on my ramparts.
-    return false; // Can't stand on any other structure
+    if (Filters.NonWalkableStructure(structure)) return false;
   }
 
   for (const structure of pos.lookFor(LOOK_CONSTRUCTION_SITES)) {
-    if (structure.structureType === STRUCTURE_CONTAINER) continue; // Can stand on container construction sites.
-    if (structure.structureType === STRUCTURE_ROAD) continue; // Can stand on road construction sites.
-    if (structure.structureType === STRUCTURE_RAMPART && structure.my) continue; // Can stand on my rampart construction sites.
-    return false; // Can't stand on any other construction sites
+    if (Filters.NonWalkableStructure(structure)) return false;
   }
 
   // No other blockers, must be okay to stand there
@@ -281,7 +275,7 @@ export function ResourceContainersForRoomByType(room: string | Room): Map<Resour
 
   // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
   for (const container of room.find(FIND_STRUCTURES, {
-    filter: s => s.structureType === STRUCTURE_CONTAINER && s.store.getUsedCapacity() > 0,
+    filter: s => Filters.StructureContainer(s) && s.store.getUsedCapacity() > 0,
   }) as StructureContainer[])
     for (const rt in container.store)
       ret.set(rt as ResourceConstant, [

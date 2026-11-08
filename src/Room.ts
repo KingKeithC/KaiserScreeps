@@ -16,9 +16,11 @@ import { CreepExtra } from 'Creep';
 import {
   AssignedTasksWithEntity,
   DeserializeRoomPosition,
+  Filters,
   FmtRatios,
   LerpColour,
   SerializeRoomPosition,
+  Sorts,
   TasksOfEntities,
 } from 'utils/Collections';
 import { Colours } from 'Data';
@@ -83,20 +85,18 @@ export class RoomExtra extends Room {
     // This class init
     this.parent = parent;
     this.colony = colony;
-    this.AssignedCreeps = colony.MyCreeps.filter(c => c.memory.room === room.name);
+    this.AssignedCreeps = colony.MyCreeps.filter(Filters.CreepMemoryRoomName(room.name));
   }
 
   private cachedAssignedCreepsOfRole: { [roleName: CreepRole['roleName']]: CreepExtra[] } = {};
   GetAssignedCreepsOfRole(roleName: string): CreepExtra[] {
-    return (this.cachedAssignedCreepsOfRole[roleName] ??= this.AssignedCreeps.filter(
-      c => c.role.roleName === roleName,
-    ));
+    return (this.cachedAssignedCreepsOfRole[roleName] ??= this.AssignedCreeps.filter(Filters.CreepRoleName(roleName)));
   }
 
   private cachedAssignedCreepsOfRoleGroup: { [roleGroupName: CreepRole['groupName']]: CreepExtra[] } = {};
   GetAssignedCreepsOfRoleGroup(roleGroupName: string): CreepExtra[] {
     return (this.cachedAssignedCreepsOfRoleGroup[roleGroupName] ??= this.AssignedCreeps.filter(
-      c => c.role.groupName === roleGroupName,
+      Filters.CreepRoleGroupName(roleGroupName),
     ));
   }
 
@@ -363,7 +363,7 @@ export class RoomExtra extends Room {
     const terrain = this.getTerrain();
 
     // Set roads to cheapest cost
-    for (const s of this.find(FIND_STRUCTURES, { filter: st => st.structureType === STRUCTURE_ROAD }))
+    for (const s of this.find(FIND_STRUCTURES, { filter: Filters.StructureRoad }))
       matrix.set(s.pos.x, s.pos.y, this.PathfindingParams.RoadCost);
 
     // Blot out pathing around sources, since they tend to crowd
@@ -438,21 +438,11 @@ export class RoomExtra extends Room {
     });
 
     // Blot out unwalkable structures
-    for (const s of this.find(FIND_STRUCTURES, {
-      filter: st =>
-        st.structureType !== STRUCTURE_ROAD &&
-        st.structureType !== STRUCTURE_CONTAINER &&
-        (st.structureType !== STRUCTURE_RAMPART || !st.my),
-    }))
+    for (const s of this.find(FIND_STRUCTURES, { filter: Filters.NonWalkableStructure }))
       matrix.set(s.pos.x, s.pos.y, this.PathfindingParams.Unwalkable);
 
     // Blot out unwalkable construction sites
-    for (const s of this.find(FIND_CONSTRUCTION_SITES, {
-      filter: st =>
-        st.structureType !== STRUCTURE_ROAD &&
-        st.structureType !== STRUCTURE_CONTAINER &&
-        (st.structureType !== STRUCTURE_RAMPART || !st.my),
-    }))
+    for (const s of this.find(FIND_CONSTRUCTION_SITES, { filter: Filters.NonWalkableStructure }))
       matrix.set(s.pos.x, s.pos.y, this.PathfindingParams.Unwalkable);
 
     // Cache
@@ -515,9 +505,7 @@ export class RoomExtra extends Room {
   }
 
   get SpawnsOrExtensions(): (StructureExtension | StructureSpawn)[] {
-    return this.find(FIND_MY_STRUCTURES, {
-      filter: s => s.structureType === STRUCTURE_SPAWN || s.structureType === STRUCTURE_EXTENSION,
-    });
+    return this.find(FIND_MY_STRUCTURES, { filter: Filters.StructureSpawnOrExtension });
   }
 
   get Hostiles(): Creep[] {
@@ -544,7 +532,7 @@ export class RoomExtra extends Room {
 
   get ClaimedContainers(): StructureContainer[] {
     return this.FlatMapOverRoomsInClaimedArea(r =>
-      typeof r === 'string' ? [] : r.find(FIND_STRUCTURES, { filter: s => s.structureType === STRUCTURE_CONTAINER }),
+      typeof r === 'string' ? [] : r.find(FIND_STRUCTURES, { filter: Filters.StructureContainer }),
     );
   }
 
@@ -562,11 +550,11 @@ export class RoomExtra extends Room {
   }
 
   get Ramparts(): StructureRampart[] {
-    return this.find(FIND_MY_STRUCTURES, { filter: s => s.structureType === STRUCTURE_RAMPART });
+    return this.find(FIND_MY_STRUCTURES, { filter: Filters.StructureRampart });
   }
 
   get Roads(): StructureRoad[] {
-    return this.find(FIND_STRUCTURES, { filter: s => s.structureType === STRUCTURE_ROAD });
+    return this.find(FIND_STRUCTURES, { filter: Filters.StructureRoad });
   }
 
   private GetLinks(groupName: 'Receivers' | 'Senders'): StructureLink[] {
@@ -735,9 +723,7 @@ export class RoomExtra extends Room {
   RunTowers(): void {
     if (this.DisableTowers) return;
 
-    const towers = this.find(FIND_MY_STRUCTURES, {
-      filter: (s): s is StructureTower => s.structureType === STRUCTURE_TOWER,
-    });
+    const towers = this.find(FIND_MY_STRUCTURES, { filter: Filters.StructureTower });
     if (towers.length === 0) return;
 
     const hostiles = this.Hostiles;
@@ -817,7 +803,7 @@ export class RoomExtra extends Room {
       return;
     }
 
-    const spawnable = this.GetSpawnableRoles().sort((a, b) => a.role.priority - b.role.priority);
+    const spawnable = this.GetSpawnableRoles().sort(Sorts.RolePriorityAsc);
     if (spawnable.length === 0) {
       this.spawnBlocked = true;
       return;

@@ -2,7 +2,7 @@ import { CreepExtra } from 'Creep';
 import { RoomExtra } from 'Room';
 import { Move } from 'tasks';
 import { CreepTask } from 'tasks/types';
-import { MakeBody } from 'utils/Collections';
+import { Filters, MakeBody } from 'utils/Collections';
 import { RoomReport } from 'utils/RoomUtils';
 import { CreepRoleBase, CreepRole } from './Role';
 
@@ -43,7 +43,7 @@ export class Scout extends CreepRoleBase implements CreepRole {
   }
 
   TickCreep(creep: CreepExtra): void {
-    if (creep.hits < creep.hitsMax)
+    if (Filters.Damaged(creep))
       this.log.warn("I'm being attacked.", {
         '<creep>': creep,
         hits: creep.hits,

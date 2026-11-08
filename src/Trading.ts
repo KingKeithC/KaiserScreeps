@@ -1,5 +1,6 @@
 import { Colony } from 'Colony';
 import { RoomExtra } from 'Room';
+import { Sorts } from 'utils/Collections';
 import { Logger } from 'utils/Logger';
 
 declare global {
@@ -100,7 +101,7 @@ export class TradingSystem {
   }
 
   GetWatchedOrders(): OrderAnalysis[] {
-    return Array.from(this.WatchedOrders.values()).sort((o2, o1) => o1.estProfit - o2.estProfit);
+    return Array.from(this.WatchedOrders.values()).sort(Sorts.EstimatedProfitDesc);
   }
 
   InitializeTerminal(terminal: StructureTerminal): TerminalMemory {

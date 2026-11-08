@@ -2,6 +2,7 @@ import { CreepExtra } from 'Creep';
 import { RoomExtra } from 'Room';
 import { Collect, Supply } from 'tasks';
 import { CreepTask } from 'tasks/types';
+import { Filters } from 'utils/Collections';
 import { FirstBodyByEnergyCapacity } from 'utils/RoomUtils';
 import { CreepRole } from './Role';
 import { Worker } from './Worker';
@@ -39,9 +40,7 @@ export class Maintainer extends Worker implements CreepRole {
     // to us that need energy, give our energy to them
     if (creep.store.getUsedCapacity(RESOURCE_ENERGY) > 0)
       // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
-      for (const s of creep.pos.findInRange(FIND_MY_STRUCTURES, 1, {
-        filter: st => st.structureType === STRUCTURE_EXTENSION || st.structureType === STRUCTURE_SPAWN,
-      }) as (StructureSpawn | StructureExtension)[])
+      for (const s of creep.pos.findInRange(FIND_MY_STRUCTURES, 1, { filter: Filters.StructureSpawnOrExtension }))
         if (s.store.getFreeCapacity(RESOURCE_ENERGY) > 0) creep.transfer(s, RESOURCE_ENERGY);
 
     // Otherwise, if we are near a link receiver, that has

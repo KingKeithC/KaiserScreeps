@@ -1,4 +1,5 @@
 import { CreepExtra } from 'Creep';
+import { Filters } from 'utils/Collections';
 import { RegisterTask, TaskActionResult } from 'tasks/types';
 import { TargetTask } from './TargetTask';
 
@@ -39,7 +40,7 @@ export class UpgradeController extends TargetTask<StructureController> {
     // and spawns need energy, end early
     if (
       this.mode === 'upgrade' &&
-      creep.role.roleName === 'Maintainer' &&
+      Filters.CreepRoleName('Maintainer')(creep) &&
       creep.AssignedRoom.energyAvailable < creep.AssignedRoom.energyCapacityAvailable
     )
       return false;

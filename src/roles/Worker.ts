@@ -5,7 +5,7 @@ import { RoomExtra } from 'Room';
 import { Build, Collect, Mine, Repair, Supply, UpgradeController } from 'tasks';
 import { Retire } from 'tasks/Retire';
 import { CreepTask } from 'tasks/types';
-import { GetValueByName, MakeBody } from 'utils/Collections';
+import { Filters, GetValueByName, MakeBody, Sorts } from 'utils/Collections';
 import {
   BodyCost,
   TryCollectFromContainer as TryCollectFromContainers,
@@ -38,9 +38,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
   }
 
   TickCreep(creep: CreepExtra): void {
-    const containers = creep.pos
-      .findInRange(FIND_STRUCTURES, 1)
-      .filter((structure): structure is StructureContainer => structure.structureType === STRUCTURE_CONTAINER);
+    const containers = creep.pos.findInRange(FIND_STRUCTURES, 1).filter(Filters.StructureContainer);
     if (TryCollectFromContainers(creep, containers)) return;
     if (TryPickupDropped(creep)) return;
     if (TryCollectFromTombs(creep)) return;
@@ -100,7 +98,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
     // By the time they get there, the miner should hopefully have something to collect,
     // and it should prevent them from searching for new tasks ever idle tick
     // this does make them less responsive however
-    const miners = creep.AssignedRoom.AssignedCreeps.filter(c => c.role.groupName === 'Miner');
+    const miners = creep.AssignedRoom.AssignedCreeps.filter(Filters.CreepRoleGroupName('Miner'));
     if (miners.length > 0) {
       const randomMiner = miners[Math.floor(miners.length * Math.random())];
       return new Collect(randomMiner);
@@ -132,10 +130,10 @@ export class Worker extends CreepRoleBase implements CreepRole {
     const sourcesWhoCanFullySupplyUs = adjustedSources.filter(([, amount]) => amount >= freeCapacity);
 
     // Sort from least to most supply remaining
-    sourcesWhoCanFullySupplyUs.sort((a, b) => a[1] - b[1]);
+    sourcesWhoCanFullySupplyUs.sort(Sorts.NumberPairValueAsc);
 
     // Sort from least to most used capacity
-    adjustedSources.sort((a, b) => a[1] - b[1]);
+    adjustedSources.sort(Sorts.NumberPairValueAsc);
 
     const fullSupply = sourcesWhoCanFullySupplyUs.map(s => s[0]);
     const fullestSameRoom =
@@ -210,7 +208,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
     // Or refill towers needing energy that aren't next to a miner
     const towers = creep.AssignedRoom.find(FIND_MY_STRUCTURES, {
       filter: (st): st is StructureTower =>
-        st.structureType === STRUCTURE_TOWER &&
+        Filters.StructureTower(st) &&
         st.isActive() &&
         !(st.pos.findInRange(creep.AssignedRoom.GetAssignedCreepsOfRoleGroup('Miners') ?? [], 1).length > 0),
     });
@@ -227,7 +225,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
 
     // Or refill lab energy
     const labs: StructureLab[] = creep.AssignedRoom.find(FIND_MY_STRUCTURES, {
-      filter: s => s.structureType === STRUCTURE_LAB && s.isActive() && s.store.getFreeCapacity(RESOURCE_ENERGY) > 0,
+      filter: s => Filters.StructureLab(s) && s.isActive() && s.store.getFreeCapacity(RESOURCE_ENERGY) > 0,
     });
     for (const lab of labs) return new Supply(lab);
 
@@ -338,9 +336,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
   }
 
   ConsiderRetirement(creep: CreepExtra): Retire | null {
-    const spawn = creep.AssignedRoom.SpawnsOrExtensions.filter(
-      s => s.structureType === STRUCTURE_SPAWN,
-    ).pop() as StructureSpawn;
+    const spawn = creep.AssignedRoom.SpawnsOrExtensions.filter(Filters.StructureSpawn).pop();
     if (spawn && this.RetireEnabled && creep.LifetimeIdle > this.RetireWhenIdleFor) return new Retire(spawn);
     return null;
   }
@@ -411,7 +407,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
 
       for (const [room] of creep.AssignedRoom.MapWithRoomsInClaimedArea<RoomExtra | Room | string>(r => r)) {
         if (typeof room === 'string') continue;
-        const roomTowers = room.find(FIND_MY_STRUCTURES, { filter: s => s.structureType === STRUCTURE_TOWER });
+        const roomTowers = room.find(FIND_MY_STRUCTURES, { filter: Filters.StructureTower });
         if (roomTowers.length > 0) continue;
 
         const repairGroup =
@@ -443,10 +439,10 @@ export class Worker extends CreepRoleBase implements CreepRole {
 
   // prettier-ignore
   ConstructionPriorities: ((c: ConstructionSite) => boolean)[] = [
-    (c => c.structureType === STRUCTURE_RAMPART || c.structureType === STRUCTURE_WALL),
-    (c => c.structureType === STRUCTURE_SPAWN),
-    (c => c.structureType === STRUCTURE_EXTENSION),
-    (c => c.structureType === STRUCTURE_ROAD),
+    Filters.ConstructionRampartOrWall,
+    Filters.ConstructionType(STRUCTURE_SPAWN),
+    Filters.ConstructionType(STRUCTURE_EXTENSION),
+    Filters.ConstructionType(STRUCTURE_ROAD),
     (() => true), // Everything else
   ];
 
@@ -477,7 +473,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
 
       const remoteRoom = group
         .filter(s => s.pos.roomName !== supplier.room.name)
-        .sort((a, b) => a.progress / a.progressTotal - b.progress / b.progressTotal)
+        .sort(Sorts.ConstructionProgressRatioAsc)
         .pop();
       if (remoteRoom) return remoteRoom;
     }
@@ -515,11 +511,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
 
       const remoteRoom = group
         .filter(s => s.room.name !== supplier.room.name)
-        .sort(
-          (a, b) =>
-            a.store.getUsedCapacity(RESOURCE_ENERGY) / a.store.getCapacity(RESOURCE_ENERGY) -
-            b.store.getUsedCapacity(RESOURCE_ENERGY) / b.store.getCapacity(RESOURCE_ENERGY),
-        )
+        .sort(Sorts.StoreEnergyRatioAsc)
         .pop();
       if (remoteRoom) return remoteRoom;
     }

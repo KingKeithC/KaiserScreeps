@@ -162,9 +162,53 @@ export function GetValueByName<T>(dict: { [name: string]: T }, obj: NamedEntity,
   return (dict[obj.name] ??= initialValue());
 }
 
-export const Sorts: { [name: string]: (a: any, b: any) => number } = {
-  StructureHitsRatioAsc: (a: AnyStructure, b: AnyStructure) => a.hits / a.hitsMax - b.hits / b.hitsMax,
-  StructureHitsRatioDesc: (a, b) => Sorts.StructureHitsRatioAsc(b, a),
+interface HitRatioTarget {
+  hits: number;
+  hitsMax: number;
+}
+
+export const Sorts = {
+  StructureHitsRatioAsc: (a: HitRatioTarget, b: HitRatioTarget) => a.hits / a.hitsMax - b.hits / b.hitsMax,
+  StructureHitsRatioDesc: (a: HitRatioTarget, b: HitRatioTarget) => Sorts.StructureHitsRatioAsc(b, a),
+  AttackIndexAsc: (a: Flag, b: Flag) => (a.memory.attackIndex ?? 0) - (b.memory.attackIndex ?? 0),
+  NumberPairValueAsc: <T>(a: readonly [T, number], b: readonly [T, number]) => a[1] - b[1],
+  ConstructionProgressRatioAsc: (a: ConstructionSite, b: ConstructionSite) =>
+    a.progress / a.progressTotal - b.progress / b.progressTotal,
+  StoreEnergyRatioAsc: (a: AnyStoreStructure, b: AnyStoreStructure) =>
+    a.store.getUsedCapacity(RESOURCE_ENERGY) / a.store.getCapacity(RESOURCE_ENERGY) -
+    b.store.getUsedCapacity(RESOURCE_ENERGY) / b.store.getCapacity(RESOURCE_ENERGY),
+  RolePriorityAsc: (a: { role: { priority: number } }, b: { role: { priority: number } }) =>
+    a.role.priority - b.role.priority,
+  EstimatedProfitDesc: (a: { estProfit: number }, b: { estProfit: number }) => b.estProfit - a.estProfit,
+} as const;
+
+export const Filters = {
+  Damaged: (target: HitRatioTarget) => target.hits < target.hitsMax,
+  CreepRoleName: (roleName: string) => (creep: { role: { roleName: string } }) => creep.role.roleName === roleName,
+  CreepRoleGroupName: (groupName: string) => (creep: { role: { groupName: string } }) =>
+    creep.role.groupName === groupName,
+  CreepMemoryRoomName: (roomName: string) => (creep: { memory: { room?: string } }) => creep.memory.room === roomName,
+  CreepMemoryRoleName: (roleName: string) => (creep: { memory: { role?: string } }) => creep.memory.role === roleName,
+  StructureContainer: (structure: AnyStructure): structure is StructureContainer =>
+    structure.structureType === STRUCTURE_CONTAINER,
+  StructureTower: (structure: AnyStructure): structure is StructureTower => structure.structureType === STRUCTURE_TOWER,
+  StructureRampart: (structure: AnyStructure): structure is StructureRampart =>
+    structure.structureType === STRUCTURE_RAMPART,
+  StructureRoad: (structure: AnyStructure): structure is StructureRoad => structure.structureType === STRUCTURE_ROAD,
+  StructureLab: (structure: AnyStructure): structure is StructureLab => structure.structureType === STRUCTURE_LAB,
+  StructureSpawn: (structure: AnyStructure): structure is StructureSpawn => structure.structureType === STRUCTURE_SPAWN,
+  StructureWallOrRampart: (structure: AnyStructure) =>
+    structure.structureType === STRUCTURE_WALL || structure.structureType === STRUCTURE_RAMPART,
+  StructureSpawnOrExtension: (structure: AnyStructure): structure is StructureSpawn | StructureExtension =>
+    structure.structureType === STRUCTURE_SPAWN || structure.structureType === STRUCTURE_EXTENSION,
+  ConstructionRampartOrWall: (site: ConstructionSite) =>
+    site.structureType === STRUCTURE_RAMPART || site.structureType === STRUCTURE_WALL,
+  ConstructionType: (structureType: BuildableStructureConstant) => (site: ConstructionSite) =>
+    site.structureType === structureType,
+  NonWalkableStructure: (structure: { structureType: StructureConstant; my?: boolean }) =>
+    structure.structureType !== STRUCTURE_ROAD &&
+    structure.structureType !== STRUCTURE_CONTAINER &&
+    (structure.structureType !== STRUCTURE_RAMPART || !structure.my),
 } as const;
 
 export const OK_MOVE_DONE = 1 as const;

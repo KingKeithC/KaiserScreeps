@@ -1,6 +1,6 @@
 import { Colony } from 'Colony';
 import { sum } from 'lodash';
-import { MapNamed } from 'utils/Collections';
+import { Filters, MapNamed } from 'utils/Collections';
 
 interface SchemaField {
   unit: 'ticks' | 'number' | 'cpu' | 'bytes';
@@ -274,7 +274,10 @@ export function GetColonyStats(colony: Colony): ColonyStats {
         MapNamed(colony.MyRooms, ro => sum(r.GetRoomCreepsInRole(ro), cir => cir.LifetimeStuck)),
       ),
       role_room_my_creep_count: MapNamed(Object.values(colony.Roles), r =>
-        MapNamed(colony.MyRooms, ro => ro.find(FIND_MY_CREEPS, { filter: c => c.memory.role === r.roleName }).length),
+        MapNamed(
+          colony.MyRooms,
+          ro => ro.find(FIND_MY_CREEPS, { filter: Filters.CreepMemoryRoleName(r.roleName) }).length,
+        ),
       ),
       room_neutral_structure_count: MapNamed(Object.values(Game.rooms), vr =>
         vr.find(FIND_STRUCTURES, { filter: s => !('owner' in s) }).reduce((counts, s) => {
@@ -316,7 +319,7 @@ export function GetColonyStats(colony: Colony): ColonyStats {
         sum(
           vr
             .find(FIND_STRUCTURES)
-            .map(s => (s.structureType === STRUCTURE_CONTAINER ? s.store.getUsedCapacity(RESOURCE_ENERGY) : 0)),
+            .map(s => (Filters.StructureContainer(s) ? s.store.getUsedCapacity(RESOURCE_ENERGY) : 0)),
         ),
       ),
       creep_energy: MapNamed(Object.values(Game.rooms), vr =>

@@ -4,7 +4,7 @@ import type { RoomExtra } from 'Room';
 import { Dismantle, GuardTask } from 'tasks';
 import { Attack } from 'tasks/Attack';
 import { CreepTask } from 'tasks/types';
-import { MakeBody } from 'utils/Collections';
+import { Filters, MakeBody, Sorts } from 'utils/Collections';
 import { CreepRoleBase, CreepRole } from './Role';
 
 export class Defender extends CreepRoleBase implements CreepRole {
@@ -34,10 +34,8 @@ export class Defender extends CreepRoleBase implements CreepRole {
     const hostileStructure = this.FindSameRoomHostileStructure(creep);
     if (hostileStructure) return new Dismantle(hostileStructure);
 
-    const rampart = creep.pos.findClosestByPath(FIND_MY_STRUCTURES, {
-      filter: s => s.structureType === STRUCTURE_RAMPART,
-    });
-    if (rampart) return new GuardTask(rampart as StructureRampart);
+    const rampart = creep.pos.findClosestByPath(FIND_MY_STRUCTURES, { filter: Filters.StructureRampart });
+    if (rampart) return new GuardTask(rampart);
 
     return null;
   }
@@ -50,15 +48,15 @@ export class Defender extends CreepRoleBase implements CreepRole {
     if (creep.getActiveBodyparts(ATTACK) > 0) {
       // Attack Ranged Enemies
       const closeEnemy = creep.pos
-        .findInRange(FIND_HOSTILE_CREEPS, 3, { filter: c => c.hits < c.hitsMax })
-        .sort((b, a) => a.hits / a.hitsMax - b.hits / b.hitsMax)
+        .findInRange(FIND_HOSTILE_CREEPS, 3, { filter: Filters.Damaged })
+        .sort(Sorts.StructureHitsRatioDesc)
         .pop();
       if (closeEnemy) creep.rangedAttack(closeEnemy);
 
       // Attack Melee Enemies
       const touchingEnemy = creep.pos
-        .findInRange(FIND_HOSTILE_CREEPS, 1, { filter: c => c.hits < c.hitsMax })
-        .sort((b, a) => a.hits / a.hitsMax - b.hits / b.hitsMax)
+        .findInRange(FIND_HOSTILE_CREEPS, 1, { filter: Filters.Damaged })
+        .sort(Sorts.StructureHitsRatioDesc)
         .pop();
       if (touchingEnemy) creep.attack(touchingEnemy);
     }
@@ -66,20 +64,20 @@ export class Defender extends CreepRoleBase implements CreepRole {
     if (creep.getActiveBodyparts(HEAL) > 0) {
       // Heal friendles that are near but not touching
       const rangedNeedsHeal = creep.pos
-        .findInRange(FIND_MY_CREEPS, 3, { filter: c => c.hits < c.hitsMax })
-        .sort((b, a) => a.hits / a.hitsMax - b.hits / b.hitsMax)
+        .findInRange(FIND_MY_CREEPS, 3, { filter: Filters.Damaged })
+        .sort(Sorts.StructureHitsRatioDesc)
         .pop();
       if (rangedNeedsHeal) creep.rangedHeal(rangedNeedsHeal);
 
       // Heal friendles that are touching
       const closeNeedsHeal = creep.pos
-        .findInRange(FIND_MY_CREEPS, 1, { filter: c => c.hits < c.hitsMax })
-        .sort((b, a) => a.hits / a.hitsMax - b.hits / b.hitsMax)
+        .findInRange(FIND_MY_CREEPS, 1, { filter: Filters.Damaged })
+        .sort(Sorts.StructureHitsRatioDesc)
         .pop();
       if (closeNeedsHeal) creep.heal(closeNeedsHeal);
 
       // Heal self
-      if (creep.hits < creep.hitsMax) creep.heal(creep);
+      if (Filters.Damaged(creep)) creep.heal(creep);
     }
   }
 

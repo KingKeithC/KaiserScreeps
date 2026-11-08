@@ -2,7 +2,7 @@ import { CreepExtra } from 'Creep';
 import { RoomExtra } from 'Room';
 import { Mine } from 'tasks';
 import { CreepTask } from 'tasks/types';
-import { Sorts, MakeBody, SerializeRoomPosition } from 'utils/Collections';
+import { Filters, Sorts, MakeBody, SerializeRoomPosition } from 'utils/Collections';
 import { BodyCost, TryCollectFromContainer, TryPickupDropped, TryTransferTo } from 'utils/CreepUtils';
 import { CreepRole, CreepRoleBase } from './Role';
 
@@ -14,7 +14,7 @@ export class Miner extends CreepRoleBase implements CreepRole {
   IsSpawnNeeded(room: RoomExtra): boolean {
     if (!this.IsRoleUnderQuota(room)) return false;
     // We can't spawn miners until we have a worker.
-    return room.AssignedCreeps.filter(c => c.role.groupName === 'Workers').length > 0;
+    return room.AssignedCreeps.filter(Filters.CreepRoleGroupName('Workers')).length > 0;
   }
 
   GetNewCreepBody(room: RoomExtra): BodyPartConstant[] {
@@ -56,20 +56,16 @@ export class Miner extends CreepRoleBase implements CreepRole {
       return;
 
     const nearbyNonMiners = creep.pos.findInRange(this.colony.MyCreeps, 1, {
-      filter: c => c.store.getFreeCapacity() > 0 && c.role.groupName !== 'Miners',
+      filter: c => c.store.getFreeCapacity() > 0 && !Filters.CreepRoleGroupName('Miners')(c),
     });
     if (TryTransferTo(creep, nearbyNonMiners, [RESOURCE_ENERGY])) return;
     if (TryPickupDropped(creep)) return;
 
-    const nearbyContainers = creep.pos
-      .findInRange(FIND_STRUCTURES, 1)
-      .filter((structure): structure is StructureContainer => structure.structureType === STRUCTURE_CONTAINER);
+    const nearbyContainers = creep.pos.findInRange(FIND_STRUCTURES, 1).filter(Filters.StructureContainer);
     const notEnergy = RESOURCES_ALL.filter(rt => rt !== RESOURCE_ENERGY);
     if (TryTransferTo(creep, nearbyContainers, notEnergy)) return;
 
-    const nearbyTowers = creep.pos
-      .findInRange(FIND_MY_STRUCTURES, 1)
-      .filter((structure): structure is StructureTower => structure.structureType === STRUCTURE_TOWER);
+    const nearbyTowers = creep.pos.findInRange(FIND_MY_STRUCTURES, 1).filter(Filters.StructureTower);
     const nearbyLinks = creep.AssignedRoom.LinkSenders.filter(link => link.pos.isNearTo(creep));
     const nearbyEnergyDemand =
       nearbyTowers.reduce((total, tower) => total + tower.store.getFreeCapacity(RESOURCE_ENERGY), 0) +
@@ -84,9 +80,7 @@ export class Miner extends CreepRoleBase implements CreepRole {
 
     // Source is out of energy, so can't mine, repair whatever is around us
     for (const repair of creep.pos
-      .findInRange(FIND_STRUCTURES, 3, {
-        filter: s => s.hits < s.hitsMax && ![STRUCTURE_WALL, STRUCTURE_RAMPART].some(v => s.structureType === v),
-      })
+      .findInRange(FIND_STRUCTURES, 3, { filter: s => Filters.Damaged(s) && !Filters.StructureWallOrRampart(s) })
       .sort(Sorts.StructureHitsRatioAsc))
       if (creep.repair(repair) === OK) return;
   }
