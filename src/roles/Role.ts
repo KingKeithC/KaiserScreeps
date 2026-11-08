@@ -144,11 +144,12 @@ export abstract class CreepRoleBase {
   protected ChangeQuota(
     room: RoomExtra,
     quotaDelta: number | ((curr: number) => number),
+    updateCheckTime = true,
     current = this.CurrentQuota(room),
     minQuota = this.GetMinQuota(room),
     maxQuota = this.GetMaxQuota(room),
   ): number {
-    this.roomQuotaChangeCheckTimes[room.name] = Game.time;
+    if (updateCheckTime) this.roomQuotaChangeCheckTimes[room.name] = Game.time;
 
     // Calculate new Quota based on input
     if (typeof quotaDelta !== 'number') quotaDelta = quotaDelta(current);
@@ -207,7 +208,7 @@ export abstract class CreepRoleBase {
    */
   GetQuota(room: RoomExtra, current = this.CurrentQuota(room)) {
     if (this.TimeSinceQuotaUpdate(room) > this.RoleQuotaChangeFrequency)
-      return this.ChangeQuota(room, this.GetQuotaChange(room), current);
+      return this.ChangeQuota(room, this.GetQuotaChange(room), true, current);
     return current;
   }
 

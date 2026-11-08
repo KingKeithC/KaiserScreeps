@@ -64,7 +64,7 @@ export class Claimer extends CreepRoleBase implements CreepRole {
         claimedRoom.controller.safeMode !== undefined
       ) {
         this.log.warn('Claimed room in safe mode, delaying spawn and lowering quota.');
-        this.ChangeQuota(room, -1);
+        this.ChangeQuota(room, -1, false);
         this.dontSpawnBefore[room.name] = Game.time + claimedRoom.controller.safeMode;
         continue;
       } else ret.push(claim);
