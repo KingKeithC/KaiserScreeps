@@ -62,9 +62,8 @@ export class Worker extends CreepRoleBase implements CreepRole {
   private energySamplesByRoom: { [roomName: Room['name']]: number } = {};
 
   RoomTickStart(room: RoomExtra): void {
-    const energyInCollectionPlan = (room.CollectionPlan.sourcesByType.get(RESOURCE_ENERGY) ?? []).reduce(
-      (total, source) => total + source[1],
-      0,
+    const energyInCollectionPlan = sum(
+      (room.CollectionPlan.sourcesByType.get(RESOURCE_ENERGY) ?? []).map(source => source[1]),
     );
     const sampleCount = GetValueByName(this.energySamplesByRoom, room, () => 0) + 1;
     const previousAverage = GetValueByName(this.rollingAvgEnergyInCollectionPlan, room, () => 0);

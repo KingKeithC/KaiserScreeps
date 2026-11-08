@@ -1,4 +1,5 @@
 import { CreepExtra } from 'Creep';
+import { sum } from 'lodash';
 import { RoomExtra } from 'Room';
 import { Mine } from 'tasks';
 import { CreepTask } from 'tasks/types';
@@ -68,8 +69,8 @@ export class Miner extends CreepRoleBase implements CreepRole {
     const nearbyTowers = creep.pos.findInRange(FIND_MY_STRUCTURES, 1).filter(Filters.StructureTower);
     const nearbyLinks = creep.AssignedRoom.LinkSenders.filter(link => link.pos.isNearTo(creep));
     const nearbyEnergyDemand =
-      nearbyTowers.reduce((total, tower) => total + tower.store.getFreeCapacity(RESOURCE_ENERGY), 0) +
-      nearbyLinks.reduce((total, link) => total + link.store.getFreeCapacity(RESOURCE_ENERGY), 0);
+      sum(nearbyTowers.map(tower => tower.store.getFreeCapacity(RESOURCE_ENERGY))) +
+      sum(nearbyLinks.map(link => link.store.getFreeCapacity(RESOURCE_ENERGY)));
     if (TryCollectFromContainer(creep, nearbyContainers, nearbyEnergyDemand * 2, [RESOURCE_ENERGY])) return;
     if (TryTransferTo(creep, nearbyTowers, [RESOURCE_ENERGY])) return;
     if (TryTransferTo(creep, nearbyLinks, [RESOURCE_ENERGY])) return;

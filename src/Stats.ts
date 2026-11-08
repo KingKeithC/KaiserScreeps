@@ -1,5 +1,5 @@
 import { Colony } from 'Colony';
-import { sum } from 'lodash';
+import { countBy, sum } from 'lodash';
 import { Filters, MapNamed } from 'utils/Collections';
 
 interface SchemaField {
@@ -280,32 +280,20 @@ export function GetColonyStats(colony: Colony): ColonyStats {
         ),
       ),
       room_neutral_structure_count: MapNamed(Object.values(Game.rooms), vr =>
-        vr.find(FIND_STRUCTURES, { filter: s => !('owner' in s) }).reduce((counts, s) => {
-          counts[s.structureType] = (counts[s.structureType] ?? 0) + 1;
-          return counts;
-        }, {} as NumericRecord),
+        countBy(vr.find(FIND_STRUCTURES, { filter: s => !('owner' in s) }), s => s.structureType),
       ),
       hostile_creep_count: MapNamed(Object.values(Game.rooms), vr => vr.find(FIND_HOSTILE_CREEPS).length),
       room_my_structure_count: MapNamed(Object.values(Game.rooms), vr =>
-        vr.find(FIND_MY_STRUCTURES).reduce((counts, s) => {
-          counts[s.structureType] = (counts[s.structureType] ?? 0) + 1;
-          return counts;
-        }, {} as NumericRecord),
+        countBy(vr.find(FIND_MY_STRUCTURES), s => s.structureType),
       ),
       room_hostile_structure_count: MapNamed(Object.values(Game.rooms), vr =>
-        vr.find(FIND_HOSTILE_STRUCTURES).reduce((counts, s) => {
-          counts[s.structureType] = (counts[s.structureType] ?? 0) + 1;
-          return counts;
-        }, {} as NumericRecord),
+        countBy(vr.find(FIND_HOSTILE_STRUCTURES), s => s.structureType),
       ),
       dropped_energy_amount: MapNamed(Object.values(Game.rooms), vr =>
         sum(vr.find(FIND_DROPPED_RESOURCES), r => (r.resourceType === RESOURCE_ENERGY ? r.amount : 0)),
       ),
       room_my_construction_site_count: MapNamed(Object.values(Game.rooms), vr =>
-        vr.find(FIND_MY_CONSTRUCTION_SITES).reduce((counts, s) => {
-          counts[s.structureType] = (counts[s.structureType] ?? 0) + 1;
-          return counts;
-        }, {} as NumericRecord),
+        countBy(vr.find(FIND_MY_CONSTRUCTION_SITES), s => s.structureType),
       ),
       storage_capacity: MapNamed(Object.values(Game.rooms), vr => vr.storage?.store.getCapacity() ?? 0),
       storage_energy: MapNamed(

@@ -1,5 +1,5 @@
 import { CreepExtra } from 'Creep';
-import { flatten, groupBy } from 'lodash';
+import { flatten, groupBy, sum } from 'lodash';
 import type { RoomExtra } from 'Room';
 import { Dismantle, GuardTask } from 'tasks';
 import { Attack } from 'tasks/Attack';
@@ -22,9 +22,7 @@ export class Defender extends CreepRoleBase implements CreepRole {
 
   // 1 For each hostile
   override GetMinQuota(room: RoomExtra): number {
-    let total = 0;
-    for (const [_, v] of room.HostilesByRoom) total += v.length;
-    return total;
+    return sum([...room.HostilesByRoom.values()].map(creeps => creeps.length));
   }
 
   public SelectNextTask(creep: CreepExtra): CreepTask | null {

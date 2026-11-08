@@ -1,4 +1,4 @@
-import { Dictionary, sum } from 'lodash';
+import { countBy, Dictionary, sum } from 'lodash';
 import { DeserializeRoomPosition, RoomPositionString } from './Collections';
 
 export function BodyCost(body: (BodyPartConstant | BodyPartDefinition)[]): number {
@@ -6,10 +6,7 @@ export function BodyCost(body: (BodyPartConstant | BodyPartDefinition)[]): numbe
 }
 
 export function PartCounts(body: BodyPartDefinition[]): Dictionary<number> {
-  return body.reduce((counts, part) => {
-    counts[part.type] = (counts[part.type] ?? 0) + 1;
-    return counts;
-  }, {} as Dictionary<number>);
+  return countBy(body, part => part.type);
 }
 
 export function EdgeStoodOn(pos: RoomPosition | RoomPositionString): ExitConstant | null {
