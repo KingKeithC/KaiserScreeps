@@ -8,7 +8,7 @@ import { CreepTask, DeserializeTask } from 'tasks/types';
 import { FromEdgeIntoRoom as DirectionIntoRoomFromEdge, EdgeStoodOn } from 'utils/CreepUtils';
 import { Scout, ScoutingReport } from 'roles/Scout';
 import { MakeRoomReport } from 'utils/RoomUtils';
-import { Mine } from 'tasks';
+import { Mine, Transfer } from 'tasks';
 import { Miner } from 'roles/Miner';
 
 declare global {
@@ -315,7 +315,9 @@ export class CreepExtra extends Creep {
     // Log the transition as long as it's not None -> None.
     if (!newTask && oldTask) this.log.info('Task unassigned.', { oldTask });
     else if (newTask && !oldTask) this.log.info('Task assigned.', { newTask });
-    else if (oldTask && newTask) this.log.info('Task reassigned.', { oldTask, newTask });
+    else if (oldTask?.action === Transfer.action && newTask?.action === Transfer.action) {
+      // If both old and new tasks are Transfer actions, ignore logging the transition
+    } else if (oldTask && newTask) this.log.info('Task reassigned.', { oldTask, newTask });
 
     if (newTask)
       // If the transition ended with a new task, speak its action
