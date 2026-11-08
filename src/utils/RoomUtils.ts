@@ -13,7 +13,10 @@ import { Logger } from './Logger';
 export type StoreTargetable = _HasId & _HasRoomPosition & { store: GenericStoreBase };
 export type ResourceContainer = StoreTargetable | Resource;
 
-export type ContainerAndAmount = [ResourceContainer, number];
+// getUsedCapacity returns null only for resources the store type does not hold.
+export type StoreAmount = NonNullable<ReturnType<GenericStoreBase['getUsedCapacity']>>;
+
+export type ContainerAndAmount = [ResourceContainer, StoreAmount];
 
 /* ------------- Interfaces ------------- */
 

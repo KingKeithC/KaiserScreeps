@@ -1,15 +1,15 @@
-import { ContainerAndAmount, StoreTargetable } from 'utils/RoomUtils';
+import { ContainerAndAmount, StoreAmount, StoreTargetable } from 'utils/RoomUtils';
 import { Ledger, StoreId } from './Ledger';
 
 export type HolderRole = 'source' | 'store' | 'creep';
 
 interface RoomStores {
   holders: Map<StoreId, HolderRole>;
-  sources: Map<ResourceConstant, Map<StoreId, number>>;
+  sources: Map<ResourceConstant, Map<StoreId, StoreAmount>>;
 }
 
-function addSource(stores: RoomStores, resourceType: ResourceConstant, id: StoreId, amount: number): void {
-  const bySource = stores.sources.get(resourceType) ?? new Map<StoreId, number>();
+function addSource(stores: RoomStores, resourceType: ResourceConstant, id: StoreId, amount: StoreAmount): void {
+  const bySource = stores.sources.get(resourceType) ?? new Map<StoreId, StoreAmount>();
   bySource.set(id, amount);
   stores.sources.set(resourceType, bySource);
 }
@@ -18,11 +18,11 @@ function addSource(stores: RoomStores, resourceType: ResourceConstant, id: Store
 export class LogisticsSystem {
   readonly ledger = new Ledger();
 
-  private tick = -1;
-  private readonly rooms = new Map<string, RoomStores>();
-  private readonly reserved = new Map<string, Map<StoreId, number>>();
+  private tick: Game['time'] = -1;
+  private readonly rooms = new Map<Room['name'], RoomStores>();
+  private readonly reserved = new Map<Room['name'], Map<StoreId, StoreAmount>>();
 
-  BeginTick(roomNames: string[]): void {
+  BeginTick(roomNames: Room['name'][]): void {
     if (this.tick === Game.time) return;
     this.tick = Game.time;
     this.rooms.clear();
@@ -33,12 +33,12 @@ export class LogisticsSystem {
   }
 
   // Every indexed store in a room, by role.
-  Holders(roomName: string): ReadonlyMap<StoreId, HolderRole> {
+  Holders(roomName: Room['name']): ReadonlyMap<StoreId, HolderRole> {
     return this.storesIn(roomName).holders;
   }
 
   // Collectable sources of a resource in the given rooms, with their amounts at the start of the tick.
-  Sources(roomNames: string[], resourceType: ResourceConstant): ContainerAndAmount[] {
+  Sources(roomNames: Room['name'][], resourceType: ResourceConstant): ContainerAndAmount[] {
     const found: ContainerAndAmount[] = [];
     for (const roomName of roomNames) {
       const sources = this.rooms.get(roomName)?.sources.get(resourceType);
@@ -52,11 +52,11 @@ export class LogisticsSystem {
   }
 
   // Capacity already promised to collectors of a source this tick.
-  ReservedCapacity(roomName: string, id: StoreId): number {
+  ReservedCapacity(roomName: Room['name'], id: StoreId): StoreAmount {
     return this.reserved.get(roomName)?.get(id) ?? 0;
   }
 
-  Reserve(roomName: string, id: StoreId, amount: number): void {
+  Reserve(roomName: Room['name'], id: StoreId, amount: StoreAmount): void {
     let reserved = this.reserved.get(roomName);
     if (reserved === undefined) {
       reserved = new Map();
@@ -65,7 +65,7 @@ export class LogisticsSystem {
     reserved.set(id, (reserved.get(id) ?? 0) + amount);
   }
 
-  private storesIn(roomName: string): RoomStores {
+  private storesIn(roomName: Room['name']): RoomStores {
     let stores = this.rooms.get(roomName);
     if (stores === undefined) {
       stores = { holders: new Map(), sources: new Map() };
