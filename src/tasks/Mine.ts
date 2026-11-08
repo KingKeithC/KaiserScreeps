@@ -59,15 +59,6 @@ export class Mine extends TargetTask<Source | StructureExtractor> {
   }
 
   public isCompleteWhenTargetValid(creep: CreepExtra, source: Source | StructureExtractor): boolean {
-    if (creep.role?.groupName === 'Miners') return false;
-
-    const miningPosition = this.miningPosition;
-    if (miningPosition.pos !== undefined) {
-      const position = DeserializeRoomPosition(miningPosition.pos);
-      const occupier = position.lookFor(LOOK_CREEPS).pop();
-      if (occupier !== undefined && occupier.id !== creep.id) return true;
-    }
-
     const mineral: Mineral | undefined = source.pos.lookFor(LOOK_MINERALS)[0];
     if (!mineral && source instanceof StructureExtractor) {
       this.isCompleteFlag = true;
@@ -79,11 +70,17 @@ export class Mine extends TargetTask<Source | StructureExtractor> {
       return true;
     }
 
-    return (
-      (source instanceof Source && source.energy === 0) ||
-      (source instanceof StructureExtractor && mineral.mineralAmount === 0) ||
-      creep.store.getFreeCapacity(RESOURCE_ENERGY) === 0
-    );
+    if (source instanceof StructureExtractor && mineral.mineralAmount === 0) return true;
+    if (creep.role?.groupName === 'Miners') return false;
+
+    const miningPosition = this.miningPosition;
+    if (miningPosition.pos !== undefined) {
+      const position = DeserializeRoomPosition(miningPosition.pos);
+      const occupier = position.lookFor(LOOK_CREEPS).pop();
+      if (occupier !== undefined && occupier.id !== creep.id) return true;
+    }
+
+    return (source instanceof Source && source.energy === 0) || creep.store.getFreeCapacity(RESOURCE_ENERGY) === 0;
   }
 
   protected override handleOutcomeExtra(creep: CreepExtra, outcome: TaskActionResult | null): TaskActionResult | null {
