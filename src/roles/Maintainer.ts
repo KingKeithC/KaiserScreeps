@@ -28,7 +28,9 @@ export class Maintainer extends Worker implements CreepRole {
    * except without the barebones Zygote or 'emergency' spawn logic.
    */
   override GetNewCreepBody(room: RoomExtra): BodyPartConstant[] {
-    return FirstBodyByEnergyCapacity(room, ...this.PossibleBodies) ?? this.PossibleBodies[-1];
+    return (
+      FirstBodyByEnergyCapacity(room, ...this.PossibleBodies) ?? this.PossibleBodies[this.PossibleBodies.length - 1]
+    );
   }
 
   SelectNextTask(creep: CreepExtra): CreepTask | null {
@@ -82,7 +84,7 @@ export class Maintainer extends Worker implements CreepRole {
         return new Transfer(link, [RESOURCE_ENERGY, -MAX_TRANSFER_QUANTITY]);
 
       // Collect energy from sources in the same room
-      const mainSource = this.CollectResources(creep, [RESOURCE_ENERGY], true);
+      const mainSource = Transfer.collectFrom(creep, [RESOURCE_ENERGY], { sameRoom: true });
       if (mainSource) return mainSource;
 
       // If no source found, collect from storage

@@ -1,5 +1,7 @@
 import type { CreepExtra } from 'Creep';
 import { RegisterTask, TaskActionResult } from 'tasks/types';
+import { Filters, Sorts } from 'utils/Collections';
+import { ClosestByPath } from 'utils/CreepUtils';
 import { TargetTask } from './TargetTask';
 
 export class Build extends TargetTask<ConstructionSite<BuildableStructureConstant>> {
@@ -7,6 +9,39 @@ export class Build extends TargetTask<ConstructionSite<BuildableStructureConstan
 
   static {
     RegisterTask(this);
+  }
+
+  // Highest priority first; within a priority, the closest site in our room, then the most finished remote one.
+  static readonly ConstructionPriorities: ((c: ConstructionSite) => boolean)[] = [
+    Filters.ConstructionRampartOrWall,
+    Filters.ConstructionType(STRUCTURE_SPAWN),
+    Filters.ConstructionType(STRUCTURE_EXTENSION),
+    Filters.ConstructionType(STRUCTURE_ROAD),
+    () => true, // Everything else
+  ];
+
+  /** The site to build next for `creep`, or null when there are no candidates. */
+  public static nearestPriority(
+    creep: CreepExtra,
+    candidates: ConstructionSite[] = creep.AssignedRoom.ConstructionSites,
+  ): Build | null {
+    for (const p of Build.ConstructionPriorities) {
+      const group = candidates.filter(p);
+      if (group.length === 0) continue;
+
+      const inRoom = ClosestByPath(
+        creep,
+        group.filter(s => s.pos.roomName === creep.room.name),
+      );
+      if (inRoom) return new Build(inRoom);
+
+      const remote = group
+        .filter(s => s.pos.roomName !== creep.room.name)
+        .sort(Sorts.ConstructionProgressRatioAsc)
+        .pop();
+      if (remote) return new Build(remote);
+    }
+    return null;
   }
 
   public constructor(target: ConstructionSite<BuildableStructureConstant>) {

@@ -1,5 +1,7 @@
 import { CreepExtra } from 'Creep';
 import { RegisterTask, TaskActionResult } from 'tasks/types';
+import { ClosestByPath } from 'utils/CreepUtils';
+import type { RepairPrioritySelection } from 'utils/RepairUtils';
 import { TargetTask } from './TargetTask';
 
 export class Repair extends TargetTask<AnyStructure> {
@@ -7,6 +9,24 @@ export class Repair extends TargetTask<AnyStructure> {
 
   static {
     RegisterTask(this);
+  }
+
+  /**
+   * The closest structure in `group` that has fewer than `maxWorkers` repairers already assigned.
+   */
+  public static nearestInGroup(
+    creep: CreepExtra,
+    group: RepairPrioritySelection,
+    inProgress: Repair[] = [...creep.AssignedRoom.AssignedTasks(Repair)],
+  ): Repair | null {
+    const repairersByTarget = new Map<string, number>();
+    for (const task of inProgress) {
+      repairersByTarget.set(task.targetId, (repairersByTarget.get(task.targetId) ?? 0) + 1);
+    }
+
+    const available = group.repairs.filter(s => (repairersByTarget.get(s.id) ?? 0) < group.maxWorkers);
+    const target = ClosestByPath(creep, available);
+    return target ? new Repair(target) : null;
   }
 
   public constructor(target: AnyStructure) {

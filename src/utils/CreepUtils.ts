@@ -1,5 +1,13 @@
 import { countBy, Dictionary, sum } from 'lodash';
+import type { CreepExtra } from 'Creep';
 import { DeserializeRoomPosition, RoomPositionString } from './Collections';
+
+/** Closest target by path, ignoring creeps as obstacles so the search doesn't stall on traffic. */
+export function ClosestByPath<T extends _HasRoomPosition>(creep: CreepExtra, targets: T[]): T | null {
+  return creep.pos.findClosestByPath(targets, {
+    costCallback: (roomName: string, matrix: CostMatrix) => creep.CostCallback(roomName, matrix, false),
+  });
+}
 
 export function BodyCost(body: (BodyPartConstant | BodyPartDefinition)[]): number {
   return sum(body.map(p => BODYPART_COST[p instanceof Object ? p.type : p]));

@@ -1,4 +1,5 @@
 import { CreepExtra } from 'Creep';
+import type { RoomExtra } from 'Room';
 import { RegisterTask, TaskActionResult } from 'tasks/types';
 import { DeserializeRoomPosition, RoomPositionString } from 'utils/Collections';
 import { Logger } from 'utils/Logger';
@@ -13,6 +14,20 @@ export class Mine extends TargetTask<Source | StructureExtractor> {
   }
 
   protected static override readonly minRangeToAct = 1;
+
+  /** A mining spot for an idle miner: an unassigned source first, otherwise any unfilled position. */
+  public static forMiner(room: RoomExtra): Mine | null {
+    for (const mp of room.AvailableMiningSources()) return new Mine(mp.source, mp.pos);
+    for (const mp of room.UnfilledMiningPositions()) return new Mine(mp.source, mp.pos);
+    return null;
+  }
+
+  /** Any unfilled mining position, for creeps with spare capacity. */
+  public static anyUnfilled(room: RoomExtra): Mine | null {
+    const mp = room.UnfilledMiningPositions().pop();
+    if (mp) return new Mine(mp.source, mp.pos);
+    return null;
+  }
 
   public constructor(source: Id<Source> | Id<StructureExtractor>, position?: RoomPositionString) {
     super(source, 1, position);

@@ -1,8 +1,10 @@
 import { CreepExtra } from 'Creep';
+import type { RoomExtra } from 'Room';
 import { RegisterTask, TaskActionResult } from 'tasks/types';
-import { ResourceContainerUsedRatio, RoomPositionString } from 'utils/Collections';
+import { ResourceContainerUsedRatio, RoomPositionString, Sorts } from 'utils/Collections';
+import { ClosestByPath } from 'utils/CreepUtils';
 import { Ledger, StoreId } from 'logistics/Ledger';
-import { ResourceContainer } from 'utils/RoomUtils';
+import { ContainerAndAmount, ResourceContainer } from 'utils/RoomUtils';
 import { TargetTask } from './TargetTask';
 
 /** A positive quantity moves resources from the creep into the target; a negative one moves them out. */
@@ -82,6 +84,37 @@ function performIntent(
   return creep.withdraw(target as Structure | Ruin | Tombstone, leg.resourceType, amount);
 }
 
+/**
+ * Picks the source to collect from. Prefers a source that can fully fill the creep: the closest in our room,
+ * otherwise the fullest anywhere. Failing that, takes the closest reachable source unless restricted to our room.
+ */
+function bestSource(creep: CreepExtra, sources: ContainerAndAmount[], sameRoom: boolean): ResourceContainer | null {
+  const freeCapacity = creep.store.getFreeCapacity();
+  const adjusted: ContainerAndAmount[] = sources.map(([source, amount]) => [
+    source,
+    amount - creep.colony.Logistics.ReservedCapacity(source.pos.roomName, source.id) - freeCapacity,
+  ]);
+
+  const fullSupply = adjusted.filter(([, amount]) => amount >= freeCapacity);
+  fullSupply.sort(Sorts.NumberPairValueAsc);
+  const fullestSources = fullSupply.map(([source]) => source);
+  const fullestInRoom = ClosestByPath(creep, fullestSources);
+  if (fullestInRoom) return fullestInRoom;
+  if (!sameRoom) {
+    const fullestAnywhere = fullestSources.pop();
+    if (fullestAnywhere) return fullestAnywhere;
+  }
+
+  adjusted.sort(Sorts.NumberPairValueAsc);
+  const closest = ClosestByPath(
+    creep,
+    adjusted.map(([source]) => source),
+  );
+  if (closest) return closest;
+  if (!sameRoom) return adjusted.map(([source]) => source).pop() ?? null;
+  return null;
+}
+
 export class Transfer extends TargetTask<ResourceContainer> {
   static readonly action = '🔁' as const;
 
@@ -90,6 +123,15 @@ export class Transfer extends TargetTask<ResourceContainer> {
   }
 
   protected static override readonly minRangeToAct = 1;
+
+  // prettier-ignore
+  /** Structures to supply, in priority order, with the number of suppliers each allows at once. */
+  static readonly SupplyPriorities: [matches: (s: AnyStoreStructure) => boolean, maxSuppliers: number][] = [
+    [s => s instanceof StructureExtension, 1],
+    [s => s instanceof StructureSpawn, 1],
+    [s => s instanceof StructureTower, 1],
+    [() => true, 1],
+  ];
 
   public readonly legs: TransferLeg[];
 
@@ -103,6 +145,80 @@ export class Transfer extends TargetTask<ResourceContainer> {
     super(target, 1, leadingPosition(args));
     const entries = trailingEntries(args);
     this.legs = (entries.length > 0 ? entries : DEFAULT_ENTRIES).map(entry => makeLeg(target, entry));
+  }
+
+  /**
+   * Collect the first of `resources` that has a usable source, taking from the best one.
+   * Reserves the chosen source so collectors later this tick see its amount as taken.
+   */
+  public static collectFrom(
+    creep: CreepExtra,
+    resources: ResourceConstant[],
+    options: { sameRoom?: boolean; minAmount?: number } = {},
+  ): Transfer | null {
+    const { sameRoom = false, minAmount = 0 } = options;
+    const logistics = creep.colony.Logistics;
+    for (const resourceType of resources) {
+      const candidates = logistics
+        .Sources(creep.AssignedRoom.WorkableAreaRoomNames, resourceType)
+        .filter(([, amount]) => minAmount === 0 || amount >= minAmount);
+      const source = bestSource(creep, candidates, sameRoom);
+      if (!source) continue;
+
+      logistics.Reserve(source.pos.roomName, source.id, creep.store.getFreeCapacity(resourceType) ?? 0);
+      return new Transfer(source, [resourceType, -MAX_TRANSFER_QUANTITY]);
+    }
+    return null;
+  }
+
+  /** Withdraw energy from storage, but only while it holds more than the room's wartime buffer. */
+  public static fromStorage(room: RoomExtra): Transfer | null {
+    const storage = room.storage;
+    if (storage !== undefined && storage.store.getUsedCapacity(RESOURCE_ENERGY) > room.StorageWartimeEnergyBuffer)
+      return new Transfer(storage, [RESOURCE_ENERGY, -MAX_TRANSFER_QUANTITY]);
+    return null;
+  }
+
+  /** Deposit one carried resource type into storage. */
+  public static stash(creep: CreepExtra, storage: StructureStorage): Transfer | null {
+    for (const resourceType in creep.store)
+      return new Transfer(storage, [resourceType as ResourceConstant, MAX_TRANSFER_QUANTITY]);
+    return null;
+  }
+
+  /**
+   * Supply the first priority group with a structure that has room for energy and is under its supplier cap.
+   * Prefers the closest in our room, otherwise the emptiest remote one.
+   */
+  public static supply(
+    creep: CreepExtra,
+    candidates: AnyStoreStructure[],
+    inProgress: Transfer[] = [...creep.AssignedRoom.AssignedTasks(Transfer)],
+  ): Transfer | null {
+    const suppliersByTarget = new Map<string, number>();
+    for (const task of inProgress) {
+      suppliersByTarget.set(task.targetId, (suppliersByTarget.get(task.targetId) ?? 0) + 1);
+    }
+
+    for (const [matches, maxSuppliers] of Transfer.SupplyPriorities) {
+      const group = candidates.filter(
+        s =>
+          s.store.getFreeCapacity(RESOURCE_ENERGY) > 0 &&
+          matches(s) &&
+          (suppliersByTarget.get(s.id) ?? 0) < maxSuppliers,
+      );
+      const inRoom = ClosestByPath(
+        creep,
+        group.filter(s => s.room.name === creep.room.name),
+      );
+      if (inRoom) return new Transfer(inRoom);
+      const remote = group
+        .filter(s => s.room.name !== creep.room.name)
+        .sort(Sorts.StoreEnergyRatioAsc)
+        .pop();
+      if (remote) return new Transfer(remote);
+    }
+    return null;
   }
 
   /** Whether any leg takes resources out of the target, which counts as collection for reservations. */

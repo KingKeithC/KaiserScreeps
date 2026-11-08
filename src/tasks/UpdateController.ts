@@ -1,5 +1,6 @@
 import { CreepExtra } from 'Creep';
 import { Filters } from 'utils/Collections';
+import { Logger } from 'utils/Logger';
 import { RegisterTask, TaskActionResult } from 'tasks/types';
 import { TargetTask } from './TargetTask';
 
@@ -12,6 +13,26 @@ export class UpgradeController extends TargetTask<StructureController> {
 
   static readonly DowngradeMaintenanceRatio = 1 / 4; // Start repairs when ticksToDowngrade drop below this.
   static readonly MaintenanceBuffer = 2000;
+
+  /** Upgrade the assigned room's controller. */
+  public static upgrade(creep: CreepExtra): UpgradeController | null {
+    const controller = creep.AssignedRoom.controller;
+    if (controller) return new UpgradeController(controller, 'upgrade');
+    Logger.crit('Assigned room has no controller.', { '<creep>': creep, assignedRoom: creep.AssignedRoom.name });
+    return null;
+  }
+
+  /** Maintenance upgrade once the controller is close to downgrading; null otherwise. */
+  public static maintain(creep: CreepExtra): UpgradeController | null {
+    const controller = creep.AssignedRoom.controller;
+    if (!controller) {
+      Logger.crit('Assigned room has no controller.', { '<creep>': creep, assignedRoom: creep.AssignedRoom.name });
+      return null;
+    }
+    const threshold = CONTROLLER_DOWNGRADE[controller.level] * UpgradeController.DowngradeMaintenanceRatio;
+    if (controller.ticksToDowngrade < threshold) return new UpgradeController(controller, 'maintain');
+    return null;
+  }
   private readonly startingProgress: number = 0;
 
   public constructor(

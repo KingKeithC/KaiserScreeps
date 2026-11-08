@@ -2,17 +2,17 @@ import { CreepExtra } from 'Creep';
 import { some, sum } from 'lodash';
 import { RoomExtra } from 'Room';
 
-import { Build, MAX_TRANSFER_QUANTITY, Mine, Repair, Transfer, UpgradeController } from 'tasks';
+import { Build, Mine, Repair, Transfer, UpgradeController } from 'tasks';
 import { Retire } from 'tasks/Retire';
 import { CreepTask } from 'tasks/types';
-import { Filters, GetValueByName, MakeBody, Sorts } from 'utils/Collections';
+import { Filters, GetValueByName, MakeBody } from 'utils/Collections';
 import {
   BodyCost,
   TryCollectFromContainer as TryCollectFromContainers,
   TryCollectFromTombs,
   TryPickupDropped,
 } from 'utils/CreepUtils';
-import { ContainerAndAmount, ResourceContainer, FirstBodyByEnergyCapacity } from 'utils/RoomUtils';
+import { FirstBodyByEnergyCapacity } from 'utils/RoomUtils';
 import { CreatePendingRepairs, FindHighestPriorityRepairGroup } from 'utils/RepairUtils';
 import { CreepRoleBase, CreepRole } from './Role';
 
@@ -39,7 +39,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
 
   TickCreep(creep: CreepExtra): void {
     const containers = creep.pos.findInRange(FIND_STRUCTURES, 1).filter(Filters.StructureContainer);
-    if (TryCollectFromContainers(creep, containers)) return;
+    if (TryCollectFromContainers(creep, containers, creep.store.getFreeCapacity())) return;
     if (TryPickupDropped(creep)) return;
     if (TryCollectFromTombs(creep)) return;
   }
@@ -92,113 +92,13 @@ export class Worker extends CreepRoleBase implements CreepRole {
     return this.IsRoleUnderQuota(room);
   }
 
-  // Dispatch a collection task if possible.
-  // This function is expected to return a value, and logs a warning when it cannot.
-  // Call this function in a section of code where it is already confirmed that this is the right type of task to return,
-  // i.e. where you expect it to succeed, the null return is more of a fallback so an error is not thrown.
-  CollectFromRandomMiner(creep: CreepExtra): Transfer | null {
-    // Just dispatch to a random miner in the room regardless of fill state
-    // By the time they get there, the miner should hopefully have something to collect,
-    // and it should prevent them from searching for new tasks ever idle tick
-    // this does make them less responsive however
-    const miners = creep.AssignedRoom.AssignedCreeps.filter(Filters.CreepRoleGroupName('Miner'));
-    if (miners.length > 0) {
-      const randomMiner = miners[Math.floor(miners.length * Math.random())];
-      return new Transfer(randomMiner, [RESOURCE_ENERGY, -MAX_TRANSFER_QUANTITY]);
-    }
-
-    this.log.warn('Room has no miners to collect from.', { '<creep>': creep });
-    return null;
-  }
-
-  // Dispatch a collection task if possible.
-  CollectFromRoomStorage(creep: CreepExtra): Transfer | null {
-    const stored = creep.AssignedRoom.storage?.store.getUsedCapacity(RESOURCE_ENERGY) ?? 0;
-    if (creep.AssignedRoom.storage !== undefined && stored > creep.AssignedRoom.StorageWartimeEnergyBuffer)
-      return new Transfer(creep.AssignedRoom.storage, [RESOURCE_ENERGY, -MAX_TRANSFER_QUANTITY]);
-    return null;
-  }
-
-  FindBestCollection(
-    creep: CreepExtra,
-    possibleSources: ContainerAndAmount[],
-    sameRoom = false,
-  ): ResourceContainer | null {
-    const freeCapacity = creep.store.getFreeCapacity();
-    const adjustedSources: ContainerAndAmount[] = possibleSources.map(([source, amount]) => [
-      source,
-      amount - creep.colony.Logistics.ReservedCapacity(source.pos.roomName, source.id) - freeCapacity,
-    ]);
-    const sourcesWhoCanFullySupplyUs = adjustedSources.filter(([, amount]) => amount >= freeCapacity);
-
-    // Sort from least to most supply remaining
-    sourcesWhoCanFullySupplyUs.sort(Sorts.NumberPairValueAsc);
-
-    // Sort from least to most used capacity
-    adjustedSources.sort(Sorts.NumberPairValueAsc);
-
-    const fullSupply = sourcesWhoCanFullySupplyUs.map(s => s[0]);
-    const fullestSameRoom =
-      fullSupply.length > 0
-        ? creep.pos.findClosestByPath(fullSupply, {
-            costCallback: (rn: string, cm: CostMatrix) => creep.CostCallback(rn, cm, false),
-          })
-        : null;
-    if (fullestSameRoom) return fullestSameRoom;
-    if (!sameRoom) {
-      const fullestOverall = fullSupply.pop();
-      if (fullestOverall) return fullestOverall;
-    }
-
-    const anySourceInMyRoom = creep.pos.findClosestByPath(
-      adjustedSources.map(s => s[0]),
-      { costCallback: (rn: string, cm: CostMatrix) => creep.CostCallback(rn, cm, false) },
-    );
-    if (anySourceInMyRoom) return anySourceInMyRoom;
-
-    if (!sameRoom) {
-      const anySourceAnywhere = adjustedSources.map(s => s[0]).pop();
-      if (anySourceAnywhere) return anySourceAnywhere;
-    }
-
-    return null;
-  }
-
-  CollectResources(
-    creep: CreepExtra,
-    searchForType: ResourceConstant[],
-    sameRoom = false,
-    minAmountToCollect = 0,
-  ): Transfer | null {
-    // Find according to priorities
-    for (const resourceType of searchForType) {
-      const candidates = creep.colony.Logistics.Sources(creep.AssignedRoom.WorkableAreaRoomNames, resourceType);
-      if (candidates.length === 0) continue;
-      const task = this.FindBestCollection(
-        creep,
-        candidates.filter(c => (minAmountToCollect === 0 ? true : c[1] >= minAmountToCollect)),
-        sameRoom,
-      );
-      if (task) {
-        // Reserve against the source so later collectors this tick see it as taken.
-        creep.colony.Logistics.Reserve(task.pos.roomName, task.id, creep.store.getFreeCapacity(resourceType) ?? 0);
-
-        // Return collection task
-        return new Transfer(task, [resourceType, -MAX_TRANSFER_QUANTITY]);
-      }
-    }
-
-    // No priority found.
-    return null;
-  }
-
   MaintainAssignedRoom(creep: CreepExtra): CreepTask | null {
     // Main task is to prevent the controller from downgrading
-    const maintain = this.MaintainController(creep);
+    const maintain = UpgradeController.maintain(creep);
     if (maintain) return maintain;
 
     // Secondary task is to resupply the spawns/extensions
-    const spawnSupply = this.FindSpawnSupply(creep, 0);
+    const spawnSupply = Transfer.supply(creep, creep.AssignedRoom.SpawnsOrExtensions);
     if (spawnSupply) return spawnSupply;
 
     // Or refill towers needing energy that aren't next to a miner
@@ -208,11 +108,11 @@ export class Worker extends CreepRoleBase implements CreepRole {
         st.isActive() &&
         !(st.pos.findInRange(creep.AssignedRoom.GetAssignedCreepsOfRoleGroup('Miners') ?? [], 1).length > 0),
     });
-    const towersNeedingEnergy = towers.filter(st => st.store.getFreeCapacity(RESOURCE_ENERGY) >= 100);
-    if (towersNeedingEnergy.length > 0) {
-      const towerNeedingEnergy = this.FindSupplyByPath(creep, towersNeedingEnergy, 'towers');
-      if (towerNeedingEnergy) return new Transfer(towerNeedingEnergy);
-    }
+    const towerSupply = Transfer.supply(
+      creep,
+      towers.filter(st => st.store.getFreeCapacity(RESOURCE_ENERGY) >= 100),
+    );
+    if (towerSupply) return towerSupply;
 
     // Or refill the terminal with a base amount of energy
     const terminal = creep.AssignedRoom.terminal;
@@ -226,11 +126,8 @@ export class Worker extends CreepRoleBase implements CreepRole {
     for (const lab of labs) return new Transfer(lab);
 
     // Or do construction
-    const construction = this.FindConstructionByPriorityAndPath(
-      creep,
-      creep.AssignedRoom.find(FIND_MY_CONSTRUCTION_SITES),
-    );
-    if (construction) return new Build(construction);
+    const construction = Build.nearestPriority(creep, creep.AssignedRoom.find(FIND_MY_CONSTRUCTION_SITES));
+    if (construction) return construction;
 
     // Or do repairs if there are no towers
     if (towers.length === 0) {
@@ -239,12 +136,6 @@ export class Worker extends CreepRoleBase implements CreepRole {
       if (repair && repair.repairs.length >= 1) return new Repair(repair.repairs.pop()!);
     }
 
-    return null;
-  }
-
-  SupplyStorage(creep: CreepExtra, storage: StructureStorage): Transfer | null {
-    for (const resourceType in creep.store)
-      return new Transfer(storage, [resourceType as ResourceConstant, MAX_TRANSFER_QUANTITY]);
     return null;
   }
 
@@ -264,7 +155,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
     // ------ SUPPLY ------
     if (storage && (creepHasNonEnergy || (creepEnergy > 0 && storageLow))) {
       // Need to store resources
-      const store = this.SupplyStorage(creep, storage);
+      const store = Transfer.stash(creep, storage);
       if (store) return store;
     }
 
@@ -278,9 +169,9 @@ export class Worker extends CreepRoleBase implements CreepRole {
           : this.WorkerSpendingTask(creep, undefined, maintainers.length);
       if (spend) return spend;
 
-      if (creep.AssignedRoom.controller?.level ?? 0 < 6) {
+      if ((creep.AssignedRoom.controller?.level ?? 0) < 6) {
         // Leftover goes to controller upgrade
-        const upgrade = this.UpgradeController(creep);
+        const upgrade = UpgradeController.upgrade(creep);
         if (upgrade) return upgrade;
       } else {
         // Or storage if we are RCL 6 or above
@@ -294,8 +185,8 @@ export class Worker extends CreepRoleBase implements CreepRole {
       // otherwise for general resources
       const gather =
         maintainers.length === 0
-          ? (this.CollectFromRoomStorage(creep) ?? this.CollectResources(creep, [RESOURCE_ENERGY]))
-          : this.CollectResources(creep, RESOURCES_ALL, false, 50);
+          ? (Transfer.fromStorage(creep.AssignedRoom) ?? Transfer.collectFrom(creep, [RESOURCE_ENERGY]))
+          : Transfer.collectFrom(creep, RESOURCES_ALL, { minAmount: 50 });
       if (gather) return gather;
 
       // If there aren't enough miners, then do mining
@@ -303,7 +194,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
         sum([...creep.AssignedRoom.AssignedTasksWithCreep(Mine)], m => BodyCost(m[0].body)) <
         this.WorkersMineBelowMinerBodyTotalCost
       )
-        return this.MineAnyFreePosition(creep);
+        return Mine.anyUnfilled(creep.AssignedRoom);
     }
 
     // Didn't need or Can't find, gathering or spending task
@@ -338,48 +229,6 @@ export class Worker extends CreepRoleBase implements CreepRole {
     return null;
   }
 
-  MineAnyFreePosition(creep: CreepExtra): Mine | null {
-    const mp = creep.AssignedRoom.UnfilledMiningPositions().pop();
-    if (mp) return new Mine(mp.source, mp.pos);
-    return null;
-  }
-
-  MaintainController(creep: CreepExtra): UpgradeController | null {
-    if (creep.AssignedRoom.controller) {
-      const downgradeMaintenanceThreshold =
-        CONTROLLER_DOWNGRADE[creep.AssignedRoom.controller.level] * UpgradeController.DowngradeMaintenanceRatio;
-      if (creep.AssignedRoom.controller.ticksToDowngrade < downgradeMaintenanceThreshold)
-        return new UpgradeController(creep.AssignedRoom.controller, 'maintain');
-    } else {
-      this.log.crit('Assigned room has no controller.', { '<creep>': creep, assignedRoom: creep.AssignedRoom.name });
-    }
-    return null;
-  }
-
-  UpgradeController(creep: CreepExtra): UpgradeController | null {
-    if (creep.AssignedRoom.controller) {
-      return new UpgradeController(creep.AssignedRoom.controller, 'upgrade');
-    } else {
-      this.log.crit('Assigned room has no controller.', { '<creep>': creep, assignedRoom: creep.AssignedRoom.name });
-    }
-    return null;
-  }
-
-  FindSpawnSupply(
-    creep: CreepExtra,
-    maxSupplyForSpawns = 0, // 0 = unlimited
-    supplyTasks: Transfer[] = [...creep.AssignedRoom.AssignedTasks(Transfer)],
-    spawnsOrExtensions = creep.AssignedRoom.SpawnsOrExtensions,
-  ): Transfer | null {
-    const spawnExtensionIds = new Set<string>(spawnsOrExtensions.map(structure => structure.id));
-    const spawnSuppliers = supplyTasks.filter(task => spawnExtensionIds.has(task.targetId)).length;
-    if (maxSupplyForSpawns === 0 || spawnSuppliers < maxSupplyForSpawns) {
-      const spawn = this.FindSupplyByPath(creep, spawnsOrExtensions, 'spawns/extensions', supplyTasks);
-      if (spawn) return new Transfer(spawn);
-    }
-    return null;
-  }
-
   MaxSupplyForTowers = 1;
   MaxUpgradePerRoom = 2;
   public WorkerSpendingTask(
@@ -388,131 +237,44 @@ export class Worker extends CreepRoleBase implements CreepRole {
     maintainers = creep.AssignedRoom.GetAssignedCreepsOfRole('Maintainer').length,
   ): CreepTask | null {
     if (maintainers === 0) {
-      const spawnSupply = this.FindSpawnSupply(creep, 0, supplyTasks);
+      const spawnSupply = Transfer.supply(creep, creep.AssignedRoom.SpawnsOrExtensions, supplyTasks);
       if (spawnSupply) return spawnSupply;
     }
 
-    const upgrade = this.UpgradeController(creep);
+    const upgrade = UpgradeController.upgrade(creep);
     if (upgrade && maintainers === 0) return upgrade;
-    else if (!upgrade)
-      this.log.crit('Assigned room has no controller.', { '<creep>': creep, assignedRoom: creep.AssignedRoom.name });
 
-    if (creep.AssignedRoom.controller?.level ?? 0 >= 3) {
-      const repairTasks = [...creep.AssignedRoom.AssignedTasks(Repair)];
-      const repairsByTarget = new Map<string, number>();
-      for (const task of repairTasks) repairsByTarget.set(task.targetId, (repairsByTarget.get(task.targetId) ?? 0) + 1);
-
-      for (const [room] of creep.AssignedRoom.MapWithRoomsInClaimedArea<RoomExtra | Room | string>(r => r)) {
-        if (typeof room === 'string') continue;
-        const roomTowers = room.find(FIND_MY_STRUCTURES, { filter: Filters.StructureTower });
-        if (roomTowers.length > 0) continue;
-
-        const repairGroup =
-          room instanceof RoomExtra
-            ? room.PendingRepairGroup
-            : FindHighestPriorityRepairGroup(room, CreatePendingRepairs(room));
-        if (!repairGroup) continue;
-
-        const availableRepairs = repairGroup.repairs.filter(
-          structure => (repairsByTarget.get(structure.id) ?? 0) < repairGroup.maxWorkers,
-        );
-        const repair = creep.pos.findClosestByPath(availableRepairs, {
-          costCallback: (roomName: string, costMatrix: CostMatrix) => creep.CostCallback(roomName, costMatrix, false),
-        });
-        if (repair) return new Repair(repair);
-      }
+    if ((creep.AssignedRoom.controller?.level ?? 0) >= 3) {
+      const repair = this.NearestRepair(creep);
+      if (repair) return repair;
     }
 
-    const construction = this.FindConstructionByPriorityAndPath(
+    const construction = Build.nearestPriority(
       creep,
       creep.AssignedRoom.FlatMapOverRoomsInClaimedArea(r =>
         r instanceof Room ? r.find(FIND_MY_CONSTRUCTION_SITES) : [],
       ),
     );
-    if (construction) return new Build(construction);
+    if (construction) return construction;
 
     return null;
   }
 
-  // prettier-ignore
-  ConstructionPriorities: ((c: ConstructionSite) => boolean)[] = [
-    Filters.ConstructionRampartOrWall,
-    Filters.ConstructionType(STRUCTURE_SPAWN),
-    Filters.ConstructionType(STRUCTURE_EXTENSION),
-    Filters.ConstructionType(STRUCTURE_ROAD),
-    (() => true), // Everything else
-  ];
+  // Closest repair across claimed rooms that have no towers to do the repairing.
+  private NearestRepair(creep: CreepExtra): Repair | null {
+    for (const [room] of creep.AssignedRoom.MapWithRoomsInClaimedArea<RoomExtra | Room | string>(r => r)) {
+      if (typeof room === 'string') continue;
+      if (room.find(FIND_MY_STRUCTURES, { filter: Filters.StructureTower }).length > 0) continue;
 
-  // prettier-ignore
-  SupplyPriorities: [((s: AnyStoreStructure) => boolean), number][] = [
-    [(s => s instanceof StructureExtension), 1],
-    [(s => s instanceof StructureSpawn), 1],
-    [(s => s instanceof StructureTower), 1],
-    [(() => true), 1],
-  ];
+      const group =
+        room instanceof RoomExtra
+          ? room.PendingRepairGroup
+          : FindHighestPriorityRepairGroup(room, CreatePendingRepairs(room));
+      if (!group) continue;
 
-  FindConstructionByPriorityAndPath(
-    supplier: CreepExtra,
-    candidates: ConstructionSite[] = supplier.AssignedRoom.ConstructionSites,
-  ): ConstructionSite | null {
-    for (const p of this.ConstructionPriorities) {
-      const group = candidates.filter(p);
-      if (group.length === 0) continue;
-
-      const sameRoomCandidates = group.filter(s => s.pos.roomName === supplier.room.name);
-      const sameRoom =
-        sameRoomCandidates.length > 0
-          ? supplier.pos.findClosestByPath(sameRoomCandidates, {
-              costCallback: (rn: string, cm: CostMatrix) => supplier.CostCallback(rn, cm, false),
-            })
-          : null;
-      if (sameRoom) return sameRoom;
-
-      const remoteRoom = group
-        .filter(s => s.pos.roomName !== supplier.room.name)
-        .sort(Sorts.ConstructionProgressRatioAsc)
-        .pop();
-      if (remoteRoom) return remoteRoom;
+      const repair = Repair.nearestInGroup(creep, group);
+      if (repair) return repair;
     }
-    return null;
-  }
-
-  FindSupplyByPath(
-    supplier: CreepExtra,
-    candidates: AnyStoreStructure[],
-    candidateName?: string,
-    inProgressSupplyTasks: Transfer[] = [...supplier.AssignedRoom.AssignedTasks(Transfer)],
-  ): AnyStoreStructure | null {
-    const suppliersByTarget = new Map<string, number>();
-    for (const task of inProgressSupplyTasks)
-      suppliersByTarget.set(task.targetId, (suppliersByTarget.get(task.targetId) ?? 0) + 1);
-
-    for (const [p, maxSuppliers] of this.SupplyPriorities) {
-      const group: AnyStoreStructure[] = [];
-      for (const structure of candidates)
-        if (
-          structure.store.getFreeCapacity(RESOURCE_ENERGY) > 0 &&
-          p(structure) &&
-          (suppliersByTarget.get(structure.id) ?? 0) < maxSuppliers
-        )
-          group.push(structure);
-
-      const sameRoomCandidates = group.filter(s => s.room.name === supplier.room.name);
-      const sameRoom =
-        sameRoomCandidates.length > 0
-          ? supplier.pos.findClosestByPath(sameRoomCandidates, {
-              costCallback: (rn: string, cm: CostMatrix) => supplier.CostCallback(rn, cm, false),
-            })
-          : null;
-      if (sameRoom) return sameRoom;
-
-      const remoteRoom = group
-        .filter(s => s.room.name !== supplier.room.name)
-        .sort(Sorts.StoreEnergyRatioAsc)
-        .pop();
-      if (remoteRoom) return remoteRoom;
-    }
-
     return null;
   }
 }

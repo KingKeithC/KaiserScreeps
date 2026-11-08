@@ -18,7 +18,9 @@ export class Claimer extends CreepRoleBase implements CreepRole {
   ];
 
   GetNewCreepBody(room: RoomExtra): BodyPartConstant[] {
-    return FirstBodyByEnergyCapacity(room, ...this.PossibleBodies) ?? this.PossibleBodies[-1];
+    return (
+      FirstBodyByEnergyCapacity(room, ...this.PossibleBodies) ?? this.PossibleBodies[this.PossibleBodies.length - 1]
+    );
   }
 
   private dontSpawnBefore: { [roomName: RoomExtra['name']]: number } = {};
