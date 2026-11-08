@@ -468,11 +468,11 @@ export class RoomExtra extends Room {
   /**
    * Get positions next to Sources/Extractors that are not the target of any other miners in the colony.
    */
-  AvailableMiningPositions(): MiningPosition[] {
+  AvailableMiningSources(): MiningPosition[] {
     const ret = [];
-    const assignedMiningPositions = [...this.AssignedTasks(Mine)].map(p => p.miningPosition);
+    const assignedSources = [...this.AssignedTasks(Mine)].map(p => p.targetId);
     for (const [_room, mines] of this.WorkableClaimedMiningPositions)
-      for (const mine of mines) if (!assignedMiningPositions.some(amp => amp.source === mine.source)) ret.push(mine);
+      for (const mine of mines) if (!assignedSources.some(amp => amp === mine.source)) ret.push(mine);
     return ret;
   }
 
