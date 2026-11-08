@@ -33,12 +33,11 @@ export function FromEdgeIntoRoom(exit: ExitConstant | null): DirectionConstant |
 export function TryCollectFromContainer(
   creep: Creep,
   containers: StructureContainer[],
-  collectionLimit?: number,
+  collectionLimit = 0,
   resources: ResourceConstant[] = RESOURCES_ALL,
 ): boolean {
-  if (creep.store.getFreeCapacity() === 0) return false;
+  if (creep.store.getFreeCapacity() === 0 || collectionLimit === 0) return false;
   for (const rt of resources) {
-    if (collectionLimit && collectionLimit <= 0) continue;
     for (const container of containers)
       if ((container.store.getUsedCapacity(rt) ?? 0) > 0 && creep.withdraw(container, rt, collectionLimit) === OK)
         return true;
@@ -70,7 +69,7 @@ export function TryPickupDropped(creep: Creep, resources: ResourceConstant[] = R
   return false;
 }
 
-export function TryTransferTo<T extends AnyStoreStructure>(
+export function TryTransferTo<T extends AnyStoreStructure | Creep>(
   creep: Creep,
   targets: T[],
   resources: ResourceConstant[] = RESOURCES_ALL,

@@ -55,9 +55,18 @@ export class Miner extends CreepRoleBase implements CreepRole {
     )
       return;
 
+    const nearbyNonMiners = creep.pos.findInRange(this.colony.MyCreeps, 1, {
+      filter: c => c.store.getFreeCapacity() > 0 && c.role.groupName !== 'Miners',
+    });
+    if (TryTransferTo(creep, nearbyNonMiners, [RESOURCE_ENERGY])) return;
+    if (TryPickupDropped(creep)) return;
+
     const nearbyContainers = creep.pos
       .findInRange(FIND_STRUCTURES, 1)
       .filter((structure): structure is StructureContainer => structure.structureType === STRUCTURE_CONTAINER);
+    const notEnergy = RESOURCES_ALL.filter(rt => rt !== RESOURCE_ENERGY);
+    if (TryTransferTo(creep, nearbyContainers, notEnergy)) return;
+
     const nearbyTowers = creep.pos
       .findInRange(FIND_MY_STRUCTURES, 1)
       .filter((structure): structure is StructureTower => structure.structureType === STRUCTURE_TOWER);
@@ -65,11 +74,7 @@ export class Miner extends CreepRoleBase implements CreepRole {
     const nearbyEnergyDemand =
       nearbyTowers.reduce((total, tower) => total + tower.store.getFreeCapacity(RESOURCE_ENERGY), 0) +
       nearbyLinks.reduce((total, link) => total + link.store.getFreeCapacity(RESOURCE_ENERGY), 0);
-    const notEnergy = RESOURCES_ALL.filter(rt => rt !== RESOURCE_ENERGY);
-
-    if (TryPickupDropped(creep)) return;
     if (TryCollectFromContainer(creep, nearbyContainers, nearbyEnergyDemand * 2, [RESOURCE_ENERGY])) return;
-    if (TryTransferTo(creep, nearbyContainers, notEnergy)) return;
     if (TryTransferTo(creep, nearbyTowers, [RESOURCE_ENERGY])) return;
     if (TryTransferTo(creep, nearbyLinks, [RESOURCE_ENERGY])) return;
     if (TryTransferTo(creep, nearbyContainers, [RESOURCE_ENERGY])) return;
