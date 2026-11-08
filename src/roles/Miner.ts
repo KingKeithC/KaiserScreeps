@@ -81,5 +81,11 @@ export class Miner extends CreepRoleBase implements CreepRole {
       .findInRange(FIND_STRUCTURES, 3, { filter: s => Filters.Damaged(s) && !Filters.StructureWallOrRampart(s) })
       .sort(Sorts.StructureHitsRatioAsc))
       if (creep.repair(repair) === OK) return;
+
+    // If there are construction sites nearby, try to build them before idling
+    for (const construction of creep.pos
+      .findInRange(FIND_MY_CONSTRUCTION_SITES, 3)
+      .sort(Sorts.ConstructionProgressRatioAsc))
+      if (creep.build(construction) === OK) return;
   }
 }
