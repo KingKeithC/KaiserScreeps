@@ -88,7 +88,7 @@ export class RoomExtra extends Room {
 
   private cachedAssignedCreepsOfRoleGroup: { [roleGroupName: CreepRole['groupName']]: CreepExtra[] } = {};
   GetAssignedCreepsOfRoleGroup(roleGroupName: string): CreepExtra[] {
-    return (this.cachedAssignedCreepsOfRole[roleGroupName] ??= this.AssignedCreeps.filter(
+    return (this.cachedAssignedCreepsOfRoleGroup[roleGroupName] ??= this.AssignedCreeps.filter(
       c => c.role.groupName === roleGroupName,
     ));
   }
@@ -557,26 +557,22 @@ export class RoomExtra extends Room {
     return this.find(FIND_STRUCTURES, { filter: s => s.structureType === STRUCTURE_ROAD });
   }
 
-  get LinkReceivers(): StructureLink[] {
-    const ret = [];
-    for (const id of this.LinkGroups.Receivers ?? []) {
-      const obj = Game.getObjectById(id);
-      // Skip if missing, or still under construction
-      if (!obj || typeof obj.isActive !== 'function') continue;
-      else ret.push(obj);
+  private GetLinks(groupName: 'Receivers' | 'Senders'): StructureLink[] {
+    const links: StructureLink[] = [];
+    for (const id of this.LinkGroups[groupName] ?? []) {
+      const link = Game.getObjectById(id);
+      if (!link || typeof link.isActive !== 'function') continue;
+      links.push(link);
     }
-    return ret;
+    return links;
+  }
+
+  get LinkReceivers(): StructureLink[] {
+    return this.GetLinks('Receivers');
   }
 
   get LinkSenders(): StructureLink[] {
-    const ret = [];
-    for (const id of this.LinkGroups.Senders ?? []) {
-      const obj = Game.getObjectById(id);
-      // Skip if missing, or still under construction
-      if (!obj || typeof obj.isActive !== 'function') continue;
-      else ret.push(obj);
-    }
-    return ret;
+    return this.GetLinks('Senders');
   }
 
   private cachedCollectionPlan?: CollectionPlan;

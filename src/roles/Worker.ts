@@ -124,19 +124,18 @@ export class Worker extends CreepRoleBase implements CreepRole {
     reservedCapacityBySource: Map<string, number>,
     sameRoom = false,
   ): ResourceContainer | null {
-    const sourcesWhoCanFullySupplyUs = [];
-    for (const possible of possibleSources) {
-      // If we expect to be able to fully collect from this source if we attempted to go for it,
-      // then add it to the 'best' list.
-      possible[1] = possible[1] - (reservedCapacityBySource.get(possible[0].id) ?? 0) - creep.store.getFreeCapacity();
-      if (possible[1] >= creep.store.getFreeCapacity()) sourcesWhoCanFullySupplyUs.push(possible);
-    }
+    const freeCapacity = creep.store.getFreeCapacity();
+    const adjustedSources: ContainerAndAmount[] = possibleSources.map(([source, amount]) => [
+      source,
+      amount - (reservedCapacityBySource.get(source.id) ?? 0) - freeCapacity,
+    ]);
+    const sourcesWhoCanFullySupplyUs = adjustedSources.filter(([, amount]) => amount >= freeCapacity);
 
     // Sort from least to most supply remaining
     sourcesWhoCanFullySupplyUs.sort((a, b) => a[1] - b[1]);
 
     // Sort from least to most used capacity
-    possibleSources.sort((a, b) => a[1] - b[1]);
+    adjustedSources.sort((a, b) => a[1] - b[1]);
 
     const fullSupply = sourcesWhoCanFullySupplyUs.map(s => s[0]);
     const fullestSameRoom =
@@ -152,13 +151,13 @@ export class Worker extends CreepRoleBase implements CreepRole {
     }
 
     const anySourceInMyRoom = creep.pos.findClosestByPath(
-      possibleSources.map(s => s[0]),
+      adjustedSources.map(s => s[0]),
       { costCallback: (rn: string, cm: CostMatrix) => creep.CostCallback(rn, cm, false) },
     );
     if (anySourceInMyRoom) return anySourceInMyRoom;
 
     if (!sameRoom) {
-      const anySourceAnywhere = possibleSources.map(s => s[0]).pop();
+      const anySourceAnywhere = adjustedSources.map(s => s[0]).pop();
       if (anySourceAnywhere) return anySourceAnywhere;
     }
 
