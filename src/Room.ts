@@ -506,6 +506,13 @@ export class RoomExtra extends Room {
     return this.find(FIND_HOSTILE_CREEPS);
   }
 
+  get HostileStructuresByOwner(): Record<Owner['username'], AnyOwnedStructure[]> {
+    const ret: { [username: string]: AnyOwnedStructure[] } = {};
+    for (const s of this.find(FIND_HOSTILE_STRUCTURES))
+      ret[s.owner?.username ?? '<none>'] = [...ret[s.owner?.username ?? '<none>'], s];
+    return ret;
+  }
+
   get ConstructionSites(): ConstructionSite[] {
     const constructionGetter = (r: Room) => r.find(FIND_MY_CONSTRUCTION_SITES);
     let ret = [...constructionGetter(this)];
