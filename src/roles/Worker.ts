@@ -189,8 +189,8 @@ export class Worker extends CreepRoleBase implements CreepRole {
       // otherwise for general resources
       const gather =
         maintainers.length === 0
-          ? (Transfer.fromStorage(creep.AssignedRoom) ?? Transfer.collectFrom(creep, [RESOURCE_ENERGY]))
-          : Transfer.collectFrom(creep, RESOURCES_ALL, { minAmount: 50 });
+          ? (Transfer.fromStorage(creep.AssignedRoom) ?? Transfer.collect(creep, [RESOURCE_ENERGY]))
+          : Transfer.collect(creep, RESOURCES_ALL, { minAmount: 50 });
       if (gather) return gather;
 
       // If there aren't enough miners, then do mining
