@@ -12,6 +12,12 @@
   "nixEnvSelector.useFlakes": true,
   "nixEnvSelector.flakeShell": "default",
   "editor.defaultFormatter": "rvest.vs-code-prettier-eslint",
+  "github.copilot.chat.commitMessageGeneration.instructions": [
+    { "text": "Use conventional commit message format." },
+    {
+      "text": "Write terse, factual commit messages describing only what changed. Do not speculate about intent or benefits except when obvious or a comment confirms it."
+    }
+  ],
   // "eslint.format.enable": false,
   "eslint.run": "onSave",
   "vs-code-prettier-eslint.prettierLast": true, // set as "true" to run 'prettier' last not first
