@@ -362,7 +362,12 @@ export class CreepExtra extends Creep {
 
     // Handle error / movement
 
-    if (outcome === null || outcome === undefined) {
+    if (
+      outcome === null ||
+      outcome === undefined ||
+      outcome.result === ERR_NOT_ENOUGH_ENERGY ||
+      outcome.result === ERR_NOT_ENOUGH_RESOURCES
+    ) {
       // Noop
     } else if (task.isCompleteFlag || outcome.result === OK) {
       // Update non-idle flag since we acted successfully
