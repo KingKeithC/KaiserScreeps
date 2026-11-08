@@ -22,7 +22,7 @@ export class Defender extends CreepRoleBase implements CreepRole {
 
   // 1 For each hostile
   override GetMinQuota(room: RoomExtra): number {
-    return sum([...room.HostilesByRoom.values()].map(creeps => creeps.length));
+    return flatten(room.WorkableClaimedRooms.map(wcr => wcr.find(FIND_HOSTILE_CREEPS))).length;
   }
 
   public SelectNextTask(creep: CreepExtra): CreepTask | null {
