@@ -335,6 +335,13 @@ export class CreepExtra extends Creep {
     // Don't act if we already enqueued a move
     if (this.IntendedToMove) return false;
 
+    // Don't act if we are running low on CPU,
+    // So long as we've acted at least once
+    if (this.tasksAttempted > 0) {
+      if (Game.cpu.bucket < 100) return false;
+      if (Game.cpu.getUsed() < Game.cpu.tickLimit / 3) return false;
+    }
+
     // If we have done less than the limit of tasks, then we're ok to keep trying
     return this.tasksAttempted <= maxAttempts;
   }
