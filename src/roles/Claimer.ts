@@ -58,6 +58,7 @@ export class Claimer extends CreepRoleBase implements CreepRole {
       const claimedRoom = Game.rooms[claim];
       if (worked.includes(claim)) continue;
       else if (
+        GetValueByName(this.dontSpawnBefore, room, () => Game.time) <= Game.time &&
         claimedRoom &&
         claimedRoom.controller?.owner !== undefined &&
         claimedRoom.controller.owner.username !== this.colony.username &&
