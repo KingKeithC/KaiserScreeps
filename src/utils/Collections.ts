@@ -148,9 +148,6 @@ export function ResourceContainerUsedRatio(target: ResourceContainer): string {
   if (target instanceof Resource) {
     current = target.amount;
     capacity = 1; // Unlimited for Resource, so just set to 1 to not cause div by zero.
-  } else if (target instanceof Mineral) {
-    current = target.mineralAmount;
-    capacity = MINERAL_DENSITY[target.density];
   } else if ('store' in target) {
     current = target.store.getUsedCapacity() ?? 0;
     capacity = target.store.getCapacity() ?? 1; // Null for Ruins, so default to 1.

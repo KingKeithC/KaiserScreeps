@@ -11,9 +11,7 @@ export abstract class TargetTask<Target extends Targetable> extends TaskBase imp
   public isCompleteFlag = false;
   protected static readonly minRangeToAct: number = 3;
 
-  public constructor(target: Target, range?: number);
-  public constructor(target: Id<Target>, range?: number);
-  public constructor(target: Target | Id<Target>, range: 0, preferredPosition: RoomPosition | RoomPositionString);
+  // With a preferred position the task is pinned to it and `range` is ignored.
   public constructor(
     targetOrId: Target | Id<Target>,
     range = TargetTask.minRangeToAct,
@@ -28,7 +26,6 @@ export abstract class TargetTask<Target extends Targetable> extends TaskBase imp
       this.movementRange = range;
       this.targetPos = SerializeRoomPosition(target.pos);
     } else {
-      if (range !== 0) throw new Error('A preferred position requires a movement range of 0.');
       const position =
         typeof preferredPosition === 'string' ? DeserializeRoomPosition(preferredPosition) : preferredPosition;
       this.targetPos = SerializeRoomPosition(position);

@@ -2,6 +2,7 @@ import { groupBy } from 'lodash';
 import { Filters, RoomPositionString, SerializeRoomPosition, SerializeRoomPositionTriple } from './Collections';
 import { BodyCost, PartCounts } from './CreepUtils';
 import { Logger } from './Logger';
+import type { StoreTargetable } from 'tasks/types';
 
 /*
 
@@ -9,8 +10,7 @@ import { Logger } from './Logger';
 
 */
 
-export type ResourceContainer =
-  Creep | StructureLink | StructureStorage | StructureContainer | Resource | Ruin | Tombstone | Mineral;
+export type ResourceContainer = StoreTargetable | Resource;
 
 export type ContainerAndAmount = [ResourceContainer, number];
 
