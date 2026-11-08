@@ -13,7 +13,14 @@ import {
 } from 'utils/RoomUtils';
 import { Colony } from 'Colony';
 import { CreepExtra } from 'Creep';
-import { DeserializeRoomPosition, FmtRatios, LerpColour, SerializeRoomPosition } from 'utils/Collections';
+import {
+  AssignedTasksWithEntity,
+  DeserializeRoomPosition,
+  FmtRatios,
+  LerpColour,
+  SerializeRoomPosition,
+  TasksOfEntities,
+} from 'utils/Collections';
 import { Colours } from 'Data';
 import { CreepRole } from 'roles/Role';
 import { Logger } from 'utils/Logger';
@@ -94,15 +101,13 @@ export class RoomExtra extends Room {
   }
 
   *AssignedTasks<Task extends CreepTask = CreepTask>(taskClass?: TaskClass<Task>): IterableIterator<Task> {
-    for (const [_creep, task] of this.AssignedTasksWithCreep(taskClass)) yield task;
+    yield* TasksOfEntities<CreepExtra, CreepTask, Task>(this.AssignedCreeps, taskClass);
   }
 
   *AssignedTasksWithCreep<Task extends CreepTask = CreepTask>(
     taskClass?: TaskClass<Task>,
   ): IterableIterator<[CreepExtra, Task]> {
-    for (const c of this.AssignedCreeps)
-      if (c.currentTask !== null && (taskClass === undefined || c.currentTask.action === taskClass.action))
-        yield [c, c.currentTask as Task];
+    yield* AssignedTasksWithEntity<CreepExtra, CreepTask, Task>(this.AssignedCreeps, taskClass);
   }
 
   get StoreOverUpgrade() {

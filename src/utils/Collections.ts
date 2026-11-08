@@ -1,5 +1,50 @@
 import { ResourceContainer } from './RoomUtils';
 
+export interface NamedEntity {
+  readonly name: string;
+}
+
+export interface CurrentTaskHolder<Task> {
+  readonly currentTask: Task | null;
+}
+
+export interface ActionNamedTask {
+  readonly action: string;
+}
+
+export interface TaskActionSelector<Task extends ActionNamedTask> {
+  readonly action: Task['action'];
+}
+
+export function MapNamed<N extends NamedEntity, T>(
+  iterOfNamed: Iterable<N>,
+  mapper: (named: N) => T,
+): Record<string, T> {
+  const ret: Record<string, T> = {};
+  for (const named of iterOfNamed) ret[named.name] = mapper(named);
+  return ret;
+}
+
+export function* AssignedTasksWithEntity<
+  Entity extends CurrentTaskHolder<Task>,
+  Task extends ActionNamedTask,
+  SelectedTask extends Task = Task,
+>(entities: Iterable<Entity>, taskClass?: TaskActionSelector<SelectedTask>): IterableIterator<[Entity, SelectedTask]> {
+  for (const entity of entities) {
+    const task = entity.currentTask;
+    if (task !== null && (taskClass === undefined || task.action === taskClass.action))
+      yield [entity, task as SelectedTask];
+  }
+}
+
+export function* TasksOfEntities<
+  Entity extends CurrentTaskHolder<Task>,
+  Task extends ActionNamedTask,
+  SelectedTask extends Task = Task,
+>(entities: Iterable<Entity>, taskClass?: TaskActionSelector<SelectedTask>): IterableIterator<SelectedTask> {
+  for (const [, task] of AssignedTasksWithEntity<Entity, Task, SelectedTask>(entities, taskClass)) yield task;
+}
+
 export function UnpackColour(colour: string): [number, number, number] {
   return [
     Number.parseInt(colour.slice(1, 3), 16),
@@ -113,11 +158,7 @@ export function ResourceContainerUsedRatio(target: ResourceContainer): string {
   return ((current / capacity) * 100).toFixed(2);
 }
 
-export function GetValueByName(
-  dict: { [name: string]: number },
-  obj: { name: string },
-  initialValue: () => number,
-): number {
+export function GetValueByName<T>(dict: { [name: string]: T }, obj: NamedEntity, initialValue: () => T): T {
   return (dict[obj.name] ??= initialValue());
 }
 

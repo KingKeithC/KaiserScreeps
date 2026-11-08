@@ -14,7 +14,7 @@ import { GetColonyStats, ColonyStats } from 'Stats';
 import { TaskPrototypes } from 'tasks';
 import { CreepTask, TaskClass } from 'tasks/types';
 import { TradingSystem } from 'Trading';
-import { FmtRatios } from 'utils/Collections';
+import { AssignedTasksWithEntity, FmtRatios, TasksOfEntities } from 'utils/Collections';
 import { ErrorMapper } from 'utils/ErrorMapper';
 import { Logger } from 'utils/Logger';
 import { MakeRoomReport, RoomReport } from 'utils/RoomUtils';
@@ -287,15 +287,13 @@ export class Colony {
   }
 
   *AssignedTasks<Task extends CreepTask = CreepTask>(taskClass?: TaskClass<Task>): IterableIterator<Task> {
-    for (const [_creep, task] of this.AssignedTasksWithCreep(taskClass)) yield task;
+    yield* TasksOfEntities<CreepExtra, CreepTask, Task>(this.MyCreeps, taskClass);
   }
 
   *AssignedTasksWithCreep<Task extends CreepTask = CreepTask>(
     taskClass?: TaskClass<Task>,
   ): IterableIterator<[CreepExtra, Task]> {
-    for (const c of this.MyCreeps)
-      if (c.currentTask !== null && (taskClass === undefined || c.currentTask.action === taskClass.action))
-        yield [c, c.currentTask as Task];
+    yield* AssignedTasksWithEntity<CreepExtra, CreepTask, Task>(this.MyCreeps, taskClass);
   }
 
   TickOtherVisibleRoom(room: Room): void {
@@ -340,12 +338,6 @@ export class Colony {
   Restart(): void {
     if (Game.cpu.halt === undefined) this.log.crit('Game.cpu.halt() is undefined; isolated VM mode is required.');
     else Game.cpu.halt();
-  }
-
-  MapNameable<N extends { name: string }, T>(iterOfNamed: Iterable<N>, mapper: (n: N) => T): Record<string, T> {
-    const ret: Record<string, T> = {};
-    for (const named of iterOfNamed) ret[named.name] = mapper(named);
-    return ret;
   }
 
   DisplayCurrentStats(): void {
