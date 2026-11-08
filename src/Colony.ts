@@ -12,6 +12,7 @@ import { RoomExtra } from 'Room';
 import profiler from 'screeps-profiler';
 import { GetColonyStats, ColonyStats } from 'Stats';
 import { TaskPrototypes } from 'tasks';
+import { CreepTask, TaskClass } from 'tasks/types';
 import { TradingSystem } from 'Trading';
 import { FmtRatios } from 'utils/Collections';
 import { ErrorMapper } from 'utils/ErrorMapper';
@@ -268,6 +269,18 @@ export class Colony {
 
   get AllClaimedNearby(): string[] {
     return unique(flatten(this.MyRooms.map(mr => mr.ClaimedNearby)));
+  }
+
+  *AssignedTasks<Task extends CreepTask = CreepTask>(taskClass?: TaskClass<Task>): IterableIterator<Task> {
+    for (const [_creep, task] of this.AssignedTasksWithCreep(taskClass)) yield task;
+  }
+
+  *AssignedTasksWithCreep<Task extends CreepTask = CreepTask>(
+    taskClass?: TaskClass<Task>,
+  ): IterableIterator<[CreepExtra, Task]> {
+    for (const c of this.MyCreeps)
+      if (c.currentTask !== null && (taskClass === undefined || c.currentTask.action === taskClass.action))
+        yield [c, c.currentTask as Task];
   }
 
   TickOtherVisibleRoom(room: Room): void {

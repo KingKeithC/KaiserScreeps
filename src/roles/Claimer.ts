@@ -42,19 +42,21 @@ export class Claimer extends CreepRoleBase implements CreepRole {
     return 1;
   }
 
-  WorkedClaims(room: RoomExtra): string[] {
-    return unique([...room.AssignedTasks(Claim)].map(p => p.targetId));
+  WorkedClaims(): string[] {
+    return unique([...this.colony.AssignedTasks(Claim)].map(p => p.targetId));
   }
 
-  PotentialClaims(room: RoomExtra): string[] {
+  PotentialClaims(): string[] {
     const claimFlags = Object.values(Game.flags).filter(f => f.name.startsWith('Claim'));
-    return unique(room.ClaimedNearby.concat(claimFlags.map(f => f.pos.roomName)));
+    return unique(this.colony.AllClaimedNearby.concat(claimFlags.map(f => f.pos.roomName)));
   }
 
   UnworkedClaims(room: RoomExtra): string[] {
-    const worked = this.WorkedClaims(room);
+    const worked = this.WorkedClaims().filter(c => room.ClaimedNearby.includes(c));
     const ret = [];
-    for (const claim of this.PotentialClaims(room)) {
+    for (const claim of this.PotentialClaims()) {
+      if (room.ClaimedByOtherRoomsInThisColony.includes(claim)) continue;
+
       const claimedRoom = Game.rooms[claim];
       if (worked.includes(claim)) continue;
       else if (

@@ -259,6 +259,12 @@ export class RoomExtra extends Room {
     return this.cachedWorkableClaimedRooms;
   }
 
+  get ClaimedByOtherRoomsInThisColony(): string[] {
+    const ret = new Set(this.colony.AllClaimedNearby);
+    for (const claimed of this.ClaimedNearby) ret.delete(claimed);
+    return Array.from(ret.values());
+  }
+
   OnClaimBecomesHostile(disowned: Room | string) {
     const hostileInfo = disowned instanceof Room ? '\n' + JSON.stringify(GetHostileInfo(disowned)) : '';
     const roomName = disowned instanceof Room ? disowned.name : disowned;
