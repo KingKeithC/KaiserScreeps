@@ -11,8 +11,9 @@ import { Worker } from 'roles/Worker';
 import { RoomExtra } from 'Room';
 import profiler from 'screeps-profiler';
 import { GetColonyStats, ColonyStats } from 'Stats';
-import { TargetTask, TaskPrototypes } from 'tasks';
+import { TargetTask, TaskPrototypes, Transfer } from 'tasks';
 import { CreepTask, TaskClass } from 'tasks/types';
+import { LogisticsSystem } from 'logistics/LogisticsSystem';
 import { TradingSystem } from 'Trading';
 import { AssignedTasksWithEntity, FmtRatios, TasksOfEntities } from 'utils/Collections';
 import { ErrorMapper } from 'utils/ErrorMapper';
@@ -64,6 +65,7 @@ export class Colony {
 
   readonly Creeps: Map<string, CreepExtra> = new Map();
   readonly Rooms: Map<string, RoomExtra> = new Map();
+  readonly Logistics = new LogisticsSystem();
 
   private readonly log = new Logger(this);
 
@@ -219,6 +221,8 @@ export class Colony {
   // This is the effectively the loop function invoked each tick.
   private MainLoop(): void {
     this.RefreshCaches(); // Must be called before any Creep/Room access on the colony
+    this.Logistics.BeginTick(this.LogisticsScope);
+    this.ReserveAssignedCollections();
 
     this.CleanupStaleFlags();
     this.TryGeneratingPixel();
@@ -256,6 +260,20 @@ export class Colony {
 
     // Update colony stats
     if (!this.IsSimulation && Game.time % this.StatsFrequency === 0) this.stats = GetColonyStats(this);
+  }
+
+  // Owned rooms plus the claimed rooms they work; their stores are indexed each tick.
+  private get LogisticsScope(): string[] {
+    return unique(flatten(this.MyRooms.map(room => room.WorkableAreaRoomNames)));
+  }
+
+  // Collections assigned on earlier ticks still hold their capacity this tick.
+  private ReserveAssignedCollections(): void {
+    for (const [creep, task] of this.AssignedTasksWithCreep(Transfer)) {
+      const target = task.target;
+      if (task.hasTake && target !== null)
+        this.Logistics.Reserve(target.pos.roomName, task.targetId, creep.store.getFreeCapacity() ?? 0);
+    }
   }
 
   CleanupStaleFlags(): void {

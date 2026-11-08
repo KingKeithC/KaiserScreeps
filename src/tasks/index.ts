@@ -5,7 +5,7 @@ export { Build } from './Build';
 export { Dismantle } from './Dismantle';
 export { Move } from './Move';
 export { Repair } from './Repair';
-export { Transfer } from './Transfer';
+export { MAX_TRANSFER_QUANTITY, Transfer } from './Transfer';
 export { Attack } from './Attack';
 export { GuardTask } from './Guard';
 export { Claim } from './Claim';

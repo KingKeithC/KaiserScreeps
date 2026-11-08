@@ -2,7 +2,7 @@ import { CreepExtra } from 'Creep';
 import { some, sum } from 'lodash';
 import { RoomExtra } from 'Room';
 
-import { Build, Mine, Repair, Transfer, UpgradeController } from 'tasks';
+import { Build, MAX_TRANSFER_QUANTITY, Mine, Repair, Transfer, UpgradeController } from 'tasks';
 import { Retire } from 'tasks/Retire';
 import { CreepTask } from 'tasks/types';
 import { Filters, GetValueByName, MakeBody, Sorts } from 'utils/Collections';
@@ -58,29 +58,28 @@ export class Worker extends CreepRoleBase implements CreepRole {
   ShrinkAmount = 1;
   ShrinkQuotaWhenEnergyBelow = 3500;
 
-  rollingAvgEnergyInCollectionPlan: { [roomName: Room['name']]: number } = {};
+  rollingAvgEnergyInSources: { [roomName: Room['name']]: number } = {};
   private energySamplesByRoom: { [roomName: Room['name']]: number } = {};
 
   RoomTickStart(room: RoomExtra): void {
-    const energyInCollectionPlan = sum(
-      (room.CollectionPlan.sourcesByType.get(RESOURCE_ENERGY) ?? []).map(source => source[1]),
+    const energyInSources = sum(
+      room.colony.Logistics.Sources(room.WorkableAreaRoomNames, RESOURCE_ENERGY).map(source => source[1]),
     );
     const sampleCount = GetValueByName(this.energySamplesByRoom, room, () => 0) + 1;
-    const previousAverage = GetValueByName(this.rollingAvgEnergyInCollectionPlan, room, () => 0);
+    const previousAverage = GetValueByName(this.rollingAvgEnergyInSources, room, () => 0);
 
-    this.rollingAvgEnergyInCollectionPlan[room.name] =
-      previousAverage + (energyInCollectionPlan - previousAverage) / sampleCount;
+    this.rollingAvgEnergyInSources[room.name] = previousAverage + (energyInSources - previousAverage) / sampleCount;
     this.energySamplesByRoom[room.name] = sampleCount;
   }
 
   GetQuotaChange(room: RoomExtra): number {
-    const energyInCollectionPlan = GetValueByName(this.rollingAvgEnergyInCollectionPlan, room, () => 0);
-    this.rollingAvgEnergyInCollectionPlan[room.name] = 0;
+    const energyInSources = GetValueByName(this.rollingAvgEnergyInSources, room, () => 0);
+    this.rollingAvgEnergyInSources[room.name] = 0;
     this.energySamplesByRoom[room.name] = 0;
 
-    this.log.info('Checking if quota needs to be changed.', { '<room>': room, energyInCollectionPlan });
-    if (energyInCollectionPlan > this.GrowQuotaWhenEnergyAbove) return this.GrowAmount;
-    if (energyInCollectionPlan < this.ShrinkQuotaWhenEnergyBelow) return -this.ShrinkAmount;
+    this.log.info('Checking if quota needs to be changed.', { '<room>': room, energyInSources });
+    if (energyInSources > this.GrowQuotaWhenEnergyAbove) return this.GrowAmount;
+    if (energyInSources < this.ShrinkQuotaWhenEnergyBelow) return -this.ShrinkAmount;
     return 0;
   }
 
@@ -100,7 +99,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
     const miners = creep.AssignedRoom.AssignedCreeps.filter(Filters.CreepRoleGroupName('Miner'));
     if (miners.length > 0) {
       const randomMiner = miners[Math.floor(miners.length * Math.random())];
-      return new Transfer(randomMiner, [RESOURCE_ENERGY, -Infinity]);
+      return new Transfer(randomMiner, [RESOURCE_ENERGY, -MAX_TRANSFER_QUANTITY]);
     }
 
     this.log.warn('Room has no miners to collect from.', { '<creep>': creep });
@@ -111,20 +110,19 @@ export class Worker extends CreepRoleBase implements CreepRole {
   CollectFromRoomStorage(creep: CreepExtra): Transfer | null {
     const stored = creep.AssignedRoom.storage?.store.getUsedCapacity(RESOURCE_ENERGY) ?? 0;
     if (creep.AssignedRoom.storage !== undefined && stored > creep.AssignedRoom.StorageWartimeEnergyBuffer)
-      return new Transfer(creep.AssignedRoom.storage, [RESOURCE_ENERGY, -Infinity]);
+      return new Transfer(creep.AssignedRoom.storage, [RESOURCE_ENERGY, -MAX_TRANSFER_QUANTITY]);
     return null;
   }
 
   FindBestCollection(
     creep: CreepExtra,
     possibleSources: ContainerAndAmount[],
-    reservedCapacityBySource: Map<string, number>,
     sameRoom = false,
   ): ResourceContainer | null {
     const freeCapacity = creep.store.getFreeCapacity();
     const adjustedSources: ContainerAndAmount[] = possibleSources.map(([source, amount]) => [
       source,
-      amount - (reservedCapacityBySource.get(source.id) ?? 0) - freeCapacity,
+      amount - creep.colony.Logistics.ReservedCapacity(source.pos.roomName, source.id) - freeCapacity,
     ]);
     const sourcesWhoCanFullySupplyUs = adjustedSources.filter(([, amount]) => amount >= freeCapacity);
 
@@ -169,25 +167,19 @@ export class Worker extends CreepRoleBase implements CreepRole {
   ): Transfer | null {
     // Find according to priorities
     for (const resourceType of searchForType) {
-      const candidates = creep.AssignedRoom.CollectionPlan.sourcesByType.get(resourceType);
-      if (!candidates || candidates.length === 0) continue;
+      const candidates = creep.colony.Logistics.Sources(creep.AssignedRoom.WorkableAreaRoomNames, resourceType);
+      if (candidates.length === 0) continue;
       const task = this.FindBestCollection(
         creep,
         candidates.filter(c => (minAmountToCollect === 0 ? true : c[1] >= minAmountToCollect)),
-        creep.AssignedRoom.CollectionPlan.reservedCapacityBySource,
         sameRoom,
       );
       if (task) {
-        // Update reservation in collection plan
-        const reservedSoFar = creep.AssignedRoom.CollectionPlan.reservedCapacityBySource.get(task.id);
-        if (reservedSoFar)
-          creep.AssignedRoom.CollectionPlan.reservedCapacityBySource.set(
-            task.id,
-            reservedSoFar + creep.store.getFreeCapacity(resourceType),
-          );
+        // Reserve against the source so later collectors this tick see it as taken.
+        creep.colony.Logistics.Reserve(task.pos.roomName, task.id, creep.store.getFreeCapacity(resourceType) ?? 0);
 
         // Return collection task
-        return new Transfer(task, [resourceType, -Infinity]);
+        return new Transfer(task, [resourceType, -MAX_TRANSFER_QUANTITY]);
       }
     }
 
@@ -246,7 +238,8 @@ export class Worker extends CreepRoleBase implements CreepRole {
   }
 
   SupplyStorage(creep: CreepExtra, storage: StructureStorage): Transfer | null {
-    for (const resourceType in creep.store) return new Transfer(storage, [resourceType as ResourceConstant, Infinity]);
+    for (const resourceType in creep.store)
+      return new Transfer(storage, [resourceType as ResourceConstant, MAX_TRANSFER_QUANTITY]);
     return null;
   }
 

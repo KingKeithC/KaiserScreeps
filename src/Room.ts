@@ -1,15 +1,12 @@
 import { Dictionary, flatten, range, unique } from 'lodash';
-import { Mine, Transfer, UpgradeController } from 'tasks';
+import { Mine, UpgradeController } from 'tasks';
 import {
-  CollectionPlan,
-  ContainerAndAmount,
   FormatHostileInfos,
   GetHostileInfo,
   GetMinesForRoom,
   GetMiningPositions,
   HostileInfo,
   MiningPosition,
-  ResourceContainersForRoomByType,
 } from 'utils/RoomUtils';
 import { Colony } from 'Colony';
 import { CreepExtra } from 'Creep';
@@ -264,6 +261,11 @@ export class RoomExtra extends Room {
       }
     }
     return this.cachedWorkableClaimedRooms;
+  }
+
+  // This room plus the claimed rooms it works, by name.
+  get WorkableAreaRoomNames(): string[] {
+    return [this.name, ...this.WorkableClaimedRooms.map(room => room.name)];
   }
 
   get ClaimedByOtherRoomsInThisColony(): string[] {
@@ -573,33 +575,6 @@ export class RoomExtra extends Room {
 
   get LinkSenders(): StructureLink[] {
     return this.GetLinks('Senders');
-  }
-
-  private cachedCollectionPlan?: CollectionPlan;
-  get CollectionPlan() {
-    return (this.cachedCollectionPlan ??= this.CreateCollectionPlan());
-  }
-
-  CreateCollectionPlan(): CollectionPlan {
-    const sourcesByType = new Map<ResourceConstant, ContainerAndAmount[]>();
-    for (const room of [this, ...this.WorkableClaimedRooms])
-      for (const [resourceType, sources] of ResourceContainersForRoomByType(room)) {
-        const existing = sourcesByType.get(resourceType);
-        if (existing) existing.push(...sources);
-        else sourcesByType.set(resourceType, sources);
-      }
-
-    const reservedCapacityBySource = new Map<string, number>();
-    for (const [collector, task] of this.AssignedTasksWithCreep(Transfer)) {
-      if (!task.hasTake) continue;
-      const sourceId = task.targetId;
-      reservedCapacityBySource.set(
-        sourceId,
-        (reservedCapacityBySource.get(sourceId) ?? 0) + collector.store.getFreeCapacity(),
-      );
-    }
-
-    return { sourcesByType, reservedCapacityBySource };
   }
 
   MapWithRoomsInClaimedArea<T>(

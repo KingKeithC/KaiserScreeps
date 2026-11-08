@@ -1,6 +1,7 @@
 import { CreepExtra } from 'Creep';
 import { RegisterTask, TaskActionResult } from 'tasks/types';
 import { ResourceContainerUsedRatio, RoomPositionString } from 'utils/Collections';
+import { Ledger, StoreId } from 'logistics/Ledger';
 import { ResourceContainer } from 'utils/RoomUtils';
 import { TargetTask } from './TargetTask';
 
@@ -15,54 +16,9 @@ interface TransferLeg {
 
 type TransferArg = RoomPosition | RoomPositionString | TransferEntry;
 
-// Infinity serializes to null in Memory, so unbounded quantities use this finite value.
-const UNBOUNDED = Number.MAX_SAFE_INTEGER;
-const DEFAULT_ENTRIES: TransferEntry[] = [[RESOURCE_ENERGY, Infinity]];
-
-/* ------------- Tick ledger ------------- */
-
-// Creeps read the store snapshot from the start of the tick, so intents registered this tick are tracked here.
-interface TickLedger {
-  tick: number;
-  outflow: Map<string, Map<ResourceConstant, number>>;
-  inflow: Map<string, number>;
-  actors: Set<string>; // Creeps whose one transfer-family intent this tick is already registered.
-}
-
-const ledger: TickLedger = { tick: -1, outflow: new Map(), inflow: new Map(), actors: new Set() };
-
-function currentLedger(): TickLedger {
-  if (ledger.tick !== Game.time) {
-    ledger.tick = Game.time;
-    ledger.outflow.clear();
-    ledger.inflow.clear();
-    ledger.actors.clear();
-  }
-  return ledger;
-}
-
-function outflowOf(id: string, resourceType: ResourceConstant): number {
-  return currentLedger().outflow.get(id)?.get(resourceType) ?? 0;
-}
-
-function inflowOf(id: string): number {
-  return currentLedger().inflow.get(id) ?? 0;
-}
-
-function recordIntent(
-  actorId: string,
-  sourceId: string,
-  destId: string,
-  resourceType: ResourceConstant,
-  amount: number,
-): void {
-  const { outflow, inflow, actors } = currentLedger();
-  const byResource = outflow.get(sourceId) ?? new Map<ResourceConstant, number>();
-  byResource.set(resourceType, (byResource.get(resourceType) ?? 0) + amount);
-  outflow.set(sourceId, byResource);
-  inflow.set(destId, (inflow.get(destId) ?? 0) + amount);
-  actors.add(actorId);
-}
+// Caps each leg; finite so it survives Memory serialization.
+export const MAX_TRANSFER_QUANTITY = 10_000;
+const DEFAULT_ENTRIES: TransferEntry[] = [[RESOURCE_ENERGY, MAX_TRANSFER_QUANTITY]];
 
 /* ------------- Helpers ------------- */
 
@@ -92,20 +48,21 @@ function trailingEntries(args: TransferArg[]): TransferEntry[] {
 function makeLeg(target: ResourceContainer, [resourceType, quantity]: TransferEntry): TransferLeg {
   if (Number.isNaN(quantity)) throw new Error(`Transfer of ${resourceType} needs a numeric quantity.`);
   if (quantity > 0 && !canReceive(target)) throw new Error(`Cannot transfer ${resourceType} into ${target}.`);
-  const magnitude = Math.min(Math.abs(quantity), UNBOUNDED);
+  const magnitude = Math.min(Math.abs(quantity), MAX_TRANSFER_QUANTITY);
   return { resourceType, quantity: Math.sign(quantity) * magnitude, moved: 0 };
 }
 
 // Units this leg can still move this tick; 0 when it is finished or blocked by intents already registered.
-function plannedAmount(leg: TransferLeg, creep: CreepExtra, target: ResourceContainer): number {
+function plannedAmount(leg: TransferLeg, creep: CreepExtra, target: ResourceContainer, ledger: Ledger): number {
   const remaining = Math.abs(leg.quantity) - leg.moved;
   if (remaining <= 0) return 0;
 
   const giving = leg.quantity > 0;
   const source: ResourceContainer = giving ? creep : target;
   const dest: ResourceContainer = giving ? target : creep;
-  const available = storedOf(source, leg.resourceType) - outflowOf(source.id, leg.resourceType);
-  const space = freeOf(dest, leg.resourceType) - inflowOf(dest.id);
+  const available =
+    storedOf(source, leg.resourceType) - ledger.Outflow(source.pos.roomName, source.id, leg.resourceType);
+  const space = freeOf(dest, leg.resourceType) - ledger.Inflow(dest.pos.roomName, dest.id);
   const amount = Math.max(0, Math.min(available, space));
 
   // Piles cannot be partially picked up, so the quantity only decides whether the leg is still active.
@@ -123,11 +80,6 @@ function performIntent(
   if (target instanceof Creep) return target.transfer(creep, leg.resourceType, amount);
   if (target instanceof Resource) return creep.pickup(target);
   return creep.withdraw(target as Structure | Ruin | Tombstone, leg.resourceType, amount);
-}
-
-function formatQuantity(quantity: number): string {
-  const magnitude = Math.abs(quantity) >= UNBOUNDED ? '∞' : String(Math.abs(quantity));
-  return quantity < 0 ? `-${magnitude}` : magnitude;
 }
 
 export class Transfer extends TargetTask<ResourceContainer> {
@@ -159,28 +111,30 @@ export class Transfer extends TargetTask<ResourceContainer> {
   }
 
   private nextMove(creep: CreepExtra, target: ResourceContainer): { leg: TransferLeg; amount: number } | undefined {
+    const ledger = creep.colony.Logistics.ledger;
     for (const leg of this.legs) {
-      const amount = plannedAmount(leg, creep, target);
+      const amount = plannedAmount(leg, creep, target, ledger);
       if (amount > 0) return { leg, amount };
     }
     return undefined;
   }
 
   public actWhenTargetValid(creep: CreepExtra, target: ResourceContainer): TaskActionResult | null {
+    const ledger = creep.colony.Logistics.ledger;
     const next = this.nextMove(creep, target);
     if (!next) return null;
 
     // Taking from a creep spends that creep's transfer slot, not ours.
     const actor = next.leg.quantity < 0 && target instanceof Creep ? target : creep;
-    if (currentLedger().actors.has(actor.id)) return null;
+    if (ledger.HasActed(creep.pos.roomName, actor.id)) return null;
 
     const result = performIntent(creep, target, next.leg, next.amount);
     if (result === OK) {
       next.leg.moved += next.amount;
       const giving = next.leg.quantity > 0;
-      const sourceId: string = giving ? creep.id : target.id;
-      const destId: string = giving ? target.id : creep.id;
-      recordIntent(actor.id, sourceId, destId, next.leg.resourceType, next.amount);
+      const sourceId: StoreId = giving ? creep.id : target.id;
+      const destId: StoreId = giving ? target.id : creep.id;
+      ledger.RecordIntent(creep.pos.roomName, actor.id, sourceId, destId, next.leg.resourceType, next.amount);
     } else if (result === ERR_FULL || result === ERR_NOT_ENOUGH_RESOURCES) {
       // The snapshot disagreed with the engine, so this leg is dropped rather than retried.
       next.leg.moved = Math.abs(next.leg.quantity);
@@ -198,7 +152,7 @@ export class Transfer extends TargetTask<ResourceContainer> {
   }
 
   public extraToString(target: ResourceContainer): string {
-    const legs = this.legs.map(leg => `${leg.resourceType} ${leg.moved}/${formatQuantity(leg.quantity)}`);
+    const legs = this.legs.map(leg => `${leg.resourceType} ${leg.moved}/${leg.quantity}`);
     return `${legs.join(', ')}, %${ResourceContainerUsedRatio(target)} stored`;
   }
 }

@@ -56,5 +56,3 @@ export abstract class TaskBase {
 }
 
 export type Targetable = _HasId & _HasRoomPosition;
-// GenericStoreBase rather than StoreDefinition so unlimited stores (ruins, tombstones) also match.
-export type StoreTargetable = Targetable & { store: GenericStoreBase };
