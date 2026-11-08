@@ -1,5 +1,5 @@
 import { CreepExtra } from 'Creep';
-import { RegisterTask, TaskActionResult } from 'tasks/types';
+import { RegisterTask } from 'tasks/types';
 import { ClosestByPath } from 'utils/CreepUtils';
 import type { RepairPrioritySelection } from 'utils/RepairUtils';
 import { TargetTask } from './TargetTask';
@@ -29,6 +29,8 @@ export class Repair extends TargetTask<AnyStructure> {
     return target ? new Repair(target) : null;
   }
 
+  protected static override readonly requiredBodyPart = WORK;
+
   public constructor(target: AnyStructure) {
     super(target);
   }
@@ -37,8 +39,12 @@ export class Repair extends TargetTask<AnyStructure> {
     return `%${((target.hits / target.hitsMax) * 100).toFixed(2)}`;
   }
 
-  public actWhenTargetValid(creep: CreepExtra, target: NonNullable<AnyStructure>): TaskActionResult | null {
-    return this.movementResult(creep.repair(target), target);
+  protected registerIntent(creep: CreepExtra, target: NonNullable<AnyStructure>): ScreepsReturnCode {
+    return creep.repair(target);
+  }
+
+  protected isIntentBlocked(): boolean {
+    return false;
   }
 
   public isCreepAbleToContinue(creep: CreepExtra): boolean {

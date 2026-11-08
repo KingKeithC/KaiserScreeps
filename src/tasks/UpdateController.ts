@@ -13,6 +13,7 @@ export class UpgradeController extends TargetTask<StructureController> {
 
   static readonly DowngradeMaintenanceRatio = 1 / 4; // Start repairs when ticksToDowngrade drop below this.
   static readonly MaintenanceBuffer = 2000;
+  protected static override readonly requiredBodyPart = WORK;
 
   /** Upgrade the assigned room's controller. */
   public static upgrade(creep: CreepExtra): UpgradeController | null {
@@ -51,8 +52,12 @@ export class UpgradeController extends TargetTask<StructureController> {
     return `${this.mode} ${target.level} %${((target.progress / target.progressTotal) * 100).toExponential(2)}`;
   }
 
-  public actWhenTargetValid(creep: CreepExtra, target: StructureController): TaskActionResult | null {
-    return this.movementResult(creep.upgradeController(target), target);
+  protected registerIntent(creep: CreepExtra, target: StructureController): number {
+    return creep.upgradeController(target);
+  }
+
+  protected isIntentBlocked(): boolean {
+    return false;
   }
 
   isCreepAbleToContinue(creep: CreepExtra): boolean {

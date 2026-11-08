@@ -1,6 +1,6 @@
 import { CreepExtra } from 'Creep';
 import type { RoomExtra } from 'Room';
-import { RegisterTask, TaskActionResult } from 'tasks/types';
+import { RegisterTask } from 'tasks/types';
 import { ResourceContainerUsedRatio, RoomPositionString, Sorts } from 'utils/Collections';
 import { ClosestByPath } from 'utils/CreepUtils';
 import { Ledger, StoreId } from 'logistics/Ledger';
@@ -76,6 +76,11 @@ function plannedAmount(leg: TransferLeg, creep: CreepExtra, target: ResourceCont
   // Piles cannot be partially picked up, so the quantity only decides whether the leg is still active.
   if (!giving && target instanceof Resource) return amount;
   return Math.min(remaining, amount);
+}
+
+// Taking from a creep spends that creep's transfer slot, not ours.
+function actorIdOf(creep: CreepExtra, target: ResourceContainer, leg: TransferLeg): StoreId {
+  return (leg.quantity < 0 && target instanceof Creep ? target : creep).id;
 }
 
 function performIntent(
@@ -246,28 +251,37 @@ export class Transfer extends TargetTask<ResourceContainer> {
     return undefined;
   }
 
-  public actWhenTargetValid(creep: CreepExtra, target: ResourceContainer): TaskActionResult | null {
-    const ledger = creep.colony.Logistics.ledger;
+  protected isIntentBlocked(creep: CreepExtra, target: ResourceContainer): boolean {
     const next = this.nextMove(creep, target);
-    if (!next) return null;
+    if (!next) return true;
+    return creep.colony.Logistics.ledger.HasActed(creep.pos.roomName, actorIdOf(creep, target, next.leg));
+  }
 
-    // Taking from a creep spends that creep's transfer slot, not ours.
-    const actor = next.leg.quantity < 0 && target instanceof Creep ? target : creep;
-    if (ledger.HasActed(creep.pos.roomName, actor.id)) return null;
+  protected registerIntent(creep: CreepExtra, target: ResourceContainer): ScreepsReturnCode {
+    const next = this.nextMove(creep, target);
+    if (!next) return ERR_NOT_ENOUGH_RESOURCES; // Only reachable if the plan changed since isIntentBlocked.
 
     const result = performIntent(creep, target, next.leg, next.amount);
+    if (result === ERR_FULL || result === ERR_NOT_ENOUGH_RESOURCES) {
+      // The snapshot disagreed with the engine: drop this leg and report a no-op rather than retry.
+      next.leg.moved = Math.abs(next.leg.quantity);
+      return ERR_NOT_ENOUGH_RESOURCES;
+    }
     if (result === OK) {
       next.leg.moved += next.amount;
       const giving = next.leg.quantity > 0;
       const sourceId: StoreId = giving ? creep.id : target.id;
       const destId: StoreId = giving ? target.id : creep.id;
-      ledger.RecordIntent(creep.pos.roomName, actor.id, sourceId, destId, next.leg.resourceType, next.amount);
-    } else if (result === ERR_FULL || result === ERR_NOT_ENOUGH_RESOURCES) {
-      // The snapshot disagreed with the engine, so this leg is dropped rather than retried.
-      next.leg.moved = Math.abs(next.leg.quantity);
-      return null;
+      creep.colony.Logistics.ledger.RecordIntent(
+        creep.pos.roomName,
+        actorIdOf(creep, target, next.leg),
+        sourceId,
+        destId,
+        next.leg.resourceType,
+        next.amount,
+      );
     }
-    return this.movementResult(result, target);
+    return result;
   }
 
   public isCreepAbleToContinue(): boolean {

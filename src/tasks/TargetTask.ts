@@ -9,7 +9,10 @@ export abstract class TargetTask<Target extends Targetable> extends TaskBase imp
   public targetPos: string;
   public movementRange: number | undefined;
   public isCompleteFlag = false;
+  // Engine range of the intent; the creep must be this close before it registers the intent.
   protected static readonly minRangeToAct: number = 3;
+  // Body part the intent consumes; a creep without an active one cannot continue.
+  protected static readonly requiredBodyPart: BodyPartConstant | undefined = undefined;
 
   // With a preferred position the task is pinned to it and `range` is ignored.
   public constructor(
@@ -45,13 +48,30 @@ export abstract class TargetTask<Target extends Targetable> extends TaskBase imp
     }
   }
 
+  get range(): number {
+    return this.movementRange ?? (this.constructor as typeof TargetTask).minRangeToAct;
+  }
+
   protected movementResult(
     result: number,
     target?: Targetable,
-    range = this.movementRange ?? (this.constructor as typeof TargetTask).minRangeToAct,
+    range = this.range,
     movementPosition?: RoomPosition,
   ): TaskActionResult {
     const pos = movementPosition ?? (target && range > 0 ? target.pos : DeserializeRoomPosition(this.targetPos));
+    return { target: { pos }, range, result };
+  }
+
+  protected stationaryResult(
+    result: number,
+    target?: Targetable,
+    range = this.range,
+    movementPosition?: RoomPosition,
+  ): TaskActionResult {
+    const pos = movementPosition ?? (target && range > 0 ? target.pos : DeserializeRoomPosition(this.targetPos));
+    if (result === ERR_NOT_IN_RANGE) {
+      Logger.debug('Stationary result: not in range.', { target: target?.id, pos, range });
+    }
     return { target: { pos }, range, result };
   }
 
@@ -60,7 +80,13 @@ export abstract class TargetTask<Target extends Targetable> extends TaskBase imp
     return Game.getObjectById(this.targetId);
   }
 
-  abstract actWhenTargetValid(creep: CreepExtra, target: NonNullable<Target>): TaskActionResult | null;
+  protected isInActionRange(creep: CreepExtra, target: Targetable): boolean {
+    const range = (this.constructor as typeof TargetTask).minRangeToAct;
+    return creep.pos.roomName === target.pos.roomName && creep.pos.inRangeTo(target.pos, range);
+  }
+
+  // Engine call for this task; reached only when in range and not blocked.
+  protected abstract registerIntent(creep: CreepExtra, target: NonNullable<Target>): number;
 
   actWhenTargetInvalid(_creep: CreepExtra, _targetRoom: Room): TaskActionResult | null {
     return null;
@@ -77,7 +103,12 @@ export abstract class TargetTask<Target extends Targetable> extends TaskBase imp
         return this.actWhenTargetInvalid(creep, Game.rooms[targetPos.roomName]); // The target is in a visible room, and still can't see it, it must be invalid.
       else return this.actWhenTargetInNonVisibleRoom(creep, targetPos); // The target is in a non-visible room, it could be invalid or we might just need to move into the room.
 
-    return this.actWhenTargetValid(creep, this.target);
+    const target = this.target;
+    if (!target) return null;
+    if (!this.canContinue(creep)) return null;
+    if (!this.isInActionRange(creep, target)) return this.movementResult(ERR_NOT_IN_RANGE, target);
+    if (this.isIntentBlocked(creep, target)) return null;
+    return this.movementResult(this.registerIntent(creep, target), target);
   }
 
   protected get completeWhenTargetIsNullAndInVisibleRoom() {
@@ -89,15 +120,24 @@ export abstract class TargetTask<Target extends Targetable> extends TaskBase imp
 
   abstract isCreepAbleToContinue(creep: CreepExtra): boolean;
   abstract isCompleteWhenTargetValid(creep: CreepExtra, target: NonNullable<Target>): boolean;
+  // Flags when this tick's intent is known to fail; the task then waits without registering it.
+  protected abstract isIntentBlocked(creep: CreepExtra, target: NonNullable<Target>): boolean;
 
   public handleOutcome(creep: CreepExtra, result: TaskActionResult | null): TaskActionResult | null {
     this.handleTargetCompletion(creep);
     return this.handleOutcomeExtra(creep, result);
   }
 
+  // Body parts never return once lost, so a missing required part ends the task.
+  private canContinue(creep: CreepExtra): boolean {
+    const requiredPart = (this.constructor as typeof TargetTask).requiredBodyPart;
+    if (requiredPart !== undefined && creep.getActiveBodyparts(requiredPart) === 0) return false;
+    return this.isCreepAbleToContinue(creep);
+  }
+
   private handleTargetCompletion(creep: CreepExtra): void {
     // If creep can't continue, then we're done
-    if (!this.isCreepAbleToContinue(creep)) {
+    if (!this.canContinue(creep)) {
       this.isCompleteFlag = true;
       return;
     }

@@ -9,6 +9,8 @@ export class Retire extends TargetTask<StructureSpawn> {
     RegisterTask(this);
   }
 
+  protected static override readonly minRangeToAct = 1;
+
   public constructor(target: StructureSpawn) {
     super(target, 1);
   }
@@ -17,8 +19,12 @@ export class Retire extends TargetTask<StructureSpawn> {
     return '';
   }
 
-  public actWhenTargetValid(creep: CreepExtra, target: NonNullable<StructureSpawn>): TaskActionResult | null {
-    return this.movementResult(target.recycleCreep(creep), target);
+  protected registerIntent(creep: CreepExtra, target: NonNullable<StructureSpawn>): ScreepsReturnCode {
+    return target.recycleCreep(creep);
+  }
+
+  protected isIntentBlocked(): boolean {
+    return false;
   }
 
   public isCreepAbleToContinue(): boolean {

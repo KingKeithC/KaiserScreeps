@@ -1,6 +1,6 @@
 import { CreepExtra } from 'Creep';
 import type { RoomExtra } from 'Room';
-import { RegisterTask, TaskActionResult } from 'tasks/types';
+import { RegisterTask } from 'tasks/types';
 import { DeserializeRoomPosition, RoomPositionString } from 'utils/Collections';
 import { Logger } from 'utils/Logger';
 import { isEqualTo, MiningPosition } from 'utils/RoomUtils';
@@ -14,6 +14,7 @@ export class Mine extends TargetTask<Source | StructureExtractor> {
   }
 
   protected static override readonly minRangeToAct = 1;
+  protected static override readonly requiredBodyPart = WORK;
 
   /** A mining spot for an idle miner: an unassigned source first, otherwise any unfilled position. */
   public static forMiner(room: RoomExtra): Mine | null {
@@ -47,20 +48,28 @@ export class Mine extends TargetTask<Source | StructureExtractor> {
     return `${position} Amount: %${amount} Density: ${mineral.density} Cooldown: ${source.cooldown}`;
   }
 
-  public actWhenTargetValid(creep: CreepExtra, source: Source | StructureExtractor): TaskActionResult | null {
-    const mineral: Mineral | undefined = source.pos.lookFor(LOOK_MINERALS)[0];
-    if (!mineral && source instanceof StructureExtractor) {
-      this.isCompleteFlag = true;
-      Logger.crit('Assigned extractor has no mineral beneath it.', {
-        '<creep>': creep,
-        extractor: source,
-        pos: source.pos,
-      });
-      return null;
-    }
+  // Miners harvest only from their assigned tile, so they must be on it, not just in range.
+  protected override isInActionRange(creep: CreepExtra, source: Source | StructureExtractor): boolean {
+    if (creep.role?.groupName === 'Miners' && !creep.IsInAssignedMiningPosition()) return false;
+    return super.isInActionRange(creep, source);
+  }
 
-    const result = source instanceof StructureExtractor ? creep.harvest(mineral) : creep.harvest(source);
-    return this.movementResult(result === ERR_NOT_OWNER ? ERR_NOT_IN_RANGE : result, source);
+  protected isIntentBlocked(creep: CreepExtra, source: Source | StructureExtractor): boolean {
+    if (creep.store.getFreeCapacity(RESOURCE_ENERGY) === 0) return true;
+    if (source instanceof Source) return source.energy === 0;
+    const mineral = Mine.mineralAt(source);
+    return mineral === undefined || mineral.mineralAmount === 0 || source.cooldown > 0;
+  }
+
+  protected registerIntent(creep: CreepExtra, source: Source | StructureExtractor): ScreepsReturnCode {
+    const harvestable = source instanceof Source ? source : Mine.mineralAt(source);
+    if (harvestable === undefined) return ERR_INVALID_TARGET;
+    const result = creep.harvest(harvestable);
+    return result === ERR_NOT_OWNER ? ERR_NOT_IN_RANGE : result; // Owner errors are forwarded as a move.
+  }
+
+  private static mineralAt(extractor: StructureExtractor): Mineral | undefined {
+    return extractor.pos.lookFor(LOOK_MINERALS)[0];
   }
 
   public isCreepAbleToContinue(creep: CreepExtra): boolean {
@@ -81,7 +90,11 @@ export class Mine extends TargetTask<Source | StructureExtractor> {
       return true;
     }
 
-    if (source instanceof StructureExtractor && mineral.mineralAmount === 0) return true;
+    if (source instanceof StructureExtractor && mineral.mineralAmount === 0) {
+      // Force mines to refresh, to clear empty saved extractors
+      creep.AssignedRoom.memory.mines = undefined;
+      return true;
+    }
     if (creep.role?.groupName === 'Miners') return false;
 
     const miningPosition = this.miningPosition;
@@ -92,22 +105,5 @@ export class Mine extends TargetTask<Source | StructureExtractor> {
     }
 
     return (source instanceof Source && source.energy === 0) || creep.store.getFreeCapacity(RESOURCE_ENERGY) === 0;
-  }
-
-  protected override handleOutcomeExtra(creep: CreepExtra, outcome: TaskActionResult | null): TaskActionResult | null {
-    // If the source is out of energy, and we're not a miner, then we're done
-    if (outcome && outcome.result === ERR_NOT_ENOUGH_RESOURCES) {
-      // Force mines to refresh, to clear empty saved extractors
-      if (this.target && this.target instanceof StructureExtractor) creep.AssignedRoom.memory.mines = undefined;
-
-      // Mark task as complete if we are not a miner
-      if (creep.role.groupName !== 'Miners') this.isCompleteFlag = true;
-    }
-
-    // Otherwise, check if we're in our mining position, and return out of range if not
-    if (outcome && creep.role?.groupName === 'Miners' && !creep.IsInAssignedMiningPosition())
-      outcome.result = ERR_NOT_IN_RANGE;
-
-    return outcome;
   }
 }

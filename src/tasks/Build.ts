@@ -1,5 +1,5 @@
 import type { CreepExtra } from 'Creep';
-import { RegisterTask, TaskActionResult } from 'tasks/types';
+import { RegisterTask } from 'tasks/types';
 import { Filters, Sorts } from 'utils/Collections';
 import { ClosestByPath } from 'utils/CreepUtils';
 import { TargetTask } from './TargetTask';
@@ -44,6 +44,8 @@ export class Build extends TargetTask<ConstructionSite<BuildableStructureConstan
     return null;
   }
 
+  protected static override readonly requiredBodyPart = WORK;
+
   public constructor(target: ConstructionSite<BuildableStructureConstant>) {
     super(target);
   }
@@ -53,8 +55,12 @@ export class Build extends TargetTask<ConstructionSite<BuildableStructureConstan
     return `%${progress.toExponential(2)}`;
   }
 
-  actWhenTargetValid(creep: CreepExtra, target: ConstructionSite<BuildableStructureConstant>): TaskActionResult | null {
-    return this.movementResult(creep.build(target), target);
+  protected registerIntent(creep: CreepExtra, target: ConstructionSite<BuildableStructureConstant>): ScreepsReturnCode {
+    return creep.build(target);
+  }
+
+  protected isIntentBlocked(): boolean {
+    return false;
   }
 
   public isCreepAbleToContinue(creep: CreepExtra): boolean {
