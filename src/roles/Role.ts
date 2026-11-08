@@ -183,6 +183,8 @@ export abstract class CreepRoleBase {
       newQuota = minQuota;
     }
 
+    if (newQuota === current) return current;
+
     // Assign to cache to be served on later requests, and return
     this.log.info('Changing quota.', { '<room>': room, current, quotaDelta, newQuota });
     return (this.currentRoomQuotas[room.name] = newQuota);

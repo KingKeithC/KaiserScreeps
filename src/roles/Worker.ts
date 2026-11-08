@@ -330,7 +330,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
       });
       const retire = this.ConsiderRetirement(creep);
       if (retire) {
-        this.ChangeQuota(creep.AssignedRoom, this.ShrinkAmount); // We must be overspawned, so lower the quota
+        this.ChangeQuota(creep.AssignedRoom, -this.ShrinkAmount); // We must be overspawned, so lower the quota
         return retire;
       }
     }
