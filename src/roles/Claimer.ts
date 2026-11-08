@@ -53,6 +53,7 @@ export class Claimer extends CreepRoleBase implements CreepRole {
 
   UnworkedClaims(room: RoomExtra): string[] {
     const worked = this.WorkedClaims().filter(c => room.ClaimedNearby.includes(c));
+    const username = this.colony.username;
     const ret = [];
     for (const claim of this.PotentialClaims()) {
       if (room.ClaimedByOtherRoomsInThisColony.includes(claim)) continue;
@@ -61,9 +62,10 @@ export class Claimer extends CreepRoleBase implements CreepRole {
       if (worked.includes(claim)) continue;
       else if (
         GetValueByName(this.dontSpawnBefore, room, () => Game.time) <= Game.time &&
+        username !== undefined &&
         claimedRoom &&
         claimedRoom.controller?.owner !== undefined &&
-        claimedRoom.controller.owner.username !== this.colony.username &&
+        claimedRoom.controller.owner.username !== username &&
         claimedRoom.controller.safeMode !== undefined
       ) {
         this.log.warn('Claimed room in safe mode, delaying spawn and lowering quota.');

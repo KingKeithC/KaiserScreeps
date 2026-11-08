@@ -207,6 +207,7 @@ export class RoomExtra extends Room {
   get WorkableClaimedRooms(): Room[] {
     if (this.cachedWorkableClaimedRooms.length > 0) return this.cachedWorkableClaimedRooms;
     Memory.scoutingReports ??= {};
+    const username = this.colony.username;
 
     for (const name of this.ClaimedNearby) {
       const scoutingReport = Memory.scoutingReports[name];
@@ -217,7 +218,7 @@ export class RoomExtra extends Room {
           // Neutral Room - safe to work
           this.cachedWorkableClaimedRooms.push(room);
           continue;
-        } else if (room.controller.owner.username === this.colony.username) {
+        } else if (username !== undefined && room.controller.owner.username === username) {
           //  My room
           if (room.find(FIND_MY_SPAWNS).length === 0) {
             // Not Self-Sufficient - keep working
@@ -229,7 +230,7 @@ export class RoomExtra extends Room {
             this.OnClaimBecomesSelfSufficient(room);
           }
           continue;
-        } else if (room.controller.owner.username !== this.colony.username) {
+        } else if (username !== undefined && room.controller.owner.username !== username) {
           // Hostile Room
           this.log.crit('Claimed room is now hostile; removing claim.', {
             '<rate>': 10,
@@ -242,8 +243,9 @@ export class RoomExtra extends Room {
         }
       } else if (
         scoutingReport !== undefined &&
+        username !== undefined &&
         scoutingReport.owner !== undefined &&
-        scoutingReport.owner !== this.colony.username
+        scoutingReport.owner !== username
       ) {
         // Hostile Room
         this.log.crit('Claimed room is not invisible, but reports say hostile; removing claim.', {
@@ -265,14 +267,18 @@ export class RoomExtra extends Room {
     return Array.from(ret.values());
   }
 
+  private Notify(message: string): void {
+    if (!('sim' in Game.rooms)) Game.notify(message);
+  }
+
   OnClaimBecomesHostile(disowned: Room | string) {
     const hostileInfo = disowned instanceof Room ? '\n' + JSON.stringify(GetHostileInfo(disowned)) : '';
     const roomName = disowned instanceof Room ? disowned.name : disowned;
-    Game.notify(`OH NO! Room ${roomName} (claimed by ${this.name}) is now hostile as of ${Game.time}!${hostileInfo}`);
+    this.Notify(`OH NO! Room ${roomName} (claimed by ${this.name}) is now hostile as of ${Game.time}!${hostileInfo}`);
   }
 
   OnClaimBecomesSelfSufficient(room: Room) {
-    Game.notify(`HOORAY! Room ${room.name} (claimed by ${this.name}) is now self-sufficient as of ${Game.time} :)`);
+    this.Notify(`HOORAY! Room ${room.name} (claimed by ${this.name}) is now self-sufficient as of ${Game.time} :)`);
   }
 
   get HostilesByRoom(): [string | Room | RoomExtra, Creep[]][] {
@@ -453,8 +459,9 @@ export class RoomExtra extends Room {
   }
 
   get WorkableClaimedMiningPositions(): [RoomExtra | Room | string, MiningPosition[]][] {
+    const username = this.colony.username;
     return this.MapWithRoomsInClaimedArea(
-      cr => (cr instanceof RoomExtra ? cr.Mines : GetMinesForRoom(cr, this.colony.username)),
+      cr => (cr instanceof RoomExtra ? cr.Mines : username === undefined ? [] : GetMinesForRoom(cr, username)),
       true,
     );
   }

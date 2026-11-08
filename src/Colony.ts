@@ -31,6 +31,7 @@ declare global {
     globalEnablePathVisuals?: boolean;
     scoutingReports?: Dictionary<RoomReport>;
     scoutInterval?: number;
+    username?: string;
     colonyStateReportFrequency?: number;
     stats?: ColonyStats;
     logLevelName?: string;
@@ -65,7 +66,18 @@ export class Colony {
   readonly Rooms: Map<string, RoomExtra> = new Map();
 
   private readonly log = new Logger(this);
-  readonly username = Game.spawns[Object.keys(Game.spawns)[0]].owner.username;
+
+  get username(): string | undefined {
+    if (Memory.username !== undefined) return Memory.username;
+
+    const username =
+      Object.values(Game.creeps).find(creep => creep.my)?.owner.username ??
+      Object.values(Game.structures)[0]?.owner?.username ??
+      Object.values(Game.rooms).find(room => room.controller?.my)?.controller?.owner?.username;
+
+    if (username !== undefined) Memory.username = username;
+    return username;
+  }
 
   private trading = new TradingSystem(this);
 
@@ -116,6 +128,10 @@ export class Colony {
     return Memory.colonyStateReportFrequency ?? 1000;
   }
 
+  private get IsSimulation(): boolean {
+    return 'sim' in Game.rooms;
+  }
+
   OnGlobalReset(): void {
     // Makes this object accessible as `Colony.whatever()` in the console.
     global.Colony = this;
@@ -131,14 +147,13 @@ export class Colony {
     this.UnassignAllTasks();
     this.RefreshCaches();
 
-    // Update reset tick on stats
-    if (Memory.stats !== undefined && Memory.stats.data !== undefined)
-      // Existing:
-      // eslint-disable-next-line camelcase
-      Memory.stats.data.program_reset_time_ticks = Game.time;
-    else
-      // New, which generates a reset tick for missing data
-      Memory.stats = GetColonyStats(this);
+    if (!this.IsSimulation) {
+      if (Memory.stats !== undefined && Memory.stats.data !== undefined)
+        // Existing:
+        // eslint-disable-next-line camelcase
+        Memory.stats.data.program_reset_time_ticks = Game.time;
+      else Memory.stats = GetColonyStats(this);
+    }
 
     this.log.crit('Global state reset.', {
       profilingEnabled: this.GlobalEnableProfiling,
@@ -237,7 +252,7 @@ export class Colony {
     if (Game.time % this.ColonyStateReportFrequency === 0) this.ColonyStateReport();
 
     // Update colony stats
-    if (Game.time % this.StatsFrequency === 0) this.stats = GetColonyStats(this);
+    if (!this.IsSimulation && Game.time % this.StatsFrequency === 0) this.stats = GetColonyStats(this);
   }
 
   CleanupStaleFlags(): void {
@@ -308,7 +323,8 @@ export class Colony {
     const room = Game.rooms[newRoom];
     if (!newRoom) throw new Error(`${claimer} Tried claiming room ${newRoom} we cannot see!`);
 
-    if (room.controller?.owner?.username !== this.username) return;
+    const username = this.username;
+    if (username === undefined || room.controller?.owner?.username !== username) return;
 
     claimer.AssignedRoom.ClaimedNearby.push(newRoom);
   }
@@ -333,6 +349,7 @@ export class Colony {
   }
 
   DisplayCurrentStats(): void {
+    if (this.IsSimulation) return;
     this.stats = GetColonyStats(this); // Force a stat refresh
     this.log.report('Current colony stats.', { stats: this.stats });
   }
@@ -344,16 +361,18 @@ export class Colony {
     }
   }
 
-  get stats(): ColonyStats {
+  get stats(): ColonyStats | undefined {
+    if (this.IsSimulation) return Memory.stats;
     return (Memory.stats ??= GetColonyStats(this));
   }
 
-  set stats(value: ColonyStats) {
-    Memory.stats = value;
+  set stats(value: ColonyStats | undefined) {
+    if (value === undefined) delete Memory.stats;
+    else Memory.stats = value;
   }
 
   ColonyStateReport(): void {
-    let msg = `Tick ${Game.time} ::: COLONY REPORT for ${this.username} ::: ${this.MyRooms.length} Owned Rooms, ${this.MyCreeps.length} Creeps\n`;
+    let msg = `Tick ${Game.time} ::: COLONY REPORT for ${this.username ?? 'unknown'} ::: ${this.MyRooms.length} Owned Rooms, ${this.MyCreeps.length} Creeps\n`;
 
     // Include memory usage info
     if (Game.cpu.getHeapStatistics !== undefined) {
