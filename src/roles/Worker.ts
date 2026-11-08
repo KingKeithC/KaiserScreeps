@@ -62,9 +62,14 @@ export class Worker extends CreepRoleBase implements CreepRole {
   private energySamplesByRoom: { [roomName: Room['name']]: number } = {};
 
   RoomTickStart(room: RoomExtra): void {
-    const energyInSources = sum(
+    // Dont count storage in the energy calculation, only sources and workers' carried energy.
+    const sourceEnergy = sum(
       room.colony.Logistics.Sources(room.WorkableAreaRoomNames, RESOURCE_ENERGY).map(source => source[1]),
     );
+    const workerEnergy = sum(
+      room.GetAssignedCreepsOfRole('Worker').map(creep => creep.store.getUsedCapacity(RESOURCE_ENERGY) ?? 0),
+    );
+    const energyInSources = sourceEnergy + workerEnergy;
     const sampleCount = GetValueByName(this.energySamplesByRoom, room, () => 0) + 1;
     const previousAverage = GetValueByName(this.rollingAvgEnergyInSources, room, () => 0);
 
