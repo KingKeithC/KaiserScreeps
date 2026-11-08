@@ -1,5 +1,5 @@
 import { CreepExtra } from 'Creep';
-import { flatten, groupBy, sum } from 'lodash';
+import { flatten, groupBy } from 'lodash';
 import type { RoomExtra } from 'Room';
 import { Dismantle, GuardTask } from 'tasks';
 import { Attack } from 'tasks/Attack';

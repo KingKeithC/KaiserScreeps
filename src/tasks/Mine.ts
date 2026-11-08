@@ -4,9 +4,9 @@ import { RegisterTask } from 'tasks/types';
 import { DeserializeRoomPosition, RoomPositionString } from 'utils/Collections';
 import { Logger } from 'utils/Logger';
 import { isEqualTo, MiningPosition } from 'utils/RoomUtils';
-import { TargetTask } from './TargetTask';
+import { PreferredPositionTask } from './PreferredPositionTask';
 
-export class Mine extends TargetTask<Source | StructureExtractor> {
+export class Mine extends PreferredPositionTask<Source | StructureExtractor> {
   static readonly action = '⛏️' as const;
 
   static {
@@ -18,20 +18,25 @@ export class Mine extends TargetTask<Source | StructureExtractor> {
 
   /** A mining spot for an idle miner: an unassigned source first, otherwise any unfilled position. */
   public static forMiner(room: RoomExtra): Mine | null {
-    for (const mp of room.AvailableMiningSources()) return new Mine(mp.source, mp.pos);
-    for (const mp of room.UnfilledMiningPositions()) return new Mine(mp.source, mp.pos);
-    return null;
+    return Mine.firstResolved(room.AvailableMiningSources()) ?? Mine.firstResolved(room.UnfilledMiningPositions());
   }
 
   /** Any unfilled mining position, for creeps with spare capacity. */
   public static anyUnfilled(room: RoomExtra): Mine | null {
-    const mp = room.UnfilledMiningPositions().pop();
-    if (mp) return new Mine(mp.source, mp.pos);
+    return Mine.firstResolved(room.UnfilledMiningPositions().reverse());
+  }
+
+  // Skips positions whose source no longer exists.
+  private static firstResolved(positions: MiningPosition[]): Mine | null {
+    for (const mp of positions) {
+      const source = Game.getObjectById(mp.source);
+      if (source) return new Mine(source, mp.pos);
+    }
     return null;
   }
 
-  public constructor(source: Id<Source> | Id<StructureExtractor>, position?: RoomPositionString) {
-    super(source, 1, position);
+  public constructor(source: Source | StructureExtractor, position: RoomPositionString) {
+    super(source, position);
   }
 
   public get miningPosition(): MiningPosition {

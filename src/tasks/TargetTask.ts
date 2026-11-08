@@ -16,16 +16,14 @@ export abstract class TargetTask<Target extends Targetable> extends TaskBase imp
 
   // With a preferred position the task is pinned to it and `range` is ignored.
   public constructor(
-    targetOrId: Target | Id<Target>,
+    target: Target,
     range = TargetTask.minRangeToAct,
     preferredPosition?: RoomPosition | RoomPositionString,
   ) {
     super();
-    this.targetId = typeof targetOrId === 'string' ? targetOrId : targetOrId.id;
-    const target = typeof targetOrId === 'string' ? Game.getObjectById(this.targetId) : targetOrId;
+    this.targetId = target.id;
 
     if (preferredPosition === undefined) {
-      if (!target) throw new Error('A target ID requires a preferred position when the target is unresolved.');
       this.movementRange = range;
       this.targetPos = SerializeRoomPosition(target.pos);
     } else {
@@ -34,12 +32,11 @@ export abstract class TargetTask<Target extends Targetable> extends TaskBase imp
       this.targetPos = SerializeRoomPosition(position);
       this.movementRange = 0;
 
-      if (!target) return;
       const actualRange = target.pos.getRangeTo(position);
       const minRangeToAct = (this.constructor as typeof TargetTask).minRangeToAct;
       if (actualRange > minRangeToAct)
         Logger.crit('Preferred target position is outside the task movement range.', {
-          target: targetOrId,
+          target,
           targetPosition: target.pos,
           allowedRange: minRangeToAct,
           preferredPosition: position,
