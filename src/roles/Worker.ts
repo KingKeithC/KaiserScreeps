@@ -2,7 +2,7 @@ import { CreepExtra } from 'Creep';
 import { some, sum } from 'lodash';
 import { RoomExtra } from 'Room';
 
-import { Build, Collect, Mine, Repair, Supply, UpgradeController } from 'tasks';
+import { Build, Mine, Repair, Transfer, UpgradeController } from 'tasks';
 import { Retire } from 'tasks/Retire';
 import { CreepTask } from 'tasks/types';
 import { Filters, GetValueByName, MakeBody, Sorts } from 'utils/Collections';
@@ -92,7 +92,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
   // This function is expected to return a value, and logs a warning when it cannot.
   // Call this function in a section of code where it is already confirmed that this is the right type of task to return,
   // i.e. where you expect it to succeed, the null return is more of a fallback so an error is not thrown.
-  CollectFromRandomMiner(creep: CreepExtra): Collect | null {
+  CollectFromRandomMiner(creep: CreepExtra): Transfer | null {
     // Just dispatch to a random miner in the room regardless of fill state
     // By the time they get there, the miner should hopefully have something to collect,
     // and it should prevent them from searching for new tasks ever idle tick
@@ -100,7 +100,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
     const miners = creep.AssignedRoom.AssignedCreeps.filter(Filters.CreepRoleGroupName('Miner'));
     if (miners.length > 0) {
       const randomMiner = miners[Math.floor(miners.length * Math.random())];
-      return new Collect(randomMiner);
+      return new Transfer(randomMiner, [RESOURCE_ENERGY, -Infinity]);
     }
 
     this.log.warn('Room has no miners to collect from.', { '<creep>': creep });
@@ -108,10 +108,10 @@ export class Worker extends CreepRoleBase implements CreepRole {
   }
 
   // Dispatch a collection task if possible.
-  CollectFromRoomStorage(creep: CreepExtra): Collect | null {
+  CollectFromRoomStorage(creep: CreepExtra): Transfer | null {
     const stored = creep.AssignedRoom.storage?.store.getUsedCapacity(RESOURCE_ENERGY) ?? 0;
     if (creep.AssignedRoom.storage !== undefined && stored > creep.AssignedRoom.StorageWartimeEnergyBuffer)
-      return new Collect(creep.AssignedRoom.storage);
+      return new Transfer(creep.AssignedRoom.storage, [RESOURCE_ENERGY, -Infinity]);
     return null;
   }
 
@@ -166,7 +166,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
     searchForType: ResourceConstant[],
     sameRoom = false,
     minAmountToCollect = 0,
-  ): Collect | null {
+  ): Transfer | null {
     // Find according to priorities
     for (const resourceType of searchForType) {
       const candidates = creep.AssignedRoom.CollectionPlan.sourcesByType.get(resourceType);
@@ -187,7 +187,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
           );
 
         // Return collection task
-        return new Collect(task, resourceType);
+        return new Transfer(task, [resourceType, -Infinity]);
       }
     }
 
@@ -214,19 +214,19 @@ export class Worker extends CreepRoleBase implements CreepRole {
     const towersNeedingEnergy = towers.filter(st => st.store.getFreeCapacity(RESOURCE_ENERGY) >= 100);
     if (towersNeedingEnergy.length > 0) {
       const towerNeedingEnergy = this.FindSupplyByPath(creep, towersNeedingEnergy, 'towers');
-      if (towerNeedingEnergy) return new Supply(towerNeedingEnergy);
+      if (towerNeedingEnergy) return new Transfer(towerNeedingEnergy);
     }
 
     // Or refill the terminal with a base amount of energy
     const terminal = creep.AssignedRoom.terminal;
     if (terminal && terminal.isActive() && terminal.store.getUsedCapacity(RESOURCE_ENERGY) <= 20_000)
-      return new Supply(terminal);
+      return new Transfer(terminal);
 
     // Or refill lab energy
     const labs: StructureLab[] = creep.AssignedRoom.find(FIND_MY_STRUCTURES, {
       filter: s => Filters.StructureLab(s) && s.isActive() && s.store.getFreeCapacity(RESOURCE_ENERGY) > 0,
     });
-    for (const lab of labs) return new Supply(lab);
+    for (const lab of labs) return new Transfer(lab);
 
     // Or do construction
     const construction = this.FindConstructionByPriorityAndPath(
@@ -245,8 +245,8 @@ export class Worker extends CreepRoleBase implements CreepRole {
     return null;
   }
 
-  SupplyStorage(creep: CreepExtra, storage: StructureStorage): Supply | null {
-    for (const resourceType in creep.store) return new Supply(storage, resourceType as ResourceConstant);
+  SupplyStorage(creep: CreepExtra, storage: StructureStorage): Transfer | null {
+    for (const resourceType in creep.store) return new Transfer(storage, [resourceType as ResourceConstant, Infinity]);
     return null;
   }
 
@@ -286,7 +286,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
         if (upgrade) return upgrade;
       } else {
         // Or storage if we are RCL 6 or above
-        if (storage !== undefined && storage.store.getFreeCapacity() > 0) return new Supply(storage);
+        if (storage !== undefined && storage.store.getFreeCapacity() > 0) return new Transfer(storage);
       }
     }
 
@@ -370,14 +370,14 @@ export class Worker extends CreepRoleBase implements CreepRole {
   FindSpawnSupply(
     creep: CreepExtra,
     maxSupplyForSpawns = 0, // 0 = unlimited
-    supplyTasks: Supply[] = [...creep.AssignedRoom.AssignedTasks(Supply)],
+    supplyTasks: Transfer[] = [...creep.AssignedRoom.AssignedTasks(Transfer)],
     spawnsOrExtensions = creep.AssignedRoom.SpawnsOrExtensions,
-  ): Supply | null {
+  ): Transfer | null {
     const spawnExtensionIds = new Set<string>(spawnsOrExtensions.map(structure => structure.id));
     const spawnSuppliers = supplyTasks.filter(task => spawnExtensionIds.has(task.targetId)).length;
     if (maxSupplyForSpawns === 0 || spawnSuppliers < maxSupplyForSpawns) {
       const spawn = this.FindSupplyByPath(creep, spawnsOrExtensions, 'spawns/extensions', supplyTasks);
-      if (spawn) return new Supply(spawn);
+      if (spawn) return new Transfer(spawn);
     }
     return null;
   }
@@ -386,7 +386,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
   MaxUpgradePerRoom = 2;
   public WorkerSpendingTask(
     creep: CreepExtra,
-    supplyTasks = [...creep.AssignedRoom.AssignedTasks(Supply)],
+    supplyTasks = [...creep.AssignedRoom.AssignedTasks(Transfer)],
     maintainers = creep.AssignedRoom.GetAssignedCreepsOfRole('Maintainer').length,
   ): CreepTask | null {
     if (maintainers === 0) {
@@ -483,7 +483,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
     supplier: CreepExtra,
     candidates: AnyStoreStructure[],
     candidateName?: string,
-    inProgressSupplyTasks: Supply[] = [...supplier.AssignedRoom.AssignedTasks(Supply)],
+    inProgressSupplyTasks: Transfer[] = [...supplier.AssignedRoom.AssignedTasks(Transfer)],
   ): AnyStoreStructure | null {
     const suppliersByTarget = new Map<string, number>();
     for (const task of inProgressSupplyTasks)

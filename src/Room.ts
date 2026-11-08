@@ -1,5 +1,5 @@
 import { Dictionary, flatten, range, unique } from 'lodash';
-import { Collect, Mine, UpgradeController } from 'tasks';
+import { Mine, Transfer, UpgradeController } from 'tasks';
 import {
   CollectionPlan,
   ContainerAndAmount,
@@ -590,7 +590,8 @@ export class RoomExtra extends Room {
       }
 
     const reservedCapacityBySource = new Map<string, number>();
-    for (const [collector, task] of this.AssignedTasksWithCreep(Collect)) {
+    for (const [collector, task] of this.AssignedTasksWithCreep(Transfer)) {
+      if (!task.hasTake) continue;
       const sourceId = task.targetId;
       reservedCapacityBySource.set(
         sourceId,

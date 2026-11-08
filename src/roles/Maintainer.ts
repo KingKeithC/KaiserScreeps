@@ -1,6 +1,6 @@
 import { CreepExtra } from 'Creep';
 import { RoomExtra } from 'Room';
-import { Collect, Supply } from 'tasks';
+import { Transfer } from 'tasks';
 import { CreepTask } from 'tasks/types';
 import { Filters } from 'utils/Collections';
 import { FirstBodyByEnergyCapacity } from 'utils/RoomUtils';
@@ -72,13 +72,14 @@ export class Maintainer extends Worker implements CreepRole {
       if (mainTask) return mainTask;
 
       // Excess goes into storage
-      if (creep.AssignedRoom.storage !== undefined) return new Supply(creep.AssignedRoom.storage);
+      if (creep.AssignedRoom.storage !== undefined) return new Transfer(creep.AssignedRoom.storage);
     }
 
     if (creep.store.getUsedCapacity() === 0) {
       // Prioritize collecting from a link
       const link = creep.AssignedRoom.LinkReceivers.pop();
-      if (link && link.store.getUsedCapacity(RESOURCE_ENERGY) > 0) return new Collect(link);
+      if (link && link.store.getUsedCapacity(RESOURCE_ENERGY) > 0)
+        return new Transfer(link, [RESOURCE_ENERGY, -Infinity]);
 
       // Collect energy from sources in the same room
       const mainSource = this.CollectResources(creep, [RESOURCE_ENERGY], true);
@@ -89,7 +90,7 @@ export class Maintainer extends Worker implements CreepRole {
         creep.AssignedRoom.storage !== undefined &&
         creep.AssignedRoom.storage.store.getUsedCapacity(RESOURCE_ENERGY) > 0
       )
-        return new Collect(creep.AssignedRoom.storage);
+        return new Transfer(creep.AssignedRoom.storage, [RESOURCE_ENERGY, -Infinity]);
     }
 
     return null;

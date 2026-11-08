@@ -15,11 +15,7 @@ export class Mine extends TargetTask<Source | StructureExtractor> {
   protected static override readonly minRangeToAct = 1;
 
   public constructor(source: Id<Source> | Id<StructureExtractor>, position?: RoomPositionString) {
-    if (position === undefined) {
-      const target = Game.getObjectById(source);
-      if (!target) throw new Error('Mine requires a preferred position when its source is unresolved.');
-      super(target, 1);
-    } else super(source, 0, position);
+    super(source, 1, position);
   }
 
   public get miningPosition(): MiningPosition {
