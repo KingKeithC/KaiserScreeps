@@ -338,7 +338,7 @@ export class CreepExtra extends Creep {
     // Don't act if we are running low on CPU,
     // So long as we've acted at least once
     if (this.tasksAttempted > 0) {
-      if (Game.cpu.bucket < 100 || Game.cpu.getUsed() < Game.cpu.tickLimit / 3) {
+      if (Game.cpu.bucket < 100 || Game.cpu.getUsed() > Game.cpu.tickLimit * (2 / 3)) {
         this.log.warn('Low CPU, skipping further actions.', {
           bucket: Game.cpu.bucket,
           used: Game.cpu.getUsed(),
