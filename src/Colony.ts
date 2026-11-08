@@ -314,15 +314,15 @@ export class Colony {
   }
 
   StakeClaimOnRoom(claimer: CreepExtra, newRoom: string): void {
-    if (newRoom in claimer.AssignedRoom.ClaimedNearby) return;
+    if (claimer.AssignedRoom.ClaimedNearby.includes(newRoom)) return;
 
-    if (newRoom in this.AllClaimedNearby) {
+    if (this.AllClaimedNearby.includes(newRoom)) {
       this.log.info('Room is already claimed elsewhere.', { '<creep>': claimer, targetRoom: newRoom });
       return;
     }
 
     const room = Game.rooms[newRoom];
-    if (!newRoom) throw new Error(`${claimer} Tried claiming room ${newRoom} we cannot see!`);
+    if (!room) throw new Error(`${claimer} Tried claiming room ${newRoom} we cannot see!`);
 
     const username = this.username;
     if (username === undefined || room.controller?.owner?.username !== username) return;

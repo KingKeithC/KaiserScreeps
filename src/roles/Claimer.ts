@@ -46,9 +46,12 @@ export class Claimer extends CreepRoleBase implements CreepRole {
     return unique([...this.colony.AssignedTasks(Claim)].map(p => p.targetId));
   }
 
+  get ClaimFlags(): Flag[] {
+    return Object.values(Game.flags).filter(f => f.name.startsWith('Claim'));
+  }
+
   PotentialClaims(): string[] {
-    const claimFlags = Object.values(Game.flags).filter(f => f.name.startsWith('Claim'));
-    return unique(this.colony.AllClaimedNearby.concat(claimFlags.map(f => f.pos.roomName)));
+    return unique(this.colony.AllClaimedNearby.concat(this.ClaimFlags.map(f => f.pos.roomName)));
   }
 
   UnworkedClaims(room: RoomExtra): string[] {
@@ -106,5 +109,16 @@ export class Claimer extends CreepRoleBase implements CreepRole {
         return new Move(entryPos, 0);
       }
     return null;
+  }
+
+  TickCreep(creep: CreepExtra): void {
+    // If we are in a room claimed by a claim flag, and no others, than
+    if (
+      creep.pos.roomName !== creep.AssignedRoom.name &&
+      this.ClaimFlags.map(f => f.pos.roomName).includes(creep.pos.roomName) &&
+      !creep.AssignedRoom.ClaimedNearby.includes(creep.pos.roomName) &&
+      !creep.AssignedRoom.ClaimedByOtherRoomsInThisColony.includes(creep.pos.roomName)
+    )
+      creep.colony.StakeClaimOnRoom(creep, creep.pos.roomName);
   }
 }
