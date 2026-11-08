@@ -3,7 +3,7 @@ import { RoomExtra } from 'Room';
 import { Move } from 'tasks';
 import { CreepTask } from 'tasks/types';
 import { MakeBody } from 'utils/Collections';
-import { RoomReport, MakeRoomReport } from 'utils/RoomUtils';
+import { RoomReport } from 'utils/RoomUtils';
 import { CreepRoleBase, CreepRole } from './Role';
 
 export interface ScoutingReport extends RoomReport {
