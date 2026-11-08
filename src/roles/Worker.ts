@@ -53,10 +53,10 @@ export class Worker extends CreepRoleBase implements CreepRole {
   }
 
   GrowAmount = 1;
-  GrowQuotaWhenEnergyAbove = 7000;
+  GrowQuotaWhenEnergyAbove = 3000;
 
   ShrinkAmount = 1;
-  ShrinkQuotaWhenEnergyBelow = 3500;
+  ShrinkQuotaWhenEnergyBelow = 1000;
 
   rollingAvgEnergyInSources: { [roomName: Room['name']]: number } = {};
   private energySamplesByRoom: { [roomName: Room['name']]: number } = {};
@@ -79,12 +79,16 @@ export class Worker extends CreepRoleBase implements CreepRole {
 
   GetQuotaChange(room: RoomExtra): number {
     const energyInSources = GetValueByName(this.rollingAvgEnergyInSources, room, () => 0);
+    this.log.info('Rolling Average Energy In Sources', {
+      room: room.name,
+      energyInSources,
+      sampleCount: GetValueByName(this.energySamplesByRoom, room, () => 0),
+    });
     this.rollingAvgEnergyInSources[room.name] = 0;
     this.energySamplesByRoom[room.name] = 0;
-
-    this.log.info('Checking if quota needs to be changed.', { '<room>': room, energyInSources });
     if (energyInSources > this.GrowQuotaWhenEnergyAbove) return this.GrowAmount;
-    if (energyInSources < this.ShrinkQuotaWhenEnergyBelow) return -this.ShrinkAmount;
+    // Shrinking is only done by idle workers
+    // if (energyInSources < this.ShrinkQuotaWhenEnergyBelow) return -this.ShrinkAmount;
     return 0;
   }
 
@@ -215,7 +219,8 @@ export class Worker extends CreepRoleBase implements CreepRole {
       });
       const retire = this.ConsiderRetirement(creep);
       if (retire) {
-        this.ChangeQuota(creep.AssignedRoom, -this.ShrinkAmount, false); // We must be overspawned, so lower the quota
+        // We must be overspawned, so lower the quota
+        this.ChangeQuota(creep.AssignedRoom, -this.ShrinkAmount, true);
         return retire;
       }
     }
