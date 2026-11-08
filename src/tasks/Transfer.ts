@@ -188,7 +188,7 @@ export class Transfer extends TargetTask<ResourceContainer> {
 
   /**
    * Supply the first priority group with a structure that has room for energy and is under its supplier cap.
-   * Prefers the closest in our room, otherwise the emptiest remote one.
+   * Prefers the closest in our room, otherwise the emptiest remote one in a room we claim, then any other remote.
    */
   public static supply(
     creep: CreepExtra,
@@ -199,6 +199,10 @@ export class Transfer extends TargetTask<ResourceContainer> {
     for (const task of inProgress) {
       suppliersByTarget.set(task.targetId, (suppliersByTarget.get(task.targetId) ?? 0) + 1);
     }
+
+    const assignedClaims = creep.AssignedRoom.WorkableAreaRoomNames;
+    const emptiest = (tier: AnyStoreStructure[]): AnyStoreStructure | undefined =>
+      tier.sort(Sorts.StoreEnergyRatioAsc).pop();
 
     for (const [matches, maxSuppliers] of Transfer.SupplyPriorities) {
       const group = candidates.filter(
@@ -212,11 +216,12 @@ export class Transfer extends TargetTask<ResourceContainer> {
         group.filter(s => s.room.name === creep.room.name),
       );
       if (inRoom) return new Transfer(inRoom);
-      const remote = group
-        .filter(s => s.room.name !== creep.room.name)
-        .sort(Sorts.StoreEnergyRatioAsc)
-        .pop();
-      if (remote) return new Transfer(remote);
+
+      const remote = group.filter(s => s.room.name !== creep.room.name);
+      const remoteTarget =
+        emptiest(remote.filter(s => assignedClaims.includes(s.room.name))) ??
+        emptiest(remote.filter(s => !assignedClaims.includes(s.room.name)));
+      if (remoteTarget) return new Transfer(remoteTarget);
     }
     return null;
   }
