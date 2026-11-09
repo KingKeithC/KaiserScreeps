@@ -12,14 +12,17 @@ export class Maintainer extends Worker implements CreepRole {
   override roleName = 'Maintainer';
 
   override GetMinQuota(): number {
-    return 2;
+    return 1;
   }
 
   override GetMaxQuota(): number {
-    return this.GetMinQuota();
+    return 2;
   }
 
-  override GetQuotaChange(): number {
+  override GetQuotaChange(room: RoomExtra): number {
+    const otherGuy = this.GetRoomCreepsInRole(room).length === 1 ? this.GetRoomCreepsInRole(room)[0] : null;
+    // Increase the quota if it looks like the other guy is never idle
+    if (otherGuy?.LifetimeIdle === 0) return 1;
     return 0;
   }
 
@@ -34,7 +37,9 @@ export class Maintainer extends Worker implements CreepRole {
   }
 
   SelectNextTask(creep: CreepExtra): CreepTask | null {
-    return this.DoWithLocalEnergy(creep, c => this.MaintainAssignedRoom(c));
+    const task = this.DoWithLocalEnergy(creep, c => this.MaintainAssignedRoom(c));
+    if (!task) return this.ConsiderRetirement(creep);
+    return task;
   }
 
   TickCreep(creep: CreepExtra): void {

@@ -221,25 +221,25 @@ export class Worker extends CreepRoleBase implements CreepRole {
         idle: creep.LifetimeIdle,
       });
       const retire = this.ConsiderRetirement(creep);
-      if (retire) {
-        // We must be overspawned, so lower the quota
-        if (
-          Game.time - GetValueByName(this.deathLockoutTimes, creep.AssignedRoom, () => 0) >
-          this.DeathLockoutDuration
-        ) {
-          this.ChangeQuota(creep.AssignedRoom, -this.ShrinkAmount, false);
-          this.deathLockoutTimes[creep.AssignedRoom.name] = Game.time;
-        }
-        return retire;
-      }
+      if (retire) return retire;
     }
     return null;
   }
 
-  ConsiderRetirement(creep: CreepExtra): Retire | null {
+  ConsiderRetirement(creep: CreepExtra, quotaChangeOnDeath = true, idleTime = this.RetireWhenIdleFor): Retire | null {
     const spawn = creep.AssignedRoom.SpawnsOrExtensions.filter(Filters.StructureSpawn).pop();
-    if (spawn && this.RetireEnabled && creep.LifetimeIdle > this.RetireWhenIdleFor) return new Retire(spawn);
-    return null;
+    if (!(spawn && this.RetireEnabled && creep.LifetimeIdle > idleTime)) return null;
+
+    // Change the quota if there is no death lockout
+    if (
+      quotaChangeOnDeath &&
+      Game.time - GetValueByName(this.deathLockoutTimes, creep.AssignedRoom, () => 0) > this.DeathLockoutDuration
+    ) {
+      this.ChangeQuota(creep.AssignedRoom, -this.ShrinkAmount, false);
+      this.deathLockoutTimes[creep.AssignedRoom.name] = Game.time;
+    }
+
+    return new Retire(spawn);
   }
 
   MaxSupplyForTowers = 1;
