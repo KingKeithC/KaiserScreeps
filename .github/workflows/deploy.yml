@@ -1,0 +1,25 @@
+name: Deploy
+
+on:
+  push:
+    branches:
+      - main
+      - devel
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      SCREEPS_TOKEN: ${{ secrets.SCREEPS_TOKEN }}
+      SCREEPS_BRANCH: ${{ github.ref_name }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/setup@v3
+        with:
+          version: 12
+          runtime: node@24
+          cache: true
+      - run: pnpm exec rollup -c
