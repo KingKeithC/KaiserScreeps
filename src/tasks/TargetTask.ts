@@ -68,6 +68,7 @@ export abstract class TargetTask<Target extends Targetable> extends TaskBase imp
     const pos = movementPosition ?? (target && range > 0 ? target.pos : DeserializeRoomPosition(this.targetPos));
     if (result === ERR_NOT_IN_RANGE) {
       Logger.debug('Stationary result: not in range.', { target: target?.id, pos, range });
+      result = OK;
     }
     return { target: { pos }, range, result };
   }
