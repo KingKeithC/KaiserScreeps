@@ -1,34 +1,43 @@
-import { CreepExtra } from "Creep";
-import { TargetTask } from "./TargetTask";
-import { TaskAction } from "./TaskAction";
-import { TaskActionResult } from "./types";
+import { CreepExtra } from 'Creep';
+import { CreepTask, RegisterTask, TaskActionResult, TaskBase } from 'tasks/types';
+import { DeserializeRoomPosition, SerializeRoomPosition } from 'utils/Collections';
 
-export class Move extends TargetTask<typeof TaskAction.Move, RoomPosition> {
-  public readonly kind = "move" as const;
+export class Move extends TaskBase implements CreepTask {
+  static readonly action = '👣' as const;
+  public isCompleteFlag = false;
+
+  static {
+    RegisterTask(this);
+  }
+
+  public readonly targetPos: string;
 
   public constructor(
-    public readonly targetPos: RoomPosition,
-    public minDistance: number = 5,
+    targetPos: RoomPosition | { pos: RoomPosition },
+    public readonly minDistance: number = 5,
   ) {
-    super(TaskAction.Move, targetPos, "roomPosition");
+    super();
+    this.targetPos = SerializeRoomPosition('pos' in targetPos ? targetPos.pos : targetPos);
   }
 
-  public toString(): string {
-    return `${this.action} on ${this.GetTargetPosition()} (minDistance: ${this.minDistance})`;
+  public toRoomPosition(): RoomPosition {
+    return DeserializeRoomPosition(this.targetPos);
   }
 
-  private GetTargetPosition(): RoomPosition {
-    return new RoomPosition(this.targetPos.x, this.targetPos.y, this.targetPos.roomName);
+  protected toStringDetails(): string {
+    return `on ${this.toRoomPosition()} (minDistance: ${this.minDistance})`;
   }
 
-  public override act(): TaskActionResult | null {
-    const target = this.GetTargetPosition();
-    return { range: this.minDistance, result: ERR_NOT_IN_RANGE, target: { pos: target } };
+  public act(): TaskActionResult | null {
+    return { range: this.minDistance, result: ERR_NOT_IN_RANGE, target: { pos: this.toRoomPosition() } };
   }
 
-  public override isComplete(creep: CreepExtra): boolean {
-    const target = this.GetTargetPosition();
-    if (creep.room.name !== target.roomName) return false;
-    return creep.pos.inRangeTo(target, this.minDistance);
+  public handleOutcome(creep: CreepExtra, outcome: TaskActionResult | null): TaskActionResult | null {
+    // Not done, so don't update isCompleteFlag
+    if (creep.room.name !== this.toRoomPosition().roomName) return outcome;
+
+    // Update flag based on range to target
+    this.isCompleteFlag = creep.pos.inRangeTo(this.toRoomPosition(), this.minDistance);
+    return outcome;
   }
 }

@@ -1,41 +1,72 @@
-import { Dictionary, flatten, unique } from "lodash";
-import { CreepTask, Mine, Repair, TaskAction, UpdateController } from "tasks";
-import { FormatHostileInfos, GetHostileInfo, GetMiningPositions, HostileInfo, MakeRoomReport, MiningPosition } from "utils/RoomUtils";
-import { Colony } from "Colony";
-import { CreepExtra } from "Creep";
-import { FmtRatios, LerpColour } from "utils/Collections";
-import { Colours } from "Data";
-import { CreepRole } from "roles/Role";
-import { Logger } from "utils/Logger";
-
+import { Dictionary, flatten, range, unique } from 'lodash';
+import { Mine, UpgradeController } from 'tasks';
+import {
+  FormatHostileInfos,
+  GetHostileInfo,
+  GetMinesForRoom,
+  GetMiningPositions,
+  HostileInfo,
+  MiningPosition,
+} from 'utils/RoomUtils';
+import { Colony } from 'Colony';
+import { CreepExtra } from 'Creep';
+import {
+  AssignedTasksWithEntity,
+  DeserializeRoomPosition,
+  Filters,
+  FmtRatios,
+  LerpColour,
+  SerializeRoomPosition,
+  Sorts,
+  TasksOfEntities,
+} from 'utils/Collections';
+import { Colours } from 'Data';
+import { CreepRole } from 'roles/Role';
+import { Logger } from 'utils/Logger';
+import { BodyCost } from 'utils/CreepUtils';
+import { CreepTask, TaskClass } from 'tasks/types';
+import {
+  CreatePendingRepairs,
+  FindHighestPriorityRepairGroup,
+  PendingRepairs as PendingRepairCollection,
+} from 'utils/RepairUtils';
 
 declare global {
   interface RoomMemory {
-    lastSpawnTick: { [roleName: string]: number; };
-    quotas?: { [roleName: string]: number; };
-    enableVisuals?: boolean,
-    enableRepairOverlay?: boolean,
-    attackHostiles: boolean,
-    disableWarriors: boolean,
-    disableTowers: boolean,
-    disableTowerAttacks: boolean,
-    towerAttackRange: number,
+    lastSpawnTick?: { [roleName: string]: number };
+    roleLimits?: { [roleName: string]: number };
+    enableVisuals?: boolean;
+    enableRepairOverlay?: boolean;
+    foreverRepair?: boolean;
+    attackHostiles?: boolean;
+    disableWarriors?: boolean;
+    disableTowers?: boolean;
+    disableTowerAttacks?: boolean;
+    towerAttackRange?: number;
     towerAttackRangeTiles?: number;
+    eventCounts?: Dictionary<number>;
+    eventAmounts?: Dictionary<number>;
     towerCriticalSupplyRatio?: number;
     hostileNotificationThreshold?: number;
-    claimedNearby?: string[],
-    mines: MiningPosition[],
-    storageWartimeEnergyBuffer: number,
-    linkGroups?: Dictionary<Id<StructureLink>[]>,
+    claimedNearby?: string[];
+    mines?: MiningPosition[];
+    storageWartimeEnergyBuffer?: number;
+    linkGroups?: Dictionary<Id<StructureLink>[]>;
+    enableCostMatrixOverlay?: boolean;
+    pathfindingCostMatrixDate?: number;
+    pathfindingCostMatrix?: number[];
+    storeOverUpgrade?: boolean;
+    allowStorageDraw?: boolean;
+    lastViewed?: number;
   }
 }
 
 export class RoomExtra extends Room {
   readonly colony: Colony;
-  readonly log: Logger<RoomExtra> = new Logger(this, { formatArgs: { "<room>": this } });
+  readonly log: Logger<RoomExtra> = new Logger(this, { formatArgs: { '<room>': this } });
   readonly AssignedCreeps: CreepExtra[];
-  readonly AssignedCreepsByRoleName: Map<string, CreepExtra[]>;
-  readonly AssignedCreepsByRoleGroup: Map<string, CreepExtra[]>;
+
+  private eventsAccumulatedThisTick = false;
 
   parent?: RoomExtra;
 
@@ -51,150 +82,448 @@ export class RoomExtra extends Room {
     // This class init
     this.parent = parent;
     this.colony = colony;
-    this.AssignedCreeps = colony.CreepsByAssignedRoom.get(this.name) ?? [];
-
-    this.AssignedCreepsByRoleName = new Map();
-    this.AssignedCreepsByRoleGroup = new Map();
-    for (const c of this.AssignedCreeps) {
-      if (!c.role) continue;
-      this.AssignedCreepsByRoleName.set(c.role.name, [...this.AssignedCreepsByRoleName.get(c.role.name) ?? [], c]);
-      this.AssignedCreepsByRoleGroup.set(c.role.groupName, [...this.AssignedCreepsByRoleGroup.get(c.role.groupName) ?? [], c]);
-    }
+    this.AssignedCreeps = colony.MyCreeps.filter(Filters.CreepMemoryRoomName(room.name));
   }
 
-  GetAssignedTasks(taskAction?: string): CreepTask[] {
-    const ret = [];
-
-    for (const c of this.AssignedCreeps)
-      if (c.currentTask)
-        ret.push(c.currentTask);
-
-    if (!taskAction) return ret;
-    return ret.filter(t => t.action === taskAction);
+  private cachedAssignedCreepsOfRole: { [roleName: CreepRole['roleName']]: CreepExtra[] } = {};
+  GetAssignedCreepsOfRole(roleName: string): CreepExtra[] {
+    return (this.cachedAssignedCreepsOfRole[roleName] ??= this.AssignedCreeps.filter(Filters.CreepRoleName(roleName)));
   }
 
-  get EnableVisuals(): boolean { return this.memory.enableVisuals ?? true; }
-  set EnableVisuals(value: boolean) { this.memory.enableVisuals = value; }
-  get EnableRepairOverlay(): boolean { return this.memory.enableRepairOverlay ?? false; }
-  set EnableRepairOverlay(value: boolean) { this.memory.enableRepairOverlay = value; }
-  get AttackHostiles(): boolean { return this.memory.attackHostiles ?? true; }
-  set AttackHostiles(value: boolean) { this.memory.attackHostiles = value; }
-  get DisableWarriors(): boolean { return this.memory.disableWarriors ?? false; }
-  set DisableWarriors(value: boolean) { this.memory.disableWarriors = value; }
-  get DisableTowers(): boolean { return this.memory.disableTowers ?? false; }
-  set DisableTowers(value: boolean) { this.memory.disableTowers = value; }
-  get DisableTowerAttacks(): boolean { return this.memory.disableTowerAttacks ?? false; }
-  set DisableTowerAttacks(value: boolean) { this.memory.disableTowerAttacks = value; }
-  get TowerAttackRange(): number { return this.memory.towerAttackRange ?? 20; }
-  set TowerAttackRange(value: number) { this.memory.towerAttackRange = value; }
-  get TowerCriticalSupplyRatio(): number { return this.memory.towerCriticalSupplyRatio ?? 0.75; }
-  set TowerCriticalSupplyRatio(value: number) { this.memory.towerCriticalSupplyRatio = value; }
-  get HostileNotificationThreshold(): number { return this.memory.hostileNotificationThreshold ?? 2; }
-  set HostileNotificationThreshold(value: number) { this.memory.hostileNotificationThreshold = value; }
-  get ClaimedNearbyRooms(): string[] { return this.memory.claimedNearby ?? []; }
-  set ClaimedNearbyRooms(value: string[]) { this.memory.claimedNearby = unique([...this.memory.claimedNearby ?? [], ...value]); }
-  get StorageWartimeEnergyBuffer(): number { return this.memory.storageWartimeEnergyBuffer ?? 5000; }
-  get LinkGroups(): Dictionary<Id<StructureLink>[]> { return this.memory.linkGroups ?? {}; }
-  set LinkGroups(value: Dictionary<Id<StructureLink>[]>) { this.memory.linkGroups = value; }
+  private cachedAssignedCreepsOfRoleGroup: { [roleGroupName: CreepRole['groupName']]: CreepExtra[] } = {};
+  GetAssignedCreepsOfRoleGroup(roleGroupName: string): CreepExtra[] {
+    return (this.cachedAssignedCreepsOfRoleGroup[roleGroupName] ??= this.AssignedCreeps.filter(
+      Filters.CreepRoleGroupName(roleGroupName),
+    ));
+  }
 
-  set Mines(value: MiningPosition[]) { this.memory.mines = value; }
+  *AssignedTasks<Task extends CreepTask = CreepTask>(taskClass?: TaskClass<Task>): IterableIterator<Task> {
+    yield* TasksOfEntities<CreepExtra, CreepTask, Task>(this.AssignedCreeps, taskClass);
+  }
+
+  *AssignedTasksWithCreep<Task extends CreepTask = CreepTask>(
+    taskClass?: TaskClass<Task>,
+  ): IterableIterator<[CreepExtra, Task]> {
+    yield* AssignedTasksWithEntity<CreepExtra, CreepTask, Task>(this.AssignedCreeps, taskClass);
+  }
+
+  get StoreOverUpgrade() {
+    return (this.memory.storeOverUpgrade ??= true);
+  }
+  get EnableRepairOverlay(): boolean {
+    return (this.memory.enableRepairOverlay ??= false);
+  }
+  set EnableRepairOverlay(value: boolean) {
+    this.memory.enableRepairOverlay = value;
+  }
+  get AttackHostiles(): boolean {
+    return (this.memory.attackHostiles ??= true);
+  }
+  set AttackHostiles(value: boolean) {
+    this.memory.attackHostiles = value;
+  }
+  get DisableWarriors(): boolean {
+    return (this.memory.disableWarriors ??= false);
+  }
+  set DisableWarriors(value: boolean) {
+    this.memory.disableWarriors = value;
+  }
+  get DisableTowers(): boolean {
+    return (this.memory.disableTowers ??= false);
+  }
+  set DisableTowers(value: boolean) {
+    this.memory.disableTowers = value;
+  }
+  get DisableTowerAttacks(): boolean {
+    return (this.memory.disableTowerAttacks ??= false);
+  }
+  set DisableTowerAttacks(value: boolean) {
+    this.memory.disableTowerAttacks = value;
+  }
+  get TowerAttackRange(): number {
+    return (this.memory.towerAttackRange ??= 20);
+  }
+  set TowerAttackRange(value: number) {
+    this.memory.towerAttackRange = value;
+  }
+  get TowerCriticalSupplyRatio(): number {
+    return (this.memory.towerCriticalSupplyRatio ??= 0.75);
+  }
+  set TowerCriticalSupplyRatio(value: number) {
+    this.memory.towerCriticalSupplyRatio = value;
+  }
+  get HostileNotificationThreshold(): number {
+    return (this.memory.hostileNotificationThreshold ??= 2);
+  }
+  set HostileNotificationThreshold(value: number) {
+    this.memory.hostileNotificationThreshold = value;
+  }
+  get StorageWartimeEnergyBuffer(): number {
+    return (this.memory.storageWartimeEnergyBuffer ??= 5000);
+  }
+  get LinkGroups(): { [key: string]: Id<StructureLink>[] } {
+    return (this.memory.linkGroups ??= {});
+  }
+  set LinkGroups(value: { [key: string]: Id<StructureLink>[] }) {
+    this.memory.linkGroups = value;
+  }
+  get EnableCostMatrixOverlay(): boolean {
+    return this.memory.enableCostMatrixOverlay ?? false;
+  }
+  set EnableCostMatrixOverlay(value: boolean) {
+    this.memory.enableCostMatrixOverlay = value;
+  }
+  get ForeverRepairs(): boolean {
+    return (this.memory.foreverRepair ??= false);
+  }
+  set ForeverRepairs(value: boolean) {
+    this.memory.foreverRepair = value;
+  }
+  set Mines(value: MiningPosition[]) {
+    this.memory.mines = value;
+  }
   get Mines(): MiningPosition[] {
-    if (this.memory.mines === undefined || this.memory.mines.length === 0)
-      this.memory.mines = GetMiningPositions(this); // Update memoized
-    return this.memory.mines; // Return memoized
+    return (this.memory.mines ??= GetMiningPositions(this));
+  }
+  set ClaimedNearby(value: string[]) {
+    this.memory.claimedNearby = unique(value);
+  }
+  get ClaimedNearby(): string[] {
+    return (this.memory.claimedNearby ??= []);
+  }
+  private set EventCounts(value: Dictionary<number>) {
+    this.memory.eventCounts = value;
+  }
+  get EventCounts(): Dictionary<number> {
+    return (this.memory.eventCounts ??= {});
+  }
+  private set EventAmounts(value: Dictionary<number>) {
+    this.memory.eventAmounts = value;
+  }
+  get EventAmounts(): Dictionary<number> {
+    return (this.memory.eventAmounts ??= {});
   }
 
-  private cachedClaimedMines: Dictionary<MiningPosition[]> = {};
-  get ClaimedMines(): Dictionary<MiningPosition[]> {
-    if (Object.keys(this.cachedClaimedMines).length > 0) return this.cachedClaimedMines;
+  private cachedWorkableClaimedRooms: Room[] = [];
+  get WorkableClaimedRooms(): Room[] {
+    if (this.cachedWorkableClaimedRooms.length > 0) return this.cachedWorkableClaimedRooms;
+    Memory.scoutingReports ??= {};
+    const username = this.colony.username;
 
-    // Start with the mining positions for this room
-    this.cachedClaimedMines[this.name] = this.Mines;
+    for (const name of this.ClaimedNearby) {
+      const scoutingReport = Memory.scoutingReports[name];
 
-    // Add the mining positions for the rooms this one claims
-    for (const c of this.ClaimedNearbyRooms) {
-
-      // If the room has no scouting report, create one
-      Memory.scoutingReports ??= {};
-      if (!(c in Memory.scoutingReports)) {
-        const claimedRoom = Game.rooms[c];
-        if (!claimedRoom) {
-          this.log.warn(`Cannot get Remote Mining Positions for ${this.name} because claimed room ${c} has no scouting reports and is not visible`);
+      if (name in Game.rooms) {
+        const room = Game.rooms[name];
+        if (room.controller === undefined || room.controller.owner === undefined) {
+          // Neutral Room - safe to work
+          this.cachedWorkableClaimedRooms.push(room);
+          continue;
+        } else if (username !== undefined && room.controller.owner.username === username) {
+          //  My room
+          if (room.find(FIND_MY_SPAWNS).length === 0) {
+            // Not Self-Sufficient - keep working
+            this.cachedWorkableClaimedRooms.push(room);
+          } else {
+            // Self-Sufficient - disown
+            this.log.info('Claimed room is self-sufficient; removing claim.', { claimedRoomName: name });
+            this.ClaimedNearby = this.ClaimedNearby.filter(cr => cr !== name);
+            this.OnClaimBecomesSelfSufficient(room);
+          }
+          continue;
+        } else if (username !== undefined && room.controller.owner.username !== username) {
+          // Hostile Room
+          this.log.crit('Claimed room is now hostile; removing claim.', {
+            '<rate>': 10,
+            claimedRoomName: name,
+            newOwner: room.controller.owner.username,
+          });
+          this.ClaimedNearby = this.ClaimedNearby.filter(cr => cr !== name);
+          this.OnClaimBecomesHostile(room);
           continue;
         }
-        Memory.scoutingReports[c] = MakeRoomReport(claimedRoom);
-      }
-
-      // Skip rooms without mining positions
-      if (Object.keys(Memory.scoutingReports[c].mines ?? {}).length === 0) {
-        // The existing report is empty, which is odd since we shouldn't be claiming rooms
-        // that have no mines, must be some other error.
-        this.log.warn(`Claimed room ${c} apparently has no mining positions!`);
+      } else if (
+        scoutingReport !== undefined &&
+        username !== undefined &&
+        scoutingReport.owner !== undefined &&
+        scoutingReport.owner !== username
+      ) {
+        // Hostile Room
+        this.log.crit('Claimed room is not invisible, but reports say hostile; removing claim.', {
+          '<rate>': 10,
+          claimedRoomName: name,
+          scoutingReportOwner: scoutingReport.owner,
+        });
+        this.ClaimedNearby = this.ClaimedNearby.filter(cr => cr !== name);
+        this.OnClaimBecomesHostile(name);
         continue;
       }
-
-      // Add the room's mining positions to the Dictionary
-      this.cachedClaimedMines[c] = Memory.scoutingReports[c].mines;
     }
-
-    return this.cachedClaimedMines;
+    return this.cachedWorkableClaimedRooms;
   }
 
-  // Get all MiningPositions for Mines we claim that don't have any assigned miners.
-  // Each mine only really needs one miner, but may have multiple positions to mine
-  // from around it.
-  AvailableMiningPositions(): MiningPosition[] {
+  // This room plus the claimed rooms it works, by name.
+  get WorkableAreaRoomNames(): string[] {
+    return [this.name, ...this.WorkableClaimedRooms.map(room => room.name)];
+  }
+
+  get ClaimedByOtherRoomsInThisColony(): string[] {
+    const ret = new Set(this.colony.AllClaimedNearby);
+    for (const claimed of this.ClaimedNearby) ret.delete(claimed);
+    return Array.from(ret.values());
+  }
+
+  private Notify(message: string): void {
+    if (!('sim' in Game.rooms)) Game.notify(message);
+  }
+
+  OnClaimBecomesHostile(disowned: Room | string) {
+    const hostileInfo = disowned instanceof Room ? '\n' + JSON.stringify(GetHostileInfo(disowned)) : '';
+    const roomName = disowned instanceof Room ? disowned.name : disowned;
+    this.Notify(`OH NO! Room ${roomName} (claimed by ${this.name}) is now hostile as of ${Game.time}!${hostileInfo}`);
+  }
+
+  OnClaimBecomesSelfSufficient(room: Room) {
+    this.Notify(`HOORAY! Room ${room.name} (claimed by ${this.name}) is now self-sufficient as of ${Game.time} :)`);
+  }
+
+  get HostilesByRoom(): [string | Room | RoomExtra, Creep[]][] {
+    return this.MapWithRoomsInClaimedArea(mr => (mr instanceof Room ? mr.find(FIND_HOSTILE_CREEPS) : []), true);
+  }
+
+  // We return the cached matrix from the property if it is defined,
+  // Otherwise we check memory and deserialize it from there,
+  // then cache that as a property for fast access in the same tick.
+  private cachedDeserializedStructuresCostMatrix?: CostMatrix;
+  get StructuresCostMatrix(): CostMatrix {
+    // Return from cached property
+    if (this.cachedDeserializedStructuresCostMatrix !== undefined) return this.cachedDeserializedStructuresCostMatrix;
+
+    // Return from memory, and update cache
+    if (this.memory.pathfindingCostMatrix !== undefined) {
+      this.cachedDeserializedStructuresCostMatrix = PathFinder.CostMatrix.deserialize(
+        this.memory.pathfindingCostMatrix,
+      );
+      return this.cachedDeserializedStructuresCostMatrix;
+    }
+
+    // Not in memory or cache, call update function.
+    this.UpdateStructuresCostMatrix();
+
+    // If still undefined, then there was an error
+    if (this.memory.pathfindingCostMatrix === undefined)
+      throw new Error('Cost Matrix was undefined after calling UpdateCostMatrix().');
+
+    // Return from memory, and update cache
+    this.cachedDeserializedStructuresCostMatrix = PathFinder.CostMatrix.deserialize(this.memory.pathfindingCostMatrix);
+    return this.cachedDeserializedStructuresCostMatrix;
+  }
+
+  private cachedCreepsCostMatrix?: CostMatrix;
+  get CreepsCostMatrix(): CostMatrix {
+    if (this.cachedCreepsCostMatrix) return this.cachedCreepsCostMatrix;
+
+    // Start from the structures matrix
+    this.cachedCreepsCostMatrix = this.StructuresCostMatrix.clone();
+
+    // Blot out the positions of all creeps in the room
+    for (const creep of this.find(FIND_CREEPS))
+      this.cachedCreepsCostMatrix.set(creep.pos.x, creep.pos.y, this.PathfindingParams.Unwalkable);
+
+    // Don't bother saving the matrix since it's only valid for this tick
+
+    return this.cachedCreepsCostMatrix;
+  }
+
+  public ClearStructureDependentData(): void {
+    this.log.warn('Clearing structure-dependent room data.');
+
+    // Clear cost matricies
+    this.memory.pathfindingCostMatrix = undefined;
+    this.memory.pathfindingCostMatrixDate = undefined;
+    this.cachedDeserializedStructuresCostMatrix = undefined;
+    this.cachedCreepsCostMatrix = undefined;
+
+    // Also clear the list of mining positions
+    this.memory.mines = undefined;
+  }
+
+  PathfindingParams = {
+    RoadCost: 1,
+    SourceRadius: 3, // The radius around each source to apply a bias
+    SourceBiasMax: 5, // Start biasing at Sources with this cost (since sources are unwalkable so only applies for Radius >= 1 )
+    SourceBiasMin: 3, // Do not bias lower than this cost around Sources
+    SourceBiasFalloff: 1, // Decrease the cost by this much per additional radius
+    Unwalkable: 0xff,
+  };
+
+  CostMatrixIsStale = false;
+  private UpdateStructuresCostMatrix(): void {
+    this.log.info('Updating cost matrix.');
+    const matrix = new PathFinder.CostMatrix();
+    const terrain = this.getTerrain();
+
+    // Set roads to cheapest cost
+    for (const s of this.find(FIND_STRUCTURES, { filter: Filters.StructureRoad }))
+      matrix.set(s.pos.x, s.pos.y, this.PathfindingParams.RoadCost);
+
+    // Blot out pathing around sources, since they tend to crowd
+    this.find(FIND_SOURCES).forEach(source => {
+      /*
+        "Ring Search" Algorithm
+        -----------------------
+
+        Given the origin point (`x`, `y`), and radius `r` find the positions at `O`
+
+         - <- x -> +
+        -
+        ^
+        |          r=0
+        y    O     H=1
+        |          W=1
+        v          T=1
+        +
+            OOO    r=1
+            OxO    H=3
+            OOO    W=1
+                   T=8
+           OOOOO
+           OxxxO   r=2
+           OxxxO   H=5
+           OxxxO   W=3
+           OOOOO   T=16
+
+          OOOOOOO
+          OxxxxxO
+          OxxxxxO   r=3
+          OxxxxxO   H=7
+          OxxxxxO   W=5
+          OxxxxxO   T=24
+          OOOOOOO
+
+        r=0,H=1,W=1,T=1;pos=[(x, y)]
+        r=1,H=3,W=1,T=8;pos=[HPosL=(x-1, y-1),(x-1, y-0),(x-1, y+1),    HPosR=(x+1, y-1),(x+1, y-0), (x+1, y+1)    WTop=(x-0, y-1),    WBot=(x-0, y+1)]
+        r=2,H=5,W=3,T=16;pos=[HPosL=(x-2, y-1),(x-2, y-0),(x-2, y+1),(x-2, y-2),(x-2, y+2),   HPosR=...   WTop=(x-1, y-2),(x-0, y-2),(x+1, y-2),  WBot=...]
+      */
+
+      // For each 'ring' in the radii
+      for (let r = 0; r < this.PathfindingParams.SourceRadius; r++) {
+        // Determine a bias weight for this ring
+        const weight = Math.max(
+          this.PathfindingParams.SourceBiasMin,
+          this.PathfindingParams.SourceBiasMax - r * this.PathfindingParams.SourceBiasFalloff,
+        );
+
+        // Set weight of Origin Point
+        if (r === 0 && terrain.get(source.pos.x, source.pos.y) !== TERRAIN_MASK_WALL)
+          matrix.set(source.pos.x, source.pos.y, weight);
+        else {
+          // Set weight of ascending left and right columns
+          for (const yOff of range(-r, r + 1)) {
+            if (terrain.get(source.pos.x - r, source.pos.y + yOff) !== TERRAIN_MASK_WALL)
+              matrix.set(source.pos.x - r, source.pos.y + yOff, weight); // Left side
+            if (terrain.get(source.pos.x + r, source.pos.y + yOff) !== TERRAIN_MASK_WALL)
+              matrix.set(source.pos.x + r, source.pos.y + yOff, weight); // Right side
+          }
+
+          // Set weight of ascending top and bottom rows (except the corners)
+          const xOffs = r === 1 ? [0] : range(-(r - 1), r);
+          for (const xOff of xOffs) {
+            if (terrain.get(source.pos.x + xOff, source.pos.y - r) !== TERRAIN_MASK_WALL)
+              matrix.set(source.pos.x + xOff, source.pos.y - r, weight); // Top side
+            if (terrain.get(source.pos.x + xOff, source.pos.y + r) !== TERRAIN_MASK_WALL)
+              matrix.set(source.pos.x + xOff, source.pos.y + r, weight); // Bottom Side
+          }
+        }
+      }
+    });
+
+    // Blot out unwalkable structures
+    for (const s of this.find(FIND_STRUCTURES, { filter: Filters.NonWalkableStructure }))
+      matrix.set(s.pos.x, s.pos.y, this.PathfindingParams.Unwalkable);
+
+    // Blot out unwalkable construction sites
+    for (const s of this.find(FIND_CONSTRUCTION_SITES, { filter: Filters.NonWalkableStructure }))
+      matrix.set(s.pos.x, s.pos.y, this.PathfindingParams.Unwalkable);
+
+    // Cache
+    this.cachedDeserializedStructuresCostMatrix = matrix;
+
+    // Memoize
+    this.memory.pathfindingCostMatrix = matrix.serialize();
+    this.CostMatrixIsStale = false;
+  }
+
+  get WorkableClaimedMiningPositions(): [RoomExtra | Room | string, MiningPosition[]][] {
+    const username = this.colony.username;
+    return this.MapWithRoomsInClaimedArea(
+      cr => (cr instanceof RoomExtra ? cr.Mines : username === undefined ? [] : GetMinesForRoom(cr, username)),
+      true,
+    );
+  }
+
+  get ClaimedSources(): (Id<Source> | Id<StructureExtractor>)[] {
+    return unique(flatten(this.WorkableClaimedMiningPositions.map(pair => pair[1].map(mp => mp.source))));
+  }
+
+  /**
+   * Get positions next to Sources/Extractors that are not the target of any other miners in the colony.
+   */
+  AvailableMiningSources(): MiningPosition[] {
     const ret = [];
-    const assignedMiningPositions = this.colony.GetAllAssignedTasks(TaskAction.Mine).map(p => (p as Mine).target);
-    for (const mines of Object.values(this.ClaimedMines))
-      for (const mine of mines)
-        if (!assignedMiningPositions.some(amp => amp.source === mine.source))
-          ret.push(mine);
+    const assignedSources = [...this.AssignedTasks(Mine)].map(p => p.targetId);
+    for (const [_room, mines] of this.WorkableClaimedMiningPositions)
+      for (const mine of mines) if (!assignedSources.some(amp => amp === mine.source)) ret.push(mine);
     return ret;
   }
 
-  get MaxMiners(): number {
-    // 1 Miner per source we claim
-    return unique(flatten(Object.values(this.ClaimedMines).map(rmp => rmp.map(m => m.source)))).length;
+  /**
+   * Get unoccupied positions next to Sources/Extractors. Positions may already have miners allocated to them.
+   */
+  UnfilledMiningPositions(): MiningPosition[] {
+    const ret = [];
+    for (const [_room, mines] of this.WorkableClaimedMiningPositions)
+      for (const mine of mines) {
+        const pos = DeserializeRoomPosition(mine.pos);
+        if (!(pos.roomName in Game.rooms)) {
+          // If we can't see the room, it must be free.
+          ret.push(mine);
+          continue;
+        }
+
+        // If we can see the room, rule out positions that are filled
+        if (pos.lookFor(LOOK_CREEPS).length === 0) ret.push(mine);
+      }
+    return ret;
   }
 
-  LastSpawnTick(roleName: string): number { return (this.memory.lastSpawnTick ?? {})[roleName] ?? 0; }
+  LastSpawnTick(roleName: string): number {
+    return ((this.memory.lastSpawnTick ??= {})[roleName] ??= 0);
+  }
 
   SetLastSpawnTick(roleName: string, value: number): void {
-    this.memory.lastSpawnTick ??= {};
-    this.memory.lastSpawnTick[roleName] = value;
-  };
-
-  Quota(roleName: string) {
-    // Return the custom quota from room memory if there is one.
-    const overridenQuota = (this.memory.quotas ?? {})[roleName];
-    if (overridenQuota !== undefined) return overridenQuota;
-
-    // Try to get the role instance, and return -1 if we can't
-    const role = this.colony.Roles[roleName];
-    if (!role) {
-      throw new Error(`Role is not in Registry: ${roleName}`);
-    }
-
-    // Return the quota from the role instance
-    return role.GetRoomQuota(this);
+    (this.memory.lastSpawnTick ??= {})[roleName] = value;
   }
 
   get SpawnsOrExtensions(): (StructureExtension | StructureSpawn)[] {
-    return this.find(FIND_MY_STRUCTURES, {
-      filter: s => s.structureType === STRUCTURE_SPAWN || s.structureType === STRUCTURE_EXTENSION
-    });
+    return this.find(FIND_MY_STRUCTURES, { filter: Filters.StructureSpawnOrExtension });
   }
 
   get Hostiles(): Creep[] {
     return this.find(FIND_HOSTILE_CREEPS);
   }
 
+  get HostileStructuresByOwner(): Record<Owner['username'], AnyOwnedStructure[]> {
+    const ret: { [username: string]: AnyOwnedStructure[] } = {};
+    for (const s of this.find(FIND_HOSTILE_STRUCTURES))
+      ret[s.owner?.username ?? '<none>'] = [...ret[s.owner?.username ?? '<none>'], s];
+    return ret;
+  }
+
   get ConstructionSites(): ConstructionSite[] {
-    const constructionGetter = (r: Room) => r.find(FIND_MY_CONSTRUCTION_SITES) ;
+    const constructionGetter = (r: Room) => r.find(FIND_MY_CONSTRUCTION_SITES);
     let ret = [...constructionGetter(this)];
-    for (const claimed of this.GetVisibleUncontestedClaimedRooms())
-      ret = ret.concat(...constructionGetter(claimed));
+    for (const claimed of this.WorkableClaimedRooms) ret = ret.concat(...constructionGetter(claimed));
     return ret;
   }
 
@@ -202,76 +531,76 @@ export class RoomExtra extends Room {
     return GetHostileInfo(this);
   }
 
-  get AvailableSpawns(): StructureSpawn[] {
-    return this.find(FIND_MY_SPAWNS, { filter: s => !s.spawning });
+  get ClaimedContainers(): StructureContainer[] {
+    return this.FlatMapOverRoomsInClaimedArea(r =>
+      typeof r === 'string' ? [] : r.find(FIND_STRUCTURES, { filter: Filters.StructureContainer }),
+    );
   }
 
-  get Towers(): StructureTower[] {
-    return this.find(FIND_MY_STRUCTURES, { filter: s => s.structureType === STRUCTURE_TOWER });
+  get ClaimedRepairs(): AnyStructure[] {
+    return this.FlatMapOverRoomsInClaimedArea(r => (r instanceof Room ? CreatePendingRepairs(r).candidates : []));
   }
 
-  public get Sources(): Source[] {
-    return this.find(FIND_SOURCES);
+  private cachedPendingRepairs?: PendingRepairCollection;
+  get PendingRepairs(): PendingRepairCollection {
+    return (this.cachedPendingRepairs ??= CreatePendingRepairs(this));
   }
 
-  get Containers(): StructureContainer[] {
-    const containerGetter = (r: Room) => r.find(FIND_STRUCTURES, { filter: s => s.structureType === STRUCTURE_CONTAINER }) ;
-    let ret = [...containerGetter(this)];
-    for (const claimed of this.GetVisibleUncontestedClaimedRooms())
-      ret = ret.concat(...containerGetter(claimed));
-    return ret as StructureContainer[];
-  }
-
-  get Repairs(): AnyStructure[] {
-    const repairGetter = (r: Room) => r.find(FIND_STRUCTURES, { filter: s => s.hits < s.hitsMax }) ;
-    let ret = [...repairGetter(this)];
-    for (const claimed of this.GetVisibleUncontestedClaimedRooms())
-      ret = ret.concat(...repairGetter(claimed));
-    return ret;
+  get PendingRepairGroup() {
+    return FindHighestPriorityRepairGroup(this, this.PendingRepairs);
   }
 
   get Ramparts(): StructureRampart[] {
-    return this.find(FIND_MY_STRUCTURES, { filter: s => s.structureType === STRUCTURE_RAMPART });
+    return this.find(FIND_MY_STRUCTURES, { filter: Filters.StructureRampart });
   }
 
   get Roads(): StructureRoad[] {
-    return this.find(FIND_STRUCTURES, { filter: s => s.structureType === STRUCTURE_ROAD });
+    return this.find(FIND_STRUCTURES, { filter: Filters.StructureRoad });
+  }
+
+  private GetLinks(groupName: 'Receivers' | 'Senders'): StructureLink[] {
+    const links: StructureLink[] = [];
+    for (const id of this.LinkGroups[groupName] ?? []) {
+      const link = Game.getObjectById(id);
+      if (!link || typeof link.isActive !== 'function') continue;
+      links.push(link);
+    }
+    return links;
   }
 
   get LinkReceivers(): StructureLink[] {
-    const ret = [];
-    for (const id of this.LinkGroups.Receivers) {
-      const obj = Game.getObjectById(id );
-      if (!obj) continue;
-      else ret.push(obj);
-    }
-    return ret;
+    return this.GetLinks('Receivers');
   }
 
   get LinkSenders(): StructureLink[] {
-    const ret = [];
-    for (const id of this.LinkGroups.Senders) {
-      const obj = Game.getObjectById(id );
-      if (!obj) continue;
-      else ret.push(obj);
+    return this.GetLinks('Senders');
+  }
+
+  MapWithRoomsInClaimedArea<T>(
+    mapper: (r: RoomExtra | Room | string) => T,
+    includeMainRoom = true,
+  ): [RoomExtra | Room | string, T][] {
+    const ret: [RoomExtra | Room | string, T][] = [];
+
+    if (includeMainRoom) ret.push([this, mapper(this)]);
+    for (const name of this.ClaimedNearby) {
+      const otherRoom = this.colony.Rooms.get(name);
+      if (otherRoom && !otherRoom.controller?.my) ret.push([otherRoom, mapper(otherRoom)]);
+      else ret.push([name, mapper(name)]);
     }
+
     return ret;
   }
 
-  GetVisibleUncontestedClaimedRooms(): Room[] {
-    const ret = [];
-    for (const name of this.ClaimedNearbyRooms)
-      // A room is claimed by us if it is both visible, and not owned by someone else
-      if (name in Game.rooms && (Game.rooms[name].controller === undefined || Game.rooms[name].controller?.owner === undefined))
-        ret.push(Game.rooms[name]);
-    return ret;
+  FlatMapOverRoomsInClaimedArea<E>(mapper: (r: RoomExtra | Room | string) => E[], includeMainRoom = true): E[] {
+    return flatten(this.MapWithRoomsInClaimedArea(mapper, includeMainRoom).map(r => r[1]));
   }
 
   CleanupDeadCreeps(): void {
     for (const name in Memory.creeps) {
       // If the creep is dead and was assigned to this room
       if (!(name in Game.creeps) && Memory.creeps[name].room === this.name) {
-        this.log.info(`Generic Cleanup memory for ${name}`);
+        this.log.info('Cleaning up memory for a dead creep.', { creepName: name });
         const oldMem = Memory.creeps[name];
         delete Memory.creeps[name];
 
@@ -284,60 +613,126 @@ export class RoomExtra extends Room {
     }
   }
 
-  // Remove rooms from the claim list if they are not ok to claim
-  ValidateClaimedRooms(): void {
-    const stillValid: string[] = [];
-    for (const roomName of this.ClaimedNearbyRooms) {
-      // Assume invisible rooms are still ok to claim
-      if (!(roomName in Game.rooms)) {
-        stillValid.push(roomName);
-        continue;
-      }
-
-      // If the room is neutral, it's still ok to claim
-      const room = Game.rooms[roomName];
-      if (room && (room.controller === undefined || room.controller.owner === undefined)) {
-        stillValid.push(roomName);
-        continue;
-      }
+  EventToName(e: EventConstant): string {
+    switch (e) {
+      case EVENT_ATTACK:
+        return 'EVENT_ATTACK';
+      case EVENT_OBJECT_DESTROYED:
+        return 'EVENT_OBJECT_DESTROYED';
+      case EVENT_ATTACK_CONTROLLER:
+        return 'EVENT_ATTACK_CONTROLLER';
+      case EVENT_BUILD:
+        return 'EVENT_BUILD';
+      case EVENT_HARVEST:
+        return 'EVENT_HARVEST';
+      case EVENT_HEAL:
+        return 'EVENT_HEAL';
+      case EVENT_REPAIR:
+        return 'EVENT_REPAIR';
+      case EVENT_RESERVE_CONTROLLER:
+        return 'EVENT_RESERVE_CONTROLLER';
+      case EVENT_UPGRADE_CONTROLLER:
+        return 'EVENT_UPGRADE_CONTROLLER';
+      case EVENT_EXIT:
+        return 'EVENT_EXIT';
+      case EVENT_POWER:
+        return 'EVENT_POWER';
+      case EVENT_TRANSFER:
+        return 'EVENT_TRANSFER';
+      default:
+        throw new Error(`Invalid EventConstant: ${e}`);
     }
-
-    this.ClaimedNearbyRooms = stillValid;
   }
 
+  AcumulateEvents(): void {
+    if (this.eventsAccumulatedThisTick) return;
+    this.eventsAccumulatedThisTick = true;
+
+    const existingCount = this.EventCounts;
+    const existingAmount = this.EventAmounts;
+    const events = this.getEventLog();
+    for (const e of events) {
+      const name = this.EventToName(e.event);
+
+      // Increment Count of Event Type
+      existingCount[name] = (existingCount[name] ?? 0) + 1;
+
+      // Fetch amount
+      let amount;
+      if (e.event === EVENT_ATTACK) amount = e.data.damage;
+      if (e.event === EVENT_BUILD) amount = e.data.amount;
+      if (e.event === EVENT_HARVEST) amount = e.data.amount;
+      if (e.event === EVENT_HEAL) amount = e.data.amount;
+      if (e.event === EVENT_REPAIR) amount = e.data.amount;
+      if (e.event === EVENT_RESERVE_CONTROLLER) amount = e.data.amount;
+      if (e.event === EVENT_UPGRADE_CONTROLLER) amount = e.data.amount;
+      if (e.event === EVENT_TRANSFER) amount = e.data.amount;
+
+      // Acumuate Amount of Event Type if it had one
+      if (amount) existingAmount[name] = (existingAmount[name] ?? 0) + amount;
+
+      // Mark cost matrix as stale for events that change room structures
+      if (
+        e.event === EVENT_ATTACK_TYPE_NUKE ||
+        (e.event === EVENT_OBJECT_DESTROYED && e.data.type !== 'creep') ||
+        (e.event === EVENT_BUILD && !e.data.incomplete) ||
+        (e.event === EVENT_ATTACK_TYPE_DISMANTLE && !e.data.incomplete)
+      )
+        this.CostMatrixIsStale = true;
+    }
+    this.EventCounts = existingCount;
+    this.EventAmounts = existingAmount;
+  }
 
   RunCreeps(): void {
+    for (const role of Object.values(this.colony.Roles)) role.RoomTickStart(this);
+
     // Run each creep in the room.
-    for (const c of this.AssignedCreeps) {
-      c.CheckRoomEvents(this);
+    for (const c of this.AssignedCreeps.filter(ac => !ac.spawning)) {
+      c.role.TickCreep(c);
 
-      if (c.currentTask === null || c.currentTask.isComplete(c))
-        c.ChangeTask();
+      if (Game.cpu.bucket < this.colony.MinCpuBucket)
+        this.log.warn('CPU bucket too low, skipping creep tasks.', {
+          bucket: Game.cpu.bucket,
+          MinCpuBucket: this.colony.MinCpuBucket,
+        });
+      else c.DoTasks();
 
-      if (!c.spawning) {
-        c.role.TickCreep(c);
-        c.DoTask();
-      }
+      c.MoveIntoRoomIfOnEdge();
     }
   }
 
   RunTowers(): void {
-    // Run each tower in the room
-    if (!this.DisableTowers)
-      for (const tower of this.Towers)
-        this.TickTower(tower);
+    if (this.DisableTowers) return;
+
+    const towers = this.find(FIND_MY_STRUCTURES, { filter: Filters.StructureTower });
+    if (towers.length === 0) return;
+
+    const hostiles = this.Hostiles;
+    let weakestFriendly: Creep | undefined;
+    let lowestFriendlyHealth = Infinity;
+    for (const creep of this.colony.MyCreeps) {
+      if (creep.hits >= creep.hitsMax) continue;
+      const healthRatio = creep.hits / creep.hitsMax;
+      if (healthRatio <= lowestFriendlyHealth) {
+        weakestFriendly = creep;
+        lowestFriendlyHealth = healthRatio;
+      }
+    }
+
+    for (const tower of towers) this.TickTower(tower, hostiles, weakestFriendly);
   }
 
   RunLinks(): void {
     // Send energy across links
-    for (const sender of this.LinkSenders)
-      for (const receiver of this.LinkReceivers)
-        this.SendLink(sender, receiver);
+    for (const sender of this.LinkSenders) for (const receiver of this.LinkReceivers) this.SendLink(sender, receiver);
   }
 
   DrawVisuals(): void {
-    if (!this.EnableVisuals) return;
+    // If we were not viewing the room in the browser recently, skip
+    if (Game.time - (this.memory.lastViewed ?? 0) > 10) return;
     if (this.EnableRepairOverlay) this.DrawRepairOverlay();
+    if (this.EnableCostMatrixOverlay) this.DrawCostMatrixOverlay();
   }
 
   SendLink(sender: StructureLink, receiver: StructureLink): void {
@@ -345,72 +740,122 @@ export class RoomExtra extends Room {
     if (sender.store.getUsedCapacity(RESOURCE_ENERGY) === 0 || sender.cooldown > 0) return; // Can't / Nothing to send
     if (receiver.store.getFreeCapacity(RESOURCE_ENERGY) === 0) return; // No ability to receive
     const ret = sender.transferEnergy(receiver);
-    if (ret !== OK) this.log.warn(`Link Transfer from ${sender} (Used: ${sender.store.getUsedCapacity()}) -> ${receiver} (Free: ${receiver.store.getFreeCapacity()}) failed: ${ret}`);
+    if (ret !== OK)
+      this.log.warn('Link energy transfer failed.', {
+        sender: sender.id,
+        senderUsedCapacity: sender.store.getUsedCapacity(),
+        receiver: receiver.id,
+        receiverFreeCapacity: receiver.store.getFreeCapacity(),
+        result: ret,
+      });
   }
 
   ReportHostiles(): void {
     if (this.HostileInfo.length >= this.HostileNotificationThreshold && Game.time % 10 === 0)
-      this.log.report(`!!! Hostiles Spotted in ${this.name}:\n\t${FormatHostileInfos(this.HostileInfo)}`);
+      this.log.report('Hostiles spotted.', { hostiles: this.HostileInfo });
   }
 
+  GetSpawnableRoles(): SpawnableRoleDetails[] {
+    const rolesSpawnable: SpawnableRoleDetails[] = [];
+    for (const role of Object.values(this.colony.Roles)) {
+      const roomQuota = role.GetQuota(this);
+      const roomCount = role.GetRoomCreepsInRole(this).length;
+      const timeSinceLastSpawn = Game.time - this.LastSpawnTick(role.roleName);
+
+      if (role.IsSpawnNeeded(this)) {
+        const name = `${role.GetNewCreepName(this)}, ${role.roleName}`;
+        const body = role.GetNewCreepBody(this);
+        const available = this.energyAvailable;
+        const needed = BodyCost(body);
+        if (available < needed) continue;
+        rolesSpawnable.push({ role, name, body, available, needed, roomQuota, roomCount, timeSinceLastSpawn });
+      }
+    }
+    return rolesSpawnable;
+  }
+
+  private spawnBlocked = false;
   CheckSpawns(): void {
-    const maxSpawns = this.AvailableSpawns.length;
+    if (this.spawnBlocked) return;
+
+    const maxSpawns = this.find(FIND_MY_SPAWNS, { filter: s => !s.spawning }).length;
     if (maxSpawns === 0) {
-      this.log.debug(`Room has no available spawn points.`);
+      this.log.info('All spawns are in use.', { '<rate>': 20 });
+      this.spawnBlocked = true;
+      return;
+    }
+
+    const spawnable = this.GetSpawnableRoles().sort(Sorts.RolePriorityAsc);
+    if (spawnable.length === 0) {
+      this.spawnBlocked = true;
       return;
     }
 
     let completedSpawns = 0;
+    this.log.info('Attempting Spawns.', {
+      spawnable: spawnable.map(s => [s.role.roleName, s.name]),
+      completedSpawns,
+      maxSpawns,
+    });
 
-    for (const r of Object.values(this.colony.Roles)) {
-      this.log.debug(`Checking Spawns for ${r.name}`);
-      if (!this.IsRoleSpawnable(r)) continue;
-      if (!r.IsSpawnNeeded(this)) continue;
+    for (const { role, name, body, available, needed, roomCount, roomQuota, timeSinceLastSpawn } of spawnable) {
+      const success = this.TrySpawnRole(role, name, body);
+      if (!success) {
+        this.log.crit('Spawn failed despite having enough energy.', {
+          '<role>': role,
+          priority: role.priority,
+          roomCount,
+          roomQuota,
+          timeSinceLastSpawn,
+          available,
+          needed,
+        });
+        continue;
+      }
 
-      const name = `${r.GetNewCreepName(this)}, ${r.name}`;
-      const spawnSuccessful = r.AttemptSpawn(this, r.GetNewCreepBody(this), r.GetInitialTask(this), name);
-      if (!spawnSuccessful) continue;
-
-      this.SetLastSpawnTick(r.name, Game.time);
-      r.OnSpawnScheduled(this, name);
+      this.log.info('Spawn scheduled successfully.', {
+        '<role>': role,
+        priority: role.priority,
+        roomCount,
+        roomQuota,
+        timeSinceLastSpawn,
+        available,
+        needed,
+      });
+      this.SetLastSpawnTick(role.roleName, Game.time);
+      role.OnSpawnScheduled(this, name);
 
       // If we used up all the spawn points, then return early.
-      if (++completedSpawns >= maxSpawns) return;
+      if (++completedSpawns >= maxSpawns) {
+        this.spawnBlocked = true;
+        return;
+      }
     }
   }
 
-  IsRoleSpawnable(role: CreepRole): boolean {
-    const globalQuota = role.GetGlobalQuota();
-    if (globalQuota >= 0) {
-      const globalCount = role.GetGlobalCreepsInRole().length;
-      if (globalQuota === 0 || (globalQuota !== -1 && globalCount >= globalQuota)) {
-        this.log.debug(`Global quota satisfied: ${globalCount}/${globalQuota}`, { "<role>": role });
-        return false;
-      } else {
-        this.log.debug(`Global quota allows spawn: ${globalCount}/${globalQuota}`, { "<role>": role });
-      }
-    } else {
-      this.log.debug(`Global quota not configured.`, { "<role>": role });
-    }
+  TrySpawnRole(role: CreepRole, name: string, body: BodyPartConstant[]): boolean {
+    for (const sp of this.find(FIND_MY_SPAWNS, { filter: s => !s.spawning })) {
+      // Get directions to surrounding roads
+      const nearbyRoads = sp.pos.findInRange(this.Roads, 1).map(nr => sp.pos.getDirectionTo(nr.pos.x, nr.pos.y));
 
-    const roomQuota = this.Quota(role.name);
-    if (roomQuota >= 0) {
-      const roomCount = role.GetRoomCreepsInRole(this).length;
-      if (roomQuota === 0 || (roomQuota !== -1 && roomCount >= roomQuota)) {
-        this.log.debug(`Room quota satisfied: ${roomCount}/${roomQuota}`, { "<role>": role });
-        return false;
-      } else {
-        this.log.debug(`Room quota allows spawn: ${roomCount}/${roomQuota}`, { "<role>": role });
-      }
-    } else {
-      this.log.debug(`Room quota not configured.`, { "<role>": role });
+      // Try to do the spawn
+      const result = sp.spawnCreep(body, name, {
+        directions: nearbyRoads.length > 0 ? nearbyRoads : undefined,
+        memory: {
+          room: this.name,
+          role: role.roleName,
+          stuckTicks: 0,
+          lastPos: SerializeRoomPosition(sp.pos),
+          spawning: true,
+        },
+      });
+      return result === OK;
     }
-
-    return true;
+    return false;
   }
 
   RoomStateReport(): string {
-    let msg = "";
+    let msg = '';
     let totalRoles = 0;
     let spawned = 0;
 
@@ -419,22 +864,19 @@ export class RoomExtra extends Room {
       totalRoles++;
       const role = this.colony.Roles[name];
       if (!role) {
-        this.log.crit(`No instance for ${name}`);
+        this.log.crit('Role registry has no instance.', { roleName: name });
         continue;
       }
 
       const spawnNeeded = role.IsSpawnNeeded(this);
-      const spawnAble = this.IsRoleSpawnable(role);
-      const spawnableStr = spawnAble ? '+' : '';
-      const spawnNeededStr = spawnNeeded ? '*' : '';
-      const roomQuota = this.Quota(name);
-      const globalQuota = role.GetGlobalQuota();
+      const roomQuota = role.GetQuota(this);
       const roomCount = role.GetRoomCreepsInRole(this).length;
-      const globalCount = role.GetGlobalCreepsInRole().length;
-      const globalCountStr = globalQuota > -1 && (globalCount !== roomCount || roomQuota === -1) ? ` | ${globalCount}/${globalQuota}` : "";
+      const spawnable = roomCount >= roomQuota;
+      const spawnableStr = spawnable ? '+' : '';
+      const spawnNeededStr = spawnNeeded ? '*' : '';
 
-      if (spawnNeeded || spawnAble || roomCount > 0) {
-        msg += ` [${name}${spawnNeededStr}${spawnableStr} ${roomCount}/${roomQuota}${globalCountStr}]`;
+      if (spawnNeeded || spawnable || roomCount > 0) {
+        msg += ` [${name}${spawnNeededStr}${spawnableStr} ${roomCount}/${roomQuota}]`;
         spawned++;
       }
     }
@@ -442,17 +884,23 @@ export class RoomExtra extends Room {
     const ownedStatus = this.parent !== undefined ? `Claimed by ${this.parent.name}` : `HQ`;
 
     // Prepend a leader to the populations string.
-    msg = `${this.name} (${ownedStatus}) ::: ${spawned}/${totalRoles} Roles, ${this.AssignedCreeps.length} Assigned Creeps` + msg;
+    msg =
+      `${this.name} (${ownedStatus}) ::: ${spawned}/${totalRoles} Roles, ${this.AssignedCreeps.length} Assigned Creeps` +
+      msg;
 
     if (this.storage)
-      msg += ` ENERGY IN STORAGE: ${FmtRatios(this.storage.store.getUsedCapacity(RESOURCE_ENERGY), this.storage.store.getCapacity(RESOURCE_ENERGY), true, [], 3, "K", 1000)}`;
+      msg += ` ENERGY IN STORAGE: ${FmtRatios(this.storage.store.getUsedCapacity(RESOURCE_ENERGY), this.storage.store.getCapacity(RESOURCE_ENERGY), true, [], 3, 'K', 1000)}`;
 
     if (!this.controller) throw new Error(`RoomExtra is an owned room, therefore should never not have a controller.`);
 
-    const nextLevelStr = this.controller.level === 8 ? "" : ` -> ${this.controller.level + 1}`;
-    const downgradeMaintenanceThreshold = CONTROLLER_DOWNGRADE[this.controller.level] * UpdateController.DowngradeMaintenanceRatio;
-    const downgradeStr = this.controller.ticksToDowngrade < downgradeMaintenanceThreshold ? ` , Downgrade in ${this.controller.ticksToDowngrade}` : "";
-    msg += ` CONTROLLER ${this.controller.level}${nextLevelStr} ${FmtRatios(this.controller.progress, this.controller.progressTotal, true, [], 3, "K", 1000)}${downgradeStr}`;
+    const nextLevelStr = this.controller.level === 8 ? '' : ` -> ${this.controller.level + 1}`;
+    const downgradeMaintenanceThreshold =
+      CONTROLLER_DOWNGRADE[this.controller.level] * UpgradeController.DowngradeMaintenanceRatio;
+    const downgradeStr =
+      this.controller.ticksToDowngrade < downgradeMaintenanceThreshold
+        ? ` , Downgrade in ${this.controller.ticksToDowngrade}`
+        : '';
+    msg += ` CONTROLLER ${this.controller.level}${nextLevelStr} ${FmtRatios(this.controller.progress, this.controller.progressTotal, true, [], 3, 'K', 1000)}${downgradeStr}`;
 
     // Append hostile details
     if (this.HostileInfo.length) {
@@ -460,92 +908,104 @@ export class RoomExtra extends Room {
       msg += `\t${FormatHostileInfos(this.HostileInfo)}`;
     }
 
+    // Get info about claimed sources
+    msg += `\n\tClaimedSources: ${[...this.ClaimedSources]}`;
+
     // Get info about claimed rooms
-    const claimed = this.GetVisibleUncontestedClaimedRooms();
-    if (claimed.length)
-      for (const claim of claimed) msg += `\n\t${claim}`;
+    for (const claim of this.ClaimedNearby)
+      msg += `\n\tClaims: ${claim}: Visible ${this.WorkableClaimedRooms.map(r => r.name).includes(claim)}`;
 
     return msg;
   }
 
   DrawRepairOverlay(): void {
-    for (const d of this.Repairs)
-      this.visual.rect(d.pos.x - 0.5, d.pos.y - 0.5, 1, 1, { fill: LerpColour("#ff0000", "#00ff00", d.hits / d.hitsMax) });
-  };
-
-  // List of filter callback, health capacity to begin repair, and maxRepairers, descending order.
-  RepairPriorities: [((s: AnyStructure) => boolean), number, number][] = [
-    [(s => s instanceof StructureContainer || s instanceof StructurePortal), 0.9, 2],
-    [(s => !(s instanceof StructureContainer || s instanceof StructurePortal || s instanceof StructureRoad || s instanceof StructureWall || s instanceof StructureRampart) && s.my), 0.9, 2],
-    [(s => s instanceof StructureRoad), 0.75, 1],
-    [(s => s instanceof StructureRampart), 1, 1],
-    [(s => s instanceof StructureWall), 0.1, 1],
-    [(() => true), 0.75, 1],
-  ];
-
-  FindRepairByPriorityAndStrength(limitToRoom?: RoomExtra, byRangeTo?: RoomPosition): AnyStructure | null {
-    let priorityIndex = 0;
-    const ongoingRepairs = this.GetAssignedTasks(TaskAction.Repair) as Repair[];
-    const incoming = (s: AnyStructure) => ongoingRepairs.filter(or => or.target === s.id).length;
-    const roomLimit = (s: AnyStructure) => limitToRoom === undefined || (limitToRoom !== undefined && s.pos.roomName === limitToRoom.name)
-    for (const [predicate, repairAt, maxWorkers] of this.RepairPriorities) {
-      const candidates = this.Repairs.filter(s => roomLimit(s) && predicate(s) && (s.hits / s.hitsMax) < repairAt && incoming(s) < maxWorkers);
-
-      let selected;
-      if (byRangeTo === undefined)
-        // Sort by most needed
-        selected = candidates
-        .sort((b, a) => (a.hits / a.hitsMax) - (b.hits / b.hitsMax))
-        .pop();
-      else
-        // Sort by range to given point
-        selected = byRangeTo.findClosestByRange(candidates)
-
-      priorityIndex++;
-      if (!selected) continue;
-      else return selected;
-    }
-    this.log.debug(`No repairs found, searched ${priorityIndex} priority groups.`);
-    return null;
+    for (const d of this.ClaimedRepairs)
+      this.visual.rect(d.pos.x - 0.5, d.pos.y - 0.5, 1, 1, {
+        fill: LerpColour('#ff0000', '#00ff00', d.hits / d.hitsMax),
+      });
   }
 
-  TickTower(tower: StructureTower) {
+  DrawCostMatrixOverlay(): void {
+    for (let x = 0; x < 50; x++)
+      for (let y = 0; y < 50; y++) {
+        const weight = this.CreepsCostMatrix.get(x, y);
+        if (weight > 0)
+          this.visual
+            .rect(x - 0.5, y - 0.5, 1, 1, { fill: LerpColour('#00ff00', '#ff0000', weight / 255) })
+            .text(weight.toString(10), x, y);
+      }
+  }
+
+  TickTower(tower: StructureTower, hostiles: Creep[], weakestFriendly?: Creep) {
     const supplyRatio = tower.store.getUsedCapacity(RESOURCE_ENERGY) / tower.store.getCapacity(RESOURCE_ENERGY);
     if (!tower.isActive || !supplyRatio) return; // RCL or Energy too low to work
 
     // Critical Tasks - Always performed regardless of ener
 
     // Attacks
-    if (this.Hostiles.length && this.AttackHostiles && !this.DisableTowerAttacks) {
-      this.visual.circle(tower.pos, { radius: this.TowerAttackRange, stroke: Colours.ATTACK_RANGE, opacity: 0.1, strokeWidth: 0.5 });
+    if (hostiles.length && this.AttackHostiles && !this.DisableTowerAttacks) {
+      this.visual.circle(tower.pos, {
+        radius: this.TowerAttackRange,
+        stroke: Colours.ATTACK_RANGE,
+        opacity: 0.1,
+        strokeWidth: 0.5,
+      });
 
       // Find lowest health hostile in range
-      const weakestHostile = tower.pos
-        .findInRange(this.Hostiles, this.TowerAttackRange)
-        .sort((b, a) => (a.hits / a.hitsMax) - (b.hits / b.hitsMax))
-        .pop();
+      let weakestHostile: Creep | undefined;
+      let lowestHostileHealth = Infinity;
+      for (const hostile of hostiles) {
+        if (tower.pos.getRangeTo(hostile.pos) > this.TowerAttackRange) continue;
+        const healthRatio = hostile.hits / hostile.hitsMax;
+        if (healthRatio <= lowestHostileHealth) {
+          weakestHostile = hostile;
+          lowestHostileHealth = healthRatio;
+        }
+      }
       if (weakestHostile) {
         const res = tower.attack(weakestHostile);
-        this.log.debug(`!!! Tower Attacked ${weakestHostile.name} from ${weakestHostile.owner.username} (${weakestHostile.hits}/${weakestHostile.hits}) with result ${res}!`);
+        this.log.debug('Tower attacked a hostile creep.', {
+          targetName: weakestHostile.name,
+          owner: weakestHostile.owner.username,
+          hits: weakestHostile.hits,
+          hitsMax: weakestHostile.hitsMax,
+          result: res,
+        });
         return;
       }
     }
 
     // My creeps in need of healing, weakest first
-    const weakestFriendly = this.colony.MyCreeps
-      .filter(c => c.hits < c.hitsMax)
-      .sort((b, a) => (a.hits / a.hitsMax) - (b.hits / b.hitsMax))
-      .pop();
     if (weakestFriendly) {
       const res = tower.heal(weakestFriendly);
-      this.log.debug(`Tower Healed ${weakestFriendly.name} (${weakestFriendly.hits}/${weakestFriendly.hitsMax}) with result ${res}!`);
+      this.log.debug('Tower healed a friendly creep.', {
+        targetName: weakestFriendly.name,
+        hits: weakestFriendly.hits,
+        hitsMax: weakestFriendly.hitsMax,
+        result: res,
+      });
       return;
     }
 
     // If we have enough energy, repair the most damaged structure in the room
     if (supplyRatio >= this.TowerCriticalSupplyRatio) {
-      const needRepair = this.FindRepairByPriorityAndStrength(this, tower.pos);
-      if (needRepair) tower.repair(needRepair);
+      const repairGroup = FindHighestPriorityRepairGroup(this, this.PendingRepairs);
+      if (repairGroup) {
+        const target = repairGroup.repairs.reduce(
+          (best, candidate) => {
+            const targetRange = tower.pos.getRangeTo(candidate);
+            const falloff = Math.min(
+              1,
+              (TOWER_FALLOFF * Math.max(0, targetRange - TOWER_OPTIMAL_RANGE)) / TOWER_FALLOFF_RANGE,
+            );
+            const effectivePower = TOWER_POWER_REPAIR * (1 - falloff);
+            if (!best || effectivePower > best.effectivePower) return { structure: candidate, effectivePower };
+            return best;
+          },
+          undefined as { structure: AnyStructure; effectivePower: number } | undefined,
+        );
+        if (target) tower.repair(target.structure);
+      }
     }
   }
 
@@ -568,4 +1028,15 @@ export class RoomExtra extends Room {
       }
     }
   }
+}
+
+interface SpawnableRoleDetails {
+  role: CreepRole;
+  name: string;
+  body: BodyPartConstant[];
+  available: number;
+  needed: number;
+  roomQuota: number;
+  roomCount: number;
+  timeSinceLastSpawn: number;
 }

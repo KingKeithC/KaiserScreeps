@@ -6,34 +6,36 @@
       "script": "push-main",
       "problemMatcher": [],
       "label": "npm: push-main",
-      "detail": "rollup -c --environment DEST:main",
+      "detail": "rollup -c --environment DEST:main"
     },
-    {
-      "type": "npm",
-      "script": "build",
-      "problemMatcher": [],
-      "label": "npm: build",
-      "detail": "rollup -c",
-    },
+    { "type": "npm", "script": "build", "problemMatcher": [], "label": "npm: build", "detail": "rollup -c" },
     {
       "type": "process",
       "command": "rm",
-      "args": [
-        "-r",
-        "dist/",
-        "node_modules/"
-      ],
+      "args": ["-r", "dist/", "node_modules/"],
       "problemMatcher": [],
-      "label": "clean",
+      "label": "clean"
     },
     {
       "type": "npm",
       "label": "npm: lint",
       "script": "lint",
       "problemMatcher": "$eslint-stylish",
-      "options": {
-        "cwd": "${workspaceFolder}",
-      }
+      "options": { "cwd": "${workspaceFolder}" }
+    },
+    {
+      "type": "npm",
+      "script": "push-sim",
+      "problemMatcher": [],
+      "label": "npm: push-sim",
+      "detail": "rollup -c --environment DEST:sim"
+    },
+    {
+      "type": "npm",
+      "script": "watch-sim",
+      "problemMatcher": [],
+      "label": "npm: watch-sim",
+      "detail": "rollup -cw --environment DEST:sim"
     }
   ]
 }

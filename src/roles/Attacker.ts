@@ -1,54 +1,52 @@
-import { CreepExtra } from "Creep";
-import { CreepTask, Dismantle, Move } from "tasks";
-import { FormatStructureHits, MakeBody } from "utils/Collections";
-import { CreepRole, CreepRoleBase } from "./Role";
+import { CreepExtra } from 'Creep';
+import { RoomExtra } from 'Room';
+import { Move, Dismantle } from 'tasks';
+import { Attack } from 'tasks/Attack';
+import { CreepTask } from 'tasks/types';
+import { Filters, FormatStructureHits, MakeBody, SerializeRoomPosition, Sorts } from 'utils/Collections';
+import { BodyCost, PartCounts } from 'utils/CreepUtils';
+import { HostileInfo } from 'utils/RoomUtils';
+import { CreepRoleBase, CreepRole } from './Role';
 
-
-type AttackType = "Rally" | "NearestStructure";
+type AttackType = 'Rally' | 'NearestStructure' | 'Creeps';
 
 declare global {
   interface FlagMemory {
-    attackIndex?: number,
-    attackType?: AttackType,
-    done?: boolean,
+    attackIndex?: number;
+    attackType?: AttackType;
+    done?: boolean;
   }
 }
 
-
 export class Attacker extends CreepRoleBase implements CreepRole {
-  readonly groupName = "Warriors";
-  readonly name = "Attacker";
+  readonly groupName = 'Warriors';
+  readonly roleName = 'Attacker';
+  readonly priority = 2;
 
   RallyDistance = 2;
-  AttackSize = 1;
+  AttackSize = 3;
 
   GetNewCreepBody(): BodyPartConstant[] {
-    return MakeBody(
-      [MOVE, 5],
-      [WORK, 6],
-      [ATTACK, 2],
-      [HEAL, 1]
-    );
+    return MakeBody([MOVE, 5], [WORK, 6], [ATTACK, 2], [HEAL, 1]);
   }
 
   GetAttackPlan(): Flag[] {
-    const flags = Object.values(Game.flags).filter(f => f.name.startsWith("Attack") && f.name.includes(':'));
+    const flags = Object.values(Game.flags).filter(f => f.name.startsWith('Attack') && f.name.includes(':'));
     for (const f of flags) {
       // Set initial memory for flags based on name
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const [_, index, action] = f.name.split(":");
+      const [_, index, action] = f.name.split(':');
       f.memory.attackIndex ??= Number.parseInt(index, 10);
       f.memory.attackType ??= action as AttackType;
       f.memory.done ??= false;
     }
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    return flags.sort((a, b) => a.memory.attackIndex! - b.memory.attackIndex!);
+    return flags.sort(Sorts.AttackIndexAsc);
   }
 
   // Return the first step in the sequence that is not complete
   GetCurrentStep(): Flag | null {
-    for (const step of this.GetAttackPlan())
-      if (!step.memory.done) return step;
+    for (const step of this.GetAttackPlan()) if (!step.memory.done) return step;
     return null;
   }
 
@@ -68,85 +66,150 @@ export class Attacker extends CreepRoleBase implements CreepRole {
   SetStepCompletion(step: Flag): void {
     if (!(step.pos.roomName in Game.rooms)) {
       // Step is no longer accessible, mark as incomplete
-      if (Game.time % 10 === 0) this.log.info(`Attack Step ${step.name} in progress, traveling to ${step.pos.roomName}...`);
+      if (Game.time % 10 === 0)
+        this.log.info('Attack step in progress; traveling to target room.', {
+          '<room>': step.pos.roomName,
+          stepName: step.name,
+          attackIndex: step.memory.attackIndex,
+          attackType: step.memory.attackType,
+        });
       step.memory.done = false;
       return;
-    } else if (step.memory.attackType === "Rally") {
+    } else if (step.memory.attackType === 'Rally') {
       // Rally step is complete when enough attackers in range to rally site
-      const found = step.pos.findInRange(this.GetGlobalCreepsInRole(), this.RallyDistance + 1);
+      const found = this.Searches.RalliedAllies(step.pos);
       if (found.length >= this.AttackSize) {
-        this.log.warn(`Rally Step ${step.name} completed.`);
+        this.log.warn('Rally step completed.', { '<room>': step.pos.roomName, stepName: step.name });
         step.memory.done = true;
         return;
       } else {
-        if (Game.time % 10 === 0) this.log.info(`Attack ${step.memory.attackIndex}: ${step.memory.attackType} (${found.length}/${this.AttackSize})...`);
+        if (Game.time % 10 === 0)
+          this.log.info('Rally step in progress.', {
+            '<room>': step.pos.roomName,
+            attackIndex: step.memory.attackIndex,
+            attackType: step.memory.attackType,
+            found: found.length,
+            attackSize: this.AttackSize,
+          });
         step.memory.done = false;
         return;
       }
-    } else if (step.memory.attackType === "NearestStructure") {
+    } else if (step.memory.attackType === 'NearestStructure') {
       // NearestStructure is complete when
-      const nearby = step.pos.lookFor(LOOK_STRUCTURES).pop();
-      if (!nearby) {
-        this.log.warn(`Attack ${step.memory.attackIndex}: ${step.memory.attackType} completed.`);
+      const nearby = this.Searches.AttackNearestStructure(step.pos);
+      if (nearby.length === 0) {
+        this.log.warn('Attack step completed.', {
+          '<room>': step.pos.roomName,
+          attackIndex: step.memory.attackIndex,
+          attackType: step.memory.attackType,
+        });
         step.memory.done = true;
         return;
       } else {
-        if (Game.time % 10 === 0) this.log.info(`Attack ${step.memory.attackIndex}: ${step.memory.attackType} in progress on (${nearby}), ${FormatStructureHits(nearby)}...`);
+        if (Game.time % 10 === 0) {
+          this.log.info('Attack step in progress against structures.', {
+            '<room>': step.pos.roomName,
+            attackIndex: step.memory.attackIndex,
+            attackType: step.memory.attackType,
+            targetCount: nearby.length,
+            targets: nearby.map(structure => FormatStructureHits(structure)),
+          });
+        }
+        step.memory.done = false;
+        return;
+      }
+    } else if (step.memory.attackType === 'Creeps') {
+      // Default is to attack nearby creeps
+      const nearby = this.Searches.AttackCreeps(step.pos);
+      if (nearby.length === 0) {
+        this.log.warn('Creep attack step completed.', {
+          '<room>': step.pos.roomName,
+          attackIndex: step.memory.attackIndex,
+        });
+        step.memory.done = true;
+        return;
+      } else {
+        const hostileInfo: HostileInfo[] = nearby.map(n => ({
+          type: 'creep',
+          id: n.id,
+          ownerUsername: n.owner.username,
+          pos: SerializeRoomPosition(n.pos),
+          bodyCost: BodyCost(n.body.map(p => p.type)),
+          partCounts: PartCounts(n.body),
+        }));
+
+        if (Game.time % 10 === 0)
+          this.log.info('Attack step in progress against hostile creeps.', {
+            '<room>': step.pos.roomName,
+            attackIndex: step.memory.attackIndex,
+            attackType: step.memory.attackType,
+            targetCount: nearby.length,
+            hostiles: hostileInfo,
+          });
         step.memory.done = false;
         return;
       }
     }
+
+    // Undefined attack type is never complete
   }
 
   HealHurtAllies(creep: CreepExtra): void {
     // Heal whoever in range is the most hurt
-    const hurtAllies = creep.pos.findInRange(FIND_MY_CREEPS, 3, { filter: c => c.hits < c.hitsMax });
-    const mostHurt = hurtAllies.sort((b, a) => (a.hits / a.hitsMax) - (b.hits / b.hitsMax)).pop();
-    if (mostHurt && creep.pos.getRangeTo(mostHurt) === 1)
-      creep.heal(mostHurt);
-    else if (mostHurt)
-      creep.rangedHeal(mostHurt);
+    const hurtAllies = this.Searches.HealAllies(creep.pos);
+    for (const mostHurt of hurtAllies.sort(Sorts.StructureHitsRatioAsc))
+      if (mostHurt && creep.pos.isNearTo(mostHurt)) creep.heal(mostHurt);
+      else if (mostHurt) creep.rangedHeal(mostHurt);
   }
 
   AttackEnemies(creep: CreepExtra): void {
     const hurtEnemies = creep.pos.findInRange(FIND_HOSTILE_CREEPS, 1);
-    const mostHurt = hurtEnemies.sort((b, a) => (a.hits / a.hitsMax) - (b.hits / b.hitsMax)).pop();
-    if (mostHurt) creep.attack(mostHurt);
-  };
+    for (const mostHurt of hurtEnemies.sort(Sorts.StructureHitsRatioAsc)) if (mostHurt) creep.attack(mostHurt);
+  }
+
+  public OnSpawn(creep: CreepExtra): void {
+    creep.notifyWhenAttacked(false);
+  }
 
   TickCreep(creep: CreepExtra): void {
-    creep.notifyWhenAttacked(false); // Ignore attack notifications for Attackers.
     this.HealHurtAllies(creep);
     this.AttackEnemies(creep);
   }
 
-  override GetInitialTask(): CreepTask | null {
-    const curr = this.GetCurrentStep();
-    if (!curr) return null;
-    if (!curr.memory.attackType) return null;
+  Searches = {
+    AttackNearestStructure: (pos: RoomPosition) => pos.lookFor(LOOK_STRUCTURES),
+    AttackCreeps: (pos: RoomPosition) => pos.findInRange(FIND_HOSTILE_CREEPS, 3),
+    HealAllies: (pos: RoomPosition) => pos.findInRange(FIND_MY_CREEPS, 3, { filter: Filters.Damaged }),
+    RalliedAllies: (pos: RoomPosition) => pos.findInRange(this.GetGlobalCreepsInRole(), this.RallyDistance + 1),
+  } as const;
+
+  override GetMinQuota(): number {
+    return this.AttackSize;
+  }
+  IsSpawnNeeded(room: RoomExtra): boolean {
+    if (!this.IsRoleUnderQuota(room)) return false;
+    return this.GetCurrentStep() != null;
+  }
+
+  SelectNextTask(): CreepTask | null {
+    const step = this.GetCurrentStep();
+    if (!step) return null;
 
     // If room is not visible, or next step is a rally, do a move.
-    if (!(curr.pos.roomName in Game.rooms) || curr.memory.attackType === "Rally")
-      return new Move(curr.pos, this.RallyDistance - 1);
+    if (step.memory.attackType === 'Rally' || !(step.pos.roomName in Game.rooms))
+      return new Move(step.pos, this.RallyDistance - 1);
+
+    // If next step is Creeps or 'any', attack the creep
+    if (step.memory.attackType === 'Creeps' || step.memory.attackType === undefined)
+      for (const nearby of this.Searches.AttackCreeps(step.pos)) if (nearby) return new Attack(nearby);
 
     // If next step is Dismantle, find the target structure, and set to dismantling it
-    if (curr.memory.attackType === "NearestStructure") {
-      const structure = curr.pos.lookFor(LOOK_STRUCTURES).pop();
+    if (step.memory.attackType === 'NearestStructure') {
+      const structure = step.pos.lookFor(LOOK_STRUCTURES).pop();
       if (!structure) return null;
-      return new Dismantle(structure.id);
+      return new Dismantle(structure);
     }
 
     return null;
-  }
-  override GetGlobalQuota(): number { return this.AttackSize; }
-  override GetRoomQuota(): number { return this.AttackSize; }
-  IsSpawnNeeded(): boolean { return this.GetCurrentStep() != null; }
-  SelectNextTask(creep: CreepExtra): CreepTask | null {
-    // Ignore Move if it's the same
-    const oldTarget = (creep.currentTask as Move).target;
-    const nextTask = this.GetInitialTask();
-    const nextTarget = (nextTask as Move).target;
-    if (nextTarget === oldTarget) return null;
-    else return nextTask;
   }
 }

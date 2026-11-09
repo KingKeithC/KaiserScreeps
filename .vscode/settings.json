@@ -1,18 +1,31 @@
 {
   "js/ts.tsdk.path": "node_modules/typescript/lib",
-  "js/ts.preferences.quoteStyle": "double",
+  "js/ts.preferences.quoteStyle": "single",
   "js/ts.format.semicolons": "insert",
   "js/ts.tsserver.experimental.enableProjectDiagnostics": true,
   "js/ts.implicitProjectConfig.target": "ES2018",
   "chat.tools.terminal.autoApprove": {
-    "/^pnpm exec tsc --noEmit$/": {
-      "approve": true,
-      "matchCommandLine": true
-    }
+    "/^pnpm exec tsc --noEmit$/": { "approve": true, "matchCommandLine": true },
+    "/^pnpm exec tsc --noEmit && git diff --check$/": { "approve": true, "matchCommandLine": true }
   },
   "nixEnvSelector.nixFile": "${workspaceFolder}/flake.nix",
   "nixEnvSelector.useFlakes": true,
   "nixEnvSelector.flakeShell": "default",
-  "eslint.format.enable": true,
+  "editor.defaultFormatter": "rvest.vs-code-prettier-eslint",
+  "github.copilot.chat.commitMessageGeneration.instructions": [
+    { "text": "Use conventional commit message format." },
+    {
+      "text": "Write terse, factual commit messages describing only what changed. Do not speculate about intent or benefits except when obvious or a comment confirms it."
+    }
+  ],
+  // "eslint.format.enable": false,
   "eslint.run": "onSave",
+  "vs-code-prettier-eslint.prettierLast": true, // set as "true" to run 'prettier' last not first
+  "[typescript]": {
+    "editor.formatOnType": false, // required
+    "editor.formatOnPaste": false, // optional
+    "editor.formatOnSave": true, // optional
+    "editor.formatOnSaveMode": "file", // required to format on save
+    "files.autoSave": "onFocusChange" // optional but recommended
+  }
 }

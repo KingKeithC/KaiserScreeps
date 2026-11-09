@@ -1,52 +1,111 @@
-import { CreepExtra } from "Creep";
-import { groupBy } from "lodash";
-import type { RoomExtra } from "Room";
-import { CreepTask, TaskAction , AttackTargetTask, GuardTask } from "tasks";
-import { MakeBody } from "utils/Collections";
-import { CreepRole, CreepRoleBase } from "./Role";
+import { CreepExtra } from 'Creep';
+import { flatten, groupBy } from 'lodash';
+import type { RoomExtra } from 'Room';
+import { Dismantle, GuardTask } from 'tasks';
+import { Attack } from 'tasks/Attack';
+import { CreepTask } from 'tasks/types';
+import { Filters, MakeBody, Sorts } from 'utils/Collections';
+import { CreepRoleBase, CreepRole } from './Role';
 
 export class Defender extends CreepRoleBase implements CreepRole {
-  readonly groupName = "Warriors";
-  readonly name = "Defender";
-
-  IsSpawnNeeded(room: RoomExtra): boolean { return room.Hostiles.length > 1; }
+  readonly groupName = 'Warriors';
+  readonly roleName = 'Defender';
+  readonly priority = 2;
 
   GetNewCreepBody(): BodyPartConstant[] {
     return MakeBody([TOUGH, 2], [ATTACK, 2], [MOVE, 3], [HEAL, 1]);
   }
 
-  GetGlobalQuota(): number { return -1; }
-
-  override GetInitialTask(room: RoomExtra): CreepTask {
-    const hostile = this.FindLeastTargetedHostile(room);
-    return hostile ? new AttackTargetTask(hostile) : new GuardTask(room.name);
+  IsSpawnNeeded(room: RoomExtra): boolean {
+    return this.IsRoleUnderQuota(room);
   }
 
   // 1 For each hostile
-  override GetRoomQuota(room: RoomExtra): number {
-    if (room.AttackHostiles && !room.DisableWarriors)
-      return room.Hostiles.length;
-    return 0;
+  override GetMinQuota(room: RoomExtra): number {
+    return flatten(room.WorkableClaimedRooms.map(wcr => wcr.find(FIND_HOSTILE_CREEPS))).length;
   }
 
-  public SelectNextTask(creep: CreepExtra): CreepTask {
-    const hostile = this.FindLeastTargetedHostile(creep.AssignedRoom);
-    if (!hostile) { return new GuardTask(creep.AssignedRoom.name); }
-    return new AttackTargetTask(hostile);
-  }
+  public SelectNextTask(creep: CreepExtra): CreepTask | null {
+    const hostile = this.FindNearestHostile(creep);
+    if (hostile) return new Attack(hostile);
 
-  FindLeastTargetedHostile(room: RoomExtra): Id<Creep> | null {
-    const attacksByTarget = groupBy(room.GetAssignedTasks(TaskAction.Attack), a => (a as AttackTargetTask).targetId);
-    for (const target in attacksByTarget) if (attacksByTarget[target].length === 0) return target as Id<Creep>;
+    const hostileStructure = this.FindSameRoomHostileStructure(creep);
+    if (hostileStructure) return new Dismantle(hostileStructure);
+
+    const rampart = creep.pos.findClosestByPath(FIND_MY_STRUCTURES, { filter: Filters.StructureRampart });
+    if (rampart) return new GuardTask(rampart);
+
     return null;
   }
 
-  Idle(creep: CreepExtra): void {
-    if (Game.time % 25 === 3) creep.say("zzz");
-    const rampart = creep.pos.findClosestByPath(FIND_MY_STRUCTURES, { filter: s => s.structureType === STRUCTURE_RAMPART });
-    if (!rampart) return;
-    creep.MoveCreep(rampart, { range: 0 });
+  public OnSpawn(creep: CreepExtra): void {
+    creep.notifyWhenAttacked(false);
   }
 
-  Charging(): void { return; }
+  TickCreep(creep: CreepExtra): void {
+    if (creep.getActiveBodyparts(ATTACK) > 0) {
+      // Attack Ranged Enemies
+      const closeEnemy = creep.pos
+        .findInRange(FIND_HOSTILE_CREEPS, 3, { filter: Filters.Damaged })
+        .sort(Sorts.StructureHitsRatioDesc)
+        .pop();
+      if (closeEnemy) creep.rangedAttack(closeEnemy);
+
+      // Attack Melee Enemies
+      const touchingEnemy = creep.pos
+        .findInRange(FIND_HOSTILE_CREEPS, 1, { filter: Filters.Damaged })
+        .sort(Sorts.StructureHitsRatioDesc)
+        .pop();
+      if (touchingEnemy) creep.attack(touchingEnemy);
+    }
+
+    if (creep.getActiveBodyparts(HEAL) > 0) {
+      // Heal friendles that are near but not touching
+      const rangedNeedsHeal = creep.pos
+        .findInRange(FIND_MY_CREEPS, 3, { filter: Filters.Damaged })
+        .sort(Sorts.StructureHitsRatioDesc)
+        .pop();
+      if (rangedNeedsHeal) creep.rangedHeal(rangedNeedsHeal);
+
+      // Heal friendles that are touching
+      const closeNeedsHeal = creep.pos
+        .findInRange(FIND_MY_CREEPS, 1, { filter: Filters.Damaged })
+        .sort(Sorts.StructureHitsRatioDesc)
+        .pop();
+      if (closeNeedsHeal) creep.heal(closeNeedsHeal);
+
+      // Heal self
+      if (Filters.Damaged(creep)) creep.heal(creep);
+    }
+  }
+
+  FindLeastTargetedHostile(room: RoomExtra): Creep | null {
+    const attacksByTarget = groupBy([...room.AssignedTasks(Attack)], a => a.target);
+    for (const [_, creeps] of room.HostilesByRoom)
+      for (const c of creeps) if ((attacksByTarget[c.id] ?? []).length === 0) return c;
+    return null;
+  }
+
+  FindNearestHostile(creep: CreepExtra): Creep | null {
+    // Find Hostiles in the current room
+    for (const [room, creeps] of creep.AssignedRoom.HostilesByRoom) {
+      const roomName = room instanceof Room ? room.name : room;
+      if (roomName === creep.room.name) {
+        const found = creep.pos.findClosestByPath(creeps, {
+          costCallback: (rn: string, cm: CostMatrix) => creep.CostCallback(rn, cm),
+        });
+        if (found) return found;
+      }
+    }
+    return null;
+  }
+
+  FindSameRoomHostileStructure(creep: CreepExtra): AnyOwnedStructure | null {
+    const structures = flatten(Object.values(creep.AssignedRoom.HostileStructuresByOwner));
+    const closest = creep.pos.findClosestByPath(structures, {
+      costCallback: (rn: string, cm: CostMatrix) => creep.CostCallback(rn, cm, false),
+    });
+    if (closest) return closest;
+    return null;
+  }
 }

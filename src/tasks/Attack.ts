@@ -1,17 +1,38 @@
-import type { CreepExtra } from "Creep";
-import { TaskAction } from "./TaskAction";
-import { BaseTask } from "./BaseTask";
-import { CreepTask } from "./types";
+import type { CreepExtra } from 'Creep';
+import { CreepTask, RegisterTask } from 'tasks/types';
+import { TargetTask } from './TargetTask';
 
-export class AttackTargetTask extends BaseTask<typeof TaskAction.Attack> implements CreepTask<string> {
-  public readonly kind = "attack" as const;
+export class Attack extends TargetTask<Creep> implements CreepTask {
+  static readonly action = '⚔️' as const;
 
-  public constructor(public readonly targetId: Id<Creep>) { super(TaskAction.Attack); }
+  static {
+    RegisterTask(this);
+  }
 
-  public toString(): string { return `${this.action} ${this.targetId}`; }
+  protected static override readonly minRangeToAct = 1;
+  protected static override readonly requiredBodyPart = ATTACK;
 
-  public override isComplete(creep: CreepExtra): boolean {
-    const target = Game.getObjectById(this.targetId);
-    return !(target instanceof Creep) || !creep.room.find(FIND_HOSTILE_CREEPS).some(hostile => hostile.id === target.id);
+  public constructor(creep: Creep) {
+    super(creep, 1);
+  }
+
+  protected registerIntent(creep: CreepExtra, target: NonNullable<Creep>): ScreepsReturnCode {
+    return creep.attack(target);
+  }
+
+  protected isIntentBlocked(): boolean {
+    return false;
+  }
+
+  isCreepAbleToContinue(): boolean {
+    return true; // For now the creep will attack no matter their condition.
+  }
+
+  isCompleteWhenTargetValid(): boolean {
+    return false; // If the target is valid, then we continue attacking until it is not :)
+  }
+
+  extraToString(target: NonNullable<Creep>): string {
+    return `%${((target.hits / target.hitsMax) * 100).toFixed(2)}, name: "${target.name}", Owner: ${target.owner.username}`;
   }
 }
