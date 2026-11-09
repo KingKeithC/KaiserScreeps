@@ -114,31 +114,31 @@ export class Colony {
     return (Memory.minCpuBucket ??= 100);
   }
   get LogFormat() {
-    return Memory.logFormat ?? Logger.DefaultLogFormat;
+    return (Memory.logFormat ??= Logger.DefaultLogFormat);
   }
   set LogFormat(value) {
     Memory.logFormat = value;
   }
   get LogLevelName() {
-    return Memory.logLevelName ?? Logger.DefaultLogLevelName;
+    return (Memory.logLevelName ??= Logger.DefaultLogLevelName);
   }
   set LogLevelName(value) {
     Memory.logLevelName = value;
   }
   get GlobalEnableProfiling() {
-    return Memory.globalEnableProfiling ?? true;
+    return (Memory.globalEnableProfiling ??= true);
   }
   set GlobalEnableProfiling(value) {
     Memory.globalEnableProfiling = value;
   }
   get GlobalEnableErrorMapper() {
-    return Memory.globalEnableErrorMapper ?? true;
+    return (Memory.globalEnableErrorMapper ??= true);
   }
   set GlobalEnableErrorMapper(value) {
     Memory.globalEnableErrorMapper = value;
   }
   get ColonyStateReportFrequency(): number {
-    return Memory.colonyStateReportFrequency ?? 1000;
+    return (Memory.colonyStateReportFrequency ??= 1000);
   }
 
   private get IsSimulation(): boolean {
