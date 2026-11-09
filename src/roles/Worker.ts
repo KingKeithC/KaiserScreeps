@@ -246,7 +246,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
   MaxUpgradePerRoom = 2;
   public WorkerSpendingTask(
     creep: CreepExtra,
-    supplyTasks = [...creep.AssignedRoom.AssignedTasks(Transfer)],
+    supplyTasks?: Transfer[],
     maintainers = creep.AssignedRoom.GetAssignedCreepsOfRole('Maintainer').length,
   ): CreepTask | null {
     if (maintainers === 0) {

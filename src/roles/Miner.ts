@@ -7,6 +7,9 @@ import { Filters, Sorts, MakeBody, SerializeRoomPosition } from 'utils/Collectio
 import { BodyCost, TryCollectFromContainer, TryPickupDropped, TryTransferTo } from 'utils/CreepUtils';
 import { CreepRole, CreepRoleBase } from './Role';
 
+const nonEnergyResources = RESOURCES_ALL.filter(rt => rt !== RESOURCE_ENERGY);
+const isMinerCreep = Filters.CreepRoleGroupName('Miners');
+
 export class Miner extends CreepRoleBase implements CreepRole {
   readonly groupName = 'Miners';
   override readonly roleName: string = 'Miner';
@@ -54,14 +57,13 @@ export class Miner extends CreepRoleBase implements CreepRole {
       return;
 
     const nearbyNonMiners = creep.pos.findInRange(this.colony.MyCreeps, 1, {
-      filter: c => c.store.getFreeCapacity() > 0 && !Filters.CreepRoleGroupName('Miners')(c),
+      filter: c => c.store.getFreeCapacity() > 0 && !isMinerCreep(c),
     });
     if (TryTransferTo(creep, nearbyNonMiners, [RESOURCE_ENERGY])) return;
     if (TryPickupDropped(creep)) return;
 
     const nearbyContainers = creep.pos.findInRange(FIND_STRUCTURES, 1).filter(Filters.StructureContainer);
-    const notEnergy = RESOURCES_ALL.filter(rt => rt !== RESOURCE_ENERGY);
-    if (TryTransferTo(creep, nearbyContainers, notEnergy)) return;
+    if (TryTransferTo(creep, nearbyContainers, nonEnergyResources)) return;
 
     const nearbyTowers = creep.pos.findInRange(FIND_MY_STRUCTURES, 1).filter(Filters.StructureTower);
     const nearbyLinks = creep.AssignedRoom.LinkSenders.filter(link => link.pos.isNearTo(creep));

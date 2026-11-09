@@ -462,8 +462,13 @@ export class RoomExtra extends Room {
     );
   }
 
+  private cachedClaimedSources?: (Id<Source> | Id<StructureExtractor>)[];
   get ClaimedSources(): (Id<Source> | Id<StructureExtractor>)[] {
-    return unique(flatten(this.WorkableClaimedMiningPositions.map(pair => pair[1].map(mp => mp.source))));
+    if (this.cachedClaimedSources === undefined) {
+      const mineSources = this.WorkableClaimedMiningPositions.map(pair => pair[1].map(mp => mp.source));
+      this.cachedClaimedSources = unique(flatten(mineSources));
+    }
+    return this.cachedClaimedSources;
   }
 
   /**
@@ -505,8 +510,10 @@ export class RoomExtra extends Room {
     (this.memory.lastSpawnTick ??= {})[roleName] = value;
   }
 
+  private cachedSpawnsOrExtensions?: (StructureExtension | StructureSpawn)[];
   get SpawnsOrExtensions(): (StructureExtension | StructureSpawn)[] {
-    return this.find(FIND_MY_STRUCTURES, { filter: Filters.StructureSpawnOrExtension });
+    this.cachedSpawnsOrExtensions ??= this.find(FIND_MY_STRUCTURES, { filter: Filters.StructureSpawnOrExtension });
+    return this.cachedSpawnsOrExtensions;
   }
 
   get Hostiles(): Creep[] {
@@ -515,8 +522,11 @@ export class RoomExtra extends Room {
 
   get HostileStructuresByOwner(): Record<Owner['username'], AnyOwnedStructure[]> {
     const ret: { [username: string]: AnyOwnedStructure[] } = {};
-    for (const s of this.find(FIND_HOSTILE_STRUCTURES))
-      ret[s.owner?.username ?? '<none>'] = [...ret[s.owner?.username ?? '<none>'], s];
+    for (const s of this.find(FIND_HOSTILE_STRUCTURES)) {
+      const owner = s.owner?.username ?? '<none>';
+      ret[owner] ??= [];
+      ret[owner].push(s);
+    }
     return ret;
   }
 
@@ -744,8 +754,9 @@ export class RoomExtra extends Room {
   }
 
   ReportHostiles(): void {
-    if (this.HostileInfo.length >= this.HostileNotificationThreshold && Game.time % 10 === 0)
-      this.log.report('Hostiles spotted.', { hostiles: this.HostileInfo });
+    if (Game.time % 10 !== 0) return;
+    const hostiles = this.HostileInfo;
+    if (hostiles.length >= this.HostileNotificationThreshold) this.log.report('Hostiles spotted.', { hostiles });
   }
 
   GetSpawnableRoles(): SpawnableRoleDetails[] {
@@ -756,11 +767,11 @@ export class RoomExtra extends Room {
       const timeSinceLastSpawn = Game.time - this.LastSpawnTick(role.roleName);
 
       if (role.IsSpawnNeeded(this)) {
-        const name = `${role.GetNewCreepName(this)}, ${role.roleName}`;
         const body = role.GetNewCreepBody(this);
         const available = this.energyAvailable;
         const needed = BodyCost(body);
         if (available < needed) continue;
+        const name = `${role.GetNewCreepName(this)}, ${role.roleName}`;
         rolesSpawnable.push({ role, name, body, available, needed, roomQuota, roomCount, timeSinceLastSpawn });
       }
     }

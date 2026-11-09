@@ -29,6 +29,8 @@ export class TradingSystem {
   constructor(private colony: Colony) {}
 
   WatchedOrders: Map<Order['id'], OrderAnalysis> = new Map();
+  private lastWatchRefresh = -Infinity;
+  readonly WatchRefreshInterval = 100;
 
   OncePerTick(): void {
     Memory.terminals ??= {};
@@ -60,6 +62,9 @@ export class TradingSystem {
   // 'Opportunity: ${estProfit} (${estProfitPerUnit}/u) of ${resourceType} sell ${fulfillableQty} @ ${price} from ${origin} to ${dest}: ${order}',
   RefreshWatchedOrders(terminal: StructureTerminal): void {
     if (this.WatchedOrders.size > 0) return;
+    // Market scans are costly, so an empty result is retried at most once per interval.
+    if (Game.time - this.lastWatchRefresh < this.WatchRefreshInterval) return;
+    this.lastWatchRefresh = Game.time;
 
     Logger.info('Refreshing List of Watched Market Orders.', { '<room>': terminal.room, terminal });
 

@@ -112,6 +112,8 @@ export class Logger<T extends Loggable> {
 
   EnableStructuredLogs = true;
   log(level: LogLevel, msg: string, ...args: LogArg[]): void {
+    // Checked before formatting, since logStructured does not filter by level.
+    if (level < this._level) return;
     const formatArgs = this.GetFormatArgs(args);
     formatArgs.set('<level>', Logger.LevelToName(level));
 

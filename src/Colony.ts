@@ -215,12 +215,16 @@ export class Colony {
     this.cachedMyRooms = [];
     this.cachedOtherRooms = [];
     this.cachedMyCreeps = [];
-    for (const [name, creep] of Object.entries(Game.creeps))
+    for (const name in Game.creeps) {
+      const creep = Game.creeps[name];
       if (creep.my) this.Creeps.set(name, new CreepExtra(creep.id, this));
+    }
 
-    for (const [name, room] of Object.entries(Game.rooms))
+    for (const name in Game.rooms) {
+      const room = Game.rooms[name];
       if (room.controller === undefined || room.controller.owner === undefined || room.controller.my)
         this.Rooms.set(name, new RoomExtra(room, this));
+    }
   }
 
   // Stats are only fetched evey ~90 seconds, so we only need to update them infrequently

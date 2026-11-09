@@ -65,8 +65,8 @@ export function LerpColour(from: string, to: string, ratio: number): string {
 }
 
 export function MakeBody(...opts: [BodyPartConstant, number][]): BodyPartConstant[] {
-  let result: BodyPartConstant[] = [];
-  for (const [part, qty] of opts) result = result.concat(Array(qty).fill(part));
+  const result: BodyPartConstant[] = [];
+  for (const [part, qty] of opts) for (let i = 0; i < qty; i++) result.push(part);
   return result;
 }
 

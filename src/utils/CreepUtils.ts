@@ -1,4 +1,4 @@
-import { countBy, Dictionary, sum } from 'lodash';
+import { countBy, Dictionary } from 'lodash';
 import type { CreepExtra } from 'Creep';
 import { DeserializeRoomPosition, RoomPositionString } from './Collections';
 
@@ -10,7 +10,9 @@ export function ClosestByPath<T extends _HasRoomPosition>(creep: CreepExtra, tar
 }
 
 export function BodyCost(body: (BodyPartConstant | BodyPartDefinition)[]): number {
-  return sum(body.map(p => BODYPART_COST[p instanceof Object ? p.type : p]));
+  let cost = 0;
+  for (const p of body) cost += BODYPART_COST[p instanceof Object ? p.type : p];
+  return cost;
 }
 
 export function PartCounts(body: BodyPartDefinition[]): Dictionary<number> {

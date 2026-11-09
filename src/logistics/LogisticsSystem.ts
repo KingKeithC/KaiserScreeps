@@ -1,16 +1,21 @@
-import { ContainerAndAmount, StoreAmount, StoreTargetable } from 'utils/RoomUtils';
+import { ContainerAndAmount, ResourceContainer, StoreAmount, StoreTargetable } from 'utils/RoomUtils';
 import { Ledger, StoreId } from './Ledger';
 
 export type HolderRole = 'source' | 'store' | 'creep';
 
 interface RoomStores {
   holders: Map<StoreId, HolderRole>;
-  sources: Map<ResourceConstant, Map<StoreId, StoreAmount>>;
+  sources: Map<ResourceConstant, Map<StoreId, ContainerAndAmount>>;
 }
 
-function addSource(stores: RoomStores, resourceType: ResourceConstant, id: StoreId, amount: StoreAmount): void {
-  const bySource = stores.sources.get(resourceType) ?? new Map<StoreId, StoreAmount>();
-  bySource.set(id, amount);
+function addSource(
+  stores: RoomStores,
+  resourceType: ResourceConstant,
+  container: ResourceContainer,
+  amount: StoreAmount,
+): void {
+  const bySource = stores.sources.get(resourceType) ?? new Map<StoreId, ContainerAndAmount>();
+  bySource.set(container.id, [container, amount]);
   stores.sources.set(resourceType, bySource);
 }
 
@@ -29,7 +34,10 @@ export class LogisticsSystem {
     this.reserved.clear();
 
     for (const name of roomNames) if (name in Game.rooms) this.IndexRoom(Game.rooms[name]);
-    for (const creep of Object.values(Game.creeps)) this.storesIn(creep.pos.roomName).holders.set(creep.id, 'creep');
+    for (const name in Game.creeps) {
+      const creep = Game.creeps[name];
+      this.storesIn(creep.pos.roomName).holders.set(creep.id, 'creep');
+    }
   }
 
   // Every indexed store in a room, by role.
@@ -43,10 +51,7 @@ export class LogisticsSystem {
     for (const roomName of roomNames) {
       const sources = this.rooms.get(roomName)?.sources.get(resourceType);
       if (sources === undefined) continue;
-      for (const [id, amount] of sources) {
-        const source = Game.getObjectById(id);
-        if (source !== null) found.push([source, amount]);
-      }
+      for (const entry of sources.values()) found.push(entry);
     }
     return found;
   }
@@ -79,7 +84,7 @@ export class LogisticsSystem {
 
     for (const pile of room.find(FIND_DROPPED_RESOURCES)) {
       stores.holders.set(pile.id, 'source');
-      if (pile.amount > 0) addSource(stores, pile.resourceType, pile.id, pile.amount);
+      if (pile.amount > 0) addSource(stores, pile.resourceType, pile, pile.amount);
     }
     for (const tomb of room.find(FIND_TOMBSTONES)) this.IndexStore(stores, tomb, 'source');
     for (const ruin of room.find(FIND_RUINS)) this.IndexStore(stores, ruin, 'source');
@@ -96,7 +101,7 @@ export class LogisticsSystem {
     if (role !== 'source') return;
     for (const resourceType in holder.store) {
       const amount = holder.store.getUsedCapacity(resourceType as ResourceConstant) ?? 0;
-      if (amount > 0) addSource(stores, resourceType as ResourceConstant, holder.id, amount);
+      if (amount > 0) addSource(stores, resourceType as ResourceConstant, holder, amount);
     }
   }
 }
