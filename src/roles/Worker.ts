@@ -160,7 +160,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
     const creepHasNonEnergy = creep.store.getUsedCapacity() - creepEnergy > 0;
 
     // ------ SUPPLY ------
-    if (storage && (creepHasNonEnergy || (creepEnergy > 0 && storageLow))) {
+    if (storage && creepHasNonEnergy) {
       // Need to store resources
       const store = Transfer.stash(creep, storage);
       if (store) return store;
@@ -176,23 +176,17 @@ export class Worker extends CreepRoleBase implements CreepRole {
           : this.WorkerSpendingTask(creep, undefined, maintainers.length);
       if (spend) return spend;
 
-      if ((creep.AssignedRoom.controller?.level ?? 0) < 6) {
-        // Leftover goes to controller upgrade
-        const upgrade = UpgradeController.upgrade(creep);
-        if (upgrade) return upgrade;
-      } else {
-        // Or storage if we are RCL 6 or above
-        if (storage !== undefined && storage.store.getFreeCapacity() > 0) return new Transfer(storage);
+      if (storage && storageLow) {
+        const store = Transfer.stash(creep, storage);
+        if (store) return store;
       }
     }
 
     // ------ GATHER ------
     if (creep.store.getUsedCapacity() === 0) {
-      // Try to find a gathering task, for any energy from storage or locally if we are low on maintainers,
-      // otherwise for general resources, which only make sense with storage to stash them in
       const gather =
         maintainers.length === 0
-          ? (Transfer.fromStorage(creep.AssignedRoom) ?? Transfer.collect(creep, [RESOURCE_ENERGY]))
+          ? Transfer.collect(creep, [RESOURCE_ENERGY])
           : Transfer.collect(creep, storage ? RESOURCES_ALL : [RESOURCE_ENERGY], { minAmount: 50 });
       if (gather) return gather;
 
@@ -200,8 +194,10 @@ export class Worker extends CreepRoleBase implements CreepRole {
       if (
         sum([...creep.AssignedRoom.AssignedTasksWithCreep(Mine)], m => BodyCost(m[0].body)) <
         this.WorkersMineBelowMinerBodyTotalCost
-      )
-        return Mine.anyUnfilled(creep.AssignedRoom);
+      ) {
+        const mine = Mine.anyUnfilled(creep.AssignedRoom);
+        if (mine) return mine;
+      }
     }
 
     // Didn't need or Can't find, gathering or spending task
