@@ -126,11 +126,11 @@ export class Transfer extends TargetTask<ResourceContainer> {
 
   // prettier-ignore
   /** Structures to supply, in priority order, with the number of suppliers each allows at once. */
-  static readonly SupplyPriorities: [matches: (s: AnyStoreStructure) => boolean, maxSuppliers: number][] = [
-    [s => s instanceof StructureExtension, 1],
-    [s => s instanceof StructureSpawn, 1],
-    [s => s instanceof StructureTower, 1],
-    [() => true, 1],
+  static readonly SupplyPriorities: ((s: AnyStoreStructure) => boolean)[] = [
+    s => s instanceof StructureExtension,
+    s => s instanceof StructureSpawn,
+    s => s instanceof StructureTower,
+    () => true,
   ];
 
   public readonly legs: TransferLeg[];
@@ -225,12 +225,9 @@ export class Transfer extends TargetTask<ResourceContainer> {
       suppliersByTarget.set(task.targetId, (suppliersByTarget.get(task.targetId) ?? 0) + 1);
     }
 
-    for (const [matches, maxSuppliers] of Transfer.SupplyPriorities) {
+    for (const matcher of Transfer.SupplyPriorities) {
       const group = candidatesOrRequest.filter(
-        s =>
-          s.store.getFreeCapacity(RESOURCE_ENERGY) > 0 &&
-          matches(s) &&
-          (suppliersByTarget.get(s.id) ?? 0) < maxSuppliers,
+        s => s.store.getFreeCapacity(RESOURCE_ENERGY) > 0 && matcher(s) && (suppliersByTarget.get(s.id) ?? 0) === 0,
       );
       const target = pickByLocation(creep, group, tier => tier.sort(Sorts.StoreEnergyRatioAsc).pop());
       if (target) return new Transfer(target);
