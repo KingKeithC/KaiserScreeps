@@ -198,7 +198,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
 
       // If there aren't enough miners, then do mining
       if (
-        sum([...creep.AssignedRoom.AssignedTasksWithCreep(Mine)], m => BodyCost(m[0].body)) <
+        sum([...creep.AssignedRoom.AssignedTasksWithCreep(Mine, creep)], m => BodyCost(m[0].body)) <
         this.WorkersMineBelowMinerBodyTotalCost
       ) {
         const mine = Mine.anyUnfilled(creep.AssignedRoom);

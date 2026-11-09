@@ -108,8 +108,9 @@ export class RoomExtra extends Room {
 
   *AssignedTasksWithCreep<Task extends CreepTask = CreepTask>(
     taskClass?: TaskClass<Task>,
+    excluding?: CreepExtra,
   ): IterableIterator<[CreepExtra, Task]> {
-    yield* AssignedTasksWithEntity<CreepExtra, CreepTask, Task>(this.AssignedCreeps, taskClass);
+    yield* AssignedTasksWithEntity<CreepExtra, CreepTask, Task>(this.AssignedCreeps, taskClass, excluding);
   }
 
   get MinHostilesForResponse(): number {
@@ -482,9 +483,9 @@ export class RoomExtra extends Room {
   /**
    * Get positions next to Sources/Extractors that are not the target of any other miners in the colony.
    */
-  AvailableMiningSources(): MiningPosition[] {
+  AvailableMiningSources(excluding?: CreepExtra): MiningPosition[] {
     const ret = [];
-    const assignedSources = [...this.AssignedTasks(Mine)].map(p => p.targetId);
+    const assignedSources = [...this.AssignedTasks(Mine, excluding)].map(p => p.targetId);
     for (const [_room, mines] of this.WorkableClaimedMiningPositions)
       for (const mine of mines) if (!assignedSources.some(amp => amp === mine.source)) ret.push(mine);
     return ret;

@@ -42,7 +42,7 @@ export class Miner extends CreepRoleBase implements CreepRole {
   }
 
   SelectNextTask(creep: CreepExtra): CreepTask | null {
-    return Mine.forMiner(creep.AssignedRoom);
+    return Mine.forMiner(creep.AssignedRoom, creep);
   }
 
   TickCreep(creep: CreepExtra): void {

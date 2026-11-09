@@ -44,8 +44,8 @@ export class Claimer extends CreepRoleBase implements CreepRole {
     return 1;
   }
 
-  WorkedClaims(): string[] {
-    return unique([...this.colony.AssignedTasks(Claim)].map(p => p.targetId));
+  WorkedClaims(excluding?: CreepExtra): string[] {
+    return unique([...this.colony.AssignedTasks(Claim, excluding)].map(p => p.targetId));
   }
 
   get ClaimFlags(): Flag[] {
@@ -56,8 +56,8 @@ export class Claimer extends CreepRoleBase implements CreepRole {
     return unique(this.colony.AllClaimedNearby.concat(this.ClaimFlags.map(f => f.pos.roomName)));
   }
 
-  UnworkedClaims(room: RoomExtra): string[] {
-    const worked = this.WorkedClaims().filter(c => room.ClaimedNearby.includes(c));
+  UnworkedClaims(room: RoomExtra, excluding?: CreepExtra): string[] {
+    const worked = this.WorkedClaims(excluding).filter(c => room.ClaimedNearby.includes(c));
     const username = this.colony.username;
     const ret = [];
     for (const claim of this.PotentialClaims()) {
@@ -83,7 +83,7 @@ export class Claimer extends CreepRoleBase implements CreepRole {
   }
 
   override SelectNextTask(creep: CreepExtra): CreepTask | null {
-    for (const c of this.UnworkedClaims(creep.AssignedRoom))
+    for (const c of this.UnworkedClaims(creep.AssignedRoom, creep))
       if (c in Game.rooms) {
         const controller = Game.rooms[c].controller;
         if (controller !== undefined) return new Claim(controller, false);

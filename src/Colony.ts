@@ -327,14 +327,18 @@ export class Colony {
     return unique(flatten(this.MyRooms.map(mr => mr.ClaimedNearby)));
   }
 
-  *AssignedTasks<Task extends CreepTask = CreepTask>(taskClass?: TaskClass<Task>): IterableIterator<Task> {
-    yield* TasksOfEntities<CreepExtra, CreepTask, Task>(this.MyCreeps, taskClass);
+  *AssignedTasks<Task extends CreepTask = CreepTask>(
+    taskClass?: TaskClass<Task>,
+    excluding?: CreepExtra,
+  ): IterableIterator<Task> {
+    yield* TasksOfEntities<CreepExtra, CreepTask, Task>(this.MyCreeps, taskClass, excluding);
   }
 
   *AssignedTasksWithCreep<Task extends CreepTask = CreepTask>(
     taskClass?: TaskClass<Task>,
+    excluding?: CreepExtra,
   ): IterableIterator<[CreepExtra, Task]> {
-    yield* AssignedTasksWithEntity<CreepExtra, CreepTask, Task>(this.MyCreeps, taskClass);
+    yield* AssignedTasksWithEntity<CreepExtra, CreepTask, Task>(this.MyCreeps, taskClass, excluding);
   }
 
   TickOtherVisibleRoom(room: Room): void {

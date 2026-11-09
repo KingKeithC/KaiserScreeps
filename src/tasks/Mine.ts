@@ -17,8 +17,8 @@ export class Mine extends PreferredPositionTask<Source | StructureExtractor> {
   protected static override readonly requiredBodyPart = WORK;
 
   /** A mining spot for an idle miner: an unassigned source first, otherwise any unfilled position. */
-  public static forMiner(room: RoomExtra): Mine | null {
-    const available = room.AvailableMiningSources();
+  public static forMiner(room: RoomExtra, excluding?: CreepExtra): Mine | null {
+    const available = room.AvailableMiningSources(excluding);
     if (available.length > 0) {
       const pos = available.pop();
       if (pos) return new Mine(pos.source, pos.pos);
