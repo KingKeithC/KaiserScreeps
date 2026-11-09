@@ -10,8 +10,17 @@ import screeps from 'rollup-plugin-screeps';
 import typescript from 'rollup-plugin-typescript2';
 import { readFileSync } from 'fs';
 
+function readScreepsFile() {
+  try {
+    return JSON.parse(readFileSync('./screeps.json', 'utf8'));
+  } catch (err) {
+    if (err.code === 'ENOENT') return null;
+    throw err;
+  }
+}
+
 const branch = process.env.SCREEPS_BRANCH ?? process.env.SCREEPS_DEST ?? 'unkn';
-const branchSettings = (JSON.parse(readFileSync('./screeps.json', 'utf8')) ?? {})[branch];
+const branchSettings = (readScreepsFile() ?? {})[branch];
 
 let screepsSettings = {
   token: branchSettings?.token ?? process.env.SCREEPS_TOKEN ?? null,
@@ -19,7 +28,7 @@ let screepsSettings = {
   hostname: branchSettings?.hostname ?? process.env.SCREEPS_HOSTNAME ?? 'screeps.com',
   port: branchSettings?.port ?? (process.env.SCREEPS_PORT && Number(process.env.SCREEPS_PORT)) ?? 443,
   path: branchSettings?.path ?? process.env.SCREEPS_PATH ?? '/',
-  branch: branchSettings?.branch ?? process.env.SCREEPS_BRANCH ?? '/',
+  branch,
 };
 
 for (const k in screepsSettings)
