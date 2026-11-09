@@ -38,7 +38,7 @@ export class TradingSystem {
   }
 
   get TradeEnabled(): boolean {
-    return ((Memory as typeof Memory & { tradeEnabled?: boolean }).tradeEnabled ??= true);
+    return ((Memory as typeof Memory & { tradeEnabled?: boolean }).tradeEnabled ??= false);
   }
 
   get ProfitableAbovePPU(): number {
