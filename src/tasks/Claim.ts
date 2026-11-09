@@ -1,5 +1,5 @@
 import { CreepExtra } from 'Creep';
-import { RegisterTask, TaskActionResult } from 'tasks/types';
+import { RegisterTask } from 'tasks/types';
 import { TargetTask } from './TargetTask';
 
 export class Claim extends TargetTask<StructureController> {
@@ -9,11 +9,14 @@ export class Claim extends TargetTask<StructureController> {
     RegisterTask(this);
   }
 
+  protected static override readonly minRangeToAct = 1;
+  protected static override readonly requiredBodyPart = CLAIM;
+
   public constructor(
     controller: StructureController,
     public readonly claim = false, // false = 'reserve'
   ) {
-    super(controller);
+    super(controller, 1);
   }
 
   isCreepAbleToContinue(): boolean {
@@ -28,10 +31,14 @@ export class Claim extends TargetTask<StructureController> {
     return target.owner?.username === creep.owner.username;
   }
 
-  public actWhenTargetValid(creep: CreepExtra, target: StructureController): TaskActionResult | null {
+  protected registerIntent(creep: CreepExtra, target: StructureController): number {
     if (target.owner?.username !== undefined && target.owner?.username !== creep.owner.username)
-      return { range: 1, result: creep.attackController(target), target };
-    else if (this.claim) return { range: 1, result: creep.claimController(target), target };
-    else return { range: 1, result: creep.reserveController(target), target };
+      return creep.attackController(target);
+    if (this.claim) return creep.claimController(target);
+    return creep.reserveController(target);
+  }
+
+  protected isIntentBlocked(): boolean {
+    return false;
   }
 }

@@ -2,8 +2,8 @@ import { CreepExtra } from 'Creep';
 import { RoomExtra } from 'Room';
 import { Move } from 'tasks';
 import { CreepTask } from 'tasks/types';
-import { MakeBody } from 'utils/Collections';
-import { RoomReport, MakeRoomReport } from 'utils/RoomUtils';
+import { Filters, MakeBody } from 'utils/Collections';
+import { RoomReport } from 'utils/RoomUtils';
 import { CreepRoleBase, CreepRole } from './Role';
 
 export interface ScoutingReport extends RoomReport {
@@ -24,7 +24,7 @@ export class Scout extends CreepRoleBase implements CreepRole {
     return MakeBody([MOVE, 1]);
   }
 
-  ScoutReportTTL = 2000;
+  static ScoutReportTTL = 2000;
 
   // 1 per owned room
   GetMinQuota(): number {
@@ -35,7 +35,7 @@ export class Scout extends CreepRoleBase implements CreepRole {
   // And when no other scout assigned to this room is living.
   IsSpawnNeeded(room: RoomExtra): boolean {
     if (!this.IsRoleUnderQuota(room)) return false;
-    return Game.time - room.LastSpawnTick(this.roleName) > this.ScoutReportTTL;
+    return Game.time - room.LastSpawnTick(this.roleName) > Scout.ScoutReportTTL;
   }
 
   OnSpawn(creep: CreepExtra): void {
@@ -43,36 +43,14 @@ export class Scout extends CreepRoleBase implements CreepRole {
   }
 
   TickCreep(creep: CreepExtra): void {
-    if (creep.hits < creep.hitsMax)
+    if (Filters.Damaged(creep))
       this.log.warn("I'm being attacked.", {
         '<creep>': creep,
         hits: creep.hits,
         hitsMax: creep.hitsMax,
         healthPercent: Number(((creep.hits / creep.hitsMax) * 100).toPrecision(4)),
       });
-
-    let newReport: ScoutingReport | undefined;
-
-    // Create a new scouting report for old or newly visited rooms.
-    Memory.scoutingReports ??= {};
-    if (
-      creep.MovedBetweenRooms ||
-      !(creep.room.name in Memory.scoutingReports) ||
-      Memory.scoutingReports[creep.room.name] === undefined ||
-      Memory.scoutingReports[creep.room.name].lastSeen === undefined ||
-      (Game.time - Memory.scoutingReports[creep.room.name].lastSeen ?? 0) > this.ScoutReportTTL
-    )
-      newReport = this.NewScoutingReport(creep);
-
-    if (newReport !== undefined) {
-      // If we made a new report, replace the one in memory.
-      Memory.scoutingReports[creep.room.name] = newReport;
-
-      // If the new report has hostiles, print a message.
-      if (Game.time % 10 === 0 && newReport.hostiles !== undefined) {
-        this.log.warn('Hostiles found while scouting.', { '<creep>': creep, hostiles: newReport.hostiles });
-      }
-    }
+    creep.UpdateScoutingReportForStoodInRoom();
   }
 
   SelectNextTask(creep: CreepExtra): CreepTask | null {
@@ -104,13 +82,13 @@ export class Scout extends CreepRoleBase implements CreepRole {
         const lastVisitedTooRecently =
           targetRoomName in Memory.scoutingReports &&
           Memory.scoutingReports[targetRoomName].lastSeen &&
-          Game.time - Memory.scoutingReports[targetRoomName].lastSeen < this.ScoutReportTTL;
+          Game.time - Memory.scoutingReports[targetRoomName].lastSeen < Scout.ScoutReportTTL;
         if (lastVisitedTooRecently) {
           this.log.info('Random target was visited too recently.', {
             '<creep>': creep,
             targetRoomName,
             ticksSinceLastSeen: Game.time - Memory.scoutingReports[targetRoomName].lastSeen,
-            reportTTL: this.ScoutReportTTL,
+            reportTTL: Scout.ScoutReportTTL,
           });
           continue;
         }
@@ -124,28 +102,5 @@ export class Scout extends CreepRoleBase implements CreepRole {
       searchAttempts: this.MaxSearchAttempts,
     });
     return null;
-  }
-
-  NewScoutingReport(creep: CreepExtra): ScoutingReport {
-    const dist = Game.map.getRoomLinearDistance(creep.room.name, creep.AssignedRoom.name);
-    if (
-      Memory.scoutingReports &&
-      creep.room.name in Memory.scoutingReports &&
-      'lastSeen' in Memory.scoutingReports[creep.room.name]
-    )
-      this.log.info('Updating scouting report.', {
-        '<creep>': creep,
-        reportRoomName: creep.room.name,
-        distanceFromAssignedRoom: dist,
-        ticksSinceLastSeen: Game.time - Memory.scoutingReports[creep.room.name].lastSeen,
-      });
-    else
-      this.log.info('Creating scouting report.', {
-        '<creep>': creep,
-        reportRoomName: creep.room.name,
-        distanceFromAssignedRoom: dist,
-      });
-
-    return { ...MakeRoomReport(creep.room), scoutedFromOutpost: creep.memory.room, distFromOutpost: dist };
   }
 }

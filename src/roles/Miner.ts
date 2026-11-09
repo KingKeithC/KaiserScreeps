@@ -1,9 +1,10 @@
 import { CreepExtra } from 'Creep';
+import { sum } from 'lodash';
 import { RoomExtra } from 'Room';
 import { Mine } from 'tasks';
 import { CreepTask } from 'tasks/types';
-import { MakeBody } from 'utils/Collections';
-import { BodyCost } from 'utils/CreepUtils';
+import { Filters, Sorts, MakeBody, SerializeRoomPosition } from 'utils/Collections';
+import { BodyCost, TryCollectFromContainer, TryPickupDropped, TryTransferTo } from 'utils/CreepUtils';
 import { CreepRole, CreepRoleBase } from './Role';
 
 export class Miner extends CreepRoleBase implements CreepRole {
@@ -14,7 +15,7 @@ export class Miner extends CreepRoleBase implements CreepRole {
   IsSpawnNeeded(room: RoomExtra): boolean {
     if (!this.IsRoleUnderQuota(room)) return false;
     // We can't spawn miners until we have a worker.
-    return room.AssignedCreeps.filter(c => c.role.groupName === 'Workers').length > 0;
+    return room.AssignedCreeps.filter(Filters.CreepRoleGroupName('Workers')).length > 0;
   }
 
   GetNewCreepBody(room: RoomExtra): BodyPartConstant[] {
@@ -38,84 +39,53 @@ export class Miner extends CreepRoleBase implements CreepRole {
   }
 
   SelectNextTask(creep: CreepExtra): CreepTask | null {
-    for (const mp of creep.AssignedRoom.AvailableMiningPositions()) return new Mine(mp);
-    for (const mp of creep.AssignedRoom.UnfilledMiningPositions()) return new Mine(mp);
-    // this.log.warn('No suitable mining position found.', { '<creep>': creep });
-    return null;
-  }
-
-  PickupDropped(creep: CreepExtra): void {
-    // If we have space for resources, and there are some around us, pick it up
-    if (creep.store.getUsedCapacity() > 0)
-      for (const dropped of creep.pos.findInRange(FIND_DROPPED_RESOURCES, 1)) creep.pickup(dropped);
+    return Mine.forMiner(creep.AssignedRoom);
   }
 
   TickCreep(creep: CreepExtra): void {
-    const nearbySenders = creep.AssignedRoom.LinkSenders.filter(l => l.pos.isNearTo(creep));
+    if (!creep.IsInAssignedMiningPosition()) return; // Don't make us tired
 
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
-    const nearContainers = creep.pos.findInRange(FIND_MY_STRUCTURES, 1, {
-      filter: { structureType: STRUCTURE_CONTAINER },
-    }) as StructureContainer[];
+    // Skip ambient actions when we are a miner assigned to a mining task and we are not in position
+    if (
+      creep.role instanceof Miner &&
+      creep.currentTask?.action === Mine.action &&
+      (creep.currentTask as Mine).targetPos !== SerializeRoomPosition(creep.pos)
+    )
+      return;
 
-    // If there is a container nearby that has energy,
-    // and the links nearby need energy
-    // and we also have room, withdraw from the container
-    for (const container of nearContainers)
-      if (
-        nearbySenders.some(l => l.store.getFreeCapacity(RESOURCE_ENERGY) > 0) &&
-        creep.store.getFreeCapacity(RESOURCE_ENERGY) > 0 &&
-        container.store.getUsedCapacity(RESOURCE_ENERGY) > 0
-      )
-        creep.withdraw(container, RESOURCE_ENERGY);
+    const nearbyNonMiners = creep.pos.findInRange(this.colony.MyCreeps, 1, {
+      filter: c => c.store.getFreeCapacity() > 0 && !Filters.CreepRoleGroupName('Miners')(c),
+    });
+    if (TryTransferTo(creep, nearbyNonMiners, [RESOURCE_ENERGY])) return;
+    if (TryPickupDropped(creep)) return;
 
-    // If there is a link nearby that needs energy,
-    // and we have energy, transfer ours to it
-    for (const link of nearbySenders)
-      if (creep.store.getUsedCapacity(RESOURCE_ENERGY) > 0 && link.store.getFreeCapacity(RESOURCE_ENERGY) > 0)
-        this.TransferToNeighbours(creep, RESOURCE_ENERGY, link);
+    const nearbyContainers = creep.pos.findInRange(FIND_STRUCTURES, 1).filter(Filters.StructureContainer);
+    const notEnergy = RESOURCES_ALL.filter(rt => rt !== RESOURCE_ENERGY);
+    if (TryTransferTo(creep, nearbyContainers, notEnergy)) return;
 
-    // Otherwise pickup any dropped resources under us
-    this.PickupDropped(creep);
+    const nearbyTowers = creep.pos.findInRange(FIND_MY_STRUCTURES, 1).filter(Filters.StructureTower);
+    const nearbyLinks = creep.AssignedRoom.LinkSenders.filter(link => link.pos.isNearTo(creep));
+    const nearbyEnergyDemand =
+      sum(nearbyTowers.map(tower => tower.store.getFreeCapacity(RESOURCE_ENERGY))) +
+      sum(nearbyLinks.map(link => link.store.getFreeCapacity(RESOURCE_ENERGY)));
+    if (TryCollectFromContainer(creep, nearbyContainers, nearbyEnergyDemand * 2, [RESOURCE_ENERGY])) return;
+    if (TryTransferTo(creep, nearbyTowers, [RESOURCE_ENERGY])) return;
+    if (TryTransferTo(creep, nearbyLinks, [RESOURCE_ENERGY])) return;
+    if (TryTransferTo(creep, nearbyContainers, [RESOURCE_ENERGY])) return;
 
-    // Or transfer leftover held anything to any neighbour we can
-    this.TransferToNeighbours(creep);
-  }
+    if (!(creep.currentTask instanceof Mine && creep.currentTask.target instanceof Source)) return;
+    if (creep.currentTask.target.energy > 0) return;
 
-  TransferToNeighbours(
-    creep: CreepExtra,
-    preferredResource?: ResourceConstant,
-    preferredDest?: AnyStoreStructure,
-  ): void {
-    let needSupply: CreepExtra | AnyStoreStructure | undefined = preferredDest;
+    // Source is out of energy, so can't mine, repair whatever is around us
+    for (const repair of creep.pos
+      .findInRange(FIND_STRUCTURES, 3, { filter: s => Filters.Damaged(s) && !Filters.StructureWallOrRampart(s) })
+      .sort(Sorts.StructureHitsRatioAsc))
+      if (creep.repair(repair) === OK) return;
 
-    const transferResource = (rt: ResourceConstant) => {
-      if (needSupply === undefined)
-        needSupply = creep.pos
-          .findInRange(
-            [
-              ...creep.AssignedRoom.AssignedCreeps.filter(c => c.role.groupName === 'Worker'),
-              ...creep.pos.findInRange(FIND_STRUCTURES, 1, {
-                filter: s => ('store' in s && s.store.getFreeCapacity(rt)) ?? 0 > 0,
-              }),
-              ...creep.AssignedRoom.LinkSenders,
-            ] as (CreepExtra | AnyStoreStructure)[],
-            1,
-            {
-              filter: (target): target is CreepExtra | AnyStoreStructure =>
-                'store' in target && (target.store.getFreeCapacity(rt) ?? 0) > 0,
-            },
-          )
-          .sort((b, a) => (a.store.getFreeCapacity(rt) ?? 0) - (b.store.getFreeCapacity(rt) ?? 0))
-          .pop();
-      if (needSupply) creep.transfer(needSupply, rt);
-    };
-
-    if (preferredResource) transferResource(preferredResource);
-    else {
-      for (const [res, amt] of Object.entries(creep.store))
-        if ((amt as number) !== null && (amt as number) !== undefined && (amt as number) > 0)
-          transferResource(res as ResourceConstant);
-    }
+    // If there are construction sites nearby, try to build them before idling
+    for (const construction of creep.pos
+      .findInRange(FIND_MY_CONSTRUCTION_SITES, 3)
+      .sort(Sorts.ConstructionProgressRatioAsc))
+      if (creep.build(construction) === OK) return;
   }
 }

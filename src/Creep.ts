@@ -3,9 +3,13 @@ import type { RoomExtra } from 'Room';
 import { Logger } from 'utils/Logger';
 import { Colony } from 'Colony';
 import { CreepRole } from 'roles/Role';
-import { DeserializeRoomPosition, RoomPositionString, SerializeRoomPosition } from 'utils/Collections';
+import { DeserializeRoomPosition, OK_MOVE_DONE, RoomPositionString, SerializeRoomPosition } from 'utils/Collections';
 import { CreepTask, DeserializeTask } from 'tasks/types';
 import { FromEdgeIntoRoom as DirectionIntoRoomFromEdge, EdgeStoodOn } from 'utils/CreepUtils';
+import { Scout, ScoutingReport } from 'roles/Scout';
+import { MakeRoomReport } from 'utils/RoomUtils';
+import { Mine, Transfer } from 'tasks';
+import { Miner } from 'roles/Miner';
 
 declare global {
   interface CreepMemory {
@@ -50,7 +54,7 @@ export class CreepExtra extends Creep {
 
   private cachedCurrentTask?: CreepTask | null;
   get currentTask(): CreepTask | null {
-    if (this.cachedCurrentTask !== undefined) return this.cachedCurrentTask;
+    if (this.cachedCurrentTask) return this.cachedCurrentTask;
     try {
       return (this.cachedCurrentTask = DeserializeTask(this.memory.currentTask));
     } catch (error) {
@@ -60,10 +64,23 @@ export class CreepExtra extends Creep {
       return (this.cachedCurrentTask = null);
     }
   }
-
   private set currentTask(value: CreepTask | null) {
-    this.cachedCurrentTask = value;
-    this.memory.currentTask = value === null ? null : { ...value, action: value.action };
+    this.memory.currentTask = this.cachedCurrentTask = value;
+  }
+
+  IsAMiningMiner(): boolean {
+    if (!(this.role instanceof Miner)) return false;
+    if (this.currentTask?.action !== Mine.action) return false;
+    return true;
+  }
+
+  IsInAssignedMiningPosition(): boolean {
+    if (!this.IsAMiningMiner()) return false;
+
+    const miningTask: Mine = this.currentTask as Mine;
+    if (miningTask.movementRange === 0 && SerializeRoomPosition(this.pos) === miningTask.miningPosition.pos)
+      return true;
+    return false;
   }
 
   private cachedAssignedRoom?: RoomExtra;
@@ -88,6 +105,7 @@ export class CreepExtra extends Creep {
     // Return fetched.
     return this.cachedAssignedRoom;
   }
+
   MovedBetweenTicks = false;
   StartOfTick(): void {
     if (this.spawning) return; // Ignore spawning creeps.
@@ -106,11 +124,13 @@ export class CreepExtra extends Creep {
 
     // Reset after using its value:
     this.IntendedToMove = false;
+
+    this.UpdateScoutingReportForStoodInRoom();
   }
 
   MaxStuckTicks = 2;
   MaxAvoidTicks = 4;
-  MoveLong(pos: RoomPosition, opts?: MoveToOpts): number {
+  MoveLong(pos: RoomPosition, opts?: MoveToOpts): ScreepsReturnCode {
     // this.log.debug('Invoking MoveLong.', { '<creep>': this, pos, opts });
     return this.moveTo(pos, {
       ...opts,
@@ -118,13 +138,12 @@ export class CreepExtra extends Creep {
       visualizePathStyle: Memory.globalEnablePathVisuals
         ? { stroke: Colours.PATH_LONG, lineStyle: 'solid' }
         : undefined,
-      ignoreCreeps: true,
       reusePath: 50,
       plainCost: 2,
     });
   }
 
-  MoveAvoidCreeps(pos: RoomPosition, opts?: MoveToOpts): number {
+  MoveAvoidCreeps(pos: RoomPosition, opts?: MoveToOpts): ScreepsReturnCode {
     // this.log.debug('Invoking MoveAvoidCreeps.', { '<creep>': this, pos, opts });
     // eslint-disable-next-line no-underscore-dangle
     return this.moveTo(pos, {
@@ -145,7 +164,7 @@ export class CreepExtra extends Creep {
   }
 
   // Returns 1 when in range; otherwise returns the moveTo result.
-  MoveCreep(target: RoomPosition | { pos: RoomPosition }, opts?: MoveToOpts): number {
+  MoveCreep(target: RoomPosition | { pos: RoomPosition }, opts?: MoveToOpts): ScreepsReturnCode | typeof OK_MOVE_DONE {
     // Init move trackers
     this.memory.moveMode ??= 'long';
     this.memory.stuckTicks ??= 0;
@@ -162,7 +181,7 @@ export class CreepExtra extends Creep {
       this.memory.stuckTicks = 0;
       this.memory.successfulAvoidMoves = 0;
       this.memory.moveMode = 'long';
-      return 1;
+      return OK_MOVE_DONE;
     }
 
     // Increment counters
@@ -223,6 +242,48 @@ export class CreepExtra extends Creep {
     return (this.memory.intendedToMove ??= false);
   }
 
+  NewScoutingReport(): ScoutingReport {
+    const dist = Game.map.getRoomLinearDistance(this.room.name, this.AssignedRoom.name);
+    if (
+      Memory.scoutingReports &&
+      this.room.name in Memory.scoutingReports &&
+      'lastSeen' in Memory.scoutingReports[this.room.name]
+    )
+      this.log.info('Updating scouting report.', {
+        reportRoomName: this.room.name,
+        distanceFromAssignedRoom: dist,
+        ticksSinceLastSeen: Game.time - Memory.scoutingReports[this.room.name].lastSeen,
+      });
+    else this.log.info('Creating scouting report.', { reportRoomName: this.room.name, distanceFromAssignedRoom: dist });
+
+    return { ...MakeRoomReport(this.room), scoutedFromOutpost: this.memory.room, distFromOutpost: dist };
+  }
+
+  UpdateScoutingReportForStoodInRoom(): void {
+    Memory.scoutingReports ??= {};
+    let newReport: ScoutingReport | undefined;
+
+    // Create or update a new scouting report for the current room.
+    if (
+      this.MovedBetweenRooms ||
+      !(this.room.name in Memory.scoutingReports) ||
+      Memory.scoutingReports[this.room.name] === undefined ||
+      Memory.scoutingReports[this.room.name].lastSeen === undefined ||
+      (Game.time - Memory.scoutingReports[this.room.name].lastSeen ?? 0) > Scout.ScoutReportTTL
+    )
+      newReport = this.NewScoutingReport();
+
+    if (newReport !== undefined) {
+      // If we made a new report, replace the one in memory.
+      Memory.scoutingReports[this.room.name] = newReport;
+
+      // If the new report has hostiles, print a message.
+      if (Game.time % 10 === 0 && newReport.hostiles && newReport.hostiles.length > 0) {
+        this.log.warn('Hostiles found.', { hostiles: newReport.hostiles, room: newReport.roomName });
+      }
+    }
+  }
+
   ActedThisTick = false;
   EndOfTick(): void {
     this.LastPos = this.pos;
@@ -247,14 +308,16 @@ export class CreepExtra extends Creep {
   }
 
   JobsAvailable = true;
-  private ChangeTask(newTask = this.role.SelectNextTask(this)): void {
+  private ChangeTask(newTask = this.role.SelectNextTask(this)): CreepTask | null {
     const oldTask = this.currentTask;
     this.currentTask = newTask;
 
     // Log the transition as long as it's not None -> None.
     if (!newTask && oldTask) this.log.info('Task unassigned.', { oldTask });
     else if (newTask && !oldTask) this.log.info('Task assigned.', { newTask });
-    else if (oldTask && newTask) this.log.info('Task reassigned.', { oldTask, newTask });
+    else if (oldTask?.action === Transfer.action && newTask?.action === Transfer.action) {
+      // If both old and new tasks are Transfer actions, ignore logging the transition
+    } else if (oldTask && newTask) this.log.info('Task reassigned.', { oldTask, newTask });
 
     if (newTask)
       // If the transition ended with a new task, speak its action
@@ -263,82 +326,90 @@ export class CreepExtra extends Creep {
       // If the transition was to nothing, set no jobs available
       // flag to prevent further task selecting
       this.JobsAvailable = false;
+
+    return newTask;
   }
 
-  CanStillAct(): boolean {
+  CanStillAct(maxAttempts: number): boolean {
     // Don't act if we know we won't find a new job
     if (!this.JobsAvailable) return false;
 
     // Don't act if we already enqueued a move
     if (this.IntendedToMove) return false;
 
+    // Don't act if we are running low on CPU,
+    // So long as we've acted at least once
+    if (this.tasksAttempted > 0) {
+      if (Game.cpu.getUsed() > Game.cpu.tickLimit * this.colony.CpuSkipRatio) {
+        this.log.warn('CPU Used too high, skipping further actions.', {
+          bucket: Game.cpu.bucket,
+          used: Game.cpu.getUsed(),
+          tickLimit: Game.cpu.tickLimit,
+          tasksAttempted: this.tasksAttempted,
+        });
+        return false;
+      }
+    }
+
     // If we have done less than the limit of tasks, then we're ok to keep trying
-    return this.tasksAttempted <= this.MaxTasksToAttemptPerTick;
+    return this.tasksAttempted <= maxAttempts;
   }
 
-  MaxTasksToAttemptPerTick = 5;
-  private tasksAttempted = 0;
-  DoTask(): void {
-    if (!this.CanStillAct()) return;
+  DoTasks(maxAttempts = 5): void {
+    for (let i = 0; i < maxAttempts; i++) {
+      if (!this.CanStillAct(maxAttempts)) return;
+      this.currentTask = this.DoTask(this.currentTask);
+    }
+  }
 
+  private tasksAttempted = 0;
+  private DoTask(currentTask: CreepTask | null): CreepTask | null {
     // Select new Task if no current one, or it's complete
-    if (this.currentTask === null || this.currentTask.isCompleteFlag) this.ChangeTask();
+    const task = currentTask === null || currentTask.isCompleteFlag ? this.ChangeTask() : currentTask;
 
     // Early return for no task found
-    const task = this.currentTask;
     if (task === null) {
       this.say('🤷');
-      return;
+      return null;
     }
 
     const outcome = task.handleOutcome(this, task.act(this));
-    this.currentTask = task; // Save task back to itself since acting on it might have changed it
-    this.ActedThisTick = true; // Update non-idle flag since we acted
     this.tasksAttempted = this.tasksAttempted + 1; // Increment Tasks done
 
-    // Handle follow up actions
+    // Handle error / movement
 
-    if (task.isCompleteFlag) {
-      // Task finshed, so change it now proactively
-      this.ChangeTask();
-      return;
-    } else if (outcome === null || outcome === undefined || outcome.result === OK)
-      // Task was ok or couldn't act, but still isn't complete, and don't need to move.
-      return;
-    else if (outcome.result === ERR_NOT_IN_RANGE) {
-      // We have to move to the task's target
+    if (
+      outcome === null ||
+      outcome === undefined ||
+      outcome.result === ERR_NOT_ENOUGH_ENERGY ||
+      outcome.result === ERR_NOT_ENOUGH_RESOURCES
+    ) {
+      // Noop
+    } else if (task.isCompleteFlag || outcome.result === OK) {
+      // Update non-idle flag since we acted successfully
+      this.ActedThisTick = true;
+    } else if (outcome.result === ERR_NOT_IN_RANGE) {
+      // We have to move
       const moveResult = this.MoveCreep(outcome.target.pos, { range: outcome.range });
-
-      if (moveResult === OK) this.IntendedToMove = true;
-
-      if (moveResult !== OK && moveResult !== ERR_TIRED)
-        // Log bad moves
-        this.log.debug('DoTask follow-up move failed.', {
-          moveResult,
-          task,
-          outcome,
-          thisPos: this.pos,
-          targetPos: outcome.target.pos,
-        });
-
-      // If pathfinding failed, select a new task
-      if (moveResult === ERR_NO_PATH) this.ChangeTask();
+      if (moveResult === OK_MOVE_DONE) task.isCompleteFlag = true;
+      else if (moveResult === OK) this.IntendedToMove = true;
+      else if (moveResult === ERR_NO_PATH)
+        // If pathfinding failed, cancel the task
+        task.isCompleteFlag = true;
+      else if (moveResult !== ERR_TIRED)
+        // Log unhandled move result
+        this.log.debug('DoTask follow-up move unhandled.', { moveResult, task, outcome, thisPos: this.pos });
     } else {
-      // Task result was not ok and not a move
-      this.log.debug('DoTask returned a non-OK result.', {
-        task,
-        outcome,
-        thisPos: this.pos,
-        targetPos: outcome.target.pos,
-      });
+      this.log.debug('DoTask result was not ok and not a move.', { task, thisPos: this.pos, outcome });
+      task.isCompleteFlag = true;
     }
+
+    return task;
   }
 
   MoveIntoRoomIfOnEdge(): void {
     const awayFromEdge = DirectionIntoRoomFromEdge(EdgeStoodOn(this.pos));
     if (!awayFromEdge) return;
-    this.move(awayFromEdge);
-    this.ActedThisTick = true;
-    this.IntendedToMove = true;
+    if (this.move(awayFromEdge) === OK) this.IntendedToMove = true;
   }
 }

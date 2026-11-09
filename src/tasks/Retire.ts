@@ -9,16 +9,22 @@ export class Retire extends TargetTask<StructureSpawn> {
     RegisterTask(this);
   }
 
+  protected static override readonly minRangeToAct = 1;
+
   public constructor(target: StructureSpawn) {
-    super(target);
+    super(target, 1);
   }
 
   public extraToString(): string {
     return '';
   }
 
-  public actWhenTargetValid(creep: CreepExtra, target: NonNullable<StructureSpawn>): TaskActionResult | null {
-    return { range: 1, result: target.recycleCreep(creep), target };
+  protected registerIntent(creep: CreepExtra, target: NonNullable<StructureSpawn>): ScreepsReturnCode {
+    return target.recycleCreep(creep);
+  }
+
+  protected isIntentBlocked(): boolean {
+    return false;
   }
 
   public isCreepAbleToContinue(): boolean {
@@ -29,8 +35,7 @@ export class Retire extends TargetTask<StructureSpawn> {
     return false;
   }
 
-  public handleOutcome(creep: CreepExtra, result: TaskActionResult | null): TaskActionResult | null {
-    result = super.handleOutcome(creep, result);
+  protected override handleOutcomeExtra(creep: CreepExtra, result: TaskActionResult | null): TaskActionResult | null {
     if (result?.result === OK) {
       // Gonna die at the end of this tick
       creep.OnLastTickOfLife();

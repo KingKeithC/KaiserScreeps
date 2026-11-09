@@ -1,19 +1,25 @@
 import { Dictionary, flatten, range, unique } from 'lodash';
-import { Collect, Mine, UpgradeController } from 'tasks';
+import { Mine, UpgradeController } from 'tasks';
 import {
-  CollectionPlan,
-  ContainerAndAmount,
   FormatHostileInfos,
   GetHostileInfo,
   GetMinesForRoom,
   GetMiningPositions,
   HostileInfo,
   MiningPosition,
-  ResourceContainersForRoomByType,
 } from 'utils/RoomUtils';
 import { Colony } from 'Colony';
 import { CreepExtra } from 'Creep';
-import { DeserializeRoomPosition, FmtRatios, LerpColour, SerializeRoomPosition } from 'utils/Collections';
+import {
+  AssignedTasksWithEntity,
+  DeserializeRoomPosition,
+  Filters,
+  FmtRatios,
+  LerpColour,
+  SerializeRoomPosition,
+  Sorts,
+  TasksOfEntities,
+} from 'utils/Collections';
 import { Colours } from 'Data';
 import { CreepRole } from 'roles/Role';
 import { Logger } from 'utils/Logger';
@@ -76,39 +82,34 @@ export class RoomExtra extends Room {
     // This class init
     this.parent = parent;
     this.colony = colony;
-    this.AssignedCreeps = colony.MyCreeps.filter(c => c.memory.room === room.name);
+    this.AssignedCreeps = colony.MyCreeps.filter(Filters.CreepMemoryRoomName(room.name));
   }
 
   private cachedAssignedCreepsOfRole: { [roleName: CreepRole['roleName']]: CreepExtra[] } = {};
   GetAssignedCreepsOfRole(roleName: string): CreepExtra[] {
-    return (this.cachedAssignedCreepsOfRole[roleName] ??= this.AssignedCreeps.filter(
-      c => c.role.roleName === roleName,
-    ));
+    return (this.cachedAssignedCreepsOfRole[roleName] ??= this.AssignedCreeps.filter(Filters.CreepRoleName(roleName)));
   }
 
   private cachedAssignedCreepsOfRoleGroup: { [roleGroupName: CreepRole['groupName']]: CreepExtra[] } = {};
   GetAssignedCreepsOfRoleGroup(roleGroupName: string): CreepExtra[] {
-    return (this.cachedAssignedCreepsOfRole[roleGroupName] ??= this.AssignedCreeps.filter(
-      c => c.role.groupName === roleGroupName,
+    return (this.cachedAssignedCreepsOfRoleGroup[roleGroupName] ??= this.AssignedCreeps.filter(
+      Filters.CreepRoleGroupName(roleGroupName),
     ));
   }
 
   *AssignedTasks<Task extends CreepTask = CreepTask>(taskClass?: TaskClass<Task>): IterableIterator<Task> {
-    for (const [_creep, task] of this.AssignedTasksWithCreep(taskClass)) yield task;
+    yield* TasksOfEntities<CreepExtra, CreepTask, Task>(this.AssignedCreeps, taskClass);
   }
 
   *AssignedTasksWithCreep<Task extends CreepTask = CreepTask>(
     taskClass?: TaskClass<Task>,
   ): IterableIterator<[CreepExtra, Task]> {
-    for (const c of this.AssignedCreeps)
-      if (c.currentTask !== null && (taskClass === undefined || c.currentTask.action === taskClass.action))
-        yield [c, c.currentTask as Task];
+    yield* AssignedTasksWithEntity<CreepExtra, CreepTask, Task>(this.AssignedCreeps, taskClass);
   }
 
   get StoreOverUpgrade() {
     return (this.memory.storeOverUpgrade ??= true);
   }
-
   get EnableRepairOverlay(): boolean {
     return (this.memory.enableRepairOverlay ??= false);
   }
@@ -184,11 +185,11 @@ export class RoomExtra extends Room {
   get Mines(): MiningPosition[] {
     return (this.memory.mines ??= GetMiningPositions(this));
   }
-  set ClaimedRoomNames(value: string[]) {
+  set ClaimedNearby(value: string[]) {
     this.memory.claimedNearby = unique(value);
   }
-  get ClaimedRoomNames(): string[] {
-    return unique((this.memory.claimedNearby ??= []));
+  get ClaimedNearby(): string[] {
+    return (this.memory.claimedNearby ??= []);
   }
   private set EventCounts(value: Dictionary<number>) {
     this.memory.eventCounts = value;
@@ -206,33 +207,84 @@ export class RoomExtra extends Room {
   private cachedWorkableClaimedRooms: Room[] = [];
   get WorkableClaimedRooms(): Room[] {
     if (this.cachedWorkableClaimedRooms.length > 0) return this.cachedWorkableClaimedRooms;
+    Memory.scoutingReports ??= {};
+    const username = this.colony.username;
 
-    for (const name of this.ClaimedRoomNames) {
+    for (const name of this.ClaimedNearby) {
+      const scoutingReport = Memory.scoutingReports[name];
+
       if (name in Game.rooms) {
         const room = Game.rooms[name];
-        if (room.controller === undefined || room.controller.owner === undefined)
+        if (room.controller === undefined || room.controller.owner === undefined) {
           // Neutral Room - safe to work
           this.cachedWorkableClaimedRooms.push(room);
-        else if (room.controller.owner.username === this.colony.username)
+          continue;
+        } else if (username !== undefined && room.controller.owner.username === username) {
           //  My room
           if (room.find(FIND_MY_SPAWNS).length === 0) {
             // Not Self-Sufficient - keep working
-            this.log.info('Claimed room is still under support.', { '<rate>': 20, claimedRoomName: name });
             this.cachedWorkableClaimedRooms.push(room);
           } else {
             // Self-Sufficient - disown
-            this.log.warn('Claimed room is self-sufficient; removing support.', { claimedRoomName: name });
-            this.ClaimedRoomNames = this.ClaimedRoomNames.filter(cr => cr !== name);
+            this.log.info('Claimed room is self-sufficient; removing claim.', { claimedRoomName: name });
+            this.ClaimedNearby = this.ClaimedNearby.filter(cr => cr !== name);
+            this.OnClaimBecomesSelfSufficient(room);
           }
-        else if (room.find(FIND_HOSTILE_SPAWNS).length > 0)
-          this.log.warn('Claimed room is hostile.', { '<rate>': 10, claimedRoomName: name });
-        else this.log.warn('Claimed room is unowned and available.', { '<rate>': 10, claimedRoomName: name });
-      } else {
-        this.log.warn('Claimed room is not visible.', { '<rate>': 30, claimedRoomName: name });
+          continue;
+        } else if (username !== undefined && room.controller.owner.username !== username) {
+          // Hostile Room
+          this.log.crit('Claimed room is now hostile; removing claim.', {
+            '<rate>': 10,
+            claimedRoomName: name,
+            newOwner: room.controller.owner.username,
+          });
+          this.ClaimedNearby = this.ClaimedNearby.filter(cr => cr !== name);
+          this.OnClaimBecomesHostile(room);
+          continue;
+        }
+      } else if (
+        scoutingReport !== undefined &&
+        username !== undefined &&
+        scoutingReport.owner !== undefined &&
+        scoutingReport.owner !== username
+      ) {
+        // Hostile Room
+        this.log.crit('Claimed room is not invisible, but reports say hostile; removing claim.', {
+          '<rate>': 10,
+          claimedRoomName: name,
+          scoutingReportOwner: scoutingReport.owner,
+        });
+        this.ClaimedNearby = this.ClaimedNearby.filter(cr => cr !== name);
+        this.OnClaimBecomesHostile(name);
+        continue;
       }
     }
-
     return this.cachedWorkableClaimedRooms;
+  }
+
+  // This room plus the claimed rooms it works, by name.
+  get WorkableAreaRoomNames(): string[] {
+    return [this.name, ...this.WorkableClaimedRooms.map(room => room.name)];
+  }
+
+  get ClaimedByOtherRoomsInThisColony(): string[] {
+    const ret = new Set(this.colony.AllClaimedNearby);
+    for (const claimed of this.ClaimedNearby) ret.delete(claimed);
+    return Array.from(ret.values());
+  }
+
+  private Notify(message: string): void {
+    if (!('sim' in Game.rooms)) Game.notify(message);
+  }
+
+  OnClaimBecomesHostile(disowned: Room | string) {
+    const hostileInfo = disowned instanceof Room ? '\n' + JSON.stringify(GetHostileInfo(disowned)) : '';
+    const roomName = disowned instanceof Room ? disowned.name : disowned;
+    this.Notify(`OH NO! Room ${roomName} (claimed by ${this.name}) is now hostile as of ${Game.time}!${hostileInfo}`);
+  }
+
+  OnClaimBecomesSelfSufficient(room: Room) {
+    this.Notify(`HOORAY! Room ${room.name} (claimed by ${this.name}) is now self-sufficient as of ${Game.time} :)`);
   }
 
   get HostilesByRoom(): [string | Room | RoomExtra, Creep[]][] {
@@ -312,7 +364,7 @@ export class RoomExtra extends Room {
     const terrain = this.getTerrain();
 
     // Set roads to cheapest cost
-    for (const s of this.find(FIND_STRUCTURES, { filter: st => st.structureType === STRUCTURE_ROAD }))
+    for (const s of this.find(FIND_STRUCTURES, { filter: Filters.StructureRoad }))
       matrix.set(s.pos.x, s.pos.y, this.PathfindingParams.RoadCost);
 
     // Blot out pathing around sources, since they tend to crowd
@@ -387,21 +439,11 @@ export class RoomExtra extends Room {
     });
 
     // Blot out unwalkable structures
-    for (const s of this.find(FIND_STRUCTURES, {
-      filter: st =>
-        st.structureType !== STRUCTURE_ROAD &&
-        st.structureType !== STRUCTURE_CONTAINER &&
-        (st.structureType !== STRUCTURE_RAMPART || !st.my),
-    }))
+    for (const s of this.find(FIND_STRUCTURES, { filter: Filters.NonWalkableStructure }))
       matrix.set(s.pos.x, s.pos.y, this.PathfindingParams.Unwalkable);
 
     // Blot out unwalkable construction sites
-    for (const s of this.find(FIND_CONSTRUCTION_SITES, {
-      filter: st =>
-        st.structureType !== STRUCTURE_ROAD &&
-        st.structureType !== STRUCTURE_CONTAINER &&
-        (st.structureType !== STRUCTURE_RAMPART || !st.my),
-    }))
+    for (const s of this.find(FIND_CONSTRUCTION_SITES, { filter: Filters.NonWalkableStructure }))
       matrix.set(s.pos.x, s.pos.y, this.PathfindingParams.Unwalkable);
 
     // Cache
@@ -413,8 +455,9 @@ export class RoomExtra extends Room {
   }
 
   get WorkableClaimedMiningPositions(): [RoomExtra | Room | string, MiningPosition[]][] {
+    const username = this.colony.username;
     return this.MapWithRoomsInClaimedArea(
-      cr => (cr instanceof RoomExtra ? cr.Mines : GetMinesForRoom(cr, this.colony.username)),
+      cr => (cr instanceof RoomExtra ? cr.Mines : username === undefined ? [] : GetMinesForRoom(cr, username)),
       true,
     );
   }
@@ -426,11 +469,11 @@ export class RoomExtra extends Room {
   /**
    * Get positions next to Sources/Extractors that are not the target of any other miners in the colony.
    */
-  AvailableMiningPositions(): MiningPosition[] {
+  AvailableMiningSources(): MiningPosition[] {
     const ret = [];
-    const assignedMiningPositions = [...this.AssignedTasks(Mine)].map(p => p.miningPosition);
+    const assignedSources = [...this.AssignedTasks(Mine)].map(p => p.targetId);
     for (const [_room, mines] of this.WorkableClaimedMiningPositions)
-      for (const mine of mines) if (!assignedMiningPositions.some(amp => amp.source === mine.source)) ret.push(mine);
+      for (const mine of mines) if (!assignedSources.some(amp => amp === mine.source)) ret.push(mine);
     return ret;
   }
 
@@ -463,13 +506,18 @@ export class RoomExtra extends Room {
   }
 
   get SpawnsOrExtensions(): (StructureExtension | StructureSpawn)[] {
-    return this.find(FIND_MY_STRUCTURES, {
-      filter: s => s.structureType === STRUCTURE_SPAWN || s.structureType === STRUCTURE_EXTENSION,
-    });
+    return this.find(FIND_MY_STRUCTURES, { filter: Filters.StructureSpawnOrExtension });
   }
 
   get Hostiles(): Creep[] {
     return this.find(FIND_HOSTILE_CREEPS);
+  }
+
+  get HostileStructuresByOwner(): Record<Owner['username'], AnyOwnedStructure[]> {
+    const ret: { [username: string]: AnyOwnedStructure[] } = {};
+    for (const s of this.find(FIND_HOSTILE_STRUCTURES))
+      ret[s.owner?.username ?? '<none>'] = [...ret[s.owner?.username ?? '<none>'], s];
+    return ret;
   }
 
   get ConstructionSites(): ConstructionSite[] {
@@ -485,7 +533,7 @@ export class RoomExtra extends Room {
 
   get ClaimedContainers(): StructureContainer[] {
     return this.FlatMapOverRoomsInClaimedArea(r =>
-      typeof r === 'string' ? [] : r.find(FIND_STRUCTURES, { filter: s => s.structureType === STRUCTURE_CONTAINER }),
+      typeof r === 'string' ? [] : r.find(FIND_STRUCTURES, { filter: Filters.StructureContainer }),
     );
   }
 
@@ -503,59 +551,29 @@ export class RoomExtra extends Room {
   }
 
   get Ramparts(): StructureRampart[] {
-    return this.find(FIND_MY_STRUCTURES, { filter: s => s.structureType === STRUCTURE_RAMPART });
+    return this.find(FIND_MY_STRUCTURES, { filter: Filters.StructureRampart });
   }
 
   get Roads(): StructureRoad[] {
-    return this.find(FIND_STRUCTURES, { filter: s => s.structureType === STRUCTURE_ROAD });
+    return this.find(FIND_STRUCTURES, { filter: Filters.StructureRoad });
+  }
+
+  private GetLinks(groupName: 'Receivers' | 'Senders'): StructureLink[] {
+    const links: StructureLink[] = [];
+    for (const id of this.LinkGroups[groupName] ?? []) {
+      const link = Game.getObjectById(id);
+      if (!link || typeof link.isActive !== 'function') continue;
+      links.push(link);
+    }
+    return links;
   }
 
   get LinkReceivers(): StructureLink[] {
-    const ret = [];
-    for (const id of this.LinkGroups.Receivers ?? []) {
-      const obj = Game.getObjectById(id);
-      // Skip if missing, or still under construction
-      if (!obj || typeof obj.isActive !== 'function') continue;
-      else ret.push(obj);
-    }
-    return ret;
+    return this.GetLinks('Receivers');
   }
 
   get LinkSenders(): StructureLink[] {
-    const ret = [];
-    for (const id of this.LinkGroups.Senders ?? []) {
-      const obj = Game.getObjectById(id);
-      // Skip if missing, or still under construction
-      if (!obj || typeof obj.isActive !== 'function') continue;
-      else ret.push(obj);
-    }
-    return ret;
-  }
-
-  private cachedCollectionPlan?: CollectionPlan;
-  get CollectionPlan() {
-    return (this.cachedCollectionPlan ??= this.CreateCollectionPlan());
-  }
-
-  CreateCollectionPlan(): CollectionPlan {
-    const sourcesByType = new Map<ResourceConstant, ContainerAndAmount[]>();
-    for (const room of [this, ...this.WorkableClaimedRooms])
-      for (const [resourceType, sources] of ResourceContainersForRoomByType(room)) {
-        const existing = sourcesByType.get(resourceType);
-        if (existing) existing.push(...sources);
-        else sourcesByType.set(resourceType, sources);
-      }
-
-    const reservedCapacityBySource = new Map<string, number>();
-    for (const [collector, task] of this.AssignedTasksWithCreep(Collect)) {
-      const sourceId = task.targetId;
-      reservedCapacityBySource.set(
-        sourceId,
-        (reservedCapacityBySource.get(sourceId) ?? 0) + collector.store.getFreeCapacity(),
-      );
-    }
-
-    return { sourcesByType, reservedCapacityBySource };
+    return this.GetLinks('Senders');
   }
 
   MapWithRoomsInClaimedArea<T>(
@@ -565,7 +583,7 @@ export class RoomExtra extends Room {
     const ret: [RoomExtra | Room | string, T][] = [];
 
     if (includeMainRoom) ret.push([this, mapper(this)]);
-    for (const name of this.ClaimedRoomNames) {
+    for (const name of this.ClaimedNearby) {
       const otherRoom = this.colony.Rooms.get(name);
       if (otherRoom && !otherRoom.controller?.my) ret.push([otherRoom, mapper(otherRoom)]);
       else ret.push([name, mapper(name)]);
@@ -667,10 +685,19 @@ export class RoomExtra extends Room {
   }
 
   RunCreeps(): void {
+    for (const role of Object.values(this.colony.Roles)) role.RoomTickStart(this);
+
     // Run each creep in the room.
     for (const c of this.AssignedCreeps.filter(ac => !ac.spawning)) {
       c.role.TickCreep(c);
-      for (let i = 0; i < c.MaxTasksToAttemptPerTick; i++) c.DoTask();
+
+      if (Game.cpu.bucket < this.colony.MinCpuBucket)
+        this.log.warn('CPU bucket too low, skipping creep tasks.', {
+          bucket: Game.cpu.bucket,
+          MinCpuBucket: this.colony.MinCpuBucket,
+        });
+      else c.DoTasks();
+
       c.MoveIntoRoomIfOnEdge();
     }
   }
@@ -678,9 +705,7 @@ export class RoomExtra extends Room {
   RunTowers(): void {
     if (this.DisableTowers) return;
 
-    const towers = this.find(FIND_MY_STRUCTURES, {
-      filter: (s): s is StructureTower => s.structureType === STRUCTURE_TOWER,
-    });
+    const towers = this.find(FIND_MY_STRUCTURES, { filter: Filters.StructureTower });
     if (towers.length === 0) return;
 
     const hostiles = this.Hostiles;
@@ -760,7 +785,7 @@ export class RoomExtra extends Room {
       return;
     }
 
-    const spawnable = this.GetSpawnableRoles().sort((a, b) => a.role.priority - b.role.priority);
+    const spawnable = this.GetSpawnableRoles().sort(Sorts.RolePriorityAsc);
     if (spawnable.length === 0) {
       this.spawnBlocked = true;
       return;
@@ -887,7 +912,7 @@ export class RoomExtra extends Room {
     msg += `\n\tClaimedSources: ${[...this.ClaimedSources]}`;
 
     // Get info about claimed rooms
-    for (const claim of this.ClaimedRoomNames)
+    for (const claim of this.ClaimedNearby)
       msg += `\n\tClaims: ${claim}: Visible ${this.WorkableClaimedRooms.map(r => r.name).includes(claim)}`;
 
     return msg;

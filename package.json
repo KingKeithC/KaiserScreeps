@@ -2,6 +2,7 @@
   "name": "KaiserScreeps",
   "version": "1.0.0",
   "main": "main.js",
+  "license": "UNLICENSED",
   "devEngines": {
     "packageManager": {
       "name": "pnpm",

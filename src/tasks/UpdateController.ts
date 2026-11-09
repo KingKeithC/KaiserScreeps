@@ -1,4 +1,6 @@
 import { CreepExtra } from 'Creep';
+import { Filters } from 'utils/Collections';
+import { Logger } from 'utils/Logger';
 import { RegisterTask, TaskActionResult } from 'tasks/types';
 import { TargetTask } from './TargetTask';
 
@@ -11,7 +13,27 @@ export class UpgradeController extends TargetTask<StructureController> {
 
   static readonly DowngradeMaintenanceRatio = 1 / 4; // Start repairs when ticksToDowngrade drop below this.
   static readonly MaintenanceBuffer = 2000;
+  protected static override readonly requiredBodyPart = WORK;
 
+  /** Upgrade the assigned room's controller. */
+  public static upgrade(creep: CreepExtra): UpgradeController | null {
+    const controller = creep.AssignedRoom.controller;
+    if (controller) return new UpgradeController(controller, 'upgrade');
+    Logger.crit('Assigned room has no controller.', { '<creep>': creep, assignedRoom: creep.AssignedRoom.name });
+    return null;
+  }
+
+  /** Maintenance upgrade once the controller is close to downgrading; null otherwise. */
+  public static maintain(creep: CreepExtra): UpgradeController | null {
+    const controller = creep.AssignedRoom.controller;
+    if (!controller) {
+      Logger.crit('Assigned room has no controller.', { '<creep>': creep, assignedRoom: creep.AssignedRoom.name });
+      return null;
+    }
+    const threshold = CONTROLLER_DOWNGRADE[controller.level] * UpgradeController.DowngradeMaintenanceRatio;
+    if (controller.ticksToDowngrade < threshold) return new UpgradeController(controller, 'maintain');
+    return null;
+  }
   private readonly startingProgress: number = 0;
 
   public constructor(
@@ -30,8 +52,12 @@ export class UpgradeController extends TargetTask<StructureController> {
     return `${this.mode} ${target.level} %${((target.progress / target.progressTotal) * 100).toExponential(2)}`;
   }
 
-  public actWhenTargetValid(creep: CreepExtra, target: StructureController): TaskActionResult | null {
-    return { range: 3, result: creep.upgradeController(target), target };
+  protected registerIntent(creep: CreepExtra, target: StructureController): number {
+    return creep.upgradeController(target);
+  }
+
+  protected isIntentBlocked(): boolean {
+    return false;
   }
 
   isCreepAbleToContinue(creep: CreepExtra): boolean {
@@ -40,7 +66,7 @@ export class UpgradeController extends TargetTask<StructureController> {
     // and spawns need energy, end early
     if (
       this.mode === 'upgrade' &&
-      creep.role.roleName === 'Maintainer' &&
+      Filters.CreepRoleName('Maintainer')(creep) &&
       creep.AssignedRoom.energyAvailable < creep.AssignedRoom.energyCapacityAvailable
     )
       return false;
@@ -51,8 +77,7 @@ export class UpgradeController extends TargetTask<StructureController> {
     return this.mode === 'maintain' && target.progress >= this.ExpectedFinalProgress(target);
   }
 
-  public handleOutcome(creep: CreepExtra, results: TaskActionResult | null): TaskActionResult | null {
-    results = super.handleOutcome(creep, results);
+  protected override handleOutcomeExtra(creep: CreepExtra, results: TaskActionResult | null): TaskActionResult | null {
     if (results?.result === ERR_NOT_ENOUGH_RESOURCES) this.isCompleteFlag = true;
     if (results?.result === ERR_NOT_OWNER) this.isCompleteFlag = true;
     if (results?.result === ERR_INVALID_TARGET) this.isCompleteFlag = true;

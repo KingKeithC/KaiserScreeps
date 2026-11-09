@@ -1,5 +1,6 @@
 import { Colony } from 'Colony';
-import { sum } from 'lodash';
+import { countBy, sum } from 'lodash';
+import { Filters, MapNamed } from 'utils/Collections';
 
 interface SchemaField {
   unit: 'ticks' | 'number' | 'cpu' | 'bytes';
@@ -232,6 +233,7 @@ export function GetColonyStats(colony: Colony): ColonyStats {
 
   const resources: NumericRecord = {};
   for (const r of Object.entries(Game.resources)) resources[r[0]] = r[1] as number;
+  resources.credits = Game.market.credits;
 
   const meminfo: NumericRecord = {};
   if (Game.cpu.getHeapStatistics) {
@@ -261,86 +263,72 @@ export function GetColonyStats(colony: Colony): ColonyStats {
       cpu_tick_limit: Game.cpu.tickLimit,
       resource_amount: resources,
       heap_stat_bytes: meminfo,
-      role_room_quota: colony.MapNameable(Object.values(colony.Roles), r =>
-        colony.MapNameable(colony.MyRooms, ro => r.GetQuota(ro)),
+      role_room_quota: MapNamed(Object.values(colony.Roles), r => MapNamed(colony.MyRooms, ro => r.GetQuota(ro))),
+      role_room_assigned_creep_count: MapNamed(Object.values(colony.Roles), r =>
+        MapNamed(colony.MyRooms, ro => r.GetRoomCreepsInRole(ro).length),
       ),
-      role_room_assigned_creep_count: colony.MapNameable(Object.values(colony.Roles), r =>
-        colony.MapNameable(colony.MyRooms, ro => r.GetRoomCreepsInRole(ro).length),
+      role_room_lifetime_idle_ticks: MapNamed(Object.values(colony.Roles), r =>
+        MapNamed(colony.MyRooms, ro => sum(r.GetRoomCreepsInRole(ro), cir => cir.LifetimeIdle)),
       ),
-      role_room_lifetime_idle_ticks: colony.MapNameable(Object.values(colony.Roles), r =>
-        colony.MapNameable(colony.MyRooms, ro => sum(r.GetRoomCreepsInRole(ro), cir => cir.LifetimeIdle)),
+      role_room_lifetime_stuck_ticks: MapNamed(Object.values(colony.Roles), r =>
+        MapNamed(colony.MyRooms, ro => sum(r.GetRoomCreepsInRole(ro), cir => cir.LifetimeStuck)),
       ),
-      role_room_lifetime_stuck_ticks: colony.MapNameable(Object.values(colony.Roles), r =>
-        colony.MapNameable(colony.MyRooms, ro => sum(r.GetRoomCreepsInRole(ro), cir => cir.LifetimeStuck)),
-      ),
-      role_room_my_creep_count: colony.MapNameable(Object.values(colony.Roles), r =>
-        colony.MapNameable(
+      role_room_my_creep_count: MapNamed(Object.values(colony.Roles), r =>
+        MapNamed(
           colony.MyRooms,
-          ro => ro.find(FIND_MY_CREEPS, { filter: c => c.memory.role === r.roleName }).length,
+          ro => ro.find(FIND_MY_CREEPS, { filter: Filters.CreepMemoryRoleName(r.roleName) }).length,
         ),
       ),
-      room_neutral_structure_count: colony.MapNameable(Object.values(Game.rooms), vr =>
-        vr.find(FIND_STRUCTURES, { filter: s => !('owner' in s) }).reduce((counts, s) => {
-          counts[s.structureType] = (counts[s.structureType] ?? 0) + 1;
-          return counts;
-        }, {} as NumericRecord),
+      room_neutral_structure_count: MapNamed(Object.values(Game.rooms), vr =>
+        countBy(vr.find(FIND_STRUCTURES, { filter: s => !('owner' in s) }), s => s.structureType),
       ),
-      hostile_creep_count: colony.MapNameable(Object.values(Game.rooms), vr => vr.find(FIND_HOSTILE_CREEPS).length),
-      room_my_structure_count: colony.MapNameable(Object.values(Game.rooms), vr =>
-        vr.find(FIND_MY_STRUCTURES).reduce((counts, s) => {
-          counts[s.structureType] = (counts[s.structureType] ?? 0) + 1;
-          return counts;
-        }, {} as NumericRecord),
+      hostile_creep_count: MapNamed(Object.values(Game.rooms), vr => vr.find(FIND_HOSTILE_CREEPS).length),
+      room_my_structure_count: MapNamed(Object.values(Game.rooms), vr =>
+        countBy(vr.find(FIND_MY_STRUCTURES), s => s.structureType),
       ),
-      room_hostile_structure_count: colony.MapNameable(Object.values(Game.rooms), vr =>
-        vr.find(FIND_HOSTILE_STRUCTURES).reduce((counts, s) => {
-          counts[s.structureType] = (counts[s.structureType] ?? 0) + 1;
-          return counts;
-        }, {} as NumericRecord),
+      room_hostile_structure_count: MapNamed(Object.values(Game.rooms), vr =>
+        countBy(vr.find(FIND_HOSTILE_STRUCTURES), s => s.structureType),
       ),
-      dropped_energy_amount: colony.MapNameable(Object.values(Game.rooms), vr =>
+      dropped_energy_amount: MapNamed(Object.values(Game.rooms), vr =>
         sum(vr.find(FIND_DROPPED_RESOURCES), r => (r.resourceType === RESOURCE_ENERGY ? r.amount : 0)),
       ),
-      room_my_construction_site_count: colony.MapNameable(Object.values(Game.rooms), vr =>
-        vr.find(FIND_MY_CONSTRUCTION_SITES).reduce((counts, s) => {
-          counts[s.structureType] = (counts[s.structureType] ?? 0) + 1;
-          return counts;
-        }, {} as NumericRecord),
+      room_my_construction_site_count: MapNamed(Object.values(Game.rooms), vr =>
+        countBy(vr.find(FIND_MY_CONSTRUCTION_SITES), s => s.structureType),
       ),
-      storage_capacity: colony.MapNameable(Object.values(Game.rooms), vr => vr.storage?.store.getCapacity() ?? 0),
-      storage_energy: colony.MapNameable(
+      storage_capacity: MapNamed(Object.values(Game.rooms), vr => vr.storage?.store.getCapacity() ?? 0),
+      storage_energy: MapNamed(
         Object.values(Game.rooms),
         vr => vr.storage?.store.getUsedCapacity(RESOURCE_ENERGY) ?? 0,
       ),
-      spawn_energy: colony.MapNameable(Object.values(Game.rooms), vr => vr.energyAvailable),
-      source_energy: colony.MapNameable(Object.values(Game.rooms), vr => sum(vr.find(FIND_SOURCES).map(s => s.energy))),
-      spawn_energy_capacity: colony.MapNameable(Object.values(Game.rooms), vr => vr.energyCapacityAvailable),
-      container_energy: colony.MapNameable(Object.values(Game.rooms), vr =>
+      spawn_energy: MapNamed(Object.values(Game.rooms), vr => vr.energyAvailable),
+      source_energy: MapNamed(Object.values(Game.rooms), vr => sum(vr.find(FIND_SOURCES).map(s => s.energy))),
+      spawn_energy_capacity: MapNamed(Object.values(Game.rooms), vr => vr.energyCapacityAvailable),
+      container_energy: MapNamed(Object.values(Game.rooms), vr =>
         sum(
           vr
             .find(FIND_STRUCTURES)
-            .map(s => (s.structureType === STRUCTURE_CONTAINER ? s.store.getUsedCapacity(RESOURCE_ENERGY) : 0)),
+            .map(s => (Filters.StructureContainer(s) ? s.store.getUsedCapacity(RESOURCE_ENERGY) : 0)),
         ),
       ),
-      creep_energy: colony.MapNameable(Object.values(Game.rooms), vr =>
+      creep_energy: MapNamed(Object.values(Game.rooms), vr =>
         sum(vr.find(FIND_MY_CREEPS).map(s => s.store.getUsedCapacity(RESOURCE_ENERGY))),
       ),
-      link_energy: colony.MapNameable(Object.values(Game.rooms), vr =>
+      link_energy: MapNamed(Object.values(Game.rooms), vr =>
         sum(
           vr
             .find(FIND_STRUCTURES)
             .map(s => (s.structureType === STRUCTURE_LINK ? s.store.getUsedCapacity(RESOURCE_ENERGY) : 0)),
         ),
       ),
-      spawns_in_progress: colony.MapNameable(
+      spawns_in_progress: MapNamed(
         Object.values(Game.rooms),
         vr => vr.find(FIND_MY_SPAWNS).filter(s => s.spawning !== null && s.spawning !== undefined).length,
       ),
-      rcl_progress_total: colony.MapNameable(colony.MyRooms, mr => mr.controller?.progressTotal ?? 0),
-      rcl_progress: colony.MapNameable(colony.MyRooms, mr => mr.controller?.progress ?? 0),
-      rcl_level: colony.MapNameable(colony.MyRooms, mr => mr.controller?.level ?? 0),
-      room_event_count_total: colony.MapNameable(colony.MyRooms, mr => mr.EventCounts),
-      room_event_amount_total: colony.MapNameable(colony.MyRooms, mr => mr.EventAmounts),
+      rcl_progress_total: MapNamed(colony.MyRooms, mr => mr.controller?.progressTotal ?? 0),
+      rcl_progress: MapNamed(colony.MyRooms, mr => mr.controller?.progress ?? 0),
+      rcl_level: MapNamed(colony.MyRooms, mr => mr.controller?.level ?? 0),
+      room_event_count_total: MapNamed(colony.MyRooms, mr => mr.EventCounts),
+      room_event_amount_total: MapNamed(colony.MyRooms, mr => mr.EventAmounts),
     },
   };
 }

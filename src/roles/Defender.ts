@@ -1,10 +1,10 @@
 import { CreepExtra } from 'Creep';
-import { groupBy } from 'lodash';
+import { flatten, groupBy } from 'lodash';
 import type { RoomExtra } from 'Room';
-import { GuardTask } from 'tasks';
+import { Dismantle, GuardTask } from 'tasks';
 import { Attack } from 'tasks/Attack';
 import { CreepTask } from 'tasks/types';
-import { MakeBody } from 'utils/Collections';
+import { Filters, MakeBody, Sorts } from 'utils/Collections';
 import { CreepRoleBase, CreepRole } from './Role';
 
 export class Defender extends CreepRoleBase implements CreepRole {
@@ -22,20 +22,18 @@ export class Defender extends CreepRoleBase implements CreepRole {
 
   // 1 For each hostile
   override GetMinQuota(room: RoomExtra): number {
-    let total = 0;
-    for (const [_, v] of room.HostilesByRoom) total += v.length;
-    return total;
+    return flatten(room.WorkableClaimedRooms.map(wcr => wcr.find(FIND_HOSTILE_CREEPS))).length;
   }
 
   public SelectNextTask(creep: CreepExtra): CreepTask | null {
     const hostile = this.FindNearestHostile(creep);
     if (hostile) return new Attack(hostile);
-    else {
-      const rampart = creep.pos.findClosestByPath(FIND_MY_STRUCTURES, {
-        filter: s => s.structureType === STRUCTURE_RAMPART,
-      });
-      if (rampart) return new GuardTask(rampart as StructureRampart);
-    }
+
+    const hostileStructure = this.FindSameRoomHostileStructure(creep);
+    if (hostileStructure) return new Dismantle(hostileStructure);
+
+    const rampart = creep.pos.findClosestByPath(FIND_MY_STRUCTURES, { filter: Filters.StructureRampart });
+    if (rampart) return new GuardTask(rampart);
 
     return null;
   }
@@ -48,15 +46,15 @@ export class Defender extends CreepRoleBase implements CreepRole {
     if (creep.getActiveBodyparts(ATTACK) > 0) {
       // Attack Ranged Enemies
       const closeEnemy = creep.pos
-        .findInRange(FIND_HOSTILE_CREEPS, 3, { filter: c => c.hits < c.hitsMax })
-        .sort((b, a) => a.hits / a.hitsMax - b.hits / b.hitsMax)
+        .findInRange(FIND_HOSTILE_CREEPS, 3, { filter: Filters.Damaged })
+        .sort(Sorts.StructureHitsRatioDesc)
         .pop();
       if (closeEnemy) creep.rangedAttack(closeEnemy);
 
       // Attack Melee Enemies
       const touchingEnemy = creep.pos
-        .findInRange(FIND_HOSTILE_CREEPS, 1, { filter: c => c.hits < c.hitsMax })
-        .sort((b, a) => a.hits / a.hitsMax - b.hits / b.hitsMax)
+        .findInRange(FIND_HOSTILE_CREEPS, 1, { filter: Filters.Damaged })
+        .sort(Sorts.StructureHitsRatioDesc)
         .pop();
       if (touchingEnemy) creep.attack(touchingEnemy);
     }
@@ -64,20 +62,20 @@ export class Defender extends CreepRoleBase implements CreepRole {
     if (creep.getActiveBodyparts(HEAL) > 0) {
       // Heal friendles that are near but not touching
       const rangedNeedsHeal = creep.pos
-        .findInRange(FIND_MY_CREEPS, 3, { filter: c => c.hits < c.hitsMax })
-        .sort((b, a) => a.hits / a.hitsMax - b.hits / b.hitsMax)
+        .findInRange(FIND_MY_CREEPS, 3, { filter: Filters.Damaged })
+        .sort(Sorts.StructureHitsRatioDesc)
         .pop();
       if (rangedNeedsHeal) creep.rangedHeal(rangedNeedsHeal);
 
       // Heal friendles that are touching
       const closeNeedsHeal = creep.pos
-        .findInRange(FIND_MY_CREEPS, 1, { filter: c => c.hits < c.hitsMax })
-        .sort((b, a) => a.hits / a.hitsMax - b.hits / b.hitsMax)
+        .findInRange(FIND_MY_CREEPS, 1, { filter: Filters.Damaged })
+        .sort(Sorts.StructureHitsRatioDesc)
         .pop();
       if (closeNeedsHeal) creep.heal(closeNeedsHeal);
 
       // Heal self
-      if (creep.hits < creep.hitsMax) creep.heal(creep);
+      if (Filters.Damaged(creep)) creep.heal(creep);
     }
   }
 
@@ -99,6 +97,15 @@ export class Defender extends CreepRoleBase implements CreepRole {
         if (found) return found;
       }
     }
+    return null;
+  }
+
+  FindSameRoomHostileStructure(creep: CreepExtra): AnyOwnedStructure | null {
+    const structures = flatten(Object.values(creep.AssignedRoom.HostileStructuresByOwner));
+    const closest = creep.pos.findClosestByPath(structures, {
+      costCallback: (rn: string, cm: CostMatrix) => creep.CostCallback(rn, cm, false),
+    });
+    if (closest) return closest;
     return null;
   }
 }

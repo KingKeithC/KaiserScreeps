@@ -1,3 +1,5 @@
+import { Filters } from './Collections';
+
 export interface RepairPrioritySelection {
   repairs: AnyStructure[];
   maxWorkers: number;
@@ -59,7 +61,7 @@ const repairPriorities: RepairPriorityGroup[] = [
   {
     allowedStructures: [STRUCTURE_RAMPART, STRUCTURE_WALL],
     callback: (_room, candidates) => ({
-      repairs: candidates.filter(structure => structure.hits < 100_000 && structure.hits / structure.hitsMax < 1),
+      repairs: candidates.filter(structure => structure.hits < 100_000 && Filters.Damaged(structure)),
       maxWorkers: 1,
     }),
   },
@@ -69,7 +71,7 @@ const repairPriorities: RepairPriorityGroup[] = [
       repairs: candidates.filter(
         structure =>
           structure.hits < 1_000_000 &&
-          structure.hits / structure.hitsMax < 1 &&
+          Filters.Damaged(structure) &&
           structure.pos
             .lookFor(LOOK_STRUCTURES)
             .some(
@@ -92,10 +94,7 @@ const repairPriorities: RepairPriorityGroup[] = [
 ];
 
 export function CreatePendingRepairs(room: Room): PendingRepairs {
-  return {
-    candidates: room.find(FIND_STRUCTURES, { filter: structure => structure.hits < structure.hitsMax }),
-    priorities: repairPriorities,
-  };
+  return { candidates: room.find(FIND_STRUCTURES, { filter: Filters.Damaged }), priorities: repairPriorities };
 }
 
 export function FindHighestPriorityRepairGroup(

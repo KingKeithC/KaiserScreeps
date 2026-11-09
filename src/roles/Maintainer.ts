@@ -1,7 +1,8 @@
 import { CreepExtra } from 'Creep';
 import { RoomExtra } from 'Room';
-import { Collect, Supply } from 'tasks';
+import { MAX_TRANSFER_QUANTITY, Transfer } from 'tasks';
 import { CreepTask } from 'tasks/types';
+import { Filters } from 'utils/Collections';
 import { FirstBodyByEnergyCapacity } from 'utils/RoomUtils';
 import { CreepRole } from './Role';
 import { Worker } from './Worker';
@@ -27,11 +28,13 @@ export class Maintainer extends Worker implements CreepRole {
    * except without the barebones Zygote or 'emergency' spawn logic.
    */
   override GetNewCreepBody(room: RoomExtra): BodyPartConstant[] {
-    return FirstBodyByEnergyCapacity(room, ...this.PossibleBodies) ?? this.PossibleBodies[-1];
+    return (
+      FirstBodyByEnergyCapacity(room, ...this.PossibleBodies) ?? this.PossibleBodies[this.PossibleBodies.length - 1]
+    );
   }
 
   SelectNextTask(creep: CreepExtra): CreepTask | null {
-    return this.DoWithLocalEnergy(creep, c => this.MaintainControllerOrSpawn(c));
+    return this.DoWithLocalEnergy(creep, c => this.MaintainAssignedRoom(c));
   }
 
   TickCreep(creep: CreepExtra): void {
@@ -39,9 +42,7 @@ export class Maintainer extends Worker implements CreepRole {
     // to us that need energy, give our energy to them
     if (creep.store.getUsedCapacity(RESOURCE_ENERGY) > 0)
       // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
-      for (const s of creep.pos.findInRange(FIND_MY_STRUCTURES, 1, {
-        filter: st => st.structureType === STRUCTURE_EXTENSION || st.structureType === STRUCTURE_SPAWN,
-      }) as (StructureSpawn | StructureExtension)[])
+      for (const s of creep.pos.findInRange(FIND_MY_STRUCTURES, 1, { filter: Filters.StructureSpawnOrExtension }))
         if (s.store.getFreeCapacity(RESOURCE_ENERGY) > 0) creep.transfer(s, RESOURCE_ENERGY);
 
     // Otherwise, if we are near a link receiver, that has
@@ -72,37 +73,26 @@ export class Maintainer extends Worker implements CreepRole {
       const mainTask = findMainSpendingTask(creep);
       if (mainTask) return mainTask;
 
-      // Excess goes into storage,
-      // Unless last task was to Collect from storage or was null
-      if (
-        creep.AssignedRoom.storage !== undefined &&
-        creep.currentTask !== null &&
-        !(
-          creep.currentTask.action === Collect.action &&
-          (creep.currentTask as Collect).targetId === creep.room.storage?.id
-        )
-      )
-        return new Supply(creep.AssignedRoom.storage);
+      // Excess goes into storage
+      if (creep.AssignedRoom.storage !== undefined) return new Transfer(creep.AssignedRoom.storage);
     }
 
     if (creep.store.getUsedCapacity() === 0) {
       // Prioritize collecting from a link
       const link = creep.AssignedRoom.LinkReceivers.pop();
-      if (link && link.store.getUsedCapacity(RESOURCE_ENERGY) > 0) return new Collect(link);
+      if (link && link.store.getUsedCapacity(RESOURCE_ENERGY) > 0)
+        return new Transfer(link, [RESOURCE_ENERGY, -MAX_TRANSFER_QUANTITY]);
 
-      // Collect energy from sources in the same room that have more than 100
-      const mainSource = this.CollectResources(creep, [RESOURCE_ENERGY], true, 100);
+      // Collect energy from sources in the same room
+      const mainSource = Transfer.collect(creep, [RESOURCE_ENERGY], { sameRoom: true });
       if (mainSource) return mainSource;
 
+      // If no source found, collect from storage
       if (
         creep.AssignedRoom.storage !== undefined &&
         creep.AssignedRoom.storage.store.getUsedCapacity(RESOURCE_ENERGY) > 0
       )
-        // If no source found, use any storage
-        return new Collect(creep.AssignedRoom.storage);
-      else if (creep.AssignedRoom.GetAssignedCreepsOfRole('Miner').length === 0)
-        // If no storage, and no miners, mine
-        return this.MineAnyFreePosition(creep);
+        return new Transfer(creep.AssignedRoom.storage, [RESOURCE_ENERGY, -MAX_TRANSFER_QUANTITY]);
     }
 
     return null;

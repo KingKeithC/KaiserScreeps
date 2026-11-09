@@ -1,5 +1,5 @@
 import { groupBy } from 'lodash';
-import { RoomPositionString, SerializeRoomPosition, SerializeRoomPositionTriple } from './Collections';
+import { Filters, RoomPositionString, SerializeRoomPosition, SerializeRoomPositionTriple } from './Collections';
 import { BodyCost, PartCounts } from './CreepUtils';
 import { Logger } from './Logger';
 
@@ -9,10 +9,14 @@ import { Logger } from './Logger';
 
 */
 
-export type ResourceContainer =
-  Creep | StructureLink | StructureStorage | StructureContainer | Resource | Ruin | Tombstone | Mineral;
+// GenericStoreBase rather than StoreDefinition so unlimited stores (ruins, tombstones) also match.
+export type StoreTargetable = _HasId & _HasRoomPosition & { store: GenericStoreBase };
+export type ResourceContainer = StoreTargetable | Resource;
 
-export type ContainerAndAmount = [ResourceContainer, number];
+// getUsedCapacity returns null only for resources the store type does not hold.
+export type StoreAmount = NonNullable<ReturnType<GenericStoreBase['getUsedCapacity']>>;
+
+export type ContainerAndAmount = [ResourceContainer, StoreAmount];
 
 /* ------------- Interfaces ------------- */
 
@@ -29,6 +33,10 @@ export interface HostileInfo {
 export interface MiningPosition {
   source: Id<Source> | Id<StructureExtractor>;
   pos: RoomPositionString;
+}
+
+export function isEqualTo(a: MiningPosition, b: MiningPosition): boolean {
+  return a.pos === b.pos && a.source === b.source;
 }
 
 interface MineralInfo {
@@ -60,11 +68,6 @@ export interface RoomReport {
   mineral?: MineralInfo;
   deposit?: DepositInfo;
   hostiles?: HostileInfo[];
-}
-
-export interface CollectionPlan {
-  sourcesByType: Map<ResourceConstant, ContainerAndAmount[]>;
-  reservedCapacityBySource: Map<string, number>;
 }
 
 /* ------------- Functions ------------- */
@@ -139,17 +142,11 @@ export function CouldCreepStandAt(x: number, y: number, room: Room, terrain: Roo
   if (terrain.get(x, y) === TERRAIN_MASK_WALL) return false;
 
   for (const structure of pos.lookFor(LOOK_STRUCTURES)) {
-    if (structure.structureType === STRUCTURE_CONTAINER) continue; // Can stand on containers.
-    if (structure.structureType === STRUCTURE_ROAD) continue; // Can stand on roads.
-    if (structure.structureType === STRUCTURE_RAMPART && structure.my) continue; // Can stand on my ramparts.
-    return false; // Can't stand on any other structure
+    if (Filters.NonWalkableStructure(structure)) return false;
   }
 
   for (const structure of pos.lookFor(LOOK_CONSTRUCTION_SITES)) {
-    if (structure.structureType === STRUCTURE_CONTAINER) continue; // Can stand on container construction sites.
-    if (structure.structureType === STRUCTURE_ROAD) continue; // Can stand on road construction sites.
-    if (structure.structureType === STRUCTURE_RAMPART && structure.my) continue; // Can stand on my rampart construction sites.
-    return false; // Can't stand on any other construction sites
+    if (Filters.NonWalkableStructure(structure)) return false;
   }
 
   // No other blockers, must be okay to stand there
@@ -160,8 +157,12 @@ export function GetMineable(room: Room): (Source | StructureExtractor)[] {
   const sources: (Source | StructureExtractor)[] = room.find(FIND_SOURCES);
   if (CONTROLLER_STRUCTURES.extractor[room.controller?.level ?? 0] > 0)
     for (const extractor of room.find(FIND_MY_STRUCTURES, { filter: { structureType: STRUCTURE_EXTRACTOR } }))
-      if (typeof extractor.isActive === 'function' && extractor.pos.lookFor(LOOK_MINERALS)[0].mineralAmount > 0)
+      if (typeof extractor.isActive === 'function' && extractor.isActive()) {
+        const mineral = extractor.pos.lookFor(LOOK_MINERALS).pop();
+        if (!mineral || mineral.mineralAmount === 0) continue;
         sources.push(extractor as StructureExtractor);
+      }
+
   return sources;
 }
 
@@ -248,51 +249,6 @@ export function MakeRoomReport(rRoom: Room): RoomReport {
       : undefined,
     hostiles: GetHostileInfo(rRoom),
   };
-}
-
-export function ResourceContainersForRoomByType(room: string | Room): Map<ResourceConstant, ContainerAndAmount[]> {
-  const ret = new Map<ResourceConstant, ContainerAndAmount[]>();
-  if (typeof room === 'string') return ret;
-
-  for (const dropped of room.find(FIND_DROPPED_RESOURCES, { filter: r => r.amount > 0 }))
-    ret.set(dropped.resourceType, [...(ret.get(dropped.resourceType) ?? []), [dropped, dropped.amount]]);
-
-  for (const tomb of room.find(FIND_TOMBSTONES, { filter: r => r.store.getUsedCapacity() > 0 }))
-    for (const rt in tomb.store)
-      ret.set(rt as ResourceConstant, [
-        ...(ret.get(rt as ResourceConstant) ?? []),
-        [tomb, tomb.store.getUsedCapacity(rt as ResourceConstant)],
-      ]);
-
-  for (const ruin of room.find(FIND_RUINS, { filter: r => r.store.getUsedCapacity() > 0 }))
-    for (const rt in ruin.store)
-      ret.set(rt as ResourceConstant, [
-        ...(ret.get(rt as ResourceConstant) ?? []),
-        [ruin, ruin.store.getUsedCapacity(rt as ResourceConstant)],
-      ]);
-
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
-  for (const container of room.find(FIND_STRUCTURES, {
-    filter: s => s.structureType === STRUCTURE_CONTAINER && s.store.getUsedCapacity() > 0,
-  }) as StructureContainer[])
-    for (const rt in container.store)
-      ret.set(rt as ResourceConstant, [
-        ...(ret.get(rt as ResourceConstant) ?? []),
-        [container, container.store.getUsedCapacity(rt as ResourceConstant)],
-      ]);
-
-  if (CONTROLLER_STRUCTURES.link[room.controller?.level ?? 0] > 0)
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
-    for (const recv of room.find(FIND_MY_STRUCTURES, {
-      filter: s => s.structureType === STRUCTURE_LINK && s.id in (room.memory.linkGroups ?? {}).Receivers,
-    }) as StructureLink[])
-      for (const rt in recv.store)
-        ret.set(rt as ResourceConstant, [
-          ...(ret.get(rt as ResourceConstant) ?? []),
-          [recv, recv.store.getUsedCapacity(rt as ResourceConstant) ?? 0],
-        ]);
-
-  return ret;
 }
 
 export function FirstBodyByEnergyCapacity(

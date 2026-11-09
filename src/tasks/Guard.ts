@@ -1,5 +1,5 @@
 import { CreepExtra } from 'Creep';
-import { RegisterTask, TaskActionResult } from 'tasks/types';
+import { RegisterTask } from 'tasks/types';
 import { TargetTask } from './TargetTask';
 
 export class GuardTask extends TargetTask<StructureRampart> {
@@ -9,8 +9,11 @@ export class GuardTask extends TargetTask<StructureRampart> {
     RegisterTask(this);
   }
 
+  // Only standing on the post counts as in range.
+  protected static override readonly minRangeToAct = 0;
+
   public constructor(post: StructureRampart) {
-    super(post);
+    super(post, 0, post.pos);
   }
 
   public isCompleteWhenTargetValid(): boolean {
@@ -26,11 +29,12 @@ export class GuardTask extends TargetTask<StructureRampart> {
     return `%${((target.hits / target.hitsMax) * 100).toFixed(2)}`;
   }
 
-  public actWhenTargetValid(creep: CreepExtra, target: StructureRampart): TaskActionResult | null {
-    // Do nothing if we're sitting on the rampart
-    if (creep.pos.isEqualTo(target.pos)) return null;
+  protected isIntentBlocked(creep: CreepExtra, post: StructureRampart): boolean {
+    return creep.pos.isEqualTo(post.pos); // Already on the post, so there is nothing to do.
+  }
 
-    // Otherwise, move to the rampart
-    return { range: 0, result: ERR_NOT_IN_RANGE, target };
+  // Unreachable: off the post is out of range, and on it is blocked.
+  protected registerIntent(): ScreepsReturnCode {
+    return ERR_NOT_IN_RANGE;
   }
 }

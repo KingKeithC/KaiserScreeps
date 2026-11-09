@@ -3,7 +3,7 @@ import { RoomExtra } from 'Room';
 import { Move, Dismantle } from 'tasks';
 import { Attack } from 'tasks/Attack';
 import { CreepTask } from 'tasks/types';
-import { FormatStructureHits, MakeBody, SerializeRoomPosition } from 'utils/Collections';
+import { Filters, FormatStructureHits, MakeBody, SerializeRoomPosition, Sorts } from 'utils/Collections';
 import { BodyCost, PartCounts } from 'utils/CreepUtils';
 import { HostileInfo } from 'utils/RoomUtils';
 import { CreepRoleBase, CreepRole } from './Role';
@@ -41,7 +41,7 @@ export class Attacker extends CreepRoleBase implements CreepRole {
       f.memory.done ??= false;
     }
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    return flags.sort((a, b) => a.memory.attackIndex! - b.memory.attackIndex!);
+    return flags.sort(Sorts.AttackIndexAsc);
   }
 
   // Return the first step in the sequence that is not complete
@@ -154,22 +154,17 @@ export class Attacker extends CreepRoleBase implements CreepRole {
     // Undefined attack type is never complete
   }
 
-  Sorts = {
-    MostDamaged: (a: { hits: number; hitsMax: number }, b: { hits: number; hitsMax: number }) =>
-      a.hits / a.hitsMax - b.hits / b.hitsMax,
-  } as const;
-
   HealHurtAllies(creep: CreepExtra): void {
     // Heal whoever in range is the most hurt
     const hurtAllies = this.Searches.HealAllies(creep.pos);
-    for (const mostHurt of hurtAllies.sort(this.Sorts.MostDamaged))
+    for (const mostHurt of hurtAllies.sort(Sorts.StructureHitsRatioAsc))
       if (mostHurt && creep.pos.isNearTo(mostHurt)) creep.heal(mostHurt);
       else if (mostHurt) creep.rangedHeal(mostHurt);
   }
 
   AttackEnemies(creep: CreepExtra): void {
     const hurtEnemies = creep.pos.findInRange(FIND_HOSTILE_CREEPS, 1);
-    for (const mostHurt of hurtEnemies.sort(this.Sorts.MostDamaged)) if (mostHurt) creep.attack(mostHurt);
+    for (const mostHurt of hurtEnemies.sort(Sorts.StructureHitsRatioAsc)) if (mostHurt) creep.attack(mostHurt);
   }
 
   public OnSpawn(creep: CreepExtra): void {
@@ -184,7 +179,7 @@ export class Attacker extends CreepRoleBase implements CreepRole {
   Searches = {
     AttackNearestStructure: (pos: RoomPosition) => pos.lookFor(LOOK_STRUCTURES),
     AttackCreeps: (pos: RoomPosition) => pos.findInRange(FIND_HOSTILE_CREEPS, 3),
-    HealAllies: (pos: RoomPosition) => pos.findInRange(FIND_MY_CREEPS, 3, { filter: c => c.hits < c.hitsMax }),
+    HealAllies: (pos: RoomPosition) => pos.findInRange(FIND_MY_CREEPS, 3, { filter: Filters.Damaged }),
     RalliedAllies: (pos: RoomPosition) => pos.findInRange(this.GetGlobalCreepsInRole(), this.RallyDistance + 1),
   } as const;
 

@@ -1,5 +1,5 @@
 import type { CreepExtra } from 'Creep';
-import { CreepTask, RegisterTask, TaskActionResult } from 'tasks/types';
+import { CreepTask, RegisterTask } from 'tasks/types';
 import { TargetTask } from './TargetTask';
 
 export class Attack extends TargetTask<Creep> implements CreepTask {
@@ -9,12 +9,19 @@ export class Attack extends TargetTask<Creep> implements CreepTask {
     RegisterTask(this);
   }
 
+  protected static override readonly minRangeToAct = 1;
+  protected static override readonly requiredBodyPart = ATTACK;
+
   public constructor(creep: Creep) {
-    super(creep);
+    super(creep, 1);
   }
 
-  actWhenTargetValid(creep: CreepExtra, target: NonNullable<Creep>): TaskActionResult | null {
-    return { range: 1, result: creep.attack(target), target };
+  protected registerIntent(creep: CreepExtra, target: NonNullable<Creep>): ScreepsReturnCode {
+    return creep.attack(target);
+  }
+
+  protected isIntentBlocked(): boolean {
+    return false;
   }
 
   isCreepAbleToContinue(): boolean {

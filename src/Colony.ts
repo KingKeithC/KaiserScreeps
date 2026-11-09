@@ -11,9 +11,11 @@ import { Worker } from 'roles/Worker';
 import { RoomExtra } from 'Room';
 import profiler from 'screeps-profiler';
 import { GetColonyStats, ColonyStats } from 'Stats';
-import { TaskPrototypes } from 'tasks';
+import { TargetTask, TaskPrototypes, Transfer } from 'tasks';
+import { CreepTask, TaskClass } from 'tasks/types';
+import { LogisticsSystem } from 'logistics/LogisticsSystem';
 import { TradingSystem } from 'Trading';
-import { FmtRatios } from 'utils/Collections';
+import { AssignedTasksWithEntity, FmtRatios, TasksOfEntities } from 'utils/Collections';
 import { ErrorMapper } from 'utils/ErrorMapper';
 import { Logger } from 'utils/Logger';
 import { MakeRoomReport, RoomReport } from 'utils/RoomUtils';
@@ -30,10 +32,13 @@ declare global {
     globalEnablePathVisuals?: boolean;
     scoutingReports?: Dictionary<RoomReport>;
     scoutInterval?: number;
+    username?: string;
     colonyStateReportFrequency?: number;
     stats?: ColonyStats;
     logLevelName?: string;
     logFormat?: string;
+    cpuSkipRatio?: number;
+    minCpuBucket?: number;
   }
 }
 
@@ -62,9 +67,21 @@ export class Colony {
 
   readonly Creeps: Map<string, CreepExtra> = new Map();
   readonly Rooms: Map<string, RoomExtra> = new Map();
+  readonly Logistics = new LogisticsSystem();
 
   private readonly log = new Logger(this);
-  readonly username = Game.spawns[Object.keys(Game.spawns)[0]].owner.username;
+
+  get username(): string | undefined {
+    if (Memory.username !== undefined) return Memory.username;
+
+    const username =
+      Object.values(Game.creeps).find(creep => creep.my)?.owner.username ??
+      Object.values(Game.structures)[0]?.owner?.username ??
+      Object.values(Game.rooms).find(room => room.controller?.my)?.controller?.owner?.username;
+
+    if (username !== undefined) Memory.username = username;
+    return username;
+  }
 
   private trading = new TradingSystem(this);
 
@@ -75,8 +92,11 @@ export class Colony {
     profiler.registerClass(ErrorMapper, 'ErrorMapper');
     profiler.registerClass(CreepExtra, 'CreepExtra');
     profiler.registerClass(RoomExtra, 'RoomExtra');
+    profiler.registerClass(CreepRoleBase, 'CreepRoleBase');
+    profiler.registerClass(TargetTask, 'TargetTask');
     for (const [name, roleType] of Object.entries(this.Roles)) profiler.registerClass(roleType.constructor, name);
     for (const [action, taskType] of TaskPrototypes) profiler.registerClass(taskType, action);
+    profiler.registerClass(TradingSystem, 'TradingSystem');
     profiler.registerClass(Colony, 'Colony');
     profiler.enable();
     return () => profiler.wrap(lambda);
@@ -87,6 +107,12 @@ export class Colony {
     return ErrorMapper.wrapLoop(lambda);
   }
 
+  get CpuSkipRatio(): number {
+    return (Memory.cpuSkipRatio ??= 0.75);
+  }
+  get MinCpuBucket(): number {
+    return (Memory.minCpuBucket ??= 100);
+  }
   get LogFormat() {
     return Memory.logFormat ?? Logger.DefaultLogFormat;
   }
@@ -115,6 +141,10 @@ export class Colony {
     return Memory.colonyStateReportFrequency ?? 1000;
   }
 
+  private get IsSimulation(): boolean {
+    return 'sim' in Game.rooms;
+  }
+
   OnGlobalReset(): void {
     // Makes this object accessible as `Colony.whatever()` in the console.
     global.Colony = this;
@@ -127,16 +157,16 @@ export class Colony {
     Memory.scoutingReports ??= {};
     Memory.scoutInterval ??= CREEP_LIFE_TIME * 2;
 
+    this.UnassignAllTasks();
     this.RefreshCaches();
 
-    // Update reset tick on stats
-    if (Memory.stats !== undefined && Memory.stats.data !== undefined)
-      // Existing:
-      // eslint-disable-next-line camelcase
-      Memory.stats.data.program_reset_time_ticks = Game.time;
-    else
-      // New, which generates a reset tick for missing data
-      Memory.stats = GetColonyStats(this);
+    if (!this.IsSimulation) {
+      if (Memory.stats !== undefined && Memory.stats.data !== undefined)
+        // Existing:
+        // eslint-disable-next-line camelcase
+        Memory.stats.data.program_reset_time_ticks = Game.time;
+      else Memory.stats = GetColonyStats(this);
+    }
 
     this.log.crit('Global state reset.', {
       profilingEnabled: this.GlobalEnableProfiling,
@@ -199,6 +229,8 @@ export class Colony {
   // This is the effectively the loop function invoked each tick.
   private MainLoop(): void {
     this.RefreshCaches(); // Must be called before any Creep/Room access on the colony
+    this.Logistics.BeginTick(this.LogisticsScope);
+    this.ReserveAssignedCollections();
 
     this.CleanupStaleFlags();
     this.TryGeneratingPixel();
@@ -235,7 +267,21 @@ export class Colony {
     if (Game.time % this.ColonyStateReportFrequency === 0) this.ColonyStateReport();
 
     // Update colony stats
-    if (Game.time % this.StatsFrequency === 0) this.stats = GetColonyStats(this);
+    if (!this.IsSimulation && Game.time % this.StatsFrequency === 0) this.stats = GetColonyStats(this);
+  }
+
+  // Owned rooms plus the claimed rooms they work; their stores are indexed each tick.
+  private get LogisticsScope(): string[] {
+    return unique(flatten(this.MyRooms.map(room => room.WorkableAreaRoomNames)));
+  }
+
+  // Collections assigned on earlier ticks still hold their capacity this tick.
+  private ReserveAssignedCollections(): void {
+    for (const [creep, task] of this.AssignedTasksWithCreep(Transfer)) {
+      const target = task.target;
+      if (task.hasTake && target !== null)
+        this.Logistics.Reserve(target.pos.roomName, task.targetId, creep.store.getFreeCapacity() ?? 0);
+    }
   }
 
   CleanupStaleFlags(): void {
@@ -250,6 +296,11 @@ export class Colony {
     this.log.crit('Successfully claimed a room.', { '<room>': newRoom });
   }
 
+  WatchedMarketOrders() {
+    for (const watchedOrder of this.trading.GetWatchedOrders())
+      this.log.report('Details of Watched Order', { watchedOrder });
+  }
+
   RegenerateCostMatrixes(): void {
     this.MyRooms.forEach(r => {
       r.ClearStructureDependentData();
@@ -260,8 +311,18 @@ export class Colony {
     });
   }
 
-  get AllClaimedRoomNames(): string[] {
-    return unique(flatten(this.MyRooms.map(mr => mr.ClaimedRoomNames)));
+  get AllClaimedNearby(): string[] {
+    return unique(flatten(this.MyRooms.map(mr => mr.ClaimedNearby)));
+  }
+
+  *AssignedTasks<Task extends CreepTask = CreepTask>(taskClass?: TaskClass<Task>): IterableIterator<Task> {
+    yield* TasksOfEntities<CreepExtra, CreepTask, Task>(this.MyCreeps, taskClass);
+  }
+
+  *AssignedTasksWithCreep<Task extends CreepTask = CreepTask>(
+    taskClass?: TaskClass<Task>,
+  ): IterableIterator<[CreepExtra, Task]> {
+    yield* AssignedTasksWithEntity<CreepExtra, CreepTask, Task>(this.MyCreeps, taskClass);
   }
 
   TickOtherVisibleRoom(room: Room): void {
@@ -279,19 +340,20 @@ export class Colony {
   }
 
   StakeClaimOnRoom(claimer: CreepExtra, newRoom: string): void {
-    if (newRoom in claimer.AssignedRoom.ClaimedRoomNames) return;
+    if (claimer.AssignedRoom.ClaimedNearby.includes(newRoom)) return;
 
-    if (newRoom in this.AllClaimedRoomNames) {
+    if (this.AllClaimedNearby.includes(newRoom)) {
       this.log.info('Room is already claimed elsewhere.', { '<creep>': claimer, targetRoom: newRoom });
       return;
     }
 
     const room = Game.rooms[newRoom];
-    if (!newRoom) throw new Error(`${claimer} Tried claiming room ${newRoom} we cannot see!`);
+    if (!room) throw new Error(`${claimer} Tried claiming room ${newRoom} we cannot see!`);
 
-    if (room.controller?.owner?.username !== this.username) return;
+    const username = this.username;
+    if (username === undefined || room.controller?.owner?.username !== username) return;
 
-    claimer.AssignedRoom.ClaimedRoomNames.push(newRoom);
+    claimer.AssignedRoom.ClaimedNearby.push(newRoom);
   }
 
   PixelCost = 9000;
@@ -303,40 +365,35 @@ export class Colony {
   }
 
   Restart(): void {
-    this.UnassignAllTasks();
-
     if (Game.cpu.halt === undefined) this.log.crit('Game.cpu.halt() is undefined; isolated VM mode is required.');
     else Game.cpu.halt();
   }
 
-  MapNameable<N extends { name: string }, T>(iterOfNamed: Iterable<N>, mapper: (n: N) => T): Record<string, T> {
-    const ret: Record<string, T> = {};
-    for (const named of iterOfNamed) ret[named.name] = mapper(named);
-    return ret;
-  }
-
   DisplayCurrentStats(): void {
+    if (this.IsSimulation) return;
     this.stats = GetColonyStats(this); // Force a stat refresh
     this.log.report('Current colony stats.', { stats: this.stats });
   }
 
   UnassignAllTasks(): void {
-    for (const c of this.MyCreeps) {
-      this.log.warn('Clearing creep task memory.', { '<creep>': c, currentTask: c.memory.currentTask });
-      c.memory.currentTask = undefined;
+    for (const name of Object.keys(Memory.creeps)) {
+      this.log.warn('Clearing creep task memory.', { creep: name, currentTask: Memory.creeps[name].currentTask });
+      Memory.creeps[name].currentTask = undefined;
     }
   }
 
-  get stats(): ColonyStats {
+  get stats(): ColonyStats | undefined {
+    if (this.IsSimulation) return Memory.stats;
     return (Memory.stats ??= GetColonyStats(this));
   }
 
-  set stats(value: ColonyStats) {
-    Memory.stats = value;
+  set stats(value: ColonyStats | undefined) {
+    if (value === undefined) delete Memory.stats;
+    else Memory.stats = value;
   }
 
   ColonyStateReport(): void {
-    let msg = `Tick ${Game.time} ::: COLONY REPORT for ${this.username} ::: ${this.MyRooms.length} Owned Rooms, ${this.MyCreeps.length} Creeps\n`;
+    let msg = `Tick ${Game.time} ::: COLONY REPORT for ${this.username ?? 'unknown'} ::: ${this.MyRooms.length} Owned Rooms, ${this.MyCreeps.length} Creeps\n`;
 
     // Include memory usage info
     if (Game.cpu.getHeapStatistics !== undefined) {
