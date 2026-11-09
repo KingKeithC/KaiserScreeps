@@ -18,7 +18,19 @@ export class Mine extends PreferredPositionTask<Source | StructureExtractor> {
 
   /** A mining spot for an idle miner: an unassigned source first, otherwise any unfilled position. */
   public static forMiner(room: RoomExtra): Mine | null {
-    return Mine.firstResolved(room.AvailableMiningSources()) ?? Mine.firstResolved(room.UnfilledMiningPositions());
+    const available = room.AvailableMiningSources();
+    if (available.length > 0) {
+      const pos = available.pop();
+      if (pos) return new Mine(pos.source, pos.pos);
+    }
+
+    const unfilled = room.UnfilledMiningPositions();
+    if (unfilled.length > 0) {
+      const pos = unfilled.pop();
+      if (pos) return new Mine(pos.source, pos.pos);
+    }
+
+    return null;
   }
 
   /** Any unfilled mining position, for creeps with spare capacity. */
@@ -35,7 +47,10 @@ export class Mine extends PreferredPositionTask<Source | StructureExtractor> {
     return null;
   }
 
-  public constructor(source: Source | StructureExtractor, position: RoomPositionString) {
+  public constructor(
+    source: Source | StructureExtractor | Id<Source> | Id<StructureExtractor>,
+    position: RoomPositionString,
+  ) {
     super(source, position);
   }
 

@@ -15,15 +15,18 @@ export abstract class TargetTask<Target extends Targetable> extends TaskBase imp
   protected static readonly requiredBodyPart: BodyPartConstant | undefined = undefined;
 
   // With a preferred position the task is pinned to it and `range` is ignored.
+  public constructor(target: Target, range?: number, preferredPosition?: RoomPosition | RoomPositionString);
+  public constructor(target: Id<Target>, range: number, preferredPosition: RoomPosition | RoomPositionString);
   public constructor(
-    target: Target,
+    target: Target | Id<Target>,
     range = TargetTask.minRangeToAct,
     preferredPosition?: RoomPosition | RoomPositionString,
   ) {
     super();
-    this.targetId = target.id;
+    this.targetId = typeof target === 'string' ? target : target.id;
 
     if (preferredPosition === undefined) {
+      if (typeof target === 'string') throw new Error('A position is required for an ID target.');
       this.movementRange = range;
       this.targetPos = SerializeRoomPosition(target.pos);
     } else {
@@ -32,16 +35,18 @@ export abstract class TargetTask<Target extends Targetable> extends TaskBase imp
       this.targetPos = SerializeRoomPosition(position);
       this.movementRange = 0;
 
-      const actualRange = target.pos.getRangeTo(position);
-      const minRangeToAct = (this.constructor as typeof TargetTask).minRangeToAct;
-      if (actualRange > minRangeToAct)
-        Logger.crit('Preferred target position is outside the task movement range.', {
-          target,
-          targetPosition: target.pos,
-          allowedRange: minRangeToAct,
-          preferredPosition: position,
-          actualRange,
-        });
+      if (typeof target !== 'string') {
+        const actualRange = target.pos.getRangeTo(position);
+        const minRangeToAct = (this.constructor as typeof TargetTask).minRangeToAct;
+        if (actualRange > minRangeToAct)
+          Logger.crit('Preferred target position is outside the task movement range.', {
+            target,
+            targetPosition: target.pos,
+            allowedRange: minRangeToAct,
+            preferredPosition: position,
+            actualRange,
+          });
+      }
     }
   }
 
@@ -96,13 +101,12 @@ export abstract class TargetTask<Target extends Targetable> extends TaskBase imp
 
   public act(creep: CreepExtra): TaskActionResult | null {
     const targetPos = DeserializeRoomPosition(this.targetPos);
-    if (this.target === null || this.target === undefined)
+    const target = this.target;
+    if (target === null || target === undefined)
       if (targetPos.roomName in Game.rooms)
         return this.actWhenTargetInvalid(creep, Game.rooms[targetPos.roomName]); // The target is in a visible room, and still can't see it, it must be invalid.
       else return this.actWhenTargetInNonVisibleRoom(creep, targetPos); // The target is in a non-visible room, it could be invalid or we might just need to move into the room.
 
-    const target = this.target;
-    if (!target) return null;
     if (!this.canContinue(creep)) return null;
     if (!this.isInActionRange(creep, target)) return this.movementResult(ERR_NOT_IN_RANGE, target);
     if (this.isIntentBlocked(creep, target)) return null;
