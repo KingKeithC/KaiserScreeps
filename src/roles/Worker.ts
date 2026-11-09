@@ -143,6 +143,9 @@ export class Worker extends CreepRoleBase implements CreepRole {
     return null;
   }
 
+  private deathLockoutTimes: { [roomName: Room['name']]: number } = {};
+
+  DeathLockoutDuration = 100;
   WorkersMineBelowMinerBodyTotalCost = 1000;
   DesiredStorageTasks = 2;
   RetireEnabled = true;
@@ -220,11 +223,16 @@ export class Worker extends CreepRoleBase implements CreepRole {
       const retire = this.ConsiderRetirement(creep);
       if (retire) {
         // We must be overspawned, so lower the quota
-        this.ChangeQuota(creep.AssignedRoom, -this.ShrinkAmount, true);
+        if (
+          Game.time - GetValueByName(this.deathLockoutTimes, creep.AssignedRoom, () => 0) >
+          this.DeathLockoutDuration
+        ) {
+          this.ChangeQuota(creep.AssignedRoom, -this.ShrinkAmount, false);
+          this.deathLockoutTimes[creep.AssignedRoom.name] = Game.time;
+        }
         return retire;
       }
     }
-
     return null;
   }
 
