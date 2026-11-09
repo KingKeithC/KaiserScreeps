@@ -93,16 +93,9 @@ export class Maintainer extends Worker implements CreepRole {
       if (mainSource) return mainSource;
 
       // If no source found, collect from storage
-      // Unless our last task was to withdraw from storage, or idle
       if (
         creep.AssignedRoom.storage !== undefined &&
-        creep.AssignedRoom.storage.store.getUsedCapacity(RESOURCE_ENERGY) > 0 &&
-        !creep.currentTask === null &&
-        !(
-          creep.currentTask instanceof Transfer &&
-          // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
-          (creep.currentTask as Transfer).targetId === creep.AssignedRoom.storage.id
-        )
+        creep.AssignedRoom.storage.store.getUsedCapacity(RESOURCE_ENERGY) > 0
       )
         return new Transfer(creep.AssignedRoom.storage, [RESOURCE_ENERGY, -MAX_TRANSFER_QUANTITY]);
     }
