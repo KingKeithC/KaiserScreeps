@@ -12,8 +12,8 @@
   },
   "scripts": {
     "lint": "eslint \"src/**/*.ts\"",
-    "build": "rollup -c",
-    "push-main": "rollup -c --environment DEST:main",
+    "build": "rollup -c --environment SCREEPS_BUILDONLY=1",
+    "push": "rollup -c --environment DEST:bleeding",
     "push-sim": "rollup -c --environment DEST:sim",
     "watch-sim": "rollup -cw --environment DEST:sim"
   },
