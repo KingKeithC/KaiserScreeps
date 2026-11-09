@@ -690,14 +690,7 @@ export class RoomExtra extends Room {
     // Run each creep in the room.
     for (const c of this.AssignedCreeps.filter(ac => !ac.spawning)) {
       c.role.TickCreep(c);
-
-      if (Game.cpu.bucket < this.colony.MinCpuBucket)
-        this.log.warn('CPU bucket too low, skipping creep tasks.', {
-          bucket: Game.cpu.bucket,
-          MinCpuBucket: this.colony.MinCpuBucket,
-        });
-      else c.DoTasks();
-
+      c.DoTasks();
       c.MoveIntoRoomIfOnEdge();
     }
   }

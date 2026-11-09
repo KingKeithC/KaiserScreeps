@@ -228,6 +228,14 @@ export class Colony {
 
   // This is the effectively the loop function invoked each tick.
   private MainLoop(): void {
+    if (Game.cpu.bucket < this.MinCpuBucket) {
+      this.log.warn('CPU bucket too low, skipping actions.', {
+        bucket: Game.cpu.bucket,
+        MinCpuBucket: this.MinCpuBucket,
+      });
+      return;
+    }
+
     this.RefreshCaches(); // Must be called before any Creep/Room access on the colony
     this.Logistics.BeginTick(this.LogisticsScope);
     this.ReserveAssignedCollections();
