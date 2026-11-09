@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/no-unsafe-return */
@@ -7,25 +8,28 @@ import commonjs from '@rollup/plugin-commonjs';
 import resolve from '@rollup/plugin-node-resolve';
 import screeps from 'rollup-plugin-screeps';
 import typescript from 'rollup-plugin-typescript2';
-import fileCfg from './screeps.json';
+import { readFileSync } from 'fs';
 
-let CONFIG = {
-  token: process.env.SCREEPS_TOKEN ?? (typeof 'token' === 'object' && 'token' in fileCfg ? fileCfg : null) ?? null,
-  protocol: process.env.SCREEPS_PROTOCOL ?? 'https',
-  hostname: process.env.SCREEPS_HOSTNAME ?? 'screeps.com',
-  port: (process.env.SCREEPS_PORT && Number(process.env.SCREEPS_PORT)) ?? 443,
-  path: process.env.SCREEPS_PATH ?? '/',
-  dest: process.env.SCREEPS_DEST ?? null,
+const branch = process.env.SCREEPS_BRANCH ?? process.env.SCREEPS_DEST ?? 'unkn';
+const branchSettings = (JSON.parse(readFileSync('./screeps.json', 'utf8')) ?? {})[branch];
+
+let screepsSettings = {
+  token: branchSettings?.token ?? process.env.SCREEPS_TOKEN ?? null,
+  protocol: branchSettings?.protocol ?? process.env.SCREEPS_PROTOCOL ?? 'https',
+  hostname: branchSettings?.hostname ?? process.env.SCREEPS_HOSTNAME ?? 'screeps.com',
+  port: branchSettings?.port ?? (process.env.SCREEPS_PORT && Number(process.env.SCREEPS_PORT)) ?? 443,
+  path: branchSettings?.path ?? process.env.SCREEPS_PATH ?? '/',
+  branch: branchSettings?.branch ?? process.env.SCREEPS_BRANCH ?? '/',
 };
 
-for (const k in CONFIG)
-  if (CONFIG[k] === null) {
-    console.log(`null Value for ${k} in CONFIG`);
-    CONFIG = null;
+for (const k in screepsSettings)
+  if (!screepsSettings[k]) {
+    console.log(`null Value for ${k} in settings`);
+    screepsSettings = null;
     break;
   }
 
-if (CONFIG === null) console.log('No destination specified - code will be compiled but not uploaded');
+if (screepsSettings === null) console.log('No destination specified - code will be compiled but not uploaded');
 
 export default {
   input: 'src/Main.ts',
@@ -36,6 +40,6 @@ export default {
     resolve({ rootDir: 'src' }),
     commonjs(),
     typescript({ tsconfig: './tsconfig.json', include: ['**/*.ts'], exclude: [] }),
-    screeps({ config: CONFIG, dryRun: CONFIG === null }),
+    screeps({ config: screepsSettings, dryRun: screepsSettings === null }),
   ],
 };
