@@ -86,7 +86,7 @@ export class Colony {
   private trading = new TradingSystem(this);
 
   private WrapWithProfiling(lambda: () => void): () => void {
-    if (!Memory.globalEnableProfiling) return lambda;
+    if (!this.GlobalEnableProfiling) return lambda;
 
     // Register Profiler only if enabled.
     profiler.registerClass(ErrorMapper, 'ErrorMapper');
@@ -103,7 +103,7 @@ export class Colony {
   }
 
   private WrapWithErrorMapper(lambda: () => void): () => void {
-    if (!Memory.globalEnableErrorMapper) return lambda;
+    if (!this.GlobalEnableErrorMapper) return lambda;
     return ErrorMapper.wrapLoop(lambda);
   }
 
@@ -368,9 +368,8 @@ export class Colony {
     claimer.AssignedRoom.ClaimedNearby.push(newRoom);
   }
 
-  PixelCost = 9000;
   TryGeneratingPixel(): void {
-    if (Game.cpu.bucket >= this.PixelCost) {
+    if (Game.cpu.bucket >= PIXEL_CPU_COST) {
       const res = Game.cpu.generatePixel();
       if (res === OK) this.log.info('Generated a pixel.');
     }
