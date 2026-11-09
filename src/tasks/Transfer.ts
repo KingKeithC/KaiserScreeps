@@ -147,15 +147,6 @@ export class Transfer extends TargetTask<ResourceContainer> {
     this.legs = (entries.length > 0 ? entries : DEFAULT_ENTRIES).map(entry => makeLeg(target, entry));
   }
 
-  /** Collect the first of `resources` with a usable source. */
-  public static collect(
-    creep: CreepExtra,
-    resources: ResourceConstant[],
-    options: Omit<CollectRequest, 'collect'> = {},
-  ): Transfer | null {
-    return Transfer.supply(creep, { collect: resources, ...options });
-  }
-
   /** Withdraw energy from storage, but only while it holds more than the room's wartime buffer. */
   public static fromStorage(roomOrCreep: RoomExtra | CreepExtra): Transfer | null {
     const room = roomOrCreep instanceof Room ? roomOrCreep : roomOrCreep.AssignedRoom;
@@ -189,50 +180,68 @@ export class Transfer extends TargetTask<ResourceContainer> {
     if (!Array.isArray(candidatesOrRequest)) {
       const { collect: resources, sameRoom = false, minAmount = 0 } = candidatesOrRequest;
       const logistics = creep.colony.Logistics;
-      const freeCapacity = creep.store.getFreeCapacity();
       for (const resourceType of resources) {
-        const pool = logistics
-          .Sources(creep.AssignedRoom.WorkableAreaRoomNames, resourceType)
-          .filter(([source, amount]) => {
-            if (minAmount > 0 && amount < minAmount) return false;
-            return !sameRoom || source.pos.roomName === creep.AssignedRoom.name;
-          });
+        if ((creep.store.getFreeCapacity(resourceType) ?? 0) <= 0) continue;
 
         const available = new Map<string, number>();
-        for (const [source, amount] of pool)
-          available.set(source.id, amount - logistics.ReservedCapacity(source.pos.roomName, source.id) - freeCapacity);
-        const amountOf = (source: ResourceContainer): number => available.get(source.id) ?? 0;
+        const sources: ResourceContainer[] = [];
+        for (const [source, amount] of logistics.Sources(creep.AssignedRoom.WorkableAreaRoomNames, resourceType)) {
+          if (minAmount > 0 && amount < minAmount) continue;
+          if (sameRoom && source.pos.roomName !== creep.AssignedRoom.name) continue;
+          const left =
+            amount -
+            logistics.ledger.Outflow(source.pos.roomName, source.id, resourceType) -
+            logistics.ReservedCapacity(source.pos.roomName, source.id);
+          if (left <= 0) continue;
+          available.set(source.id, left);
+          sources.push(source);
+        }
+
         const fullest = (tier: ResourceContainer[]): ResourceContainer | undefined =>
-          tier.sort((a, b) => amountOf(a) - amountOf(b)).pop();
+          [...tier].sort((a, b) => (available.get(a.id) ?? 0) - (available.get(b.id) ?? 0)).pop();
 
-        const sources = pool.map(([source]) => source);
-        const chosen =
-          pickByLocation(
-            creep,
-            sources.filter(s => amountOf(s) >= freeCapacity),
-            fullest,
-          ) ?? pickByLocation(creep, sources, fullest);
-        if (!chosen) continue;
-
-        logistics.Reserve(chosen.pos.roomName, chosen.id, creep.store.getFreeCapacity(resourceType) ?? 0);
-        return new Transfer(chosen, [resourceType, -MAX_TRANSFER_QUANTITY]);
+        const transfer = Transfer.pick(creep, resourceType, -1, sources, fullest);
+        if (transfer) return transfer;
       }
       return null;
     }
+
+    if ((creep.store.getUsedCapacity(RESOURCE_ENERGY) ?? 0) <= 0) return null;
 
     const suppliersByTarget = new Map<string, number>();
     for (const task of inProgress ?? [...creep.AssignedRoom.AssignedTasks(Transfer, creep)]) {
       suppliersByTarget.set(task.targetId, (suppliersByTarget.get(task.targetId) ?? 0) + 1);
     }
 
+    const ledger = creep.colony.Logistics.ledger;
     for (const matcher of Transfer.SupplyPriorities) {
       const group = candidatesOrRequest.filter(
-        s => s.store.getFreeCapacity(RESOURCE_ENERGY) > 0 && matcher(s) && (suppliersByTarget.get(s.id) ?? 0) === 0,
+        s =>
+          s.store.getFreeCapacity(RESOURCE_ENERGY) - ledger.Inflow(s.pos.roomName, s.id) > 0 &&
+          matcher(s) &&
+          (suppliersByTarget.get(s.id) ?? 0) === 0,
       );
-      const target = pickByLocation(creep, group, tier => tier.sort(Sorts.StoreEnergyRatioAsc).pop());
-      if (target) return new Transfer(target);
+      const transfer = Transfer.pick(creep, RESOURCE_ENERGY, 1, group, tier =>
+        [...tier].sort(Sorts.StoreEnergyRatioAsc).pop(),
+      );
+      if (transfer) return transfer;
     }
     return null;
+  }
+
+  // `direction` is 1 to deposit into the chosen target and -1 to take from it; takes reserve the creep's room.
+  private static pick<T extends ResourceContainer>(
+    creep: CreepExtra,
+    resourceType: ResourceConstant,
+    direction: 1 | -1,
+    candidates: T[],
+    rankRemote: (tier: T[]) => T | undefined,
+  ): Transfer | null {
+    const target = pickByLocation(creep, candidates, rankRemote);
+    if (!target) return null;
+    if (direction < 0)
+      creep.colony.Logistics.Reserve(target.pos.roomName, target.id, creep.store.getFreeCapacity(resourceType) ?? 0);
+    return new Transfer(target, [resourceType, direction * MAX_TRANSFER_QUANTITY]);
   }
 
   /** Whether any leg takes resources out of the target, which counts as collection for reservations. */

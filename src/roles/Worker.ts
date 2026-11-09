@@ -192,8 +192,8 @@ export class Worker extends CreepRoleBase implements CreepRole {
     if (creep.store.getUsedCapacity() === 0) {
       const gather =
         maintainers.length === 0
-          ? Transfer.collect(creep, [RESOURCE_ENERGY])
-          : Transfer.collect(creep, storage ? RESOURCES_ALL : [RESOURCE_ENERGY], { minAmount: 50 });
+          ? Transfer.supply(creep, { collect: [RESOURCE_ENERGY] })
+          : Transfer.supply(creep, { collect: storage ? RESOURCES_ALL : [RESOURCE_ENERGY], minAmount: 50 });
       if (gather) return gather;
 
       // If there aren't enough miners, then do mining

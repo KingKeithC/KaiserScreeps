@@ -89,7 +89,8 @@ export class Maintainer extends Worker implements CreepRole {
         return new Transfer(link, [RESOURCE_ENERGY, -MAX_TRANSFER_QUANTITY]);
 
       // Collect energy from sources in the same room
-      const mainSource = Transfer.collect(creep, [RESOURCE_ENERGY], { sameRoom: true });
+
+      const mainSource = Transfer.supply(creep, { collect: [RESOURCE_ENERGY], sameRoom: true });
       if (mainSource) return mainSource;
 
       // If no source found, collect from storage
