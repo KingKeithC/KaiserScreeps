@@ -140,6 +140,12 @@ export class Worker extends CreepRoleBase implements CreepRole {
       if (repair && repair.repairs.length >= 1) return new Repair(repair.repairs.pop()!);
     }
 
+    // Leftover energy goes to controller upgrading
+    if (creep.AssignedRoom.controller) {
+      const upgrade = UpgradeController.upgrade(creep);
+      if (upgrade) return upgrade;
+    }
+
     return null;
   }
 
