@@ -29,8 +29,13 @@ export function* AssignedTasksWithEntity<
   Entity extends CurrentTaskHolder<Task>,
   Task extends ActionNamedTask,
   SelectedTask extends Task = Task,
->(entities: Iterable<Entity>, taskClass?: TaskActionSelector<SelectedTask>): IterableIterator<[Entity, SelectedTask]> {
+>(
+  entities: Iterable<Entity>,
+  taskClass?: TaskActionSelector<SelectedTask>,
+  excluding?: Entity,
+): IterableIterator<[Entity, SelectedTask]> {
   for (const entity of entities) {
+    if (entity === excluding) continue;
     const task = entity.currentTask;
     if (task !== null && (taskClass === undefined || task.action === taskClass.action))
       yield [entity, task as SelectedTask];
@@ -41,8 +46,13 @@ export function* TasksOfEntities<
   Entity extends CurrentTaskHolder<Task>,
   Task extends ActionNamedTask,
   SelectedTask extends Task = Task,
->(entities: Iterable<Entity>, taskClass?: TaskActionSelector<SelectedTask>): IterableIterator<SelectedTask> {
-  for (const [, task] of AssignedTasksWithEntity<Entity, Task, SelectedTask>(entities, taskClass)) yield task;
+>(
+  entities: Iterable<Entity>,
+  taskClass?: TaskActionSelector<SelectedTask>,
+  excluding?: Entity,
+): IterableIterator<SelectedTask> {
+  for (const [, task] of AssignedTasksWithEntity<Entity, Task, SelectedTask>(entities, taskClass, excluding))
+    yield task;
 }
 
 export function UnpackColour(colour: string): [number, number, number] {

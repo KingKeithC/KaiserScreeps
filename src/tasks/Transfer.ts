@@ -221,7 +221,7 @@ export class Transfer extends TargetTask<ResourceContainer> {
     }
 
     const suppliersByTarget = new Map<string, number>();
-    for (const task of inProgress ?? [...creep.AssignedRoom.AssignedTasks(Transfer)]) {
+    for (const task of inProgress ?? [...creep.AssignedRoom.AssignedTasks(Transfer, creep)]) {
       suppliersByTarget.set(task.targetId, (suppliersByTarget.get(task.targetId) ?? 0) + 1);
     }
 

@@ -17,7 +17,7 @@ export class Repair extends TargetTask<AnyStructure> {
   public static nearestInGroup(
     creep: CreepExtra,
     group: RepairPrioritySelection,
-    inProgress: Repair[] = [...creep.AssignedRoom.AssignedTasks(Repair)],
+    inProgress: Repair[] = [...creep.AssignedRoom.AssignedTasks(Repair, creep)],
   ): Repair | null {
     const repairersByTarget = new Map<string, number>();
     for (const task of inProgress) {

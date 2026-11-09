@@ -98,8 +98,12 @@ export class RoomExtra extends Room {
     ));
   }
 
-  *AssignedTasks<Task extends CreepTask = CreepTask>(taskClass?: TaskClass<Task>): IterableIterator<Task> {
-    yield* TasksOfEntities<CreepExtra, CreepTask, Task>(this.AssignedCreeps, taskClass);
+  /** Pass `excluding` to omit a creep's own (possibly just-completed) task from the results. */
+  *AssignedTasks<Task extends CreepTask = CreepTask>(
+    taskClass?: TaskClass<Task>,
+    excluding?: CreepExtra,
+  ): IterableIterator<Task> {
+    yield* TasksOfEntities<CreepExtra, CreepTask, Task>(this.AssignedCreeps, taskClass, excluding);
   }
 
   *AssignedTasksWithCreep<Task extends CreepTask = CreepTask>(
