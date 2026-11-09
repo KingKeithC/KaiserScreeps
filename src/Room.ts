@@ -58,6 +58,7 @@ declare global {
     storeOverUpgrade?: boolean;
     allowStorageDraw?: boolean;
     lastViewed?: number;
+    minHostilesForResponse?: number;
   }
 }
 
@@ -107,6 +108,9 @@ export class RoomExtra extends Room {
     yield* AssignedTasksWithEntity<CreepExtra, CreepTask, Task>(this.AssignedCreeps, taskClass);
   }
 
+  get MinHostilesForResponse(): number {
+    return (this.memory.minHostilesForResponse ??= 2);
+  }
   get StoreOverUpgrade() {
     return (this.memory.storeOverUpgrade ??= true);
   }
