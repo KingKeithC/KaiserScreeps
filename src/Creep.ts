@@ -140,6 +140,7 @@ export class CreepExtra extends Creep {
         : undefined,
       reusePath: 50,
       plainCost: 2,
+      ignoreCreeps: true,
     });
   }
 
@@ -148,12 +149,13 @@ export class CreepExtra extends Creep {
     // eslint-disable-next-line no-underscore-dangle
     return this.moveTo(pos, {
       ...opts,
-      costCallback: (rn: string, cm: CostMatrix) => this.CostCallback(rn, cm),
+      costCallback: (rn: string, cm: CostMatrix) => this.CostCallback(rn, cm, false),
       visualizePathStyle: Memory.globalEnablePathVisuals
         ? { stroke: Colours.PATH_STUCK, lineStyle: 'dotted' }
         : undefined,
       reusePath: 5,
       plainCost: 2,
+      ignoreCreeps: false,
     });
   }
 
