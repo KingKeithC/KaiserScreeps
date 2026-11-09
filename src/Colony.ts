@@ -37,7 +37,6 @@ declare global {
     stats?: ColonyStats;
     logLevelName?: string;
     logFormat?: string;
-    tradeLockoutDuration?: number;
   }
 }
 

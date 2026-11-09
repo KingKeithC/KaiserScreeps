@@ -37,10 +37,25 @@ export class TradingSystem {
     return;
   }
 
-  TradeEnabled = false;
-  ProfitableAbovePPU = 20;
-  ProfitableAboveUnits = 200;
-  LowCostFullfill = 20;
+  get TradeEnabled(): boolean {
+    return ((Memory as typeof Memory & { tradeEnabled?: boolean }).tradeEnabled ??= true);
+  }
+
+  get ProfitableAbovePPU(): number {
+    return ((Memory as typeof Memory & { profitableAbovePPU?: number }).profitableAbovePPU ??= 20);
+  }
+
+  get ProfitableAboveUnits(): number {
+    return ((Memory as typeof Memory & { profitableAboveUnits?: number }).profitableAboveUnits ??= 200);
+  }
+
+  get LowCostFullfill(): number {
+    return ((Memory as typeof Memory & { lowCostFullfill?: number }).lowCostFullfill ??= 20);
+  }
+
+  get TradeLockoutDuration(): number {
+    return ((Memory as typeof Memory & { tradeLockoutDuration?: number }).tradeLockoutDuration ??= 100);
+  }
 
   // 'Opportunity: ${estProfit} (${estProfitPerUnit}/u) of ${resourceType} sell ${fulfillableQty} @ ${price} from ${origin} to ${dest}: ${order}',
   RefreshWatchedOrders(terminal: StructureTerminal): void {
@@ -110,10 +125,6 @@ export class TradingSystem {
 
   UpdateTerminal(terminal: StructureTerminal): void {
     Memory.terminals[terminal.id].lastInventory = terminal.store;
-  }
-
-  get TradeLockoutDuration(): number {
-    return Memory.tradeLockoutDuration ?? 100;
   }
 
   private tradeLockout: { [terminalId: string]: number } = {};
