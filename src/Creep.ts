@@ -308,7 +308,14 @@ export class CreepExtra extends Creep {
   }
 
   JobsAvailable = true;
+  // Tasks that finished this tick; reselecting one would repeat the same attempt.
+  private completedTasks: string[] = [];
   private ChangeTask(newTask = this.role.SelectNextTask(this)): CreepTask | null {
+    if (newTask !== null && this.completedTasks.includes(newTask.toString())) {
+      this.JobsAvailable = false;
+      return null;
+    }
+
     const oldTask = this.currentTask;
     this.currentTask = newTask;
 
@@ -404,6 +411,7 @@ export class CreepExtra extends Creep {
       task.isCompleteFlag = true;
     }
 
+    if (task.isCompleteFlag) this.completedTasks.push(task.toString());
     return task;
   }
 

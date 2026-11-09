@@ -166,7 +166,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
       if (store) return store;
     }
 
-    if (creep.store.getUsedCapacity() > 0) {
+    if (creepEnergy > 0) {
       // Need to spend hauled energy
 
       // Look for a spending task amongst typical targets, unless we are short on maintainers
@@ -189,11 +189,11 @@ export class Worker extends CreepRoleBase implements CreepRole {
     // ------ GATHER ------
     if (creep.store.getUsedCapacity() === 0) {
       // Try to find a gathering task, for any energy from storage or locally if we are low on maintainers,
-      // otherwise for general resources
+      // otherwise for general resources, which only make sense with storage to stash them in
       const gather =
         maintainers.length === 0
           ? (Transfer.fromStorage(creep.AssignedRoom) ?? Transfer.collect(creep, [RESOURCE_ENERGY]))
-          : Transfer.collect(creep, RESOURCES_ALL, { minAmount: 50 });
+          : Transfer.collect(creep, storage ? RESOURCES_ALL : [RESOURCE_ENERGY], { minAmount: 50 });
       if (gather) return gather;
 
       // If there aren't enough miners, then do mining
