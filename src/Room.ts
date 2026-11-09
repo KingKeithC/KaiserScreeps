@@ -110,7 +110,6 @@ export class RoomExtra extends Room {
   get StoreOverUpgrade() {
     return (this.memory.storeOverUpgrade ??= true);
   }
-
   get EnableRepairOverlay(): boolean {
     return (this.memory.enableRepairOverlay ??= false);
   }
@@ -691,7 +690,14 @@ export class RoomExtra extends Room {
     // Run each creep in the room.
     for (const c of this.AssignedCreeps.filter(ac => !ac.spawning)) {
       c.role.TickCreep(c);
-      c.DoTasks();
+
+      if (Game.cpu.bucket < this.colony.MinCpuBucket)
+        this.log.warn('CPU bucket too low, skipping creep tasks.', {
+          bucket: Game.cpu.bucket,
+          MinCpuBucket: this.colony.MinCpuBucket,
+        });
+      else c.DoTasks();
+
       c.MoveIntoRoomIfOnEdge();
     }
   }

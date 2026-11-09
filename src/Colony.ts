@@ -37,6 +37,8 @@ declare global {
     stats?: ColonyStats;
     logLevelName?: string;
     logFormat?: string;
+    cpuSkipRatio?: number;
+    minCpuBucket?: number;
   }
 }
 
@@ -105,6 +107,12 @@ export class Colony {
     return ErrorMapper.wrapLoop(lambda);
   }
 
+  get CpuSkipRatio(): number {
+    return (Memory.cpuSkipRatio ??= 0.75);
+  }
+  get MinCpuBucket(): number {
+    return (Memory.minCpuBucket ??= 100);
+  }
   get LogFormat() {
     return Memory.logFormat ?? Logger.DefaultLogFormat;
   }
