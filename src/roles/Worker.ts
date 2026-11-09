@@ -233,7 +233,8 @@ export class Worker extends CreepRoleBase implements CreepRole {
     // Change the quota if there is no death lockout
     if (
       quotaChangeOnDeath &&
-      Game.time - GetValueByName(this.deathLockoutTimes, creep.AssignedRoom, () => 0) > this.DeathLockoutDuration
+      Game.time - GetValueByName(this.deathLockoutTimes, creep.AssignedRoom, () => 0) > this.DeathLockoutDuration &&
+      this.GetRoomCreepsInRole(creep.AssignedRoom).length > 1
     ) {
       this.ChangeQuota(creep.AssignedRoom, -this.ShrinkAmount, false);
       this.deathLockoutTimes[creep.AssignedRoom.name] = Game.time;
