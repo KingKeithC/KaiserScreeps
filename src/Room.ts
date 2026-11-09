@@ -512,8 +512,10 @@ export class RoomExtra extends Room {
 
   private cachedSpawnsOrExtensions?: (StructureExtension | StructureSpawn)[];
   get SpawnsOrExtensions(): (StructureExtension | StructureSpawn)[] {
-    this.cachedSpawnsOrExtensions ??= this.find(FIND_MY_STRUCTURES, { filter: Filters.StructureSpawnOrExtension });
-    return this.cachedSpawnsOrExtensions;
+    if (this.cachedSpawnsOrExtensions && this.cachedSpawnsOrExtensions.length > 0) return this.cachedSpawnsOrExtensions;
+    return (this.cachedSpawnsOrExtensions = this.find(FIND_MY_STRUCTURES, {
+      filter: Filters.StructureSpawnOrExtension,
+    }));
   }
 
   get Hostiles(): Creep[] {
