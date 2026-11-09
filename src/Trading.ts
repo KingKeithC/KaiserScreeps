@@ -112,8 +112,14 @@ export class TradingSystem {
     Memory.terminals[terminal.id].lastInventory = terminal.store;
   }
 
+  get TradeLockoutDuration(): number {
+    return Memory.tradeLockoutDuration ?? 100;
+  }
+
+  private tradeLockout: { [terminalId: string]: number } = {};
   ExecuteBestDeal(room: RoomExtra, terminal: StructureTerminal): void {
     if (terminal.cooldown) return;
+    if (this.tradeLockout[terminal.id] && Game.time < this.tradeLockout[terminal.id]) return;
 
     const o = this.GetWatchedOrders().pop();
     if (o === undefined) return;
@@ -127,6 +133,7 @@ export class TradingSystem {
       const deal = Game.market.deal(o.order.id, o.fulfillableQty, room.name);
       if (deal === OK) {
         Logger.crit('Market deal completed.', { '<room>': room, deal: o, remaining: this.WatchedOrders.size });
+        this.tradeLockout[terminal.id] = Game.time + this.TradeLockoutDuration;
         return;
       } else
         Logger.warn('Market deal failed.', {
