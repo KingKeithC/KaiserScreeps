@@ -2,7 +2,7 @@ import { CreepExtra } from 'Creep';
 import { some, sum } from 'lodash';
 import { RoomExtra } from 'Room';
 
-import { Build, Mine, Repair, Transfer, UpgradeController } from 'tasks';
+import { Build, MAX_TRANSFER_QUANTITY, Mine, Repair, Transfer, UpgradeController } from 'tasks';
 import { Retire } from 'tasks/Retire';
 import { CreepTask } from 'tasks/types';
 import { Filters, GetValueByName, MakeBody } from 'utils/Collections';
@@ -160,7 +160,13 @@ export class Worker extends CreepRoleBase implements CreepRole {
     const creepHasNonEnergy = creep.store.getUsedCapacity() - creepEnergy > 0;
 
     // ------ SUPPLY ------
-    if (storage && (creepHasNonEnergy || (creepEnergy > 0 && storageLow))) {
+    if (storage && creepHasNonEnergy) {
+      for (const resourceType in creep.store) {
+        if (resourceType !== RESOURCE_ENERGY && creep.store.getUsedCapacity(resourceType as ResourceConstant) > 0)
+          return new Transfer(storage, [resourceType as ResourceConstant, MAX_TRANSFER_QUANTITY]);
+      }
+    }
+    if (storage && maintainers.length > 0 && creepEnergy > 0 && storageLow) {
       // Need to store resources
       const store = Transfer.stash(creep, storage);
       if (store) return store;
@@ -182,7 +188,8 @@ export class Worker extends CreepRoleBase implements CreepRole {
         if (upgrade) return upgrade;
       } else {
         // Or storage if we are RCL 6 or above
-        if (storage !== undefined && storage.store.getFreeCapacity() > 0) return new Transfer(storage);
+        if (maintainers.length > 0 && storage !== undefined && storage.store.getFreeCapacity() > 0)
+          return new Transfer(storage);
       }
     }
 
@@ -192,7 +199,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
       // otherwise for general resources, which only make sense with storage to stash them in
       const gather =
         maintainers.length === 0
-          ? (Transfer.fromStorage(creep.AssignedRoom) ?? Transfer.collect(creep, [RESOURCE_ENERGY]))
+          ? (Transfer.collect(creep, [RESOURCE_ENERGY]) ?? Transfer.fromStorage(creep))
           : Transfer.collect(creep, storage ? RESOURCES_ALL : [RESOURCE_ENERGY], { minAmount: 50 });
       if (gather) return gather;
 
