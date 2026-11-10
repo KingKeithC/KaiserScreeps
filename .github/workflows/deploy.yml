@@ -5,6 +5,9 @@ on:
     branches:
       - main
       - devel
+  pull_request:
+    branches:
+      - devel
 
 permissions:
   contents: read
