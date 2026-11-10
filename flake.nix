@@ -24,10 +24,8 @@
             python3
             webpack-cli
             yarn
+            pre-commit
           ];
-          shellHook = ''
-            yarn
-          '';
         };
       }
     );
