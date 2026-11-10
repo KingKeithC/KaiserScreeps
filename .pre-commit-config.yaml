@@ -7,8 +7,12 @@ repos:
       - id: trailing-whitespace
       - id: end-of-file-fixer
       - id: check-yaml
+
+      # The VScode config files support comments, and some
+      # bracketed/hyphenated keys which I think this task doesn't like
       - id: check-json
-        exclude: .vscode/settings.json
+        exclude: .vscode/(settings|launch|tasks).json
+
       - id: detect-aws-credentials
         args:
           - --credentials-file
@@ -23,6 +27,15 @@ repos:
           - devel
   - repo: local
     hooks:
+      - id: installs
+        name: Install Develop
+        additional_dependencies:
+          - package.json
+        language: node
+        entry: yarn
+        pass_filenames: false
+        verbose: true
+
       - id: builds
         name: Build project
         additional_dependencies:
