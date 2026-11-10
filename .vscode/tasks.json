@@ -1,20 +1,27 @@
 {
   "version": "2.0.0",
   "tasks": [
-    { "type": "npm", "script": "push", "problemMatcher": [], "label": "push" },
-    { "type": "npm", "script": "build", "problemMatcher": [], "label": "build" },
+    { "type": "npm", "script": "push", "problemMatcher": "$tsc", "label": "push" },
+    { "type": "npm", "script": "build", "problemMatcher": "$tsc", "label": "build" },
     {
+      "type": "npm",
+      "label": "lint",
+      "script": "lint",
+      "problemMatcher": "$eslint-stylish",
+      "options": { "cwd": "${workspaceFolder}" }
+    },
+    {
+      "label": "clean",
       "type": "process",
       "command": "rm",
-      "args": ["-r", "dist/", "node_modules/"],
       "problemMatcher": [],
-      "label": "clean"
+      "args": ["-r", "dist/", "node_modules/"]
     },
     {
       "type": "npm",
-      "label": "npm: lint",
-      "script": "lint",
-      "problemMatcher": "$eslint-stylish",
+      "label": "test",
+      "script": "test",
+      "problemMatcher": "$tsc",
       "options": { "cwd": "${workspaceFolder}" }
     },
     { "type": "npm", "script": "push-sim", "problemMatcher": [], "label": "push-sim" },
