@@ -372,6 +372,8 @@ export class Colony {
   }
 
   TryGeneratingPixel(): void {
+    if (typeof Game.cpu.generatePixel !== 'function') return;
+
     if (Game.cpu.bucket >= PIXEL_CPU_COST) {
       const res = Game.cpu.generatePixel();
       if (res === OK) this.log.info('Generated a pixel.');
