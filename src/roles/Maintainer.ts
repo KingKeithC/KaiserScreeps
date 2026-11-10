@@ -1,9 +1,8 @@
 import { CreepExtra } from 'Creep';
 import { RoomExtra } from 'Room';
-import { MAX_TRANSFER_QUANTITY, Transfer } from 'tasks';
+import { MAX_TRANSFER_QUANTITY, Mine, Transfer } from 'tasks';
 import { CreepTask } from 'tasks/types';
 import { Filters } from 'utils/Collections';
-import { FirstBodyByEnergyCapacity } from 'utils/RoomUtils';
 import { CreepRole } from './Role';
 import { Worker } from './Worker';
 
@@ -23,26 +22,23 @@ export class Maintainer extends Worker implements CreepRole {
   protected ReplaceMaintainerBelowTTL = 200;
 
   /**
-   * Raise the quota if there is one
+   * Raise the quota from if it is below 1, or if the one maintainer we have is close to retirement.
+   *
+   * Lower the quota if there is more than one maintainer.
+   *
+   * Otherwise, maintain the current quota.
    */
   override GetQuotaChange(room: RoomExtra): number {
+    const idealQuota = 1;
     const maintainers = this.GetRoomCreepsInRole(room);
-    if (maintainers.length === 0) return 1;
-    const loneMaintainer = maintainers.length === 1 ? maintainers[0] : null;
-    if (!loneMaintainer) return 1;
-    if (loneMaintainer.ticksToLive !== undefined && loneMaintainer.ticksToLive < this.ReplaceMaintainerBelowTTL)
-      return 1;
-    return 0;
-  }
-
-  /**
-   * Maintainers use the same logic as Workers,
-   * except without the barebones Zygote or 'emergency' spawn logic.
-   */
-  override GetNewCreepBody(room: RoomExtra): BodyPartConstant[] {
-    return (
-      FirstBodyByEnergyCapacity(room, ...this.PossibleBodies) ?? this.PossibleBodies[this.PossibleBodies.length - 1]
-    );
+    if (maintainers.length < idealQuota) return this.GrowAmount;
+    if (maintainers.length > idealQuota) return -this.ShrinkAmount;
+    const loneMaintainer = maintainers.pop();
+    return loneMaintainer !== undefined &&
+      loneMaintainer.ticksToLive !== undefined &&
+      loneMaintainer.ticksToLive < this.ReplaceMaintainerBelowTTL
+      ? this.GrowAmount
+      : 0;
   }
 
   SelectNextTask(creep: CreepExtra): CreepTask | null {
@@ -96,7 +92,6 @@ export class Maintainer extends Worker implements CreepRole {
         return new Transfer(link, [RESOURCE_ENERGY, -MAX_TRANSFER_QUANTITY]);
 
       // Collect energy from sources in the same room
-
       const mainSource = Transfer.supply(creep, { collect: [RESOURCE_ENERGY], sameRoom: true });
       if (mainSource) return mainSource;
 
@@ -106,6 +101,11 @@ export class Maintainer extends Worker implements CreepRole {
         creep.AssignedRoom.storage.store.getUsedCapacity(RESOURCE_ENERGY) > 0
       )
         return new Transfer(creep.AssignedRoom.storage, [RESOURCE_ENERGY, -MAX_TRANSFER_QUANTITY]);
+
+      // If storage is empty, do mining
+      // If there aren't enough miners, then do mining
+      const mine = Mine.anyUnfilled(creep.AssignedRoom, creep.AssignedRoom.Mines);
+      if (mine) return mine;
     }
 
     return null;
