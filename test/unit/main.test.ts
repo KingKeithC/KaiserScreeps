@@ -1,6 +1,8 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import { assert } from 'chai';
 import { loop } from '../../src/Main';
+import { Colony } from '../../src/Colony';
+import { RoomExtra } from '../../src/Room';
 import { Game, Memory } from './mock';
 
 describe('main', () => {
@@ -25,12 +27,12 @@ describe('main', () => {
   });
 
   it('Automatically delete memory of missing creeps', () => {
-    Memory.creeps.persistValue = 'any value';
-    Memory.creeps.notPersistValue = 'any value';
+    Memory.creeps.persistValue = { room: 'W0N0' };
+    Memory.creeps.notPersistValue = { room: 'W0N0' };
 
     Game.creeps.persistValue = 'any value';
 
-    loop();
+    new RoomExtra({ name: 'W0N0' } as Room, new Colony()).CleanupDeadCreeps();
 
     assert.isDefined(Memory.creeps.persistValue);
     assert.isUndefined(Memory.creeps.notPersistValue);
