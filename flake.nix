@@ -12,11 +12,18 @@
       in
       {
         devShells.default = pkgs.mkShell {
+          nativeBuildInputs = with pkgs; [
+            node-gyp-build
+          ];
           buildInputs = with pkgs; [
             pnpm
             nodejs
             typescript
             typescript-language-server
+            node-gyp
+            python3
+            webpack-cli
+            yarn
           ];
           shellHook = ''
             pnpm install
