@@ -16,7 +16,7 @@
             node-gyp-build
           ];
           buildInputs = with pkgs; [
-            pnpm
+            yarn
             nodejs
             typescript
             typescript-language-server
@@ -26,7 +26,7 @@
             yarn
           ];
           shellHook = ''
-            pnpm install
+            yarn
           '';
         };
       }
