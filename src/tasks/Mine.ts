@@ -34,8 +34,8 @@ export class Mine extends PreferredPositionTask<Source | StructureExtractor> {
   }
 
   /** Any unfilled mining position, for creeps with spare capacity. */
-  public static anyUnfilled(room: RoomExtra): Mine | null {
-    return Mine.firstResolved(room.UnfilledMiningPositions().reverse());
+  public static anyUnfilled(room: RoomExtra, candidates = room.UnfilledMiningPositions()): Mine | null {
+    return Mine.firstResolved(candidates.reverse());
   }
 
   // Skips positions whose source no longer exists.
