@@ -17,8 +17,9 @@
   },
   "scripts": {
     "lint": "eslint \"src/**/*.ts\" \"test/**/*.ts\"",
-    "test": "npm run test-unit",
+    "test": "npm run test-unit && npm run test-integration",
     "test-unit": "mocha test/unit/**/*.ts",
+    "test-integration": "npm run build && mocha test/integration/**/*.ts",
     "build": "rollup -c --environment SCREEPS_BUILDONLY=1",
     "push": "rollup -c --environment DEST:bleeding",
     "push-sim": "rollup -c --environment DEST:sim",
