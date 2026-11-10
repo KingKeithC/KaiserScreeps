@@ -167,32 +167,34 @@ export class CreepExtra extends Creep {
   MaxAvoidTicks = 4;
   MoveLong(pos: RoomPosition, opts?: MoveToOpts): ScreepsReturnCode {
     // this.log.debug('Invoking MoveLong.', { '<creep>': this, pos, opts });
+    const accountForCreeps = false;
     return this.moveTo(pos, {
       ...opts,
-      costCallback: (rn: string, cm: CostMatrix) => this.CostCallback(rn, cm, false),
+      costCallback: (rn: string, cm: CostMatrix) => this.CostCallback(rn, cm, accountForCreeps),
       visualizePathStyle: Memory.globalEnablePathVisuals
         ? { stroke: Colours.PATH_LONG, lineStyle: 'solid' }
         : undefined,
       reusePath: 50,
       plainCost: this.AssignedRoom.PathfindingParams.WalkableCost,
       swampCost: this.AssignedRoom.PathfindingParams.SwampCost,
-      ignoreCreeps: true,
+      ignoreCreeps: !accountForCreeps,
     });
   }
 
   MoveAvoidCreeps(pos: RoomPosition, opts?: MoveToOpts): ScreepsReturnCode {
     // this.log.debug('Invoking MoveAvoidCreeps.', { '<creep>': this, pos, opts });
+    const accountForCreeps = true;
     // eslint-disable-next-line no-underscore-dangle
     return this.moveTo(pos, {
       ...opts,
-      costCallback: (rn: string, cm: CostMatrix) => this.CostCallback(rn, cm, false),
+      costCallback: (rn: string, cm: CostMatrix) => this.CostCallback(rn, cm, accountForCreeps),
       visualizePathStyle: Memory.globalEnablePathVisuals
         ? { stroke: Colours.PATH_STUCK, lineStyle: 'dotted' }
         : undefined,
       reusePath: 5,
       plainCost: this.AssignedRoom.PathfindingParams.WalkableCost,
       swampCost: this.AssignedRoom.PathfindingParams.SwampCost,
-      ignoreCreeps: false,
+      ignoreCreeps: !accountForCreeps,
     });
   }
 
