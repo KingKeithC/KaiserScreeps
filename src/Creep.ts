@@ -159,8 +159,6 @@ export class CreepExtra extends Creep {
 
     // Reset after using its value:
     this.IntendedToMove = false;
-
-    this.UpdateScoutingReportForStoodInRoom();
   }
 
   MaxStuckTicks = 2;
@@ -300,28 +298,30 @@ export class CreepExtra extends Creep {
     return { ...MakeRoomReport(this.room), scoutedFromOutpost: this.memory.room, distFromOutpost: dist };
   }
 
-  UpdateScoutingReportForStoodInRoom(): void {
+  UpdateScoutingReportForStoodInRoom(force = false): void {
+    // Update the room reports for unowned rooms
     Memory.scoutingReports ??= {};
-    let newReport: ScoutingReport | undefined;
+    let updated = false;
+    const existing = Memory.scoutingReports[this.room.name];
+    if (!existing || force) {
+      // If the room has never been scouted, create a scouting report for the room
+      Memory.scoutingReports[this.room.name] = this.NewScoutingReport();
+      updated = true;
+      return;
+    } else if (Game.time - (existing.lastSeen ?? 0) > Scout.ScoutReportTTL) {
+      // Report getting stale, update it
+      Memory.scoutingReports[this.room.name] = this.NewScoutingReport();
+      updated = true;
+      return;
+    }
 
-    // Create or update a new scouting report for the current room.
-    if (
-      this.MovedBetweenRooms ||
-      !(this.room.name in Memory.scoutingReports) ||
-      Memory.scoutingReports[this.room.name] === undefined ||
-      Memory.scoutingReports[this.room.name].lastSeen === undefined ||
-      (Game.time - Memory.scoutingReports[this.room.name].lastSeen ?? 0) > Scout.ScoutReportTTL
-    )
-      newReport = this.NewScoutingReport();
+    if (updated) {
+      this.log.info('Scouting report updated.', { reportRoomName: this.room.name });
 
-    if (newReport !== undefined) {
-      // If we made a new report, replace the one in memory.
-      Memory.scoutingReports[this.room.name] = newReport;
-
-      // If the new report has hostiles, print a message.
-      if (Game.time % 10 === 0 && newReport.hostiles && newReport.hostiles.length > 0) {
-        this.log.warn('Hostiles found.', { hostiles: newReport.hostiles, room: newReport.roomName });
-      }
+      // If the latest report has hostiles, print a message.
+      const latest = Memory.scoutingReports[this.room.name];
+      if (latest && latest.hostiles && latest.hostiles.length > 0)
+        this.log.warn('Hostiles found while updating scouting report.', { '<rate>': 10, hostiles: latest.hostiles });
     }
   }
 

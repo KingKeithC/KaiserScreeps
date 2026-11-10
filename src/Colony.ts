@@ -344,14 +344,13 @@ export class Colony {
   TickOtherVisibleRoom(room: Room): void {
     // Update the room reports for unowned rooms
     Memory.scoutingReports ??= {};
-    if (!(room.name in Memory.scoutingReports)) {
+    const existing = Memory.scoutingReports[room.name];
+    if (!existing) {
       // If the room has never been scouted, create a scouting report for the room
       Memory.scoutingReports[room.name] = MakeRoomReport(room);
-    } else if (Game.time % 50 === 0) {
-      // The room has been scouted, regularly fetch a new room report for it, and update the existing scouting report
-      const existing = Memory.scoutingReports[room.name];
-      const updates = MakeRoomReport(room);
-      Memory.scoutingReports[room.name] = { ...existing, ...updates };
+    } else if (Game.time - (existing.lastSeen ?? 0) > Scout.ScoutReportTTL) {
+      // Report getting stale, update it
+      Memory.scoutingReports[room.name] = MakeRoomReport(room);
     }
   }
 
