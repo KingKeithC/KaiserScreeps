@@ -75,13 +75,16 @@ export class Mine extends PreferredPositionTask<Source | StructureExtractor> {
   }
 
   protected isIntentBlocked(creep: CreepExtra, source: Source | StructureExtractor): boolean {
-    // Full miners still harvest; the engine drops the surplus on the ground.
+    // For energy sources, block if the creep is full or the source is empty,
+    // unless the creep is a Miner.
     if (creep.role?.groupName !== 'Miners') {
-      if (creep.store.getFreeCapacity(RESOURCE_ENERGY) === 0) return true;
+      if (creep.store.getFreeCapacity() === 0) return true;
       if (source instanceof Source) return source.energy === 0;
     }
 
+    // Minerals work the same, without the exception for Miners.
     if (source instanceof StructureExtractor) {
+      if (creep.store.getFreeCapacity() === 0) return true;
       const mineral = Mine.mineralAt(source);
       return mineral === undefined || mineral.mineralAmount === 0 || source.cooldown > 0;
     }
