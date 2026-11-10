@@ -15,7 +15,7 @@
       "type": "process",
       "command": "rm",
       "problemMatcher": [],
-      "args": ["-r", "dist/", "node_modules/"]
+      "args": ["-r", "dist/", "node_modules/", "server/"]
     },
     {
       "type": "npm",
