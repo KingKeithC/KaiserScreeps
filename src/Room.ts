@@ -359,6 +359,9 @@ export class RoomExtra extends Room {
 
   PathfindingParams = {
     RoadCost: 1,
+    WalkableCost: 2,
+    SwampCost: 3,
+    ExitCost: 5,
     SourceRadius: 3, // The radius around each source to apply a bias
     SourceBiasMax: 5, // Start biasing at Sources with this cost (since sources are unwalkable so only applies for Radius >= 1 )
     SourceBiasMin: 3, // Do not bias lower than this cost around Sources
@@ -454,6 +457,9 @@ export class RoomExtra extends Room {
     // Blot out unwalkable construction sites
     for (const s of this.find(FIND_CONSTRUCTION_SITES, { filter: Filters.NonWalkableStructure }))
       matrix.set(s.pos.x, s.pos.y, this.PathfindingParams.Unwalkable);
+
+    // Blot out exits
+    for (const s of this.find(FIND_EXIT)) matrix.set(s.x, s.y, this.PathfindingParams.ExitCost);
 
     // Cache
     this.cachedDeserializedStructuresCostMatrix = matrix;

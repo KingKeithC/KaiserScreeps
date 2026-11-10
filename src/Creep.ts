@@ -174,7 +174,8 @@ export class CreepExtra extends Creep {
         ? { stroke: Colours.PATH_LONG, lineStyle: 'solid' }
         : undefined,
       reusePath: 50,
-      plainCost: 2,
+      plainCost: this.AssignedRoom.PathfindingParams.WalkableCost,
+      swampCost: this.AssignedRoom.PathfindingParams.SwampCost,
       ignoreCreeps: true,
     });
   }
@@ -189,7 +190,8 @@ export class CreepExtra extends Creep {
         ? { stroke: Colours.PATH_STUCK, lineStyle: 'dotted' }
         : undefined,
       reusePath: 5,
-      plainCost: 2,
+      plainCost: this.AssignedRoom.PathfindingParams.WalkableCost,
+      swampCost: this.AssignedRoom.PathfindingParams.SwampCost,
       ignoreCreeps: false,
     });
   }
