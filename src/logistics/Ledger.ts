@@ -4,8 +4,19 @@ export type StoreId = Id<ResourceContainer>;
 
 interface RoomIntents {
   outflow: Map<StoreId, Map<ResourceConstant, StoreAmount>>;
-  inflow: Map<StoreId, StoreAmount>;
+  inflow: Map<StoreId, Map<ResourceConstant, StoreAmount>>;
   actors: Set<StoreId>;
+}
+
+function sumAmounts(
+  amounts: Map<ResourceConstant, StoreAmount> | undefined,
+  resourceType?: ResourceConstant,
+): StoreAmount {
+  if (amounts === undefined) return 0;
+  if (resourceType !== undefined) return amounts.get(resourceType) ?? 0;
+  let total = 0;
+  for (const amount of amounts.values()) total += amount;
+  return total;
 }
 
 // Transfer intents registered this tick, grouped by the room they happen in.
@@ -13,14 +24,14 @@ export class Ledger {
   private tick: Game['time'] = -1;
   private readonly rooms = new Map<Room['name'], RoomIntents>();
 
-  // Amount of a resource already removed from a store this tick.
-  Outflow(roomName: Room['name'], id: StoreId, resourceType: ResourceConstant): StoreAmount {
-    return this.current().get(roomName)?.outflow.get(id)?.get(resourceType) ?? 0;
+  // Amount already removed from a store this tick; all resources when none is given.
+  Outflow(roomName: Room['name'], id: StoreId, resourceType?: ResourceConstant): StoreAmount {
+    return sumAmounts(this.current().get(roomName)?.outflow.get(id), resourceType);
   }
 
-  // Amount already added to a store this tick.
-  Inflow(roomName: Room['name'], id: StoreId): StoreAmount {
-    return this.current().get(roomName)?.inflow.get(id) ?? 0;
+  // Amount already added to a store this tick; all resources when none is given.
+  Inflow(roomName: Room['name'], id: StoreId, resourceType?: ResourceConstant): StoreAmount {
+    return sumAmounts(this.current().get(roomName)?.inflow.get(id), resourceType);
   }
 
   // Whether this creep's one transfer-family intent is already registered this tick.
@@ -40,7 +51,9 @@ export class Ledger {
     const outflow = intents.outflow.get(sourceId) ?? new Map<ResourceConstant, StoreAmount>();
     outflow.set(resourceType, (outflow.get(resourceType) ?? 0) + amount);
     intents.outflow.set(sourceId, outflow);
-    intents.inflow.set(destId, (intents.inflow.get(destId) ?? 0) + amount);
+    const inflow = intents.inflow.get(destId) ?? new Map<ResourceConstant, StoreAmount>();
+    inflow.set(resourceType, (inflow.get(resourceType) ?? 0) + amount);
+    intents.inflow.set(destId, inflow);
     intents.actors.add(actorId);
   }
 

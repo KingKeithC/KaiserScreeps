@@ -66,11 +66,12 @@ function plannedAmount(leg: TransferLeg, creep: CreepExtra, target: ResourceCont
   if (remaining <= 0) return 0;
 
   const giving = leg.quantity > 0;
-  const source: ResourceContainer = giving ? creep : target;
-  const dest: ResourceContainer = giving ? target : creep;
-  const available =
-    storedOf(source, leg.resourceType) - ledger.Outflow(source.pos.roomName, source.id, leg.resourceType);
-  const space = freeOf(dest, leg.resourceType) - ledger.Inflow(dest.pos.roomName, dest.id);
+  const available = giving
+    ? creep.UsedCapacity(leg.resourceType)
+    : storedOf(target, leg.resourceType) - ledger.Outflow(target.pos.roomName, target.id, leg.resourceType);
+  const space = giving
+    ? freeOf(target, leg.resourceType) - ledger.Inflow(target.pos.roomName, target.id)
+    : creep.FreeCapacity(leg.resourceType);
   const amount = Math.max(0, Math.min(available, space));
 
   // Piles cannot be partially picked up, so the quantity only decides whether the leg is still active.
@@ -162,7 +163,8 @@ export class Transfer extends TargetTask<ResourceContainer> {
   public static stash(creep: CreepExtra, storage: StructureStorage): Transfer | null {
     if (storage.store.getFreeCapacity() === 0) return null;
     for (const resourceType in creep.store)
-      return new Transfer(storage, [resourceType as ResourceConstant, MAX_TRANSFER_QUANTITY]);
+      if (creep.UsedCapacity(resourceType as ResourceConstant) > 0)
+        return new Transfer(storage, [resourceType as ResourceConstant, MAX_TRANSFER_QUANTITY]);
     return null;
   }
 
@@ -181,7 +183,7 @@ export class Transfer extends TargetTask<ResourceContainer> {
       const { collect: resources, sameRoom = false, minAmount = 0 } = candidatesOrRequest;
       const logistics = creep.colony.Logistics;
       for (const resourceType of resources) {
-        if ((creep.store.getFreeCapacity(resourceType) ?? 0) <= 0) continue;
+        if (creep.FreeCapacity(resourceType) <= 0) continue;
 
         const available = new Map<string, number>();
         const sources: ResourceContainer[] = [];
@@ -206,7 +208,7 @@ export class Transfer extends TargetTask<ResourceContainer> {
       return null;
     }
 
-    if ((creep.store.getUsedCapacity(RESOURCE_ENERGY) ?? 0) <= 0) return null;
+    if (!creep.HasEnergy) return null;
 
     const suppliersByTarget = new Map<string, number>();
     for (const task of inProgress ?? [...creep.AssignedRoom.AssignedTasks(Transfer, creep)]) {
@@ -239,8 +241,7 @@ export class Transfer extends TargetTask<ResourceContainer> {
   ): Transfer | null {
     const target = pickByLocation(creep, candidates, rankRemote);
     if (!target) return null;
-    if (direction < 0)
-      creep.colony.Logistics.Reserve(target.pos.roomName, target.id, creep.store.getFreeCapacity(resourceType) ?? 0);
+    if (direction < 0) creep.colony.Logistics.Reserve(target.pos.roomName, target.id, creep.FreeCapacity(resourceType));
     return new Transfer(target, [resourceType, direction * MAX_TRANSFER_QUANTITY]);
   }
 

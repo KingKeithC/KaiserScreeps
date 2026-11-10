@@ -61,7 +61,7 @@ export class UpgradeController extends TargetTask<StructureController> {
   }
 
   isCreepAbleToContinue(creep: CreepExtra): boolean {
-    if (creep.store.energy === 0) return false;
+    if (!creep.HasEnergy) return false;
     // If we are in upgrade mode, and the creep is a maintainer,
     // and spawns need energy, end early
     if (

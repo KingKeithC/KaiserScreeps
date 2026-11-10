@@ -73,7 +73,7 @@ export class Maintainer extends Worker implements CreepRole {
    * @returns The next task for the creep to perform as part of the loop.
    */
   DoWithLocalEnergy(creep: CreepExtra, findMainSpendingTask: (c: CreepExtra) => CreepTask | null): CreepTask | null {
-    if (creep.store.getUsedCapacity(RESOURCE_ENERGY) > 0) {
+    if (creep.HasEnergy) {
       // Get main spending task
       const mainTask = findMainSpendingTask(creep);
       if (mainTask) return mainTask;
@@ -82,7 +82,7 @@ export class Maintainer extends Worker implements CreepRole {
       if (creep.AssignedRoom.storage !== undefined) return new Transfer(creep.AssignedRoom.storage);
     }
 
-    if (creep.store.getUsedCapacity() === 0) {
+    if (creep.IsEmpty) {
       // Prioritize collecting from a link
       const link = creep.AssignedRoom.LinkReceivers.pop();
       if (link && link.store.getUsedCapacity(RESOURCE_ENERGY) > 0)

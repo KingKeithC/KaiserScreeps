@@ -2,7 +2,7 @@ import { CreepExtra } from 'Creep';
 import { some, sum } from 'lodash';
 import { RoomExtra } from 'Room';
 
-import { Build, MAX_TRANSFER_QUANTITY, Mine, Repair, Transfer, UpgradeController } from 'tasks';
+import { Build, Mine, Repair, Transfer, UpgradeController } from 'tasks';
 import { Retire } from 'tasks/Retire';
 import { CreepTask } from 'tasks/types';
 import { Filters, GetValueByName, MakeBody } from 'utils/Collections';
@@ -162,17 +162,15 @@ export class Worker extends CreepRoleBase implements CreepRole {
       storage !== undefined &&
       storage.store.getUsedCapacity(RESOURCE_ENERGY) < creep.AssignedRoom.StorageWartimeEnergyBuffer;
     const maintainers = creep.AssignedRoom.GetAssignedCreepsOfRole('Maintainer');
-    const creepEnergy = creep.store.getUsedCapacity(RESOURCE_ENERGY);
-    const creepHasNonEnergy = creep.store.getUsedCapacity() - creepEnergy > 0;
 
     // ------ SUPPLY ------
-    if (storage && creepHasNonEnergy) {
+    if (storage && creep.HasNonEnergy) {
       // Need to store resources
       const store = Transfer.stash(creep, storage);
       if (store) return store;
     }
 
-    if (creepEnergy > 0) {
+    if (creep.HasEnergy) {
       // Need to spend hauled energy
 
       // Look for a spending task amongst typical targets, unless we are short on maintainers
@@ -190,7 +188,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
     }
 
     // ------ GATHER ------
-    if (creep.store.getUsedCapacity() === 0) {
+    if (creep.IsEmpty) {
       const resourcesToCollect = storage || storageLow || maintainers.length === 0 ? RESOURCES_ALL : [RESOURCE_ENERGY];
       const gather = Transfer.supply(creep, { collect: resourcesToCollect, minAmount: 50 });
       if (gather) return gather;

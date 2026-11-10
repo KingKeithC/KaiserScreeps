@@ -48,7 +48,7 @@ export class Repair extends TargetTask<AnyStructure> {
   }
 
   public isCreepAbleToContinue(creep: CreepExtra): boolean {
-    return creep.store.getUsedCapacity(RESOURCE_ENERGY) > 0;
+    return creep.HasEnergy;
   }
 
   public isCompleteWhenTargetValid(creep: CreepExtra, target: NonNullable<AnyStructure>): boolean {

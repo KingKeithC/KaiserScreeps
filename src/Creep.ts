@@ -68,6 +68,41 @@ export class CreepExtra extends Creep {
     this.memory.currentTask = this.cachedCurrentTask = value;
   }
 
+  // `store` is the start-of-tick snapshot; these apply the transfers already registered this tick.
+  UsedCapacity(resourceType?: ResourceConstant): number {
+    const ledger = this.colony.Logistics.ledger;
+    const room = this.pos.roomName;
+    const used = this.store.getUsedCapacity(resourceType) ?? 0;
+    return Math.max(0, used + ledger.Inflow(room, this.id, resourceType) - ledger.Outflow(room, this.id, resourceType));
+  }
+
+  FreeCapacity(resourceType?: ResourceConstant): number {
+    const ledger = this.colony.Logistics.ledger;
+    const room = this.pos.roomName;
+    const free = this.store.getFreeCapacity(resourceType) ?? 0;
+    return Math.max(0, free - ledger.Inflow(room, this.id) + ledger.Outflow(room, this.id));
+  }
+
+  get IsCarrying(): boolean {
+    return this.UsedCapacity() > 0;
+  }
+
+  get HasEnergy(): boolean {
+    return this.UsedCapacity(RESOURCE_ENERGY) > 0;
+  }
+
+  get HasNonEnergy(): boolean {
+    return this.UsedCapacity() > this.UsedCapacity(RESOURCE_ENERGY);
+  }
+
+  get IsEmpty(): boolean {
+    return this.UsedCapacity() === 0;
+  }
+
+  get IsFull(): boolean {
+    return this.FreeCapacity() === 0;
+  }
+
   IsAMiningMiner(): boolean {
     if (!(this.role instanceof Miner)) return false;
     if (this.currentTask?.action !== Mine.action) return false;

@@ -64,7 +64,7 @@ export class Build extends TargetTask<ConstructionSite<BuildableStructureConstan
   }
 
   public isCreepAbleToContinue(creep: CreepExtra): boolean {
-    return creep.store.getUsedCapacity(RESOURCE_ENERGY) > 0;
+    return creep.HasEnergy;
   }
 
   public isCompleteWhenTargetValid(creep: CreepExtra, target: ConstructionSite<BuildableStructureConstant>): boolean {
