@@ -278,45 +278,70 @@ export function GetMinesForRoom(room: Room | string, myUsername: string): Mining
     // if the report has mines, and the room is neutral,
     // then return those mines.
     existingReport = Memory.scoutingReports[room];
-    if (!existingReport) return [];
-    if (!existingReport.mines) return [];
+
+    // No fallback for these since the room is not visible
+    if (!existingReport || !existingReport.mines) {
+      Logger.warn('No existing scouting report or mines found for room.', { room });
+      return [];
+    }
 
     // Don't return mines for hostile rooms, since we can
     // only mine neutral or owned rooms.
-    if (existingReport.owner !== undefined && existingReport.owner !== myUsername) return [];
+    if (existingReport.owner !== undefined && existingReport.owner !== myUsername) {
+      Logger.warn('Room is currently hostile, skipping mining positions.', { room, existingReport });
+      return [];
+    }
 
     return existingReport.mines;
+  }
+
+  // Verify the room is actually a room and not a string
+  if (!room || (room && !(room instanceof Room))) {
+    Logger.warn('Room is falsy or not an instance of Room or string.', { room });
+    return [];
   }
 
   // Not an owned room
   // Get mines from the room's scouting report, and if there is
   // no scouting report, create a new one and return the mines from that.
-  if (room instanceof Room) {
-    existingReport = Memory.scoutingReports[room.name];
 
-    if (existingReport !== undefined)
-      if (existingReport.mines !== undefined && existingReport.mines.length > 0) return existingReport.mines;
-      else {
-        if (
-          room.controller !== undefined &&
-          room.controller.owner !== undefined &&
-          room.controller.owner.username === myUsername
-        ) {
-          Logger.warn('Skipping unminable hostile room.', { '<rate>': 20, '<room>': room, roomName: room.name });
-          return [];
-        }
+  // Lookup report
+  existingReport = Memory.scoutingReports[room.name];
 
-        const mines = GetMiningPositions(room);
-        Memory.scoutingReports[room.name].mines = mines;
-        return mines;
-      }
-    else {
-      // Broken - Causes Type Error, tried to lookup a non-visible room
-      // const report = MakeRoomReport(cr);
-      // Memory.scoutingReports[cr.name] = report;
-      // return report.mines;
-    }
+  // Check if the room is hostile and return empty before proceeding
+  if (
+    room.name in Game.rooms &&
+    room.controller &&
+    room.controller.owner &&
+    room.controller.owner.username !== myUsername
+  ) {
+    Logger.warn('Room is currently hostile, skipping mining positions.', {
+      '<room>': room,
+      currentControllerUsername: room.controller.owner.username,
+    });
+    return [];
+  } else if (existingReport && existingReport.owner !== undefined && existingReport.owner !== myUsername) {
+    Logger.warn('Room is currently hostile, skipping mining positions.', {
+      '<room>': room,
+      reportedControllerUsername: existingReport.owner,
+    });
+    return [];
   }
 
-  return [];
+  // Quick return if existing report has mines
+  if (existingReport !== undefined && existingReport.mines !== undefined && existingReport.mines.length > 0)
+    return existingReport.mines;
+
+  // Otherwise, we have to make a new report and return the mines from that
+  if (existingReport === undefined) {
+    // Whole report needs to be replaced
+    const report = MakeRoomReport(room);
+    Memory.scoutingReports[room.name] = report;
+    return report.mines;
+  } else {
+    // Just the mines section needs to be replaced
+    const mines = GetMiningPositions(room);
+    Memory.scoutingReports[room.name].mines = mines;
+    return mines;
+  }
 }

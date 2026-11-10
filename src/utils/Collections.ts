@@ -215,7 +215,7 @@ export const Filters = {
   NonWalkableStructure: (structure: { structureType: StructureConstant; my?: boolean }) =>
     structure.structureType !== STRUCTURE_ROAD &&
     structure.structureType !== STRUCTURE_CONTAINER &&
-    (structure.structureType !== STRUCTURE_RAMPART || !structure.my),
+    !(structure.structureType === STRUCTURE_RAMPART && structure.my),
 } as const;
 
 export const OK_MOVE_DONE = 1 as const;
