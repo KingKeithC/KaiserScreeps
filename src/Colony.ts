@@ -157,10 +157,11 @@ export class Colony {
     Memory.scoutingReports ??= {};
     Memory.scoutInterval ??= CREEP_LIFE_TIME * 2;
 
-    this.UnassignAllTasks();
     this.RefreshCaches();
 
     if (!this.IsSimulation) {
+      this.UnassignAllTasks();
+
       if (Memory.stats !== undefined && Memory.stats.data !== undefined)
         // Existing:
         // eslint-disable-next-line camelcase
@@ -216,6 +217,7 @@ export class Colony {
     this.cachedOtherRooms = [];
     this.cachedMyCreeps = [];
     for (const name in Game.creeps) {
+      Memory.creeps[name] ??= { room: 'sim', role: name.split(', ')[1] };
       const creep = Game.creeps[name];
       if (creep.my) this.Creeps.set(name, new CreepExtra(creep.id, this));
     }
@@ -394,7 +396,7 @@ export class Colony {
   UnassignAllTasks(): void {
     for (const name of Object.keys(Memory.creeps)) {
       this.log.warn('Clearing creep task memory.', { creep: name, currentTask: Memory.creeps[name].currentTask });
-      Memory.creeps[name].currentTask = undefined;
+      Memory.creeps[name].currentTask = null;
     }
   }
 
