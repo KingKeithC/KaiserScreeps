@@ -16,7 +16,7 @@
     ]
   },
   "scripts": {
-    "lint": "eslint \"src/**/*.ts\"",
+    "lint": "eslint \"src/**/*.ts\" \"test/**/*.ts\"",
     "test": "npm run test-unit",
     "test-unit": "mocha test/unit/**/*.ts",
     "build": "rollup -c --environment SCREEPS_BUILDONLY=1",
