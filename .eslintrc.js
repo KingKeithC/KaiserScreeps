@@ -25,6 +25,7 @@ module.exports = {
         '@typescript-eslint/no-unsafe-return': 'off',
         '@typescript-eslint/no-unused-vars': 'off',
         'no-underscore-dangle': 'off',
+        'max-classes-per-file': 'off',
       },
     },
   ],
