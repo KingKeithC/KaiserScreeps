@@ -1,7 +1,7 @@
 import { CreepExtra } from 'Creep';
 import type { RoomExtra } from 'Room';
 import { RegisterTask } from 'tasks/types';
-import { DeserializeRoomPosition, RoomPositionString } from 'utils/Collections';
+import { DeserializeRoomPosition, RoomPositionString, Sorts } from 'utils/Collections';
 import { Logger } from 'utils/Logger';
 import { isEqualTo, MiningPosition } from 'utils/RoomUtils';
 import { PreferredPositionTask } from './PreferredPositionTask';
@@ -18,16 +18,16 @@ export class Mine extends PreferredPositionTask<Source | StructureExtractor> {
 
   /** A mining spot for an idle miner: an unassigned source first, otherwise any unfilled position. */
   public static forMiner(room: RoomExtra, excluding?: CreepExtra): Mine | null {
-    const available = room.AvailableMiningSources(excluding);
+    const available = room.AvailableMiningSources(excluding).sort(Sorts.MiningPositionPriorityAsc);
     if (available.length > 0) {
-      const pos = available.pop();
-      if (pos) return new Mine(pos.source, pos.pos);
+      const pos = available[0];
+      return new Mine(pos.source, pos.pos, pos.priority);
     }
 
-    const unfilled = room.UnfilledMiningPositions();
+    const unfilled = room.UnfilledMiningPositions().sort(Sorts.MiningPositionPriorityAsc);
     if (unfilled.length > 0) {
-      const pos = unfilled.pop();
-      if (pos) return new Mine(pos.source, pos.pos);
+      const pos = unfilled[0];
+      return new Mine(pos.source, pos.pos, pos.priority);
     }
 
     return null;
@@ -35,14 +35,14 @@ export class Mine extends PreferredPositionTask<Source | StructureExtractor> {
 
   /** Any unfilled mining position, for creeps with spare capacity. */
   public static anyUnfilled(room: RoomExtra, candidates = room.UnfilledMiningPositions()): Mine | null {
-    return Mine.firstResolved(candidates.reverse());
+    return Mine.firstResolved([...candidates].sort(Sorts.MiningPositionPriorityAsc));
   }
 
   // Skips positions whose source no longer exists.
   private static firstResolved(positions: MiningPosition[]): Mine | null {
     for (const mp of positions) {
       const source = Game.getObjectById(mp.source);
-      if (source) return new Mine(source, mp.pos);
+      if (source) return new Mine(source, mp.pos, mp.priority);
     }
     return null;
   }
@@ -50,12 +50,13 @@ export class Mine extends PreferredPositionTask<Source | StructureExtractor> {
   public constructor(
     source: Source | StructureExtractor | Id<Source> | Id<StructureExtractor>,
     position: RoomPositionString,
+    public readonly priority: MiningPosition['priority'],
   ) {
     super(source, position);
   }
 
   public get miningPosition(): MiningPosition {
-    return { source: this.targetId as MiningPosition['source'], pos: this.targetPos };
+    return { source: this.targetId as MiningPosition['source'], pos: this.targetPos, priority: this.priority };
   }
 
   public extraToString(source: Source | StructureExtractor): string {
