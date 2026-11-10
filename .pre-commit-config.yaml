@@ -21,3 +21,22 @@ repos:
           - main
           - --branch
           - devel
+  - repo: local
+    hooks:
+      - id: builds
+        name: Build project
+        additional_dependencies:
+          - package.json
+        language: node
+        entry: yarn build
+        pass_filenames: false
+        verbose: true
+
+      - id: lints
+        name: Lint project
+        additional_dependencies:
+          - package.json
+        language: node
+        entry: yarn lint
+        pass_filenames: false
+        verbose: true
