@@ -1,5 +1,6 @@
-# yarn lock file
-/yarn.lock
+# pnpm (this project uses yarn)
+pnpm-lock.yaml
+pnpm-workspace.yaml
 
 # npm lock file (v5.0.0+)
 /package-lock.json
