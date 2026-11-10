@@ -110,3 +110,19 @@ export function FindHighestPriorityRepairGroup(
   }
   return null;
 }
+
+export function FindMostEffectiveTowerRepair(tower: StructureTower, repairGroup: RepairPrioritySelection) {
+  return repairGroup.repairs.reduce(
+    (best, candidate) => {
+      const targetRange = tower.pos.getRangeTo(candidate);
+      const falloff = Math.min(
+        1,
+        (TOWER_FALLOFF * Math.max(0, targetRange - TOWER_OPTIMAL_RANGE)) / TOWER_FALLOFF_RANGE,
+      );
+      const effectivePower = TOWER_POWER_REPAIR * (1 - falloff);
+      if (!best || effectivePower > best.effectivePower) return { structure: candidate, effectivePower };
+      return best;
+    },
+    undefined as { structure: AnyStructure; effectivePower: number } | undefined,
+  );
+}

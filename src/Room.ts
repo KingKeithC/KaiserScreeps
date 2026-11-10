@@ -1006,20 +1006,8 @@ export class RoomExtra extends Room {
     if (supplyRatio >= this.TowerCriticalSupplyRatio) {
       const repairGroup = FindHighestPriorityRepairGroup(this, this.PendingRepairs);
       if (repairGroup) {
-        const target = repairGroup.repairs.reduce(
-          (best, candidate) => {
-            const targetRange = tower.pos.getRangeTo(candidate);
-            const falloff = Math.min(
-              1,
-              (TOWER_FALLOFF * Math.max(0, targetRange - TOWER_OPTIMAL_RANGE)) / TOWER_FALLOFF_RANGE,
-            );
-            const effectivePower = TOWER_POWER_REPAIR * (1 - falloff);
-            if (!best || effectivePower > best.effectivePower) return { structure: candidate, effectivePower };
-            return best;
-          },
-          undefined as { structure: AnyStructure; effectivePower: number } | undefined,
-        );
-        if (target) tower.repair(target.structure);
+        const target = repairGroup.repairs.sort(Sorts.StructureHitsRatioAsc)[0];
+        if (target) tower.repair(target);
       }
     }
   }
