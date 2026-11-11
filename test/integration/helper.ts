@@ -77,16 +77,18 @@ class IntegrationTestHelper {
   }
 }
 
-beforeEach(async () => {
-  await helper.beforeEach();
-});
+export function registerIntegrationHooks() {
+  beforeEach(async () => {
+    await helper.beforeEach();
+  });
 
-afterEach(async () => {
-  await helper.afterEach();
-});
+  afterEach(async () => {
+    await helper.afterEach();
+  });
 
-before(() => {
-  stdHooks.hookWrite();
-});
+  before(() => {
+    stdHooks.hookWrite();
+  });
+}
 
 export const helper = new IntegrationTestHelper();

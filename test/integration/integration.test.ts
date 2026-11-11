@@ -1,7 +1,9 @@
 import { assert } from 'chai';
-import { helper } from './helper';
+import { helper, registerIntegrationHooks } from './helper';
 
 describe('integrationtests', () => {
+  registerIntegrationHooks();
+
   it('runs a server and matches the game tick', async function () {
     for (let i = 1; i < 10; i += 1) {
       assert.equal(await helper.server.world.gameTime, i);
