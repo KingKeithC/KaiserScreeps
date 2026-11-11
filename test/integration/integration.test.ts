@@ -1,7 +1,7 @@
 import { assert } from 'chai';
 import { helper, registerIntegrationHooks } from './helper';
 
-describe('integrationtests', () => {
+describe('integration_main', () => {
   registerIntegrationHooks();
 
   it('runs a server and matches the game tick', async function () {
