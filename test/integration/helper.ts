@@ -34,6 +34,18 @@ class IntegrationTestHelper {
     }
   }
 
+  protected async deployPlayer() {
+    // add a player with the built dist/main.js file
+    console.info('[integration] reading bot bundle');
+    const modules = {
+      main: readFileSync(DIST_MAIN_JS).toString(),
+      'main.js.map': readFileSync(DIST_MAIN_MAP_JS).toString(),
+    };
+    this._player = await this.logStep('adding player', () =>
+      this._server.world.addBot({ username: 'player', room: 'W0N1', x: 15, y: 15, modules }),
+    );
+  }
+
   async beforeEach() {
     console.info('[integration] creating server');
     process.env.STORAGE_HOST = '127.0.0.1';
@@ -58,15 +70,8 @@ class IntegrationTestHelper {
     // create a stub world composed of 9 rooms with sources and controller
     await this.logStep('stubbing world', () => this._server.world.stubWorld());
 
-    // add a player with the built dist/main.js file
-    console.info('[integration] reading bot bundle');
-    const modules = {
-      main: readFileSync(DIST_MAIN_JS).toString(),
-      'main.js.map': readFileSync(DIST_MAIN_MAP_JS).toString(),
-    };
-    this._player = await this.logStep('adding player', () =>
-      this._server.world.addBot({ username: 'player', room: 'W0N1', x: 15, y: 15, modules }),
-    );
+    // deploy the player bot to the server
+    await this.deployPlayer();
 
     // Start server
     await this.logStep('starting server', () => this._server.start());
