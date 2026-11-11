@@ -5,7 +5,7 @@ import { Colony } from '../../src/Colony';
 import { RoomExtra } from '../../src/Room';
 import { Game, Memory } from './mock';
 
-describe('integrationtests', () => {
+describe('unittests', () => {
   before(() => {
     // runs before all test in this block
   });
