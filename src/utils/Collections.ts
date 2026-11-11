@@ -186,6 +186,7 @@ export const Sorts = {
     b.store.getUsedCapacity(RESOURCE_ENERGY) / b.store.getCapacity(RESOURCE_ENERGY),
   RolePriorityAsc: (a: { role: { priority: number } }, b: { role: { priority: number } }) =>
     a.role.priority - b.role.priority,
+  MiningPositionPriorityAsc: (a: { priority: number }, b: { priority: number }) => a.priority - b.priority,
   EstimatedProfitDesc: (a: { estProfit: number }, b: { estProfit: number }) => b.estProfit - a.estProfit,
 } as const;
 

@@ -164,7 +164,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
     const maintainers = creep.AssignedRoom.GetAssignedCreepsOfRole('Maintainer');
 
     // ------ SUPPLY ------
-    if (storage && creep.HasNonEnergy) {
+    if (storage && (creep.HasNonEnergy || (creep.HasEnergy && storageLow))) {
       // Need to store resources
       const store = Transfer.stash(creep, storage);
       if (store) return store;
@@ -194,7 +194,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
       if (gather) return gather;
 
       // Fallback to gathering from storage if maintainers are absent and storage exists
-      if (maintainers.length === 0 && storage) {
+      if (maintainers.length === 0 && storage && !storageLow) {
         return Transfer.fromStorage(creep.AssignedRoom);
       }
 
