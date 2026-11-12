@@ -11,7 +11,7 @@ export class Hauler extends CreepRoleBase implements CreepRole {
   override priority = 12;
 
   GetMinQuota() {
-    return 2;
+    return 1;
   }
 
   PossibleBodies = [
