@@ -4,6 +4,8 @@ import { sum } from 'lodash';
 import { Move, Attack } from 'tasks';
 import { CreepTask } from 'tasks/types';
 import { MakeBody } from 'utils/Collections';
+import { FromEdgeIntoRoom } from 'utils/CreepUtils';
+import { AddDirectionToPosition, FindClosestOfRoom } from 'utils/RoomUtils';
 import { CreepRole, CreepRoleBase } from './Role';
 
 export class SourceTaker extends CreepRoleBase implements CreepRole {
@@ -20,7 +22,7 @@ export class SourceTaker extends CreepRoleBase implements CreepRole {
     return this.SourceKeeperFlag !== undefined;
   }
 
-  AttackPhase: 'Drain' | 'Attack' = 'Drain';
+  AttackPhase: 'Queue' | 'Drain' | 'Attack' = 'Drain';
 
   GetNewCreepBody(): BodyPartConstant[] {
     if (this.AttackPhase === 'Drain') return MakeBody([TOUGH, 20], [MOVE, 12], [HEAL, 4]);
@@ -35,23 +37,54 @@ export class SourceTaker extends CreepRoleBase implements CreepRole {
 
   SourceKeeperFlag?: Flag;
   KeeperRoom?: Room;
-  StartOfTick(): void {
+  QueuePoint?: RoomPosition;
+  QueuedGroup?: CreepExtra[];
+
+  GetAttackPhase(): SourceTaker['AttackPhase'] {
     this.SourceKeeperFlag = Game.flags.SourceKeeper;
-    if (!this.SourceKeeperFlag) return;
+    if (!this.SourceKeeperFlag) return 'Queue';
     this.KeeperRoom = this.colony.Rooms.get(this.SourceKeeperFlag.pos.roomName);
     if (!this.KeeperRoom) {
-      this.AttackPhase = 'Drain';
-      return;
+      const queue = this.QueuePoint;
+      if (!queue) return 'Queue';
+      const group = this.GetGlobalCreepsInRole();
+      const allAtQueuePoint = group.every(c => c.pos.inRangeTo(queue, this.RallyRange));
+      if (!allAtQueuePoint) return 'Queue';
+      this.QueuedGroup = group;
+      return 'Drain';
     }
+
     // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
     const invaderTowers = this.KeeperRoom.find(FIND_STRUCTURES, {
       filter: s => s.structureType === STRUCTURE_TOWER && s.owner && s.owner.username === INVADER_USERNAME,
     }) as StructureTower[];
+
     if (sum(invaderTowers, t => t.store.getUsedCapacity(RESOURCE_ENERGY) ?? 0) > 0) {
-      this.AttackPhase = 'Drain';
-    } else {
-      this.AttackPhase = 'Attack';
+      return 'Drain';
     }
+
+    return 'Attack';
+  }
+
+  StartOfTick(): void {
+    this.QueuePoint ??= this.GetQueuePoint();
+    this.AttackPhase = this.GetAttackPhase();
+  }
+
+  GetQueuePoint(): RoomPosition | undefined {
+    // Find the room of mine that is closest to the SourceKeeper flag's room
+    const myRooms = this.colony.MyRooms.map(r => r.name);
+    if (!this.SourceKeeperFlag) return;
+    const closestRoomName = FindClosestOfRoom(myRooms, this.SourceKeeperFlag.pos.roomName);
+    if (!closestRoomName) return;
+    const closestRoom = this.colony.Rooms.get(closestRoomName);
+    if (!closestRoom) return;
+    const exitToTargetRoom = closestRoom.findExitTo(this.SourceKeeperFlag.pos.roomName);
+    if (!exitToTargetRoom || exitToTargetRoom === ERR_NO_PATH || exitToTargetRoom === ERR_INVALID_ARGS) return;
+    const directionToSafety = FromEdgeIntoRoom(exitToTargetRoom);
+    const exitPoss = closestRoom.find(exitToTargetRoom);
+    if (!exitPoss || exitPoss.length === 0 || !directionToSafety) return;
+    return AddDirectionToPosition(exitPoss[0], directionToSafety, this.RallyRange + 4);
   }
 
   SearchRange = 10;
@@ -61,10 +94,18 @@ export class SourceTaker extends CreepRoleBase implements CreepRole {
       return null;
     }
 
+    // Rally to the queue point if in the 'Queue' attack phase
+    const queue = this.QueuePoint;
+    if (this.AttackPhase === 'Queue' && queue !== undefined) {
+      return new Move(queue, this.RallyRange - 1);
+    } else if (this.AttackPhase === 'Queue') return null;
+
+    // No longer in Queue phase, move towards the target room if not already there
     if (creep.pos.roomName !== this.SourceKeeperFlag.pos.roomName) {
       return new Move(this.SourceKeeperFlag.pos, this.RallyRange);
     }
 
+    // Attack any nearby Source Keeper enemies within the search range
     const enemies = creep.pos.findInRange(FIND_HOSTILE_CREEPS, this.SearchRange);
     for (const enemy of enemies)
       if (this.colony.Allies.includes(enemy.owner.username)) continue;

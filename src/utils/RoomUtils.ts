@@ -361,3 +361,61 @@ export function GetMinesForRoom(room: Room | string, myUsername: string): Mining
     return mines;
   }
 }
+
+export function FindClosestOfRoom(roomNames: string[], targetRoomName: string): string | null {
+  let closestRoom: string | null = null;
+  let closestDistance = 10_000;
+  for (const roomName of roomNames) {
+    const distance = Game.map.getRoomLinearDistance(roomName, targetRoomName);
+    if (distance < closestDistance) {
+      closestRoom = roomName;
+      closestDistance = distance;
+    }
+  }
+  return closestRoom;
+}
+
+export function AddDirectionToPosition(
+  pos: RoomPosition,
+  direction: DirectionConstant,
+  distance: number,
+): RoomPosition {
+  let newX = pos.x;
+  let newY = pos.y;
+  switch (direction) {
+    case TOP:
+      newY -= distance;
+      break;
+    case TOP_RIGHT:
+      newY -= distance;
+      newX += distance;
+      break;
+    case RIGHT:
+      newX += distance;
+      break;
+    case BOTTOM_RIGHT:
+      newY += distance;
+      newX += distance;
+      break;
+    case BOTTOM:
+      newY += distance;
+      break;
+    case BOTTOM_LEFT:
+      newY += distance;
+      newX -= distance;
+      break;
+    case LEFT:
+      newX -= distance;
+      break;
+    case TOP_LEFT:
+      newY -= distance;
+      newX -= distance;
+      break;
+  }
+
+  // Clamp x and y to 0-49
+  newX = Math.max(0, Math.min(49, newX));
+  newY = Math.max(0, Math.min(49, newY));
+
+  return new RoomPosition(newX, newY, pos.roomName);
+}
