@@ -23,7 +23,7 @@ export class SourceTaker extends CreepRoleBase implements CreepRole {
   AttackPhase: 'Drain' | 'Attack' = 'Drain';
 
   GetNewCreepBody(): BodyPartConstant[] {
-    if (this.AttackPhase === 'Drain') return MakeBody([MOVE, 1]);
+    if (this.AttackPhase === 'Drain') return MakeBody([TOUGH, 20], [MOVE, 12], [HEAL, 4]);
 
     // this.AttackPhase === 'Attack'
     return MakeBody([TOUGH, 4], [MOVE, 8], [CARRY, 2], [HEAL, 4]);
@@ -75,6 +75,6 @@ export class SourceTaker extends CreepRoleBase implements CreepRole {
   }
 
   TickCreep(creep: CreepExtra): void {
-    if (creep.hits < creep.hitsMax) creep.heal(creep);
+    this.AttackOrHeal(creep);
   }
 }

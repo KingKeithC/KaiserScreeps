@@ -4,7 +4,7 @@ import { CreepExtra } from 'Creep';
 import { GetRandomName } from 'Data';
 import { RoomExtra } from 'Room';
 import { CreepTask } from 'tasks/types';
-import { Filters, GetValueByName } from 'utils/Collections';
+import { Filters, GetValueByName, Sorts } from 'utils/Collections';
 import { Logger } from 'utils/Logger';
 
 export interface CreepRole {
@@ -249,6 +249,14 @@ export abstract class CreepRoleBase {
   }
 
   // Extra utilities
+  RallyDistance = 2;
+
+  Searches = {
+    AttackNearestStructure: (pos: RoomPosition) => pos.lookFor(LOOK_STRUCTURES),
+    AttackCreeps: (pos: RoomPosition) => pos.findInRange(FIND_HOSTILE_CREEPS, 3),
+    HealAllies: (pos: RoomPosition) => pos.findInRange(FIND_MY_CREEPS, 3, { filter: Filters.Damaged }),
+    RalliedAllies: (pos: RoomPosition) => pos.findInRange(this.GetGlobalCreepsInRole(), this.RallyDistance + 1),
+  } as const;
 
   /**
    * Return true if living amount of creeps is under the desired amount of creeps.
@@ -267,5 +275,37 @@ export abstract class CreepRoleBase {
     const globalQuota = this.GetGlobalQuota();
     if (!globalQuota || globalQuota === 0) return true;
     return this.GetGlobalCreepsInRole().length < globalQuota;
+  }
+
+  HealHurtAlliesOrSelf(creep: CreepExtra): ScreepsReturnCode {
+    // Heal whoever in range is the most hurt
+    const hurtAllies = this.Searches.HealAllies(creep.pos);
+    for (const ally of hurtAllies.sort(Sorts.StructureHitsRatioAsc))
+      if (ally && creep.pos.isNearTo(ally)) return creep.heal(ally);
+      else if (ally) return creep.rangedHeal(ally);
+    if (Filters.Damaged(creep)) return creep.heal(creep);
+    return ERR_NOT_FOUND;
+  }
+
+  AttackWeakestAdjacentEnemy(creep: CreepExtra): ScreepsReturnCode {
+    const closeEnemies = creep.pos
+      .findInRange(FIND_HOSTILE_CREEPS, 1, { filter: Filters.Damaged })
+      .sort(Sorts.StructureHitsRatioAsc);
+    for (const enemy of closeEnemies) if (enemy) return creep.attack(enemy);
+    return ERR_NOT_FOUND;
+  }
+
+  RangedAttackWeakestHittableEnemy(creep: CreepExtra): ScreepsReturnCode {
+    const closeEnemies = creep.pos
+      .findInRange(FIND_HOSTILE_CREEPS, 3, { filter: Filters.Damaged })
+      .sort(Sorts.StructureHitsRatioAsc);
+    for (const enemy of closeEnemies) if (enemy) return creep.rangedAttack(enemy);
+    return ERR_NOT_FOUND;
+  }
+
+  AttackOrHeal(creep: CreepExtra): void {
+    if (creep.getActiveBodyparts(ATTACK) > 0) if (this.AttackWeakestAdjacentEnemy(creep) === OK) return;
+    if (creep.getActiveBodyparts(RANGED_ATTACK) > 0) if (this.RangedAttackWeakestHittableEnemy(creep) === OK) return;
+    if (creep.getActiveBodyparts(HEAL) > 0) if (this.HealHurtAlliesOrSelf(creep) === OK) return;
   }
 }

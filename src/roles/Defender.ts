@@ -4,7 +4,7 @@ import type { RoomExtra } from 'Room';
 import { Dismantle, GuardTask } from 'tasks';
 import { Attack } from 'tasks/Attack';
 import { CreepTask } from 'tasks/types';
-import { Filters, MakeBody, Sorts } from 'utils/Collections';
+import { Filters, MakeBody } from 'utils/Collections';
 import { CreepRoleBase, CreepRole } from './Role';
 
 export class Defender extends CreepRoleBase implements CreepRole {
@@ -45,40 +45,7 @@ export class Defender extends CreepRoleBase implements CreepRole {
   }
 
   TickCreep(creep: CreepExtra): void {
-    if (creep.getActiveBodyparts(ATTACK) > 0) {
-      // Attack Ranged Enemies
-      const closeEnemy = creep.pos
-        .findInRange(FIND_HOSTILE_CREEPS, 3, { filter: Filters.Damaged })
-        .sort(Sorts.StructureHitsRatioDesc)
-        .pop();
-      if (closeEnemy) creep.rangedAttack(closeEnemy);
-
-      // Attack Melee Enemies
-      const touchingEnemy = creep.pos
-        .findInRange(FIND_HOSTILE_CREEPS, 1, { filter: Filters.Damaged })
-        .sort(Sorts.StructureHitsRatioDesc)
-        .pop();
-      if (touchingEnemy) creep.attack(touchingEnemy);
-    }
-
-    if (creep.getActiveBodyparts(HEAL) > 0) {
-      // Heal friendles that are near but not touching
-      const rangedNeedsHeal = creep.pos
-        .findInRange(FIND_MY_CREEPS, 3, { filter: Filters.Damaged })
-        .sort(Sorts.StructureHitsRatioDesc)
-        .pop();
-      if (rangedNeedsHeal) creep.rangedHeal(rangedNeedsHeal);
-
-      // Heal friendles that are touching
-      const closeNeedsHeal = creep.pos
-        .findInRange(FIND_MY_CREEPS, 1, { filter: Filters.Damaged })
-        .sort(Sorts.StructureHitsRatioDesc)
-        .pop();
-      if (closeNeedsHeal) creep.heal(closeNeedsHeal);
-
-      // Heal self
-      if (Filters.Damaged(creep)) creep.heal(creep);
-    }
+    this.AttackOrHeal(creep);
   }
 
   FindLeastTargetedHostile(room: RoomExtra): Creep | null {

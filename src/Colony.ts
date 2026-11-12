@@ -151,8 +151,16 @@ export class Colony {
     return (Memory.colonyStateReportFrequency ??= 1000);
   }
 
-  private get IsSimulation(): boolean {
+  get IsSimulation(): boolean {
     return 'sim' in Game.rooms;
+  }
+
+  IsAlly(username: string): boolean {
+    return this.Allies.includes(username);
+  }
+
+  IsRival(username: string): boolean {
+    return this.Rivals.includes(username);
   }
 
   OnGlobalReset(): void {
@@ -239,19 +247,23 @@ export class Colony {
     }
   }
 
+  ShouldSkipTick(): boolean {
+    const skip = Game.cpu.bucket < this.MinCpuBucket;
+    if (skip)
+      this.log.warn('CPU bucket too low, skipping actions.', {
+        bucket: Game.cpu.bucket,
+        MinCpuBucket: this.MinCpuBucket,
+      });
+
+    return skip;
+  }
+
   // Stats are only fetched evey ~90 seconds, so we only need to update them infrequently
   StatsFrequency = 8;
 
   // This is the effectively the loop function invoked each tick.
   private MainLoop(): void {
-    if (Game.cpu.bucket < this.MinCpuBucket) {
-      this.log.warn('CPU bucket too low, skipping actions.', {
-        bucket: Game.cpu.bucket,
-        MinCpuBucket: this.MinCpuBucket,
-      });
-      return;
-    }
-
+    if (this.ShouldSkipTick()) return;
     this.RefreshCaches(); // Must be called before any Creep/Room access on the colony
     this.Logistics.BeginTick(this.LogisticsScope);
     this.ReserveAssignedCollections();
