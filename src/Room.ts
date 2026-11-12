@@ -779,17 +779,35 @@ export class RoomExtra extends Room {
   GetSpawnableRoles(): SpawnableRoleDetails[] {
     const rolesSpawnable: SpawnableRoleDetails[] = [];
     for (const role of Object.values(this.colony.Roles)) {
+      // Get global quota
+      const globalQuota = role.GetGlobalQuota();
+      const globalCount = role.GetGlobalCreepsInRole().length;
+      const globalMet = globalQuota !== undefined && globalCount >= globalQuota;
+
+      // Get room quota, and time since spawn in room
       const roomQuota = role.GetQuota(this);
       const roomCount = role.GetRoomCreepsInRole(this).length;
       const timeSinceLastSpawn = Game.time - this.LastSpawnTick(role.roleName);
 
-      if (role.IsSpawnNeeded(this)) {
+      if (!globalMet && role.IsSpawnNeeded(this)) {
         const body = role.GetNewCreepBody(this);
         const available = this.energyAvailable;
         const needed = BodyCost(body);
         if (available < needed) continue;
         const name = `${role.GetNewCreepName(this)}, ${role.roleName}`;
-        rolesSpawnable.push({ role, name, body, available, needed, roomQuota, roomCount, timeSinceLastSpawn });
+        rolesSpawnable.push({
+          role,
+          name,
+          body,
+          available,
+          needed,
+          roomQuota,
+          roomCount,
+          timeSinceLastSpawn,
+          globalQuota,
+          globalCount,
+          globalMet,
+        });
       }
     }
     return rolesSpawnable;
@@ -819,7 +837,19 @@ export class RoomExtra extends Room {
       maxSpawns,
     });
 
-    for (const { role, name, body, available, needed, roomCount, roomQuota, timeSinceLastSpawn } of spawnable) {
+    for (const {
+      role,
+      name,
+      body,
+      available,
+      needed,
+      roomCount,
+      roomQuota,
+      timeSinceLastSpawn,
+      globalQuota,
+      globalCount,
+      globalMet,
+    } of spawnable) {
       const success = this.TrySpawnRole(role, name, body);
       if (!success) {
         this.log.crit('Spawn failed despite having enough energy.', {
@@ -830,6 +860,9 @@ export class RoomExtra extends Room {
           timeSinceLastSpawn,
           available,
           needed,
+          globalQuota,
+          globalCount,
+          globalMet,
         });
         continue;
       }
@@ -842,6 +875,9 @@ export class RoomExtra extends Room {
         timeSinceLastSpawn,
         available,
         needed,
+        globalQuota,
+        globalCount,
+        globalMet,
       });
       this.SetLastSpawnTick(role.roleName, Game.time);
       role.OnSpawnScheduled(this, name);
@@ -1048,4 +1084,7 @@ interface SpawnableRoleDetails {
   roomQuota: number;
   roomCount: number;
   timeSinceLastSpawn: number;
+  globalQuota?: number;
+  globalCount: number;
+  globalMet: boolean;
 }

@@ -24,6 +24,7 @@ export interface CreepRole {
   GetNewCreepBody(room: RoomExtra): BodyPartConstant[]; // Return a new body for creeps of this role. See also https://screepspl.us/services/creep-calculator/
   SelectNextTask(creep: CreepExtra): CreepTask | null; // Given a creep who just finished a task, find a new task for them.
 
+  GetGlobalQuota(): number | undefined;
   GetQuota(room: RoomExtra): number;
 
   GetGlobalCreepsInRole(): CreepExtra[]; // Get all creeps assigned to this role in the colony
@@ -75,6 +76,10 @@ export abstract class CreepRoleBase {
   }
 
   // Defaults
+
+  GetGlobalQuota(): number | undefined {
+    return undefined;
+  }
 
   get name(): string {
     return this.roleName;

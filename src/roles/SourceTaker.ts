@@ -1,5 +1,6 @@
 import { CreepExtra } from 'Creep';
-import { SOURCE_KEEPER_USERNAME } from 'Data';
+import { INVADER_USERNAME, SOURCE_KEEPER_USERNAME } from 'Data';
+import { sum } from 'lodash';
 import { Move, Attack } from 'tasks';
 import { CreepTask } from 'tasks/types';
 import { MakeBody } from 'utils/Collections';
@@ -10,8 +11,17 @@ export class SourceTaker extends CreepRoleBase implements CreepRole {
   override groupName = 'Warriors';
   override priority = 30;
 
+  override GetGlobalQuota(): number {
+    return 4;
+  }
+
+  AttackPhase: 'Drain' | 'Attack' = 'Drain';
+
   GetNewCreepBody(): BodyPartConstant[] {
-    return MakeBody([MOVE, 4], [WORK, 1], [ATTACK, 1], [HEAL, 2]);
+    if (this.AttackPhase === 'Drain') return MakeBody([MOVE, 1]);
+
+    // this.AttackPhase === 'Attack'
+    return MakeBody([TOUGH, 4], [MOVE, 8], [CARRY, 2], [HEAL, 4]);
   }
 
   SearchRange = 20;
@@ -35,13 +45,24 @@ export class SourceTaker extends CreepRoleBase implements CreepRole {
   }
 
   TickCreep(creep: CreepExtra): void {
-    const enemies = creep.pos.findInRange(FIND_HOSTILE_CREEPS, this.SearchRange);
-    if (enemies.length === 0 && creep.hits < creep.hitsMax) creep.heal(creep);
+    creep.heal(creep);
   }
 
   SourceKeeperFlag?: Flag;
+  KeeperRoom?: Room;
   StartOfTick(): void {
     this.SourceKeeperFlag = Game.flags.SourceKeeper;
+    this.KeeperRoom = this.colony.Rooms.get(this.SourceKeeperFlag.pos.roomName);
+    if (!this.KeeperRoom) return;
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
+    const invaderTowers = this.KeeperRoom.find(FIND_STRUCTURES, {
+      filter: s => s.structureType === STRUCTURE_TOWER && s.owner && s.owner.username === INVADER_USERNAME,
+    }) as StructureTower[];
+    if (sum(invaderTowers, t => t.store.getUsedCapacity(RESOURCE_ENERGY) ?? 0) > 0) {
+      this.AttackPhase = 'Drain';
+    } else {
+      this.AttackPhase = 'Attack';
+    }
   }
 
   GetMinQuota(): number {
