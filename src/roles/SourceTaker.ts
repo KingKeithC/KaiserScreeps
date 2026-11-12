@@ -29,16 +29,17 @@ export class SourceTaker extends CreepRoleBase implements CreepRole {
 
   NextAttackPhase(): AttackPhase {
     const group = this.GetGlobalCreepsInRole();
-    if (group.length < this.GetGlobalQuota()) return (this.attackPhase = 'Queue');
-    if (!this.SourceKeeperFlag) return (this.attackPhase = 'Queue');
+    if (group.length < this.GetGlobalQuota()) return 'Queue';
+    if (!this.SourceKeeperFlag) return 'Queue';
     const keeperRoom = this.colony.Rooms.get(this.SourceKeeperFlag.pos.roomName);
     if (!keeperRoom) {
-      const queue = this.QueuePoint;
-      if (!queue) return (this.attackPhase = 'Queue');
-      const allAtQueuePoint = group.every(c => c.pos.inRangeTo(queue, this.RallyRange));
-      if (!allAtQueuePoint) return (this.attackPhase = 'Queue');
-      this.QueuedGroup = group;
-      return (this.attackPhase = 'Drain');
+      if (this.attackPhase === 'Queue') {
+        const queue = this.QueuePoint;
+        if (!queue) return 'Queue';
+        const allAtQueuePoint = group.every(c => c.pos.inRangeTo(queue, this.RallyRange));
+        if (!allAtQueuePoint) return 'Queue';
+      }
+      return 'Drain';
     }
 
     // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
@@ -47,20 +48,23 @@ export class SourceTaker extends CreepRoleBase implements CreepRole {
     }) as StructureTower[];
 
     if (sum(invaderTowers, t => t.store.getUsedCapacity(RESOURCE_ENERGY) ?? 0) > 0) {
-      return (this.attackPhase = 'Drain');
+      return 'Drain';
     }
 
-    return (this.attackPhase = 'Attack');
+    return 'Attack';
   }
 
-  private attackPhase: AttackPhase = 'Drain';
+  private attackPhase: AttackPhase = 'Queue';
   get AttackPhase(): AttackPhase {
     return this.attackPhase;
   }
 
-  // When the attack phase changes, reset the current task of all creeps in this role
+  // When the attack phase changes, complete the current task of all creeps in this role
   set AttackPhase(phase: AttackPhase) {
-    if (this.attackPhase !== phase) this.GetGlobalCreepsInRole().forEach(c => (c.memory.currentTask = null));
+    if (this.attackPhase !== phase)
+      this.GetGlobalCreepsInRole().forEach(creep => {
+        if (creep.currentTask) creep.currentTask.isCompleteFlag = true;
+      });
     this.attackPhase = phase;
   }
 
@@ -96,8 +100,6 @@ export class SourceTaker extends CreepRoleBase implements CreepRole {
     if (!exitPoss || exitPoss.length === 0 || !directionToSafety) return;
     return (this.queuePoint = AddDirectionToPosition(exitPoss[0], directionToSafety, this.RallyRange + 4));
   }
-
-  QueuedGroup?: CreepExtra[];
 
   StartOfTick(): void {
     this.AttackPhase = this.NextAttackPhase();
