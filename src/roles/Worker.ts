@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { CreepExtra } from 'Creep';
 import { some, sum } from 'lodash';
 import { RoomExtra } from 'Room';
@@ -12,7 +13,6 @@ import {
   TryCollectFromTombs,
   TryPickupDropped,
 } from 'utils/CreepUtils';
-import { FirstBodyByEnergyCapacity } from 'utils/RoomUtils';
 import { CreatePendingRepairs, FindHighestPriorityRepairGroup } from 'utils/RepairUtils';
 import { CreepRoleBase, CreepRole } from './Role';
 
@@ -28,13 +28,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
   ];
 
   GetNewCreepBody(room: RoomExtra): BodyPartConstant[] {
-    const zygote = MakeBody([CARRY, 2], [WORK, 1], [MOVE, 2]); // 300
-    // If we haven't spawned a worker in a long time, then default to a zygote
-    // This should help prevent death spirals...
-    if (Game.time - room.LastSpawnTick(this.roleName) > 1000) return zygote;
-    const body = FirstBodyByEnergyCapacity(room, ...this.PossibleBodies, zygote);
-    if (body) return body;
-    else return zygote;
+    return this.GetFirstAvailableBodyWithZygote(this.PossibleBodies, room, undefined, CREEP_LIFE_TIME * 1.5);
   }
 
   TickCreep(creep: CreepExtra): void {
@@ -44,7 +38,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
     if (TryCollectFromTombs(creep)) return;
   }
 
-  GetMinQuota() {
+  GetMinQuota(_room: RoomExtra) {
     return 1;
   }
 
@@ -251,11 +245,11 @@ export class Worker extends CreepRoleBase implements CreepRole {
   MaxUpgradePerRoom = 2;
   public WorkerSpendingTask(
     creep: CreepExtra,
-    supplyTasks?: Transfer[],
+    _supplyTasks?: Transfer[],
     maintainers = creep.AssignedRoom.GetAssignedCreepsOfRole('Maintainer').length,
   ): CreepTask | null {
     if (maintainers === 0) {
-      const spawnSupply = Transfer.supply(creep, creep.AssignedRoom.SpawnsOrExtensions, supplyTasks);
+      const spawnSupply = Transfer.supply(creep, creep.AssignedRoom.SpawnsOrExtensions);
       if (spawnSupply) return spawnSupply;
     }
 

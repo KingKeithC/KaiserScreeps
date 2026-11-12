@@ -87,8 +87,15 @@ export class RoomExtra extends Room {
   }
 
   private cachedAssignedCreepsOfRole: { [roleName: CreepRole['roleName']]: CreepExtra[] } = {};
-  GetAssignedCreepsOfRole(roleName: string): CreepExtra[] {
-    return (this.cachedAssignedCreepsOfRole[roleName] ??= this.AssignedCreeps.filter(Filters.CreepRoleName(roleName)));
+  GetAssignedCreepsOfRole(...roleNames: string[]): CreepExtra[] {
+    if (roleNames.length === 0) return [];
+    const ret: CreepExtra[] = [];
+    for (const roleName of roleNames) {
+      if (!this.cachedAssignedCreepsOfRole[roleName] || this.cachedAssignedCreepsOfRole[roleName].length === 0)
+        this.cachedAssignedCreepsOfRole[roleName] = this.AssignedCreeps.filter(Filters.CreepRoleName(roleName));
+      ret.push(...this.cachedAssignedCreepsOfRole[roleName]);
+    }
+    return ret;
   }
 
   private cachedAssignedCreepsOfRoleGroup: { [roleGroupName: CreepRole['groupName']]: CreepExtra[] } = {};

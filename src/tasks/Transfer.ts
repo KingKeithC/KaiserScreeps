@@ -127,7 +127,7 @@ export class Transfer extends TargetTask<ResourceContainer> {
 
   // prettier-ignore
   /** Structures to supply, in priority order, with the number of suppliers each allows at once. */
-  static readonly SupplyPriorities: ((s: AnyStoreStructure) => boolean)[] = [
+  static readonly SupplyPriorities: ((s: (AnyStoreStructure | Creep)) => boolean)[] = [
     s => s instanceof StructureExtension,
     s => s instanceof StructureSpawn,
     s => s instanceof StructureTower,
@@ -172,12 +172,9 @@ export class Transfer extends TargetTask<ResourceContainer> {
    * Deposit into the first priority group with room and under its supplier cap, or collect via a `CollectRequest`.
    * Both pick by location: current room, assigned room, its claims, then anywhere else.
    */
-  public static supply(creep: CreepExtra, candidates: AnyStoreStructure[], inProgress?: Transfer[]): Transfer | null;
-  public static supply(creep: CreepExtra, request: CollectRequest): Transfer | null;
   public static supply(
     creep: CreepExtra,
-    candidatesOrRequest: AnyStoreStructure[] | CollectRequest,
-    inProgress?: Transfer[],
+    candidatesOrRequest: (Creep | AnyStoreStructure)[] | CollectRequest,
   ): Transfer | null {
     if (!Array.isArray(candidatesOrRequest)) {
       const { collect: resources, sameRoom = false, minAmount = 0 } = candidatesOrRequest;
@@ -211,7 +208,7 @@ export class Transfer extends TargetTask<ResourceContainer> {
     if (!creep.HasEnergy) return null;
 
     const suppliersByTarget = new Map<string, number>();
-    for (const task of inProgress ?? [...creep.AssignedRoom.AssignedTasks(Transfer, creep)]) {
+    for (const task of [...creep.AssignedRoom.AssignedTasks(Transfer, creep)]) {
       suppliersByTarget.set(task.targetId, (suppliersByTarget.get(task.targetId) ?? 0) + 1);
     }
 

@@ -4,8 +4,9 @@ import { CreepExtra } from 'Creep';
 import { GetRandomName } from 'Data';
 import { RoomExtra } from 'Room';
 import { CreepTask } from 'tasks/types';
-import { Filters, GetValueByName, Sorts } from 'utils/Collections';
+import { Filters, GetValueByName, MakeBody, Sorts } from 'utils/Collections';
 import { Logger } from 'utils/Logger';
+import { FirstBodyByEnergyCapacity } from 'utils/RoomUtils';
 
 export interface CreepRole {
   readonly roleName: string;
@@ -257,6 +258,18 @@ export abstract class CreepRoleBase {
     HealAllies: (pos: RoomPosition) => pos.findInRange(FIND_MY_CREEPS, 3, { filter: Filters.Damaged }),
     RalliedAllies: (pos: RoomPosition) => pos.findInRange(this.GetGlobalCreepsInRole(), this.RallyDistance + 1),
   } as const;
+
+  GetFirstAvailableBodyWithZygote(
+    potentialBodies: BodyPartConstant[][],
+    room: RoomExtra,
+    zygote: BodyPartConstant[] = MakeBody([CARRY, 2], [WORK, 1], [MOVE, 2]),
+    emergencySpawnTimer?: number,
+  ): BodyPartConstant[] {
+    if (emergencySpawnTimer && Game.time - room.LastSpawnTick(this.roleName) > emergencySpawnTimer) return zygote;
+    const body = FirstBodyByEnergyCapacity(room, ...potentialBodies, zygote);
+    if (body) return body;
+    else return zygote;
+  }
 
   /**
    * Return true if living amount of creeps is under the desired amount of creeps.
