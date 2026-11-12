@@ -6,6 +6,10 @@ import { MakeBody } from 'utils/Collections';
 import { CreepRole, CreepRoleBase } from './Role';
 
 export class SourceTaker extends CreepRoleBase implements CreepRole {
+  override roleName = 'SourceTaker';
+  override groupName = 'Warriors';
+  override priority = 30;
+
   GetNewCreepBody(): BodyPartConstant[] {
     return MakeBody([MOVE, 4], [WORK, 1], [ATTACK, 1], [HEAL, 2]);
   }
