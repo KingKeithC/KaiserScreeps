@@ -43,8 +43,8 @@ export class Hauler extends CreepRoleBase implements CreepRole {
 
     if (creep.IsCarrying) {
       // stash excess resources in storage
-      if (creep.room.storage) {
-        const store = Transfer.stash(creep, creep.room.storage);
+      if (creep.AssignedRoom.storage) {
+        const store = Transfer.stash(creep, creep.AssignedRoom.storage);
         if (store) return store;
       }
     }
