@@ -68,7 +68,7 @@ export class Hauler extends CreepRoleBase implements CreepRole {
       // If the creep is empty, try to gather resources from the environment.
       let gather = Transfer.supply(creep, { collect: RESOURCES_ALL, minAmount: creep.FreeCapacity() });
       gather ??= Transfer.supply(creep, { collect: RESOURCES_ALL });
-      gather ??= storeTask;
+      gather ??= Transfer.fromStorage(creep.AssignedRoom);
       if (gather) return gather;
     }
 
