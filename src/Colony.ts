@@ -313,6 +313,15 @@ export class Colony {
     return unique(flatten(this.MyRooms.map(room => room.WorkableAreaRoomNames)));
   }
 
+  FlatMapOverWorkableRooms<T>(mapper: (room: Room) => T[]): T[] {
+    const results: T[] = [];
+    for (const name of this.LogisticsScope) {
+      const room = Game.rooms[name];
+      if (room) results.push(...mapper(room));
+    }
+    return results;
+  }
+
   // Collections assigned on earlier ticks still hold their capacity this tick.
   private ReserveAssignedCollections(): void {
     for (const [creep, task] of this.AssignedTasksWithCreep(Transfer)) {

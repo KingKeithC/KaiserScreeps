@@ -64,6 +64,7 @@ export class Maintainer extends Worker implements CreepRole {
    */
   DoWithLocalEnergy(creep: CreepExtra, findMainSpendingTask: (c: CreepExtra) => CreepTask | null): CreepTask | null {
     const storeTask = Transfer.stash(creep);
+    const retrieveTask = Transfer.fromStorage(creep.AssignedRoom);
     if (creep.HasNonEnergy && storeTask) return storeTask;
 
     if (creep.HasEnergy) {
@@ -86,11 +87,7 @@ export class Maintainer extends Worker implements CreepRole {
       if (mainSource) return mainSource;
 
       // If no source found, collect from storage
-      if (
-        creep.AssignedRoom.storage !== undefined &&
-        creep.AssignedRoom.storage.store.getUsedCapacity(RESOURCE_ENERGY) > 0
-      )
-        return new Transfer(creep.AssignedRoom.storage, [RESOURCE_ENERGY, -MAX_TRANSFER_QUANTITY]);
+      if (retrieveTask) return retrieveTask;
 
       // If storage is empty, do mining
       // If there aren't enough miners, then do mining

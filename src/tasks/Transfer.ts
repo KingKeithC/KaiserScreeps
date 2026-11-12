@@ -2,7 +2,7 @@ import { CreepExtra } from 'Creep';
 import type { RoomExtra } from 'Room';
 import { RegisterTask } from 'tasks/types';
 import { ResourceContainerUsedRatio, RoomPositionString, Sorts } from 'utils/Collections';
-import { ClosestByPath } from 'utils/CreepUtils';
+import { PickByLocation } from 'utils/CreepUtils';
 import { Ledger, StoreId } from 'logistics/Ledger';
 import { ResourceContainer } from 'utils/RoomUtils';
 import { TargetTask } from './TargetTask';
@@ -94,26 +94,6 @@ function performIntent(
   if (target instanceof Creep) return target.transfer(creep, leg.resourceType, amount);
   if (target instanceof Resource) return creep.pickup(target);
   return creep.withdraw(target as Structure | Ruin | Tombstone, leg.resourceType, amount);
-}
-
-/**
- * Current room first (closest by path), then the assigned room, its claims, and finally anywhere else.
- * Remote tiers are ranked by `rankRemote`.
- */
-function pickByLocation<T extends ResourceContainer>(
-  creep: CreepExtra,
-  items: T[],
-  rankRemote: (tier: T[]) => T | undefined,
-): T | null {
-  const claims = creep.AssignedRoom.WorkableAreaRoomNames;
-  const tiers: T[][] = [[], [], [], []];
-  for (const item of items) {
-    const roomName = item.pos.roomName;
-    const tier =
-      roomName === creep.room.name ? 0 : roomName === creep.AssignedRoom.name ? 1 : claims.includes(roomName) ? 2 : 3;
-    tiers[tier].push(item);
-  }
-  return ClosestByPath(creep, tiers[0]) ?? rankRemote(tiers[1]) ?? rankRemote(tiers[2]) ?? rankRemote(tiers[3]) ?? null;
 }
 
 export class Transfer extends TargetTask<ResourceContainer> {
@@ -237,7 +217,7 @@ export class Transfer extends TargetTask<ResourceContainer> {
     candidates: T[],
     rankRemote: (tier: T[]) => T | undefined,
   ): Transfer | null {
-    const target = pickByLocation(creep, candidates, rankRemote);
+    const target = PickByLocation(creep, candidates, rankRemote);
     if (!target) return null;
     if (direction < 0) creep.colony.Logistics.Reserve(target.pos.roomName, target.id, creep.FreeCapacity(resourceType));
     return new Transfer(target, [resourceType, direction * MAX_TRANSFER_QUANTITY]);

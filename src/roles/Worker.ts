@@ -8,7 +8,7 @@ import { Retire } from 'tasks/Retire';
 import { CreepTask } from 'tasks/types';
 import { Filters, GetValueByName, MakeBody } from 'utils/Collections';
 import { BodyCost, TryCollectFromAdjacent } from 'utils/CreepUtils';
-import { CreatePendingRepairs, FindHighestPriorityRepairGroup } from 'utils/RepairUtils';
+import { CreatePendingRepairs, RepairPrioritySelection } from 'utils/RepairUtils';
 import { CreepRoleBase, CreepRole } from './Role';
 
 export class Worker extends CreepRoleBase implements CreepRole {
@@ -121,15 +121,11 @@ export class Worker extends CreepRoleBase implements CreepRole {
     for (const lab of labs) return new Transfer(lab);
 
     // Or do construction
-    const construction = Build.nearestPriority(creep, creep.AssignedRoom.find(FIND_MY_CONSTRUCTION_SITES));
+    const construction = this.NearestConstruction(creep);
     if (construction) return construction;
 
-    // Or do repairs if there are no towers
-    if (towers.length === 0) {
-      const repair = creep.AssignedRoom.PendingRepairGroup;
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      if (repair && repair.repairs.length >= 1) return new Repair(repair.repairs.pop()!);
-    }
+    const repair = this.NearestRepair(creep);
+    if (repair) return repair;
 
     // Leftover energy goes to controller upgrading
     if (creep.AssignedRoom.controller) {
@@ -258,30 +254,39 @@ export class Worker extends CreepRoleBase implements CreepRole {
       if (repair) return repair;
     }
 
-    const construction = Build.nearestPriority(
-      creep,
-      creep.AssignedRoom.FlatMapOverRoomsInClaimedArea(r =>
-        r instanceof Room ? r.find(FIND_MY_CONSTRUCTION_SITES) : [],
-      ),
-    );
+    const construction = this.NearestConstruction(creep);
     if (construction) return construction;
 
     return null;
   }
 
-  // Closest repair across claimed rooms that have no towers to do the repairing.
+  private NearestConstruction(creep: CreepExtra): Build | null {
+    return Build.nearestPriority(
+      creep,
+      creep.colony.FlatMapOverWorkableRooms(room => room.find(FIND_MY_CONSTRUCTION_SITES)),
+    );
+  }
+
   private NearestRepair(creep: CreepExtra): Repair | null {
-    for (const [room] of creep.AssignedRoom.MapWithRoomsInClaimedArea<RoomExtra | Room | string>(r => r)) {
-      if (typeof room === 'string') continue;
-      if (room.find(FIND_MY_STRUCTURES, { filter: Filters.StructureTower }).length > 0) continue;
-
-      const group =
-        room instanceof RoomExtra
-          ? room.PendingRepairGroup
-          : FindHighestPriorityRepairGroup(room, CreatePendingRepairs(room));
-      if (!group) continue;
-
-      const repair = Repair.nearestInGroup(creep, group);
+    const groups: RepairPrioritySelection[] = [];
+    const pendingRooms = creep.colony.FlatMapOverWorkableRooms(room => {
+      if (room.controller?.my && room.find(FIND_MY_STRUCTURES, { filter: Filters.StructureTower }).length > 0)
+        return [];
+      return [{ room, pending: CreatePendingRepairs(room) }];
+    });
+    for (const { room, pending } of pendingRooms) {
+      pending.priorities.forEach((priority, index) => {
+        const candidates = pending.candidates.filter(structure =>
+          priority.allowedStructures.includes(structure.structureType),
+        );
+        const selection = priority.callback(room, candidates);
+        groups[index] ??= { repairs: [], maxWorkers: selection.maxWorkers };
+        groups[index].repairs.push(...selection.repairs);
+      });
+    }
+    const inProgress = [...creep.colony.AssignedTasks(Repair, creep)];
+    for (const group of groups) {
+      const repair = Repair.nearestInGroup(creep, group, inProgress);
       if (repair) return repair;
     }
     return null;

@@ -9,6 +9,22 @@ export function ClosestByPath<T extends _HasRoomPosition>(creep: CreepExtra, tar
   });
 }
 
+export function PickByLocation<T extends _HasRoomPosition>(
+  creep: CreepExtra,
+  items: T[],
+  rankRemote: (tier: T[]) => T | undefined,
+): T | null {
+  const claims = creep.AssignedRoom.WorkableAreaRoomNames;
+  const tiers: T[][] = [[], [], [], []];
+  for (const item of items) {
+    const roomName = item.pos.roomName;
+    const tier =
+      roomName === creep.room.name ? 0 : roomName === creep.AssignedRoom.name ? 1 : claims.includes(roomName) ? 2 : 3;
+    tiers[tier].push(item);
+  }
+  return ClosestByPath(creep, tiers[0]) ?? rankRemote(tiers[1]) ?? rankRemote(tiers[2]) ?? rankRemote(tiers[3]) ?? null;
+}
+
 export function BodyCost(body: (BodyPartConstant | BodyPartDefinition)[]): number {
   let cost = 0;
   for (const p of body) cost += BODYPART_COST[p instanceof Object ? p.type : p];
