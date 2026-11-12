@@ -15,9 +15,11 @@ export class SourceTaker extends CreepRoleBase implements CreepRole {
   override groupName = 'Warriors';
   override priority = 30;
 
-  override GetGlobalQuota = () => 6;
+  Quota = 4;
+
+  override GetGlobalQuota = () => this.Quota;
   GetMinQuota(): number {
-    return this.SourceKeeperFlag !== undefined ? 1 : 0;
+    return this.SourceKeeperFlag !== undefined ? this.Quota : 0;
   }
 
   IsSpawnNeeded(): boolean {
