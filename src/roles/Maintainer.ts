@@ -10,12 +10,11 @@ export class Maintainer extends Worker implements CreepRole {
   override readonly priority = 1;
   override roleName = 'Maintainer';
 
-  override GetMinQuota(): number {
-    return 1;
-  }
-
-  override GetMaxQuota(): number {
-    return 2;
+  override GetRoomQuota(room: RoomExtra): number {
+    if (room.controller === undefined || room.controller.level < 3) return 0;
+    if (room.controller.level < 5) return 1;
+    if (room.controller.level <= 8) return 2;
+    return 0;
   }
 
   protected override RoleQuotaChangeFrequency = 100;
