@@ -28,7 +28,12 @@ export class Worker extends CreepRoleBase implements CreepRole {
   ];
 
   GetNewCreepBody(room: RoomExtra): BodyPartConstant[] {
-    return this.GetFirstAvailableBodyWithZygote(this.PossibleBodies, room, undefined, CREEP_LIFE_TIME * 1.5);
+    return this.GetFirstAvailableBodyWithZygote(
+      this.PossibleBodies,
+      room,
+      MakeBody([CARRY, 2], [WORK, 1], [MOVE, 2]),
+      CREEP_LIFE_TIME * 1.5,
+    );
   }
 
   TickCreep(creep: CreepExtra): void {

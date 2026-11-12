@@ -19,13 +19,17 @@ export class Hauler extends CreepRoleBase implements CreepRole {
   }
 
   PossibleBodies = [
-    MakeBody([WORK, 10], [CARRY, 7], [MOVE, 9]), // 1800
-    MakeBody([WORK, 6], [CARRY, 7], [MOVE, 7]), // 1300
-    MakeBody([WORK, 2], [CARRY, 4], [MOVE, 3]), // 550
+    MakeBody([MOVE, 15], [CARRY, 30]), // 2250, RCL6
+    MakeBody([MOVE, 12], [CARRY, 24]), // 1800, RCL5
+    MakeBody([MOVE, 9], [CARRY, 17]), // 1300, RCL4
   ];
 
   GetNewCreepBody(room: RoomExtra): BodyPartConstant[] {
-    return this.GetFirstAvailableBodyWithZygote(this.PossibleBodies, room, undefined);
+    return this.GetFirstAvailableBodyWithZygote(
+      this.PossibleBodies,
+      room,
+      this.PossibleBodies[this.PossibleBodies.length - 1],
+    );
   }
 
   IsSpawnNeeded(room: RoomExtra): boolean {

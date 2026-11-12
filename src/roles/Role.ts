@@ -262,7 +262,7 @@ export abstract class CreepRoleBase {
   GetFirstAvailableBodyWithZygote(
     potentialBodies: BodyPartConstant[][],
     room: RoomExtra,
-    zygote: BodyPartConstant[] = MakeBody([CARRY, 2], [WORK, 1], [MOVE, 2]),
+    zygote: BodyPartConstant[],
     emergencySpawnTimer?: number,
   ): BodyPartConstant[] {
     if (emergencySpawnTimer && Game.time - room.LastSpawnTick(this.roleName) > emergencySpawnTimer) return zygote;
