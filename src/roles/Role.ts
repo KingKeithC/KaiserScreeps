@@ -6,7 +6,7 @@ import { RoomExtra } from 'Room';
 import { Transfer } from 'tasks/Transfer';
 import { CreepTask } from 'tasks/types';
 import { Filters, GetValueByName, MakeBody, Sorts } from 'utils/Collections';
-import { TryCollectFrom, TryTransferTo } from 'utils/CreepUtils';
+import { TryCollectFromAdjacent, TryTransferToAdjacent } from 'utils/CreepUtils';
 import { Logger } from 'utils/Logger';
 import { FirstBodyByEnergyCapacity } from 'utils/RoomUtils';
 
@@ -327,17 +327,18 @@ export abstract class CreepRoleBase {
 
   AmbientWorkerTransfers(creep: CreepExtra): void {
     if (
-      TryTransferTo(
+      TryTransferToAdjacent(
         creep,
         creep.pos.findInRange(FIND_MY_STRUCTURES, 1, { filter: Filters.StructureSpawnOrExtension }),
         [RESOURCE_ENERGY],
       ) === OK
     )
       return;
-    if (TryCollectFrom(creep, creep.pos.findInRange(FIND_STRUCTURES, 1).filter(Filters.StructureContainer))) return;
-    if (TryCollectFrom(creep, creep.pos.findInRange(creep.AssignedRoom.LinkReceivers, 1)) === OK) return;
-    if (TryCollectFrom(creep, creep.pos.findInRange(FIND_DROPPED_RESOURCES, 1)) === OK) return;
-    if (TryCollectFrom(creep, creep.pos.findInRange(FIND_TOMBSTONES, 1)) === OK) return;
+    if (TryCollectFromAdjacent(creep, creep.pos.findInRange(FIND_STRUCTURES, 1).filter(Filters.StructureContainer)))
+      return;
+    if (TryCollectFromAdjacent(creep, creep.pos.findInRange(creep.AssignedRoom.LinkReceivers, 1)) === OK) return;
+    if (TryCollectFromAdjacent(creep, creep.pos.findInRange(FIND_DROPPED_RESOURCES, 1)) === OK) return;
+    if (TryCollectFromAdjacent(creep, creep.pos.findInRange(FIND_TOMBSTONES, 1)) === OK) return;
   }
 
   TowerNotNearMinersAndNeedingEnergy(creep: CreepExtra, minFreepCapacity = 100): Transfer | null {

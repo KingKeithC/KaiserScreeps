@@ -37,13 +37,14 @@ export function FromEdgeIntoRoom(exit: ExitConstant | null): DirectionConstant |
   else return null;
 }
 
-export function TryCollectFrom<T extends AnyStoreStructure | Resource | Ruin | Tombstone | Creep>(
+export function TryCollectFromAdjacent<T extends AnyStoreStructure | Resource | Ruin | Tombstone | Creep>(
   creep: Creep,
   sources: T[],
   resources: ResourceConstant[] = RESOURCES_ALL,
   amount?: number,
 ): ScreepsReturnCode {
-  for (const source of sources)
+  for (const source of sources) {
+    if (!creep.pos.isNearTo(source)) continue;
     for (const rt of resources) {
       if (source instanceof Resource)
         if (rt === source.resourceType && source.amount > 0 && creep.pickup(source) === OK) return OK;
@@ -52,10 +53,11 @@ export function TryCollectFrom<T extends AnyStoreStructure | Resource | Ruin | T
         if (source instanceof Structure && creep.withdraw(source, rt, amount) === OK) return OK;
         else if (source instanceof Creep) if (source.transfer(creep, rt, amount) === OK) return OK;
     }
+  }
   return ERR_NOT_FOUND;
 }
 
-export function TryTransferTo<T extends AnyStoreStructure | Creep>(
+export function TryTransferToAdjacent<T extends AnyStoreStructure | Creep>(
   creep: Creep,
   targets: T[],
   resources: ResourceConstant[] = RESOURCES_ALL,
@@ -64,7 +66,8 @@ export function TryTransferTo<T extends AnyStoreStructure | Creep>(
   for (const resource of resources) {
     if (creep.store.getUsedCapacity(resource) <= 0) continue;
     for (const target of targets)
-      if ((target.store.getFreeCapacity(resource) ?? 0) > 0 && creep.transfer(target, resource, amount) === OK)
+      if (!creep.pos.isNearTo(target)) continue;
+      else if ((target.store.getFreeCapacity(resource) ?? 0) > 0 && creep.transfer(target, resource, amount) === OK)
         return OK;
   }
   return ERR_NOT_FOUND;

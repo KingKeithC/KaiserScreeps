@@ -7,7 +7,7 @@ import { Build, Mine, Repair, Transfer, UpgradeController } from 'tasks';
 import { Retire } from 'tasks/Retire';
 import { CreepTask } from 'tasks/types';
 import { Filters, GetValueByName, MakeBody } from 'utils/Collections';
-import { BodyCost, TryCollectFrom } from 'utils/CreepUtils';
+import { BodyCost, TryCollectFromAdjacent } from 'utils/CreepUtils';
 import { CreatePendingRepairs, FindHighestPriorityRepairGroup } from 'utils/RepairUtils';
 import { CreepRoleBase, CreepRole } from './Role';
 
