@@ -34,6 +34,11 @@ export class SourceTaker extends CreepRoleBase implements CreepRole {
     return null;
   }
 
+  TickCreep(creep: CreepExtra): void {
+    const enemies = creep.pos.findInRange(FIND_HOSTILE_CREEPS, this.SearchRange);
+    if (enemies.length === 0 && creep.hits < creep.hitsMax) creep.heal(creep);
+  }
+
   SourceKeeperFlag?: Flag;
   StartOfTick(): void {
     this.SourceKeeperFlag = Game.flags.SourceKeeper;
