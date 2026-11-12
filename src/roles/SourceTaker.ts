@@ -16,6 +16,7 @@ export class SourceTaker extends CreepRoleBase implements CreepRole {
   override priority = 30;
 
   Quota = 4;
+  RallyRange = 3;
 
   override GetGlobalQuota = () => this.Quota;
   GetMinQuota(): number {
@@ -103,7 +104,6 @@ export class SourceTaker extends CreepRoleBase implements CreepRole {
   }
 
   SearchRange = 10;
-  RallyRange = 5;
   SelectNextTask(creep: CreepExtra): CreepTask | null {
     if (this.SourceKeeperFlag === undefined) {
       return null;
