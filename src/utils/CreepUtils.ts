@@ -41,17 +41,16 @@ export function TryCollectFrom<T extends AnyStoreStructure | Resource | Ruin | T
   creep: Creep,
   sources: T[],
   resources: ResourceConstant[] = RESOURCES_ALL,
-  collectionLimit = creep.store.getFreeCapacity(),
+  amount?: number,
 ): ScreepsReturnCode {
-  if (collectionLimit <= 0) return ERR_FULL;
   for (const source of sources)
     for (const rt of resources) {
       if (source instanceof Resource)
-        if (rt === source.resourceType && creep.pickup(source) === OK) return OK;
+        if (rt === source.resourceType && source.amount > 0 && creep.pickup(source) === OK) return OK;
         else continue;
       else if ((source.store.getUsedCapacity(rt) ?? 0) > 0)
-        if (source instanceof Structure && creep.withdraw(source, rt, collectionLimit) === OK) return OK;
-        else if (source instanceof Creep) if (source.transfer(creep, rt, collectionLimit) === OK) return OK;
+        if (source instanceof Structure && creep.withdraw(source, rt, amount) === OK) return OK;
+        else if (source instanceof Creep) if (source.transfer(creep, rt, amount) === OK) return OK;
     }
   return ERR_NOT_FOUND;
 }
@@ -60,13 +59,12 @@ export function TryTransferTo<T extends AnyStoreStructure | Creep>(
   creep: Creep,
   targets: T[],
   resources: ResourceConstant[] = RESOURCES_ALL,
-  supplyLimit = 0,
+  amount?: number,
 ): ScreepsReturnCode {
-  if (supplyLimit <= 0) return ERR_NOT_FOUND;
   for (const resource of resources) {
     if (creep.store.getUsedCapacity(resource) <= 0) continue;
     for (const target of targets)
-      if ((target.store.getFreeCapacity(resource) ?? 0) >= supplyLimit && creep.transfer(target, resource) === OK)
+      if ((target.store.getFreeCapacity(resource) ?? 0) > 0 && creep.transfer(target, resource, amount) === OK)
         return OK;
   }
   return ERR_NOT_FOUND;

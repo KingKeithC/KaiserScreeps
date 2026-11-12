@@ -40,7 +40,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
   }
 
   GetMaxQuota(room: RoomExtra) {
-    return room.ClaimedSources.length * 2;
+    return room.WorkableClaimedSources.length * 2;
   }
 
   GrowAmount = 1;

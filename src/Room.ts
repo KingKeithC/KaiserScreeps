@@ -484,13 +484,13 @@ export class RoomExtra extends Room {
     );
   }
 
-  private cachedClaimedSources?: (Id<Source> | Id<StructureExtractor>)[];
-  get ClaimedSources(): (Id<Source> | Id<StructureExtractor>)[] {
-    if (this.cachedClaimedSources === undefined) {
+  private cachedWorkableClaimedSources?: (Id<Source> | Id<StructureExtractor>)[];
+  get WorkableClaimedSources(): (Id<Source> | Id<StructureExtractor>)[] {
+    if (this.cachedWorkableClaimedSources === undefined) {
       const mineSources = this.WorkableClaimedMiningPositions.map(pair => pair[1].map(mp => mp.source));
-      this.cachedClaimedSources = unique(flatten(mineSources));
+      this.cachedWorkableClaimedSources = unique(flatten(mineSources));
     }
-    return this.cachedClaimedSources;
+    return this.cachedWorkableClaimedSources;
   }
 
   /**
@@ -959,7 +959,7 @@ export class RoomExtra extends Room {
     }
 
     // Get info about claimed sources
-    msg += `\n\tClaimedSources: ${[...this.ClaimedSources]}`;
+    msg += `\n\tClaimedSources: ${[...this.WorkableClaimedSources]}`;
 
     // Get info about claimed rooms
     for (const claim of this.ClaimedNearby)

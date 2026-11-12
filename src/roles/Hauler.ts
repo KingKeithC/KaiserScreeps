@@ -58,6 +58,9 @@ export class Hauler extends CreepRoleBase implements CreepRole {
         filter: s => Filters.StructureLab(s) && s.isActive() && s.store.getFreeCapacity(RESOURCE_ENERGY) > 0,
       });
       for (const lab of labs) return new Transfer(lab);
+
+      // Leftover energy or resources can be stored
+      if (storeTask) return storeTask;
     }
 
     // If the creep is empty, try to gather resources from the environment.
