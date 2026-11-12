@@ -131,5 +131,16 @@ export class SourceTaker extends CreepRoleBase implements CreepRole {
 
   TickCreep(creep: CreepExtra): void {
     this.AttackOrHeal(creep);
+
+    // If the creep is supposed to be queuing but is not at the queue point, mark
+    // its current move task as complete so it can re-evaluate its next task.
+    if (
+      this.AttackPhase === 'Queue' &&
+      this.QueuePoint &&
+      creep.currentTask &&
+      creep.currentTask.action === Move.action &&
+      !(creep.currentTask as Move).toRoomPosition().isEqualTo(this.QueuePoint)
+    )
+      creep.currentTask.isCompleteFlag = true;
   }
 }
