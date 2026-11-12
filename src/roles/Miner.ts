@@ -4,7 +4,7 @@ import { RoomExtra } from 'Room';
 import { Mine } from 'tasks';
 import { CreepTask } from 'tasks/types';
 import { Filters, Sorts, MakeBody, SerializeRoomPosition } from 'utils/Collections';
-import { BodyCost, TryCollectFromContainer, TryPickupDropped, TryTransferTo } from 'utils/CreepUtils';
+import { TryCollectFromContainer, TryPickupDropped, TryTransferTo } from 'utils/CreepUtils';
 import { CreepRole, CreepRoleBase } from './Role';
 
 const nonEnergyResources = RESOURCES_ALL.filter(rt => rt !== RESOURCE_ENERGY);
@@ -16,25 +16,19 @@ export class Miner extends CreepRoleBase implements CreepRole {
   readonly priority = 5;
 
   IsSpawnNeeded(room: RoomExtra): boolean {
-    if (!this.IsRoleUnderRoomQuota(room)) return false;
     // We can't spawn miners until we have a worker.
-    return room.GetAssignedCreepsOfRole('Workers').length > 0;
+    return room.GetAssignedCreepsOfRole('Worker').length > 0;
   }
 
+  PotentialBodies = [
+    MakeBody([CARRY, 1], [WORK, 7], [MOVE, 4]), // 950, containers.
+    // MakeBody([CARRY, 9], [WORK, 5], [MOVE, 7]), // 1300, no containers.
+    MakeBody([CARRY, 1], [WORK, 5], [MOVE, 3]), // 800, containers
+    // MakeBody([CARRY, 7], [WORK, 3], [MOVE, 3]), // 800, no containers
+  ];
+
   GetNewCreepBody(room: RoomExtra): BodyPartConstant[] {
-    // 5 Work seems to be enough to mine a source to empty on the exact tick it recharges.
-    // All miners still need 1 carry to put what they mined into a container.
-
-    const tiers = [
-      MakeBody([CARRY, 1], [WORK, 7], [MOVE, 4]), // 950, containers.
-      // MakeBody([CARRY, 9], [WORK, 5], [MOVE, 7]), // 1300, no containers.
-      MakeBody([CARRY, 1], [WORK, 5], [MOVE, 3]), // 800, containers
-      // MakeBody([CARRY, 7], [WORK, 3], [MOVE, 3]), // 800, no containers
-    ];
-
-    for (const t of tiers) if (BodyCost(t) <= room.energyCapacityAvailable) return t; // Return the first body we can afford
-
-    return MakeBody([CARRY, 2], [WORK, 1], [MOVE, 2]); // 300, Zygote
+    return this.GetFirstAvailableBodyWithZygote(this.PotentialBodies, room, MakeBody([CARRY, 2], [WORK, 1], [MOVE, 2]));
   }
 
   override GetMinQuota(room: RoomExtra) {
