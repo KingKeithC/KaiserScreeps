@@ -161,10 +161,11 @@ export class Attacker extends CreepRoleBase implements CreepRole {
   }
 
   override GetMinQuota(): number {
-    return this.AttackSize;
+    return this.GetCurrentStep() !== null ? this.AttackSize : 0;
   }
+
   IsSpawnNeeded(): boolean {
-    return this.GetCurrentStep() != null;
+    return this.GetCurrentStep() !== null;
   }
 
   SelectNextTask(): CreepTask | null {
