@@ -19,6 +19,7 @@ import { AssignedTasksWithEntity, FmtRatios, TasksOfEntities } from 'utils/Colle
 import { ErrorMapper } from 'utils/ErrorMapper';
 import { Logger } from 'utils/Logger';
 import { MakeRoomReport, RoomReport } from 'utils/RoomUtils';
+import { SourceTaker } from 'roles/SourceTaker';
 
 declare global {
   interface Memory {
@@ -39,6 +40,8 @@ declare global {
     logFormat?: string;
     cpuSkipRatio?: number;
     minCpuBucket?: number;
+    allies?: string[];
+    rivals?: string[];
   }
 }
 
@@ -53,6 +56,7 @@ export class Colony {
     Scout: new Scout(this),
     Attacker: new Attacker(this),
     Claimer: new Claimer(this),
+    SourceTaker: new SourceTaker(this),
   } as const;
 
   // Lookup a role from the registry, and throw an error if not found
@@ -107,6 +111,12 @@ export class Colony {
     return ErrorMapper.wrapLoop(lambda);
   }
 
+  get Allies(): string[] {
+    return (Memory.allies ??= []);
+  }
+  get Rivals(): string[] {
+    return (Memory.rivals ??= []);
+  }
   get CpuSkipRatio(): number {
     return (Memory.cpuSkipRatio ??= 0.75);
   }
