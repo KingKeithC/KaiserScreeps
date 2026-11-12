@@ -24,6 +24,32 @@ export class SourceTaker extends CreepRoleBase implements CreepRole {
     return this.SourceKeeperFlag !== undefined;
   }
 
+  NextAttackPhase(): AttackPhase {
+    const group = this.GetGlobalCreepsInRole();
+    if (group.length < this.GetGlobalQuota()) return (this.attackPhase = 'Queue');
+    if (!this.SourceKeeperFlag) return (this.attackPhase = 'Queue');
+    const keeperRoom = this.colony.Rooms.get(this.SourceKeeperFlag.pos.roomName);
+    if (!keeperRoom) {
+      const queue = this.QueuePoint;
+      if (!queue) return (this.attackPhase = 'Queue');
+      const allAtQueuePoint = group.every(c => c.pos.inRangeTo(queue, this.RallyRange));
+      if (!allAtQueuePoint) return (this.attackPhase = 'Queue');
+      this.QueuedGroup = group;
+      return (this.attackPhase = 'Drain');
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
+    const invaderTowers = keeperRoom.find(FIND_STRUCTURES, {
+      filter: s => s.structureType === STRUCTURE_TOWER && s.owner && s.owner.username === INVADER_USERNAME,
+    }) as StructureTower[];
+
+    if (sum(invaderTowers, t => t.store.getUsedCapacity(RESOURCE_ENERGY) ?? 0) > 0) {
+      return (this.attackPhase = 'Drain');
+    }
+
+    return (this.attackPhase = 'Attack');
+  }
+
   private attackPhase: AttackPhase = 'Drain';
   get AttackPhase(): AttackPhase {
     return this.attackPhase;
@@ -46,44 +72,13 @@ export class SourceTaker extends CreepRoleBase implements CreepRole {
     creep.notifyWhenAttacked(false);
   }
 
-  SourceKeeperFlag?: Flag;
-  KeeperRoom?: Room;
-  QueuePoint?: RoomPosition;
-  QueuedGroup?: CreepExtra[];
-
-  GetAttackPhase(): SourceTaker['AttackPhase'] {
-    const group = this.GetGlobalCreepsInRole();
-    if (group.length < this.GetGlobalQuota()) return 'Queue';
-    this.SourceKeeperFlag = Game.flags.SourceKeeper;
-    if (!this.SourceKeeperFlag) return 'Queue';
-    this.KeeperRoom = this.colony.Rooms.get(this.SourceKeeperFlag.pos.roomName);
-    if (!this.KeeperRoom) {
-      const queue = this.QueuePoint;
-      if (!queue) return 'Queue';
-      const allAtQueuePoint = group.every(c => c.pos.inRangeTo(queue, this.RallyRange));
-      if (!allAtQueuePoint) return 'Queue';
-      this.QueuedGroup = group;
-      return 'Drain';
-    }
-
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
-    const invaderTowers = this.KeeperRoom.find(FIND_STRUCTURES, {
-      filter: s => s.structureType === STRUCTURE_TOWER && s.owner && s.owner.username === INVADER_USERNAME,
-    }) as StructureTower[];
-
-    if (sum(invaderTowers, t => t.store.getUsedCapacity(RESOURCE_ENERGY) ?? 0) > 0) {
-      return 'Drain';
-    }
-
-    return 'Attack';
+  get SourceKeeperFlag(): Flag | undefined {
+    return Game.flags.SourceKeeper;
   }
 
-  StartOfTick(): void {
-    this.QueuePoint ??= this.GetQueuePoint();
-    this.AttackPhase = this.GetAttackPhase();
-  }
-
-  GetQueuePoint(): RoomPosition | undefined {
+  private queuePoint?: RoomPosition;
+  get QueuePoint(): RoomPosition | undefined {
+    if (this.queuePoint) return this.queuePoint;
     // Find the room of mine that is closest to the SourceKeeper flag's room
     const myRooms = this.colony.MyRooms.map(r => r.name);
     if (!this.SourceKeeperFlag) return;
@@ -96,7 +91,13 @@ export class SourceTaker extends CreepRoleBase implements CreepRole {
     const directionToSafety = FromEdgeIntoRoom(exitToTargetRoom);
     const exitPoss = closestRoom.find(exitToTargetRoom);
     if (!exitPoss || exitPoss.length === 0 || !directionToSafety) return;
-    return AddDirectionToPosition(exitPoss[0], directionToSafety, this.RallyRange + 4);
+    return (this.queuePoint = AddDirectionToPosition(exitPoss[0], directionToSafety, this.RallyRange + 4));
+  }
+
+  QueuedGroup?: CreepExtra[];
+
+  StartOfTick(): void {
+    this.AttackPhase = this.NextAttackPhase();
   }
 
   SearchRange = 10;
@@ -108,9 +109,8 @@ export class SourceTaker extends CreepRoleBase implements CreepRole {
 
     // Rally to the queue point if in the 'Queue' attack phase
     const queue = this.QueuePoint;
-    if (this.AttackPhase === 'Queue' && queue !== undefined) {
-      return new Move(queue, this.RallyRange - 1);
-    } else if (this.AttackPhase === 'Queue') return null;
+    if (queue && this.AttackPhase === 'Queue') return new Move(queue, this.RallyRange - 1);
+    if (this.AttackPhase === 'Queue') return null;
 
     // No longer in Queue phase, move towards the target room if not already there
     if (creep.pos.roomName !== this.SourceKeeperFlag.pos.roomName) {
