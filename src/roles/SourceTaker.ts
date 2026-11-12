@@ -10,10 +10,7 @@ export class SourceTaker extends CreepRoleBase implements CreepRole {
   override roleName = 'SourceTaker';
   override groupName = 'Warriors';
   override priority = 30;
-
-  override GetGlobalQuota(): number {
-    return 4;
-  }
+  override GetGlobalQuota = () => 4;
 
   AttackPhase: 'Drain' | 'Attack' = 'Drain';
 
@@ -22,6 +19,10 @@ export class SourceTaker extends CreepRoleBase implements CreepRole {
 
     // this.AttackPhase === 'Attack'
     return MakeBody([TOUGH, 4], [MOVE, 8], [CARRY, 2], [HEAL, 4]);
+  }
+
+  override OnSpawn(creep: CreepExtra): void {
+    creep.notifyWhenAttacked(false);
   }
 
   SearchRange = 20;
@@ -45,7 +46,7 @@ export class SourceTaker extends CreepRoleBase implements CreepRole {
   }
 
   TickCreep(creep: CreepExtra): void {
-    creep.heal(creep);
+    if (creep.hits < creep.hitsMax) creep.heal(creep);
   }
 
   SourceKeeperFlag?: Flag;
@@ -53,7 +54,10 @@ export class SourceTaker extends CreepRoleBase implements CreepRole {
   StartOfTick(): void {
     this.SourceKeeperFlag = Game.flags.SourceKeeper;
     this.KeeperRoom = this.colony.Rooms.get(this.SourceKeeperFlag.pos.roomName);
-    if (!this.KeeperRoom) return;
+    if (!this.KeeperRoom) {
+      this.AttackPhase = 'Drain';
+      return;
+    }
     // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
     const invaderTowers = this.KeeperRoom.find(FIND_STRUCTURES, {
       filter: s => s.structureType === STRUCTURE_TOWER && s.owner && s.owner.username === INVADER_USERNAME,
