@@ -1,14 +1,12 @@
 import { CreepExtra } from 'Creep';
+import { RESOURCE_NON_ENERGY as RESOURCES_NON_ENERGY } from 'Data';
 import { sum } from 'lodash';
 import { RoomExtra } from 'Room';
 import { Mine } from 'tasks';
 import { CreepTask } from 'tasks/types';
 import { Filters, Sorts, MakeBody, SerializeRoomPosition } from 'utils/Collections';
-import { TryCollectFromContainer, TryPickupDropped, TryTransferTo } from 'utils/CreepUtils';
+import { TryCollectFrom, TryTransferTo } from 'utils/CreepUtils';
 import { CreepRole, CreepRoleBase } from './Role';
-
-const nonEnergyResources = RESOURCES_ALL.filter(rt => rt !== RESOURCE_ENERGY);
-const isMinerCreep = Filters.CreepRoleGroupName('Miners');
 
 export class Miner extends CreepRoleBase implements CreepRole {
   readonly groupName = 'Miners';
@@ -51,20 +49,20 @@ export class Miner extends CreepRoleBase implements CreepRole {
       return;
 
     const nearbyNonMiners = creep.pos.findInRange(this.colony.MyCreeps, 1, {
-      filter: c => c.store.getFreeCapacity() > 0 && !isMinerCreep(c),
+      filter: c => c.store.getFreeCapacity() > 0 && !Filters.CreepRoleGroupName('Miners')(c),
     });
     if (TryTransferTo(creep, nearbyNonMiners, [RESOURCE_ENERGY])) return;
-    if (TryPickupDropped(creep)) return;
+    if (TryCollectFrom(creep, creep.pos.findInRange(FIND_DROPPED_RESOURCES, 1))) return;
 
     const nearbyContainers = creep.pos.findInRange(FIND_STRUCTURES, 1).filter(Filters.StructureContainer);
-    if (TryTransferTo(creep, nearbyContainers, nonEnergyResources)) return;
+    if (TryTransferTo(creep, nearbyContainers, RESOURCES_NON_ENERGY)) return;
 
     const nearbyTowers = creep.pos.findInRange(FIND_MY_STRUCTURES, 1).filter(Filters.StructureTower);
     const nearbyLinks = creep.AssignedRoom.LinkSenders.filter(link => link.pos.isNearTo(creep));
     const nearbyEnergyDemand =
       sum(nearbyTowers.map(tower => tower.store.getFreeCapacity(RESOURCE_ENERGY))) +
       sum(nearbyLinks.map(link => link.store.getFreeCapacity(RESOURCE_ENERGY)));
-    if (TryCollectFromContainer(creep, nearbyContainers, nearbyEnergyDemand * 2, [RESOURCE_ENERGY])) return;
+    if (TryCollectFrom(creep, nearbyContainers, nearbyEnergyDemand * 2, [RESOURCE_ENERGY])) return;
     if (TryTransferTo(creep, nearbyTowers, [RESOURCE_ENERGY])) return;
     if (TryTransferTo(creep, nearbyLinks, [RESOURCE_ENERGY])) return;
     if (TryTransferTo(creep, nearbyContainers, [RESOURCE_ENERGY])) return;

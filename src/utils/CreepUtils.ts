@@ -37,42 +37,20 @@ export function FromEdgeIntoRoom(exit: ExitConstant | null): DirectionConstant |
   else return null;
 }
 
-export function TryCollectFromContainer(
+export function TryCollectFrom<T extends AnyStoreStructure | Resource | Ruin | Tombstone | Creep>(
   creep: Creep,
-  containers: StructureContainer[],
-  collectionLimit = 0,
+  sources: T[],
+  collectionLimit = creep.store.getFreeCapacity(),
   resources: ResourceConstant[] = RESOURCES_ALL,
 ): boolean {
-  if (creep.store.getFreeCapacity() === 0 || collectionLimit === 0) return false;
-  for (const rt of resources) {
-    for (const container of containers)
-      if ((container.store.getUsedCapacity(rt) ?? 0) > 0 && creep.withdraw(container, rt, collectionLimit) === OK)
-        return true;
-  }
-  return false;
-}
-
-export function TryCollectFromTombs(
-  creep: Creep,
-  resources: ResourceConstant[] = RESOURCES_ALL,
-  collectionLimit: number = creep.store.getFreeCapacity(),
-): boolean {
-  if (creep.store.getFreeCapacity() === 0) return false;
-  for (const rt of resources) {
-    if (collectionLimit <= 0) continue;
-    for (const tomb of creep.pos.findInRange(FIND_TOMBSTONES, 1))
-      if ((tomb.store.getUsedCapacity(rt) ?? 0) > 0 && creep.withdraw(tomb, rt, collectionLimit) === OK) return true;
-  }
-  return false;
-}
-
-export function TryPickupDropped(creep: Creep, resources: ResourceConstant[] = RESOURCES_ALL): boolean {
-  if (creep.store.getFreeCapacity() === 0) return false;
-  for (const rt of resources) {
-    for (const d of creep.pos.findInRange(FIND_DROPPED_RESOURCES, 1, { filter: { resourceType: rt } }))
-      if (creep.pickup(d) === OK) return true;
-  }
-
+  if (collectionLimit <= 0) return false;
+  for (const source of sources)
+    for (const rt of resources) {
+      if (source instanceof Resource) return rt === source.resourceType && creep.pickup(source) === OK;
+      else if ((source.store.getUsedCapacity(rt) ?? 0) > 0)
+        if (source instanceof Structure && creep.withdraw(source, rt, collectionLimit) === OK) return true;
+        else if (source instanceof Creep) if (source.transfer(creep, rt, collectionLimit) === OK) return true;
+    }
   return false;
 }
 

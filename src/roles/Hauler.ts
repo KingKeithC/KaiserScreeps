@@ -3,7 +3,7 @@ import { RoomExtra } from 'Room';
 import { Transfer } from 'tasks/Transfer';
 import { CreepTask } from 'tasks/types';
 import { MakeBody } from 'utils/Collections';
-import { TryCollectFromTombs, TryPickupDropped } from 'utils/CreepUtils';
+import { TryCollectFrom } from 'utils/CreepUtils';
 import { CreepRole, CreepRoleBase } from './Role';
 
 export class Hauler extends CreepRoleBase implements CreepRole {
@@ -54,7 +54,7 @@ export class Hauler extends CreepRoleBase implements CreepRole {
   }
 
   TickCreep(creep: CreepExtra): void {
-    if (TryPickupDropped(creep)) return;
-    if (TryCollectFromTombs(creep)) return;
+    if (TryCollectFrom(creep, creep.pos.findInRange(FIND_DROPPED_RESOURCES, 1))) return;
+    if (TryCollectFrom(creep, creep.pos.findInRange(FIND_TOMBSTONES, 1))) return;
   }
 }

@@ -7,12 +7,7 @@ import { Build, Mine, Repair, Transfer, UpgradeController } from 'tasks';
 import { Retire } from 'tasks/Retire';
 import { CreepTask } from 'tasks/types';
 import { Filters, GetValueByName, MakeBody } from 'utils/Collections';
-import {
-  BodyCost,
-  TryCollectFromContainer as TryCollectFromContainers,
-  TryCollectFromTombs,
-  TryPickupDropped,
-} from 'utils/CreepUtils';
+import { BodyCost, TryCollectFrom } from 'utils/CreepUtils';
 import { CreatePendingRepairs, FindHighestPriorityRepairGroup } from 'utils/RepairUtils';
 import { CreepRoleBase, CreepRole } from './Role';
 
@@ -38,9 +33,9 @@ export class Worker extends CreepRoleBase implements CreepRole {
 
   TickCreep(creep: CreepExtra): void {
     const containers = creep.pos.findInRange(FIND_STRUCTURES, 1).filter(Filters.StructureContainer);
-    if (TryCollectFromContainers(creep, containers, creep.store.getFreeCapacity())) return;
-    if (TryPickupDropped(creep)) return;
-    if (TryCollectFromTombs(creep)) return;
+    if (TryCollectFrom(creep, containers, creep.store.getFreeCapacity())) return;
+    if (TryCollectFrom(creep, creep.pos.findInRange(FIND_DROPPED_RESOURCES, 1))) return;
+    if (TryCollectFrom(creep, creep.pos.findInRange(FIND_TOMBSTONES, 1))) return;
   }
 
   GetMinQuota(_room: RoomExtra) {
