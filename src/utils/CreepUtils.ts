@@ -40,35 +40,34 @@ export function FromEdgeIntoRoom(exit: ExitConstant | null): DirectionConstant |
 export function TryCollectFrom<T extends AnyStoreStructure | Resource | Ruin | Tombstone | Creep>(
   creep: Creep,
   sources: T[],
-  collectionLimit = creep.store.getFreeCapacity(),
   resources: ResourceConstant[] = RESOURCES_ALL,
-): boolean {
-  if (collectionLimit <= 0) return false;
+  collectionLimit = creep.store.getFreeCapacity(),
+): ScreepsReturnCode {
+  if (collectionLimit <= 0) return ERR_FULL;
   for (const source of sources)
     for (const rt of resources) {
-      if (source instanceof Resource) return rt === source.resourceType && creep.pickup(source) === OK;
+      if (source instanceof Resource)
+        if (rt === source.resourceType && creep.pickup(source) === OK) return OK;
+        else continue;
       else if ((source.store.getUsedCapacity(rt) ?? 0) > 0)
-        if (source instanceof Structure && creep.withdraw(source, rt, collectionLimit) === OK) return true;
-        else if (source instanceof Creep) if (source.transfer(creep, rt, collectionLimit) === OK) return true;
+        if (source instanceof Structure && creep.withdraw(source, rt, collectionLimit) === OK) return OK;
+        else if (source instanceof Creep) if (source.transfer(creep, rt, collectionLimit) === OK) return OK;
     }
-  return false;
+  return ERR_NOT_FOUND;
 }
 
 export function TryTransferTo<T extends AnyStoreStructure | Creep>(
   creep: Creep,
   targets: T[],
   resources: ResourceConstant[] = RESOURCES_ALL,
-  minimumFreeCapacity = 0,
-): boolean {
+  supplyLimit = 0,
+): ScreepsReturnCode {
+  if (supplyLimit <= 0) return ERR_NOT_FOUND;
   for (const resource of resources) {
     if (creep.store.getUsedCapacity(resource) <= 0) continue;
     for (const target of targets)
-      if (
-        (target.store.getFreeCapacity(resource) ?? 0) > minimumFreeCapacity &&
-        creep.transfer(target, resource) === OK
-      )
-        return true;
+      if ((target.store.getFreeCapacity(resource) ?? 0) >= supplyLimit && creep.transfer(target, resource) === OK)
+        return OK;
   }
-
-  return false;
+  return ERR_NOT_FOUND;
 }

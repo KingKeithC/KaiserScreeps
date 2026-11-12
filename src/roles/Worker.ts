@@ -32,10 +32,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
   }
 
   TickCreep(creep: CreepExtra): void {
-    const containers = creep.pos.findInRange(FIND_STRUCTURES, 1).filter(Filters.StructureContainer);
-    if (TryCollectFrom(creep, containers, creep.store.getFreeCapacity())) return;
-    if (TryCollectFrom(creep, creep.pos.findInRange(FIND_DROPPED_RESOURCES, 1))) return;
-    if (TryCollectFrom(creep, creep.pos.findInRange(FIND_TOMBSTONES, 1))) return;
+    this.AmbientWorkerTransfers(creep);
   }
 
   GetMinQuota(_room: RoomExtra) {

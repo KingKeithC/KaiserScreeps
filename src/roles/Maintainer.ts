@@ -2,7 +2,6 @@ import { CreepExtra } from 'Creep';
 import { RoomExtra } from 'Room';
 import { MAX_TRANSFER_QUANTITY, Mine, Transfer } from 'tasks';
 import { CreepTask } from 'tasks/types';
-import { Filters } from 'utils/Collections';
 import { CreepRole } from './Role';
 import { Worker } from './Worker';
 
@@ -10,10 +9,10 @@ export class Maintainer extends Worker implements CreepRole {
   override readonly priority = 1;
   override roleName = 'Maintainer';
 
-  override GetRoomQuota(room: RoomExtra): number {
-    if (room.controller === undefined || room.controller.level < 3) return 0;
-    if (room.controller.level < 5) return 1;
-    if (room.controller.level <= 8) return 2;
+  override GetRoomQuota(): number {
+    // if (room.controller === undefined || room.controller.level < 3) return 0;
+    // if (room.controller.level < 5) return 1;
+    // if (room.controller.level <= 8) return 2;
     return 0;
   }
 
@@ -45,18 +44,7 @@ export class Maintainer extends Worker implements CreepRole {
   }
 
   TickCreep(creep: CreepExtra): void {
-    // If we have energy, and there are spawns/extensions next
-    // to us that need energy, give our energy to them
-    if (creep.store.getUsedCapacity(RESOURCE_ENERGY) > 0)
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
-      for (const s of creep.pos.findInRange(FIND_MY_STRUCTURES, 1, { filter: Filters.StructureSpawnOrExtension }))
-        if (s.store.getFreeCapacity(RESOURCE_ENERGY) > 0) creep.transfer(s, RESOURCE_ENERGY);
-
-    // Otherwise, if we are near a link receiver, that has
-    // energy, and we have space, withdraw energy from it.
-    if (creep.store.getFreeCapacity(RESOURCE_ENERGY) > 0)
-      for (const l of creep.AssignedRoom.LinkReceivers)
-        if (l.store.getUsedCapacity(RESOURCE_ENERGY) > 0 && creep.pos.isNearTo(l)) creep.withdraw(l, RESOURCE_ENERGY);
+    this.AmbientWorkerTransfers(creep);
   }
 
   /**
@@ -75,13 +63,16 @@ export class Maintainer extends Worker implements CreepRole {
    * @returns The next task for the creep to perform as part of the loop.
    */
   DoWithLocalEnergy(creep: CreepExtra, findMainSpendingTask: (c: CreepExtra) => CreepTask | null): CreepTask | null {
+    const storeTask = Transfer.stash(creep);
+    if (creep.HasNonEnergy && storeTask) return storeTask;
+
     if (creep.HasEnergy) {
       // Get main spending task
       const mainTask = findMainSpendingTask(creep);
       if (mainTask) return mainTask;
 
       // Excess goes into storage
-      if (creep.AssignedRoom.storage !== undefined) return new Transfer(creep.AssignedRoom.storage);
+      if (storeTask) return storeTask;
     }
 
     if (creep.IsEmpty) {

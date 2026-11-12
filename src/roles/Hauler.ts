@@ -2,8 +2,7 @@ import { CreepExtra } from 'Creep';
 import { RoomExtra } from 'Room';
 import { Transfer } from 'tasks/Transfer';
 import { CreepTask } from 'tasks/types';
-import { MakeBody } from 'utils/Collections';
-import { TryCollectFrom } from 'utils/CreepUtils';
+import { Filters, MakeBody } from 'utils/Collections';
 import { CreepRole, CreepRoleBase } from './Role';
 
 export class Hauler extends CreepRoleBase implements CreepRole {
@@ -34,27 +33,46 @@ export class Hauler extends CreepRoleBase implements CreepRole {
   }
 
   SelectNextTask(creep: CreepExtra): CreepTask | null {
-    if (creep.IsEmpty) {
-      // If the creep is empty, try to gather resources from the environment.
-      let gather = Transfer.supply(creep, { collect: RESOURCES_ALL, minAmount: 200 });
-      gather ??= Transfer.supply(creep, { collect: RESOURCES_ALL, minAmount: 100 });
-      gather ??= Transfer.supply(creep, { collect: RESOURCES_ALL });
-      if (gather) return gather;
+    const storeTask = Transfer.stash(creep);
+
+    // Store any non-energy resources first
+    if (creep.HasNonEnergy && storeTask) return storeTask;
+
+    // If the creep has energy, try to deliver it to various structures in order of priority.
+    if (creep.HasEnergy) {
+      // Resupply the spawns/extensions
+      const spawnSupply = Transfer.supply(creep, creep.AssignedRoom.SpawnsOrExtensions);
+      if (spawnSupply) return spawnSupply;
+
+      // Or refill towers needing energy that aren't next to a miner
+      const tower = this.TowerNotNearMinersAndNeedingEnergy(creep);
+      if (tower) return tower;
+
+      // Or refill the terminal with a base amount of energy
+      const terminal = creep.AssignedRoom.terminal;
+      if (terminal && terminal.isActive() && terminal.store.getUsedCapacity(RESOURCE_ENERGY) <= 20_000)
+        return new Transfer(terminal);
+
+      // Or refill lab energy
+      const labs: StructureLab[] = creep.AssignedRoom.find(FIND_MY_STRUCTURES, {
+        filter: s => Filters.StructureLab(s) && s.isActive() && s.store.getFreeCapacity(RESOURCE_ENERGY) > 0,
+      });
+      for (const lab of labs) return new Transfer(lab);
     }
 
-    if (creep.IsCarrying) {
-      // stash excess resources in storage
-      if (creep.AssignedRoom.storage) {
-        const store = Transfer.stash(creep, creep.AssignedRoom.storage);
-        if (store) return store;
-      }
+    // If the creep is empty, try to gather resources from the environment.
+    if (creep.IsEmpty) {
+      // If the creep is empty, try to gather resources from the environment.
+      let gather = Transfer.supply(creep, { collect: RESOURCES_ALL, minAmount: creep.FreeCapacity() });
+      gather ??= Transfer.supply(creep, { collect: RESOURCES_ALL });
+      gather ??= storeTask;
+      if (gather) return gather;
     }
 
     return null;
   }
 
   TickCreep(creep: CreepExtra): void {
-    if (TryCollectFrom(creep, creep.pos.findInRange(FIND_DROPPED_RESOURCES, 1))) return;
-    if (TryCollectFrom(creep, creep.pos.findInRange(FIND_TOMBSTONES, 1))) return;
+    this.AmbientWorkerTransfers(creep);
   }
 }

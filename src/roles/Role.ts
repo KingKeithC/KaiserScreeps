@@ -3,8 +3,10 @@ import { Colony } from 'Colony';
 import { CreepExtra } from 'Creep';
 import { GetRandomName } from 'Data';
 import { RoomExtra } from 'Room';
+import { Transfer } from 'tasks/Transfer';
 import { CreepTask } from 'tasks/types';
 import { Filters, GetValueByName, MakeBody, Sorts } from 'utils/Collections';
+import { TryCollectFrom, TryTransferTo } from 'utils/CreepUtils';
 import { Logger } from 'utils/Logger';
 import { FirstBodyByEnergyCapacity } from 'utils/RoomUtils';
 
@@ -304,7 +306,7 @@ export abstract class CreepRoleBase {
     const closeEnemies = creep.pos
       .findInRange(FIND_HOSTILE_CREEPS, 1, { filter: Filters.Damaged })
       .sort(Sorts.StructureHitsRatioAsc);
-    for (const enemy of closeEnemies) if (enemy) return creep.attack(enemy);
+    for (const enemy of closeEnemies) if (enemy && creep.attack(enemy) === OK) return OK;
     return ERR_NOT_FOUND;
   }
 
@@ -312,13 +314,44 @@ export abstract class CreepRoleBase {
     const closeEnemies = creep.pos
       .findInRange(FIND_HOSTILE_CREEPS, 3, { filter: Filters.Damaged })
       .sort(Sorts.StructureHitsRatioAsc);
-    for (const enemy of closeEnemies) if (enemy) return creep.rangedAttack(enemy);
+    for (const enemy of closeEnemies) if (enemy && creep.rangedAttack(enemy) === OK) return OK;
     return ERR_NOT_FOUND;
   }
 
-  AttackOrHeal(creep: CreepExtra): void {
-    if (creep.getActiveBodyparts(ATTACK) > 0) if (this.AttackWeakestAdjacentEnemy(creep) === OK) return;
-    if (creep.getActiveBodyparts(RANGED_ATTACK) > 0) if (this.RangedAttackWeakestHittableEnemy(creep) === OK) return;
-    if (creep.getActiveBodyparts(HEAL) > 0) if (this.HealHurtAlliesOrSelf(creep) === OK) return;
+  AttackOrHeal(creep: CreepExtra): ScreepsReturnCode {
+    if (creep.getActiveBodyparts(ATTACK) > 0) if (this.AttackWeakestAdjacentEnemy(creep) === OK) return OK;
+    if (creep.getActiveBodyparts(RANGED_ATTACK) > 0) if (this.RangedAttackWeakestHittableEnemy(creep) === OK) return OK;
+    if (creep.getActiveBodyparts(HEAL) > 0) if (this.HealHurtAlliesOrSelf(creep) === OK) return OK;
+    return ERR_NOT_FOUND;
+  }
+
+  AmbientWorkerTransfers(creep: CreepExtra): void {
+    if (
+      TryTransferTo(
+        creep,
+        creep.pos.findInRange(FIND_MY_STRUCTURES, 1, { filter: Filters.StructureSpawnOrExtension }),
+        [RESOURCE_ENERGY],
+      ) === OK
+    )
+      return;
+    if (TryCollectFrom(creep, creep.pos.findInRange(FIND_STRUCTURES, 1).filter(Filters.StructureContainer))) return;
+    if (TryCollectFrom(creep, creep.pos.findInRange(creep.AssignedRoom.LinkReceivers, 1)) === OK) return;
+    if (TryCollectFrom(creep, creep.pos.findInRange(FIND_DROPPED_RESOURCES, 1)) === OK) return;
+    if (TryCollectFrom(creep, creep.pos.findInRange(FIND_TOMBSTONES, 1)) === OK) return;
+  }
+
+  TowerNotNearMinersAndNeedingEnergy(creep: CreepExtra, minFreepCapacity = 100): Transfer | null {
+    const towers = creep.AssignedRoom.find(FIND_MY_STRUCTURES, {
+      filter: (st): st is StructureTower =>
+        Filters.StructureTower(st) &&
+        st.isActive() &&
+        !(st.pos.findInRange(creep.AssignedRoom.GetAssignedCreepsOfRoleGroup('Miners') ?? [], 1).length > 0),
+    });
+    const towerSupply = Transfer.supply(
+      creep,
+      towers.filter(st => st.store.getFreeCapacity(RESOURCE_ENERGY) >= minFreepCapacity),
+    );
+    if (towerSupply) return towerSupply;
+    return null;
   }
 }

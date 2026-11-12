@@ -160,8 +160,9 @@ export class Transfer extends TargetTask<ResourceContainer> {
   }
 
   /** Deposit one carried resource type into storage. */
-  public static stash(creep: CreepExtra, storage: StructureStorage): Transfer | null {
-    if (storage.store.getFreeCapacity() === 0) return null;
+  public static stash(creep: CreepExtra, storage?: StructureStorage): Transfer | null {
+    if (!storage) storage = creep.AssignedRoom.storage;
+    if (!storage || storage.store.getFreeCapacity() === 0) return null;
     for (const resourceType in creep.store)
       if (creep.UsedCapacity(resourceType as ResourceConstant) > 0)
         return new Transfer(storage, [resourceType as ResourceConstant, MAX_TRANSFER_QUANTITY]);
