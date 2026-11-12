@@ -26,7 +26,6 @@ export class Claimer extends CreepRoleBase implements CreepRole {
   private dontSpawnBefore: { [roomName: RoomExtra['name']]: number } = {};
 
   IsSpawnNeeded(room: RoomExtra): boolean {
-    if (!this.IsRoleUnderRoomQuota(room)) return false;
     const dontSpawnHereBefore = GetValueByName(this.dontSpawnBefore, room, () => Game.time);
     if (dontSpawnHereBefore > Game.time) return false;
     return this.UnworkedClaims(room).length > 0;
