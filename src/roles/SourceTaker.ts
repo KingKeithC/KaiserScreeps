@@ -8,6 +8,8 @@ import { FromEdgeIntoRoom } from 'utils/CreepUtils';
 import { AddDirectionToPosition, FindClosestOfRoom } from 'utils/RoomUtils';
 import { CreepRole, CreepRoleBase } from './Role';
 
+type AttackPhase = 'Queue' | 'Drain' | 'Attack';
+
 export class SourceTaker extends CreepRoleBase implements CreepRole {
   override roleName = 'SourceTaker';
   override groupName = 'Warriors';
@@ -22,7 +24,16 @@ export class SourceTaker extends CreepRoleBase implements CreepRole {
     return this.SourceKeeperFlag !== undefined;
   }
 
-  AttackPhase: 'Queue' | 'Drain' | 'Attack' = 'Drain';
+  private attackPhase: AttackPhase = 'Drain';
+  get AttackPhase(): AttackPhase {
+    return this.attackPhase;
+  }
+
+  // When the attack phase changes, reset the current task of all creeps in this role
+  set AttackPhase(phase: AttackPhase) {
+    if (this.attackPhase !== phase) this.GetGlobalCreepsInRole().forEach(c => (c.memory.currentTask = null));
+    this.attackPhase = phase;
+  }
 
   GetNewCreepBody(): BodyPartConstant[] {
     if (this.AttackPhase === 'Drain') return MakeBody([TOUGH, 20], [MOVE, 12], [HEAL, 4]);
