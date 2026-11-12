@@ -60,7 +60,7 @@ export class SourceTaker extends CreepRoleBase implements CreepRole {
       if (!queue) return 'Queue';
       const group = this.GetGlobalCreepsInRole();
       const allAtQueuePoint = group.every(c => c.pos.inRangeTo(queue, this.RallyRange));
-      if (!allAtQueuePoint) return 'Queue';
+      if (!allAtQueuePoint || group.length !== this.GetGlobalQuota()) return 'Queue';
       this.QueuedGroup = group;
       return 'Drain';
     }
