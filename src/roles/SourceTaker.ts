@@ -11,7 +11,7 @@ export class SourceTaker extends CreepRoleBase implements CreepRole {
   override groupName = 'Warriors';
   override priority = 30;
 
-  override GetGlobalQuota = () => 4;
+  override GetGlobalQuota = () => 6;
   GetMinQuota(): number {
     return this.SourceKeeperFlag !== undefined ? 1 : 0;
   }
@@ -37,6 +37,7 @@ export class SourceTaker extends CreepRoleBase implements CreepRole {
   KeeperRoom?: Room;
   StartOfTick(): void {
     this.SourceKeeperFlag = Game.flags.SourceKeeper;
+    if (!this.SourceKeeperFlag) return;
     this.KeeperRoom = this.colony.Rooms.get(this.SourceKeeperFlag.pos.roomName);
     if (!this.KeeperRoom) {
       this.AttackPhase = 'Drain';
