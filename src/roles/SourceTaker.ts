@@ -10,7 +10,15 @@ export class SourceTaker extends CreepRoleBase implements CreepRole {
   override roleName = 'SourceTaker';
   override groupName = 'Warriors';
   override priority = 30;
+
   override GetGlobalQuota = () => 4;
+  GetMinQuota(): number {
+    return this.SourceKeeperFlag !== undefined ? 1 : 0;
+  }
+
+  IsSpawnNeeded(): boolean {
+    return this.SourceKeeperFlag !== undefined;
+  }
 
   AttackPhase: 'Drain' | 'Attack' = 'Drain';
 
@@ -23,30 +31,6 @@ export class SourceTaker extends CreepRoleBase implements CreepRole {
 
   override OnSpawn(creep: CreepExtra): void {
     creep.notifyWhenAttacked(false);
-  }
-
-  SearchRange = 20;
-  RallyRange = 5;
-  SelectNextTask(creep: CreepExtra): CreepTask | null {
-    if (this.SourceKeeperFlag === undefined) {
-      return null;
-    }
-
-    if (creep.pos.roomName !== this.SourceKeeperFlag.pos.roomName) {
-      return new Move(this.SourceKeeperFlag.pos, this.RallyRange);
-    }
-
-    const enemies = creep.pos.findInRange(FIND_HOSTILE_CREEPS, this.SearchRange);
-    for (const enemy of enemies)
-      if (this.colony.Allies.includes(enemy.owner.username)) continue;
-      else if (enemy.owner.username !== SOURCE_KEEPER_USERNAME) continue;
-      else return new Attack(enemy);
-
-    return null;
-  }
-
-  TickCreep(creep: CreepExtra): void {
-    if (creep.hits < creep.hitsMax) creep.heal(creep);
   }
 
   SourceKeeperFlag?: Flag;
@@ -69,11 +53,27 @@ export class SourceTaker extends CreepRoleBase implements CreepRole {
     }
   }
 
-  GetMinQuota(): number {
-    return this.SourceKeeperFlag !== undefined ? 1 : 0;
+  SearchRange = 10;
+  RallyRange = 5;
+  SelectNextTask(creep: CreepExtra): CreepTask | null {
+    if (this.SourceKeeperFlag === undefined) {
+      return null;
+    }
+
+    if (creep.pos.roomName !== this.SourceKeeperFlag.pos.roomName) {
+      return new Move(this.SourceKeeperFlag.pos, this.RallyRange);
+    }
+
+    const enemies = creep.pos.findInRange(FIND_HOSTILE_CREEPS, this.SearchRange);
+    for (const enemy of enemies)
+      if (this.colony.Allies.includes(enemy.owner.username)) continue;
+      else if (enemy.owner.username !== SOURCE_KEEPER_USERNAME) continue;
+      else return new Attack(enemy);
+
+    return null;
   }
 
-  IsSpawnNeeded(): boolean {
-    return this.SourceKeeperFlag !== undefined;
+  TickCreep(creep: CreepExtra): void {
+    if (creep.hits < creep.hitsMax) creep.heal(creep);
   }
 }

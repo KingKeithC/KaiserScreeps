@@ -187,7 +187,7 @@ export class Attacker extends CreepRoleBase implements CreepRole {
     return this.AttackSize;
   }
   IsSpawnNeeded(room: RoomExtra): boolean {
-    if (!this.IsRoleUnderQuota(room)) return false;
+    if (!this.IsRoleUnderRoomQuota(room)) return false;
     return this.GetCurrentStep() != null;
   }
 

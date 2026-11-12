@@ -16,7 +16,7 @@ export class Miner extends CreepRoleBase implements CreepRole {
   readonly priority = 5;
 
   IsSpawnNeeded(room: RoomExtra): boolean {
-    if (!this.IsRoleUnderQuota(room)) return false;
+    if (!this.IsRoleUnderRoomQuota(room)) return false;
     // We can't spawn miners until we have a worker.
     return room.AssignedCreeps.filter(Filters.CreepRoleGroupName('Workers')).length > 0;
   }

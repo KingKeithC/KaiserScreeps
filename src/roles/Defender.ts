@@ -17,7 +17,7 @@ export class Defender extends CreepRoleBase implements CreepRole {
   }
 
   IsSpawnNeeded(room: RoomExtra): boolean {
-    return this.IsRoleUnderQuota(room);
+    return this.IsRoleUnderRoomQuota(room);
   }
 
   // 1 For each hostile

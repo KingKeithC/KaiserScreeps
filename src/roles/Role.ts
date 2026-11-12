@@ -25,7 +25,7 @@ export interface CreepRole {
   SelectNextTask(creep: CreepExtra): CreepTask | null; // Given a creep who just finished a task, find a new task for them.
 
   GetGlobalQuota(): number | undefined;
-  GetQuota(room: RoomExtra): number;
+  GetRoomQuota(room: RoomExtra): number;
 
   GetGlobalCreepsInRole(): CreepExtra[]; // Get all creeps assigned to this role in the colony
   GetRoomCreepsInRole(room: RoomExtra): CreepExtra[]; // Get all creeps  assigned to this role in the room
@@ -58,9 +58,6 @@ export abstract class CreepRoleBase {
   /**
    *
    * Returns true if the room should try to spawn this role.
-   *
-   * Highly recommended to call `IsRoleUnderQuota` and return false early,
-   * since the room won't do it automatically.
    *
    * @param room The room in which to check if a spwan is needed.
    */
@@ -211,7 +208,7 @@ export abstract class CreepRoleBase {
    * @param current The current quota, optional to save the lookup if you already have the amount.
    * @returns The current number of Creeps with this role that should be spawned in the room.
    */
-  GetQuota(room: RoomExtra, current = this.CurrentQuota(room)) {
+  GetRoomQuota(room: RoomExtra, current = this.CurrentQuota(room)) {
     if (this.TimeSinceQuotaUpdate(room) > this.RoleQuotaChangeFrequency)
       return this.ChangeQuota(room, this.GetQuotaChange(room), true, current);
     return current;
@@ -261,8 +258,14 @@ export abstract class CreepRoleBase {
    * @param room The room in which to check the quota.
    * @returns True if the room needs
    */
-  IsRoleUnderQuota(room: RoomExtra): boolean {
-    const quota = this.GetQuota(room);
+  IsRoleUnderRoomQuota(room: RoomExtra): boolean {
+    const quota = this.GetRoomQuota(room);
     return quota > 0 && this.GetRoomCreepsInRole(room).length < quota;
+  }
+
+  IsRoleUnderGlobalQuota(): boolean {
+    const globalQuota = this.GetGlobalQuota();
+    if (!globalQuota || globalQuota === 0) return true;
+    return this.GetGlobalCreepsInRole().length < globalQuota;
   }
 }

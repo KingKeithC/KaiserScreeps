@@ -93,7 +93,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
   }
 
   IsSpawnNeeded(room: RoomExtra) {
-    return this.IsRoleUnderQuota(room);
+    return this.IsRoleUnderRoomQuota(room);
   }
 
   MaintainAssignedRoom(creep: CreepExtra): CreepTask | null {
