@@ -20,6 +20,7 @@ import { ErrorMapper } from 'utils/ErrorMapper';
 import { Logger } from 'utils/Logger';
 import { MakeRoomReport, RoomReport } from 'utils/RoomUtils';
 import { SourceTaker } from 'roles/SourceTaker';
+import { Hauler } from 'roles/Hauler';
 
 declare global {
   interface Memory {
@@ -57,6 +58,7 @@ export class Colony {
     Attacker: new Attacker(this),
     Claimer: new Claimer(this),
     SourceTaker: new SourceTaker(this),
+    Hauler: new Hauler(this),
   } as const;
 
   // Lookup a role from the registry, and throw an error if not found

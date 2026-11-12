@@ -11,10 +11,6 @@ export class Hauler extends CreepRoleBase implements CreepRole {
   override priority = 12;
 
   GetMinQuota() {
-    return 0;
-  }
-
-  GetMaxQuota() {
     return 2;
   }
 
@@ -33,7 +29,7 @@ export class Hauler extends CreepRoleBase implements CreepRole {
   }
 
   IsSpawnNeeded(room: RoomExtra): boolean {
-    return room.GetAssignedCreepsOfRole('Worker').length > 2;
+    return (room.controller?.level ?? 0) > 3;
   }
 
   SelectNextTask(creep: CreepExtra): CreepTask | null {
