@@ -69,10 +69,7 @@ export class SourceTaker extends CreepRoleBase implements CreepRole {
   }
 
   GetNewCreepBody(): BodyPartConstant[] {
-    if (this.AttackPhase === 'Drain') return MakeBody([TOUGH, 20], [MOVE, 12], [HEAL, 4]);
-
-    // this.AttackPhase === 'Attack'
-    return MakeBody([TOUGH, 4], [MOVE, 8], [CARRY, 2], [HEAL, 4]);
+    return MakeBody([TOUGH, 20], [MOVE, 12], [HEAL, 4]);
   }
 
   override OnSpawn(creep: CreepExtra): void {
