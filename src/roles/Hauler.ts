@@ -2,7 +2,7 @@ import { CreepExtra } from 'Creep';
 import { RoomExtra } from 'Room';
 import { Transfer } from 'tasks/Transfer';
 import { CreepTask } from 'tasks/types';
-import { Filters, MakeBody } from 'utils/Collections';
+import { MakeBody } from 'utils/Collections';
 import { CreepRole, CreepRoleBase } from './Role';
 
 export class Hauler extends CreepRoleBase implements CreepRole {
@@ -29,7 +29,7 @@ export class Hauler extends CreepRoleBase implements CreepRole {
   }
 
   IsSpawnNeeded(room: RoomExtra): boolean {
-    return (room.controller?.level ?? 0) > 3;
+    return (room.controller?.level ?? 0) > 3 && room.storage !== undefined;
   }
 
   SelectNextTask(creep: CreepExtra): CreepTask | null {
@@ -41,27 +41,14 @@ export class Hauler extends CreepRoleBase implements CreepRole {
       if (gather) return gather;
     }
 
-    if (creep.HasEnergy) {
-      // Supply workers first
-      const workers = creep.AssignedRoom.GetAssignedCreepsOfRole('Worker');
-      const workerNeedingEnergy = Transfer.supply(creep, workers);
-      if (workerNeedingEnergy) return workerNeedingEnergy;
-
-      // Then refill the terminal with a base amount of energy
-      const terminal = creep.AssignedRoom.terminal;
-      if (terminal && terminal.isActive() && terminal.store.getUsedCapacity(RESOURCE_ENERGY) <= 20_000)
-        return new Transfer(terminal);
-
-      // Or refill lab energy
-      const labs: StructureLab[] = creep.AssignedRoom.find(FIND_MY_STRUCTURES, { filter: Filters.LabsNeedingEnergy });
-      for (const lab of labs) return new Transfer(lab);
-
-      // Or stash excess resources in storage
+    if (creep.IsCarrying) {
+      // stash excess resources in storage
       if (creep.room.storage) {
         const store = Transfer.stash(creep, creep.room.storage);
         if (store) return store;
       }
     }
+
     return null;
   }
 }
