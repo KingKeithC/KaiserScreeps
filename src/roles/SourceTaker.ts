@@ -52,15 +52,16 @@ export class SourceTaker extends CreepRoleBase implements CreepRole {
   QueuedGroup?: CreepExtra[];
 
   GetAttackPhase(): SourceTaker['AttackPhase'] {
+    const group = this.GetGlobalCreepsInRole();
+    if (group.length < this.GetGlobalQuota()) return 'Queue';
     this.SourceKeeperFlag = Game.flags.SourceKeeper;
     if (!this.SourceKeeperFlag) return 'Queue';
     this.KeeperRoom = this.colony.Rooms.get(this.SourceKeeperFlag.pos.roomName);
     if (!this.KeeperRoom) {
       const queue = this.QueuePoint;
       if (!queue) return 'Queue';
-      const group = this.GetGlobalCreepsInRole();
       const allAtQueuePoint = group.every(c => c.pos.inRangeTo(queue, this.RallyRange));
-      if (!allAtQueuePoint || group.length !== this.GetGlobalQuota()) return 'Queue';
+      if (!allAtQueuePoint) return 'Queue';
       this.QueuedGroup = group;
       return 'Drain';
     }
