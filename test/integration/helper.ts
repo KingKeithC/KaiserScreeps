@@ -7,6 +7,13 @@ import { CaptureRoomSnapshot, RenderRoomSnapshot, RoomSnapshot } from './roomSna
 const DIST_MAIN_JS = 'dist/main.js';
 const DIST_MAIN_MAP_JS = 'dist/main.js.map.js';
 
+export interface WorldCreep {
+  name: string;
+  type: 'creep';
+  x: number;
+  y: number;
+}
+
 /*
  * Helper class for creating a ScreepsServer and resetting it between tests.
  * See https://github.com/Hiryus/screeps-server-mockup for instructions on
@@ -28,6 +35,49 @@ class IntegrationTestHelper {
     const snapshot = await CaptureRoomSnapshot(this._server.world, roomName);
     console.info(RenderRoomSnapshot(snapshot, label));
     return snapshot;
+  }
+
+  async getCreep(name: string, roomName = 'W0N1'): Promise<WorldCreep | undefined> {
+    const roomObjects: unknown[] = await this._server.world.roomObjects(roomName);
+    return roomObjects.find((object): object is WorldCreep => {
+      if (typeof object !== 'object' || object === null) return false;
+      const candidate = object as Partial<WorldCreep>;
+      return (
+        candidate.type === 'creep' &&
+        candidate.name === name &&
+        typeof candidate.x === 'number' &&
+        typeof candidate.y === 'number'
+      );
+    });
+  }
+
+  async addSpawnedCreep(
+    name: string,
+    roomName = 'W0N1',
+    body: BodyPartConstant[] = [MOVE],
+    x = 20,
+    y = 20,
+  ): Promise<void> {
+    const hits = body.length * 100;
+    const storeCapacity = body.filter(part => part === CARRY).length * CARRY_CAPACITY;
+    const ageTime = (await this._server.world.gameTime) + CREEP_LIFE_TIME;
+
+    await this._server.world.addRoomObject(roomName, 'creep', x, y, {
+      name,
+      user: this._player.id,
+      body: body.map(t => ({ type: t, hits: 100 })),
+      store: { energy: 0 },
+      storeCapacity,
+      hits,
+      hitsMax: hits,
+      spawning: false,
+      fatigue: 0,
+      notifyWhenAttacked: true,
+      ageTime,
+    });
+    await this._player.console(
+      `Memory.creeps[${JSON.stringify(name)}] = { role: 'Worker', room: ${JSON.stringify(roomName)} }`,
+    );
   }
 
   private async logStep<T>(label: string, operation: () => Promise<T> | T): Promise<T> {
