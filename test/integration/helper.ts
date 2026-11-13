@@ -1,6 +1,8 @@
 const { readFileSync } = require('fs');
 const _ = require('lodash');
 const { ScreepsServer, stdHooks } = require('screeps-server-mockup');
+import type ScreepsServerType from 'screeps-server-mockup/dist/src/screepsServer';
+import type User from 'screeps-server-mockup/dist/src/user';
 import { CaptureRoomSnapshot, RenderRoomSnapshot, RoomSnapshot } from './roomSnapshot';
 const DIST_MAIN_JS = 'dist/main.js';
 const DIST_MAIN_MAP_JS = 'dist/main.js.map.js';
@@ -11,8 +13,8 @@ const DIST_MAIN_MAP_JS = 'dist/main.js.map.js';
  * manipulating the terrain and game state.
  */
 class IntegrationTestHelper {
-  private _server: any;
-  private _player: any;
+  private _server!: ScreepsServerType;
+  private _player!: User;
 
   get server() {
     return this._server;
@@ -28,7 +30,7 @@ class IntegrationTestHelper {
     return snapshot;
   }
 
-  private async logStep<T>(label: string, operation: () => Promise<T>): Promise<T> {
+  private async logStep<T>(label: string, operation: () => Promise<T> | T): Promise<T> {
     const startedAt = Date.now();
     console.info(`[integration] ${label}: started`);
     try {
@@ -61,11 +63,11 @@ class IntegrationTestHelper {
     this._server.on('error', (error: Error) => console.error('[integration] server error:', error));
 
     const startProcess = this._server.startProcess.bind(this._server);
-    this._server.startProcess = async (name: string, ...args: any[]) => {
+    this._server.startProcess = async (name: string, execPath: string, env: NodeJS.ProcessEnv) => {
       if (name === 'storage') {
-        args[1] = { ...args[1], STORAGE_HOST: '127.0.0.1' };
+        env = { ...env, STORAGE_HOST: '127.0.0.1' };
       }
-      const child = await startProcess(name, ...args);
+      const child = await startProcess(name, execPath, env);
       child.on('message', (message: unknown) => console.info(`[integration] ${name} message:`, message));
       return child;
     };
