@@ -1,5 +1,5 @@
 import { CreepExtra } from 'Creep';
-import { RESOURCE_NON_ENERGY as RESOURCES_NON_ENERGY } from 'Data';
+import { RESOURCES_NON_ENERGY as RESOURCES_NON_ENERGY } from 'Data';
 import { sum } from 'lodash';
 import { RoomExtra } from 'Room';
 import { Mine } from 'tasks';

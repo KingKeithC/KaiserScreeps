@@ -1,5 +1,5 @@
 import { CreepExtra } from 'Creep';
-import { RESOURCE_NON_ENERGY } from 'Data';
+import { RESOURCES_NON_ENERGY } from 'Data';
 import { RoomExtra } from 'Room';
 import { Transfer } from 'tasks/Transfer';
 import { CreepTask } from 'tasks/types';
@@ -12,7 +12,7 @@ export class Hauler extends CreepRoleBase implements CreepRole {
   override priority = 12;
 
   GetMinQuota() {
-    return 1;
+    return 2;
   }
 
   PossibleBodies = [
@@ -60,20 +60,24 @@ export class Hauler extends CreepRoleBase implements CreepRole {
       });
       for (const lab of labs) return new Transfer(lab);
 
+      // Or transfer to a Worker
+      const workerNeedingEnergy = Transfer.supply(
+        creep,
+        this.colony.MyCreeps.filter(
+          c => c.role && c.role.roleName === 'Worker' && c.store.getFreeCapacity(RESOURCE_ENERGY) > 0,
+        ),
+      );
+      if (workerNeedingEnergy) return workerNeedingEnergy;
+
       // Leftover energy or resources can be stored
       if (storeTask) return storeTask;
     }
 
-    // If the creep is empty, try to gather resources from the environment.
-    if (creep.IsEmpty) {
-      // If the creep is empty, try to gather resources from the environment.
-      let gather = Transfer.supply(creep, {
-        collect: [RESOURCE_ENERGY],
-        minAmount: creep.FreeCapacity(),
-        sameRoom: true,
-      });
+    if (!creep.IsFull) {
+      const minSearchAmount = Math.min(creep.FreeCapacity(), 100);
+      let gather = Transfer.supply(creep, { collect: [RESOURCE_ENERGY], minAmount: minSearchAmount });
+      gather ??= Transfer.supply(creep, { collect: RESOURCES_NON_ENERGY });
       gather ??= Transfer.fromStorage(creep.AssignedRoom, 0);
-      gather ??= Transfer.supply(creep, { collect: RESOURCE_NON_ENERGY });
       if (gather) return gather;
     }
 
