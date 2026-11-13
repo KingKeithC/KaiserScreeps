@@ -3,9 +3,12 @@ import { Colony } from 'Colony';
 import { CreepExtra } from 'Creep';
 import { GetRandomName } from 'Data';
 import { RoomExtra } from 'Room';
+import { Transfer } from 'tasks/Transfer';
 import { CreepTask } from 'tasks/types';
-import { Filters, GetValueByName } from 'utils/Collections';
+import { Filters, GetValueByName, MakeBody, Sorts } from 'utils/Collections';
+import { TryCollectFromAdjacent, TryTransferToAdjacent } from 'utils/CreepUtils';
 import { Logger } from 'utils/Logger';
+import { FirstBodyByEnergyCapacity } from 'utils/RoomUtils';
 
 export interface CreepRole {
   readonly roleName: string;
@@ -24,7 +27,8 @@ export interface CreepRole {
   GetNewCreepBody(room: RoomExtra): BodyPartConstant[]; // Return a new body for creeps of this role. See also https://screepspl.us/services/creep-calculator/
   SelectNextTask(creep: CreepExtra): CreepTask | null; // Given a creep who just finished a task, find a new task for them.
 
-  GetQuota(room: RoomExtra): number;
+  GetGlobalQuota(): number | undefined;
+  GetRoomQuota(room: RoomExtra): number;
 
   GetGlobalCreepsInRole(): CreepExtra[]; // Get all creeps assigned to this role in the colony
   GetRoomCreepsInRole(room: RoomExtra): CreepExtra[]; // Get all creeps  assigned to this role in the room
@@ -58,9 +62,6 @@ export abstract class CreepRoleBase {
    *
    * Returns true if the room should try to spawn this role.
    *
-   * Highly recommended to call `IsRoleUnderQuota` and return false early,
-   * since the room won't do it automatically.
-   *
    * @param room The room in which to check if a spwan is needed.
    */
   abstract IsSpawnNeeded(room: RoomExtra): boolean;
@@ -75,6 +76,10 @@ export abstract class CreepRoleBase {
   }
 
   // Defaults
+
+  GetGlobalQuota(): number | undefined {
+    return undefined;
+  }
 
   get name(): string {
     return this.roleName;
@@ -206,7 +211,7 @@ export abstract class CreepRoleBase {
    * @param current The current quota, optional to save the lookup if you already have the amount.
    * @returns The current number of Creeps with this role that should be spawned in the room.
    */
-  GetQuota(room: RoomExtra, current = this.CurrentQuota(room)) {
+  GetRoomQuota(room: RoomExtra, current = this.CurrentQuota(room)) {
     if (this.TimeSinceQuotaUpdate(room) > this.RoleQuotaChangeFrequency)
       return this.ChangeQuota(room, this.GetQuotaChange(room), true, current);
     return current;
@@ -247,6 +252,26 @@ export abstract class CreepRoleBase {
   }
 
   // Extra utilities
+  RallyDistance = 2;
+
+  Searches = {
+    AttackNearestStructure: (pos: RoomPosition) => pos.lookFor(LOOK_STRUCTURES),
+    AttackCreeps: (pos: RoomPosition) => pos.findInRange(FIND_HOSTILE_CREEPS, 3),
+    HealAllies: (pos: RoomPosition) => pos.findInRange(FIND_MY_CREEPS, 3, { filter: Filters.Damaged }),
+    RalliedAllies: (pos: RoomPosition) => pos.findInRange(this.GetGlobalCreepsInRole(), this.RallyDistance + 1),
+  } as const;
+
+  GetFirstAvailableBodyWithZygote(
+    potentialBodies: BodyPartConstant[][],
+    room: RoomExtra,
+    zygote: BodyPartConstant[],
+    emergencySpawnTimer?: number,
+  ): BodyPartConstant[] {
+    if (emergencySpawnTimer && Game.time - room.LastSpawnTick(this.roleName) > emergencySpawnTimer) return zygote;
+    const body = FirstBodyByEnergyCapacity(room, ...potentialBodies, zygote);
+    if (body) return body;
+    else return zygote;
+  }
 
   /**
    * Return true if living amount of creeps is under the desired amount of creeps.
@@ -256,8 +281,78 @@ export abstract class CreepRoleBase {
    * @param room The room in which to check the quota.
    * @returns True if the room needs
    */
-  IsRoleUnderQuota(room: RoomExtra): boolean {
-    const quota = this.GetQuota(room);
+  IsRoleUnderRoomQuota(room: RoomExtra): boolean {
+    const quota = this.GetRoomQuota(room);
     return quota > 0 && this.GetRoomCreepsInRole(room).length < quota;
+  }
+
+  IsRoleUnderGlobalQuota(): boolean {
+    const globalQuota = this.GetGlobalQuota();
+    if (!globalQuota || globalQuota === 0) return true;
+    return this.GetGlobalCreepsInRole().length < globalQuota;
+  }
+
+  HealHurtAlliesOrSelf(creep: CreepExtra): ScreepsReturnCode {
+    // Heal whoever in range is the most hurt
+    const hurtAllies = this.Searches.HealAllies(creep.pos);
+    for (const ally of hurtAllies.sort(Sorts.StructureHitsRatioAsc))
+      if (ally && creep.pos.isNearTo(ally)) return creep.heal(ally);
+      else if (ally) return creep.rangedHeal(ally);
+    if (Filters.Damaged(creep)) return creep.heal(creep);
+    return ERR_NOT_FOUND;
+  }
+
+  AttackWeakestAdjacentEnemy(creep: CreepExtra): ScreepsReturnCode {
+    const closeEnemies = creep.pos
+      .findInRange(FIND_HOSTILE_CREEPS, 1, { filter: Filters.Damaged })
+      .sort(Sorts.StructureHitsRatioAsc);
+    for (const enemy of closeEnemies) if (enemy && creep.attack(enemy) === OK) return OK;
+    return ERR_NOT_FOUND;
+  }
+
+  RangedAttackWeakestHittableEnemy(creep: CreepExtra): ScreepsReturnCode {
+    const closeEnemies = creep.pos
+      .findInRange(FIND_HOSTILE_CREEPS, 3, { filter: Filters.Damaged })
+      .sort(Sorts.StructureHitsRatioAsc);
+    for (const enemy of closeEnemies) if (enemy && creep.rangedAttack(enemy) === OK) return OK;
+    return ERR_NOT_FOUND;
+  }
+
+  AttackOrHeal(creep: CreepExtra): ScreepsReturnCode {
+    if (creep.getActiveBodyparts(ATTACK) > 0) if (this.AttackWeakestAdjacentEnemy(creep) === OK) return OK;
+    if (creep.getActiveBodyparts(RANGED_ATTACK) > 0) if (this.RangedAttackWeakestHittableEnemy(creep) === OK) return OK;
+    if (creep.getActiveBodyparts(HEAL) > 0) if (this.HealHurtAlliesOrSelf(creep) === OK) return OK;
+    return ERR_NOT_FOUND;
+  }
+
+  AmbientWorkerTransfers(creep: CreepExtra): void {
+    if (
+      TryTransferToAdjacent(
+        creep,
+        creep.pos.findInRange(FIND_MY_STRUCTURES, 1, { filter: Filters.StructureSpawnOrExtension }),
+        [RESOURCE_ENERGY],
+      ) === OK
+    )
+      return;
+    if (TryCollectFromAdjacent(creep, creep.pos.findInRange(FIND_STRUCTURES, 1).filter(Filters.StructureContainer)))
+      return;
+    if (TryCollectFromAdjacent(creep, creep.pos.findInRange(creep.AssignedRoom.LinkReceivers, 1)) === OK) return;
+    if (TryCollectFromAdjacent(creep, creep.pos.findInRange(FIND_DROPPED_RESOURCES, 1)) === OK) return;
+    if (TryCollectFromAdjacent(creep, creep.pos.findInRange(FIND_TOMBSTONES, 1)) === OK) return;
+  }
+
+  TowerNotNearMinersAndNeedingEnergy(creep: CreepExtra, minFreepCapacity = 100): Transfer | null {
+    const towers = creep.AssignedRoom.find(FIND_MY_STRUCTURES, {
+      filter: (st): st is StructureTower =>
+        Filters.StructureTower(st) &&
+        st.isActive() &&
+        !(st.pos.findInRange(creep.AssignedRoom.GetAssignedCreepsOfRoleGroup('Miners') ?? [], 1).length > 0),
+    });
+    const towerSupply = Transfer.supply(
+      creep,
+      towers.filter(st => st.store.getFreeCapacity(RESOURCE_ENERGY) >= minFreepCapacity),
+    );
+    if (towerSupply) return towerSupply;
+    return null;
   }
 }

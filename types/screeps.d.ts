@@ -49,6 +49,8 @@ declare global {
     profitableAboveUnits?: number;
     lowCostFullfill?: number;
     tradeLockoutDuration?: number;
+    allies?: string[];
+    rivals?: string[];
   }
 
   interface RoomMemory {

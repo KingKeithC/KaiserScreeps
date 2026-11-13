@@ -1,9 +1,8 @@
 import { CreepExtra } from 'Creep';
-import { RoomExtra } from 'Room';
 import { Move, Dismantle } from 'tasks';
 import { Attack } from 'tasks/Attack';
 import { CreepTask } from 'tasks/types';
-import { Filters, FormatStructureHits, MakeBody, SerializeRoomPosition, Sorts } from 'utils/Collections';
+import { FormatStructureHits, MakeBody, SerializeRoomPosition, Sorts } from 'utils/Collections';
 import { BodyCost, PartCounts } from 'utils/CreepUtils';
 import { HostileInfo } from 'utils/RoomUtils';
 import { CreepRoleBase, CreepRole } from './Role';
@@ -15,7 +14,6 @@ export class Attacker extends CreepRoleBase implements CreepRole {
   readonly roleName = 'Attacker';
   readonly priority = 2;
 
-  RallyDistance = 2;
   AttackSize = 3;
 
   GetNewCreepBody(): BodyPartConstant[] {
@@ -146,41 +144,20 @@ export class Attacker extends CreepRoleBase implements CreepRole {
     // Undefined attack type is never complete
   }
 
-  HealHurtAllies(creep: CreepExtra): void {
-    // Heal whoever in range is the most hurt
-    const hurtAllies = this.Searches.HealAllies(creep.pos);
-    for (const mostHurt of hurtAllies.sort(Sorts.StructureHitsRatioAsc))
-      if (mostHurt && creep.pos.isNearTo(mostHurt)) creep.heal(mostHurt);
-      else if (mostHurt) creep.rangedHeal(mostHurt);
-  }
-
-  AttackEnemies(creep: CreepExtra): void {
-    const hurtEnemies = creep.pos.findInRange(FIND_HOSTILE_CREEPS, 1);
-    for (const mostHurt of hurtEnemies.sort(Sorts.StructureHitsRatioAsc)) if (mostHurt) creep.attack(mostHurt);
-  }
-
   public OnSpawn(creep: CreepExtra): void {
     creep.notifyWhenAttacked(false);
   }
 
   TickCreep(creep: CreepExtra): void {
-    this.HealHurtAllies(creep);
-    this.AttackEnemies(creep);
+    this.AttackOrHeal(creep);
   }
-
-  Searches = {
-    AttackNearestStructure: (pos: RoomPosition) => pos.lookFor(LOOK_STRUCTURES),
-    AttackCreeps: (pos: RoomPosition) => pos.findInRange(FIND_HOSTILE_CREEPS, 3),
-    HealAllies: (pos: RoomPosition) => pos.findInRange(FIND_MY_CREEPS, 3, { filter: Filters.Damaged }),
-    RalliedAllies: (pos: RoomPosition) => pos.findInRange(this.GetGlobalCreepsInRole(), this.RallyDistance + 1),
-  } as const;
 
   override GetMinQuota(): number {
-    return this.AttackSize;
+    return this.GetCurrentStep() !== null ? this.AttackSize : 0;
   }
-  IsSpawnNeeded(room: RoomExtra): boolean {
-    if (!this.IsRoleUnderQuota(room)) return false;
-    return this.GetCurrentStep() != null;
+
+  IsSpawnNeeded(): boolean {
+    return this.GetCurrentStep() !== null;
   }
 
   SelectNextTask(): CreepTask | null {

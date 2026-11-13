@@ -181,7 +181,7 @@ export const Sorts = {
   NumberPairValueAsc: <T>(a: readonly [T, number], b: readonly [T, number]) => a[1] - b[1],
   ConstructionProgressRatioAsc: (a: ConstructionSite, b: ConstructionSite) =>
     a.progress / a.progressTotal - b.progress / b.progressTotal,
-  StoreEnergyRatioAsc: (a: AnyStoreStructure, b: AnyStoreStructure) =>
+  StoreEnergyRatioAsc: (a: AnyStoreStructure | Creep, b: AnyStoreStructure | Creep) =>
     a.store.getUsedCapacity(RESOURCE_ENERGY) / a.store.getCapacity(RESOURCE_ENERGY) -
     b.store.getUsedCapacity(RESOURCE_ENERGY) / b.store.getCapacity(RESOURCE_ENERGY),
   RolePriorityAsc: (a: { role: { priority: number } }, b: { role: { priority: number } }) =>
@@ -217,6 +217,11 @@ export const Filters = {
     structure.structureType !== STRUCTURE_ROAD &&
     structure.structureType !== STRUCTURE_CONTAINER &&
     !(structure.structureType === STRUCTURE_RAMPART && structure.my),
+  LabsNeedingEnergy: (structure: AnyStructure): structure is StructureLab =>
+    structure.structureType === STRUCTURE_LAB &&
+    typeof structure.isActive === 'function' &&
+    structure.isActive() &&
+    structure.store.getUsedCapacity(RESOURCE_ENERGY) < structure.store.getCapacity(RESOURCE_ENERGY),
 } as const;
 
 export const OK_MOVE_DONE = 1 as const;

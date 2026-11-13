@@ -1,6 +1,7 @@
 import { CreepExtra } from 'Creep';
 import { RegisterTask } from 'tasks/types';
-import { ClosestByPath } from 'utils/CreepUtils';
+import { Sorts } from 'utils/Collections';
+import { PickByLocation } from 'utils/CreepUtils';
 import type { RepairPrioritySelection } from 'utils/RepairUtils';
 import { TargetTask } from './TargetTask';
 
@@ -25,7 +26,7 @@ export class Repair extends TargetTask<AnyStructure> {
     }
 
     const available = group.repairs.filter(s => (repairersByTarget.get(s.id) ?? 0) < group.maxWorkers);
-    const target = ClosestByPath(creep, available);
+    const target = PickByLocation(creep, available, tier => [...tier].sort(Sorts.StructureHitsRatioAsc).shift());
     return target ? new Repair(target) : null;
   }
 

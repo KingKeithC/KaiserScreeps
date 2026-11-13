@@ -2,7 +2,7 @@ import { CreepExtra } from 'Creep';
 import type { RoomExtra } from 'Room';
 import { RegisterTask } from 'tasks/types';
 import { ResourceContainerUsedRatio, RoomPositionString, Sorts } from 'utils/Collections';
-import { ClosestByPath } from 'utils/CreepUtils';
+import { PickByLocation } from 'utils/CreepUtils';
 import { Ledger, StoreId } from 'logistics/Ledger';
 import { ResourceContainer } from 'utils/RoomUtils';
 import { TargetTask } from './TargetTask';
@@ -96,26 +96,6 @@ function performIntent(
   return creep.withdraw(target as Structure | Ruin | Tombstone, leg.resourceType, amount);
 }
 
-/**
- * Current room first (closest by path), then the assigned room, its claims, and finally anywhere else.
- * Remote tiers are ranked by `rankRemote`.
- */
-function pickByLocation<T extends ResourceContainer>(
-  creep: CreepExtra,
-  items: T[],
-  rankRemote: (tier: T[]) => T | undefined,
-): T | null {
-  const claims = creep.AssignedRoom.WorkableAreaRoomNames;
-  const tiers: T[][] = [[], [], [], []];
-  for (const item of items) {
-    const roomName = item.pos.roomName;
-    const tier =
-      roomName === creep.room.name ? 0 : roomName === creep.AssignedRoom.name ? 1 : claims.includes(roomName) ? 2 : 3;
-    tiers[tier].push(item);
-  }
-  return ClosestByPath(creep, tiers[0]) ?? rankRemote(tiers[1]) ?? rankRemote(tiers[2]) ?? rankRemote(tiers[3]) ?? null;
-}
-
 export class Transfer extends TargetTask<ResourceContainer> {
   static readonly action = '🔁' as const;
 
@@ -127,7 +107,7 @@ export class Transfer extends TargetTask<ResourceContainer> {
 
   // prettier-ignore
   /** Structures to supply, in priority order, with the number of suppliers each allows at once. */
-  static readonly SupplyPriorities: ((s: AnyStoreStructure) => boolean)[] = [
+  static readonly SupplyPriorities: ((s: (AnyStoreStructure | Creep)) => boolean)[] = [
     s => s instanceof StructureExtension,
     s => s instanceof StructureSpawn,
     s => s instanceof StructureTower,
@@ -149,19 +129,28 @@ export class Transfer extends TargetTask<ResourceContainer> {
   }
 
   /** Withdraw energy from storage, but only while it holds more than the room's wartime buffer. */
-  public static fromStorage(roomOrCreep: RoomExtra | CreepExtra): Transfer | null {
+  public static fromStorage(
+    roomOrCreep: RoomExtra | CreepExtra,
+    minBuffer: number,
+    resourceType: ResourceConstant = RESOURCE_ENERGY,
+  ): Transfer | null {
     const room = roomOrCreep instanceof Room ? roomOrCreep : roomOrCreep.AssignedRoom;
-    if (
-      room.storage !== undefined &&
-      room.storage.store.getUsedCapacity(RESOURCE_ENERGY) > room.StorageWartimeEnergyBuffer
-    )
-      return new Transfer(room.storage, [RESOURCE_ENERGY, -MAX_TRANSFER_QUANTITY]);
+    const storage = room.storage;
+    if (storage === undefined) return null;
+    const neededAmount = roomOrCreep instanceof Creep ? roomOrCreep.FreeCapacity(resourceType) : MAX_TRANSFER_QUANTITY;
+    if (neededAmount <= 0) return null;
+    const storedAmount = storage.store.getUsedCapacity(resourceType) ?? 0;
+    const availableAmount = storedAmount - minBuffer;
+    if (!availableAmount) return null;
+    const transferAmount = Math.min(availableAmount, neededAmount);
+    if (transferAmount > 0) return new Transfer(storage, [resourceType, -transferAmount]);
     return null;
   }
 
   /** Deposit one carried resource type into storage. */
-  public static stash(creep: CreepExtra, storage: StructureStorage): Transfer | null {
-    if (storage.store.getFreeCapacity() === 0) return null;
+  public static stash(creep: CreepExtra, storage?: StructureStorage): Transfer | null {
+    if (!storage) storage = creep.AssignedRoom.storage;
+    if (!storage || storage.store.getFreeCapacity() === 0) return null;
     for (const resourceType in creep.store)
       if (creep.UsedCapacity(resourceType as ResourceConstant) > 0)
         return new Transfer(storage, [resourceType as ResourceConstant, MAX_TRANSFER_QUANTITY]);
@@ -172,12 +161,9 @@ export class Transfer extends TargetTask<ResourceContainer> {
    * Deposit into the first priority group with room and under its supplier cap, or collect via a `CollectRequest`.
    * Both pick by location: current room, assigned room, its claims, then anywhere else.
    */
-  public static supply(creep: CreepExtra, candidates: AnyStoreStructure[], inProgress?: Transfer[]): Transfer | null;
-  public static supply(creep: CreepExtra, request: CollectRequest): Transfer | null;
   public static supply(
     creep: CreepExtra,
-    candidatesOrRequest: AnyStoreStructure[] | CollectRequest,
-    inProgress?: Transfer[],
+    candidatesOrRequest: (Creep | AnyStoreStructure)[] | CollectRequest,
   ): Transfer | null {
     if (!Array.isArray(candidatesOrRequest)) {
       const { collect: resources, sameRoom = false, minAmount = 0 } = candidatesOrRequest;
@@ -211,7 +197,7 @@ export class Transfer extends TargetTask<ResourceContainer> {
     if (!creep.HasEnergy) return null;
 
     const suppliersByTarget = new Map<string, number>();
-    for (const task of inProgress ?? [...creep.AssignedRoom.AssignedTasks(Transfer, creep)]) {
+    for (const task of [...creep.AssignedRoom.AssignedTasks(Transfer, creep)]) {
       suppliersByTarget.set(task.targetId, (suppliersByTarget.get(task.targetId) ?? 0) + 1);
     }
 
@@ -239,7 +225,7 @@ export class Transfer extends TargetTask<ResourceContainer> {
     candidates: T[],
     rankRemote: (tier: T[]) => T | undefined,
   ): Transfer | null {
-    const target = pickByLocation(creep, candidates, rankRemote);
+    const target = PickByLocation(creep, candidates, rankRemote);
     if (!target) return null;
     if (direction < 0) creep.colony.Logistics.Reserve(target.pos.roomName, target.id, creep.FreeCapacity(resourceType));
     return new Transfer(target, [resourceType, direction * MAX_TRANSFER_QUANTITY]);

@@ -1,7 +1,7 @@
 import type { CreepExtra } from 'Creep';
 import { RegisterTask } from 'tasks/types';
 import { Filters, Sorts } from 'utils/Collections';
-import { ClosestByPath } from 'utils/CreepUtils';
+import { PickByLocation } from 'utils/CreepUtils';
 import { TargetTask } from './TargetTask';
 
 export class Build extends TargetTask<ConstructionSite<BuildableStructureConstant>> {
@@ -29,17 +29,8 @@ export class Build extends TargetTask<ConstructionSite<BuildableStructureConstan
       const group = candidates.filter(p);
       if (group.length === 0) continue;
 
-      const inRoom = ClosestByPath(
-        creep,
-        group.filter(s => s.pos.roomName === creep.room.name),
-      );
-      if (inRoom) return new Build(inRoom);
-
-      const remote = group
-        .filter(s => s.pos.roomName !== creep.room.name)
-        .sort(Sorts.ConstructionProgressRatioAsc)
-        .pop();
-      if (remote) return new Build(remote);
+      const target = PickByLocation(creep, group, tier => [...tier].sort(Sorts.ConstructionProgressRatioAsc).pop());
+      if (target) return new Build(target);
     }
     return null;
   }
