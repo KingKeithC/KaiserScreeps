@@ -1,6 +1,7 @@
 const { readFileSync } = require('fs');
 const _ = require('lodash');
 const { ScreepsServer, stdHooks } = require('screeps-server-mockup');
+import { CaptureRoomSnapshot, RenderRoomSnapshot, RoomSnapshot } from './roomSnapshot';
 const DIST_MAIN_JS = 'dist/main.js';
 const DIST_MAIN_MAP_JS = 'dist/main.js.map.js';
 
@@ -19,6 +20,12 @@ class IntegrationTestHelper {
 
   get player() {
     return this._player;
+  }
+
+  async snapshotRoom(roomName = 'W0N1', label = 'Room snapshot'): Promise<RoomSnapshot> {
+    const snapshot = await CaptureRoomSnapshot(this._server.world, roomName);
+    console.info(RenderRoomSnapshot(snapshot, label));
+    return snapshot;
   }
 
   private async logStep<T>(label: string, operation: () => Promise<T>): Promise<T> {

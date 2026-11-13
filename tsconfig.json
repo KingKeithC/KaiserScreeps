@@ -12,7 +12,8 @@
     "noImplicitAny": true,
     "noImplicitReturns": true,
     "allowSyntheticDefaultImports": true,
-    "allowUnreachableCode": false
+    "allowUnreachableCode": false,
+    "skipLibCheck": true
   },
   "exclude": ["node_modules"]
 }
