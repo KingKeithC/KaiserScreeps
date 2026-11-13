@@ -14,7 +14,7 @@
     "lint": "eslint \"src/**/*.ts\"",
     "test": "yarn run test-integration",
     "test-integration": "yarn run build && node --dns-result-order=ipv4first ./node_modules/screeps-integration-tests/bin/screeps-integration-tests.js --timeout 10000",
-    "viewer": "yarn run viewer:build && yarn run build && node --dns-result-order=ipv4first ./node_modules/screeps-integration-tests/bin/screeps-integration-tests.js --viewer",
+    "test:viewer": "yarn run viewer:build && yarn run build && node --dns-result-order=ipv4first ./node_modules/screeps-integration-tests/bin/screeps-integration-tests.js --viewer",
     "viewer:build": "npm --prefix ./node_modules/screeps-integration-tests/src/tools/viewer/client install --no-audit --no-fund && npm --prefix ./node_modules/screeps-integration-tests/src/tools/viewer/client run build",
     "build": "rollup -c --environment SCREEPS_BUILDONLY=1",
     "push": "rollup -c --environment DEST:bleeding",
