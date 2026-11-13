@@ -24,6 +24,13 @@
       "problemMatcher": "$tsc",
       "options": { "cwd": "${workspaceFolder}" }
     },
+    {
+      "type": "npm",
+      "label": "test:viewer",
+      "script": "test:viewer",
+      "problemMatcher": "$tsc",
+      "options": { "cwd": "${workspaceFolder}" }
+    },
     { "type": "npm", "script": "push-sim", "problemMatcher": [], "label": "push-sim" },
     { "type": "npm", "script": "watch-sim", "problemMatcher": [], "label": "watch-sim" }
   ]
