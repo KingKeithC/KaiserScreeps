@@ -61,6 +61,7 @@ describe('unit_roomSnapshot', () => {
     );
 
     const rendered = RenderRoomSnapshot(snapshot, 'Before tick');
+    console.log(rendered);
     assert.include(rendered, 'Before tick: W0N1 at tick 123');
     assert.include(rendered, 'Terrain (. plain, # wall, : swamp)');
     assert.include(rendered, 'Objects');
