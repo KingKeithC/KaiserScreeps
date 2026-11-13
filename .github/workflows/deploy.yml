@@ -27,3 +27,4 @@ jobs:
       - run: yarn install --frozen-lockfile --immutable
       - run: yarn lint
       - run: yarn test
+      - run: yarn exec rollup -c --environment "DEST:${{ env.SCREEPS_BRANCH }}"
