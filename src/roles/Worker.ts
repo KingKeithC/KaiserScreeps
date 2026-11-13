@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { CreepExtra } from 'Creep';
 import { some, sum } from 'lodash';
 import { RoomExtra } from 'Room';
@@ -6,14 +7,8 @@ import { Build, Mine, Repair, Transfer, UpgradeController } from 'tasks';
 import { Retire } from 'tasks/Retire';
 import { CreepTask } from 'tasks/types';
 import { Filters, GetValueByName, MakeBody } from 'utils/Collections';
-import {
-  BodyCost,
-  TryCollectFromContainer as TryCollectFromContainers,
-  TryCollectFromTombs,
-  TryPickupDropped,
-} from 'utils/CreepUtils';
-import { FirstBodyByEnergyCapacity } from 'utils/RoomUtils';
-import { CreatePendingRepairs, FindHighestPriorityRepairGroup } from 'utils/RepairUtils';
+import { BodyCost, TryCollectFromAdjacent } from 'utils/CreepUtils';
+import { CreatePendingRepairs, RepairPrioritySelection } from 'utils/RepairUtils';
 import { CreepRoleBase, CreepRole } from './Role';
 
 export class Worker extends CreepRoleBase implements CreepRole {
@@ -28,28 +23,24 @@ export class Worker extends CreepRoleBase implements CreepRole {
   ];
 
   GetNewCreepBody(room: RoomExtra): BodyPartConstant[] {
-    const zygote = MakeBody([CARRY, 2], [WORK, 1], [MOVE, 2]); // 300
-    // If we haven't spawned a worker in a long time, then default to a zygote
-    // This should help prevent death spirals...
-    if (Game.time - room.LastSpawnTick(this.roleName) > 1000) return zygote;
-    const body = FirstBodyByEnergyCapacity(room, ...this.PossibleBodies, zygote);
-    if (body) return body;
-    else return zygote;
+    return this.GetFirstAvailableBodyWithZygote(
+      this.PossibleBodies,
+      room,
+      MakeBody([CARRY, 2], [WORK, 1], [MOVE, 2]),
+      CREEP_LIFE_TIME * 1.5,
+    );
   }
 
   TickCreep(creep: CreepExtra): void {
-    const containers = creep.pos.findInRange(FIND_STRUCTURES, 1).filter(Filters.StructureContainer);
-    if (TryCollectFromContainers(creep, containers, creep.store.getFreeCapacity())) return;
-    if (TryPickupDropped(creep)) return;
-    if (TryCollectFromTombs(creep)) return;
+    this.AmbientWorkerTransfers(creep);
   }
 
-  GetMinQuota() {
+  GetMinQuota(_room: RoomExtra) {
     return 1;
   }
 
   GetMaxQuota(room: RoomExtra) {
-    return room.ClaimedSources.length * 2;
+    return room.WorkableClaimedSources.length * 2;
   }
 
   GrowAmount = 1;
@@ -93,7 +84,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
   }
 
   IsSpawnNeeded(room: RoomExtra) {
-    return this.IsRoleUnderQuota(room);
+    return this.IsRoleUnderRoomQuota(room);
   }
 
   MaintainAssignedRoom(creep: CreepExtra): CreepTask | null {
@@ -130,15 +121,11 @@ export class Worker extends CreepRoleBase implements CreepRole {
     for (const lab of labs) return new Transfer(lab);
 
     // Or do construction
-    const construction = Build.nearestPriority(creep, creep.AssignedRoom.find(FIND_MY_CONSTRUCTION_SITES));
+    const construction = this.NearestConstruction(creep);
     if (construction) return construction;
 
-    // Or do repairs if there are no towers
-    if (towers.length === 0) {
-      const repair = creep.AssignedRoom.PendingRepairGroup;
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      if (repair && repair.repairs.length >= 1) return new Repair(repair.repairs.pop()!);
-    }
+    const repair = this.NearestRepair(creep);
+    if (repair) return repair;
 
     // Leftover energy goes to controller upgrading
     if (creep.AssignedRoom.controller) {
@@ -164,7 +151,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
     const maintainers = creep.AssignedRoom.GetAssignedCreepsOfRole('Maintainer');
 
     // ------ SUPPLY ------
-    if (storage && creep.HasNonEnergy) {
+    if (storage && (creep.HasNonEnergy || (creep.HasEnergy && storageLow))) {
       // Need to store resources
       const store = Transfer.stash(creep, storage);
       if (store) return store;
@@ -194,8 +181,8 @@ export class Worker extends CreepRoleBase implements CreepRole {
       if (gather) return gather;
 
       // Fallback to gathering from storage if maintainers are absent and storage exists
-      if (maintainers.length === 0 && storage) {
-        return Transfer.fromStorage(creep.AssignedRoom);
+      if (maintainers.length === 0 && storage && !storageLow) {
+        return Transfer.fromStorage(creep.AssignedRoom, creep.AssignedRoom.StorageWartimeEnergyBuffer);
       }
 
       // If there aren't enough miners, then do mining
@@ -251,11 +238,11 @@ export class Worker extends CreepRoleBase implements CreepRole {
   MaxUpgradePerRoom = 2;
   public WorkerSpendingTask(
     creep: CreepExtra,
-    supplyTasks?: Transfer[],
+    _supplyTasks?: Transfer[],
     maintainers = creep.AssignedRoom.GetAssignedCreepsOfRole('Maintainer').length,
   ): CreepTask | null {
     if (maintainers === 0) {
-      const spawnSupply = Transfer.supply(creep, creep.AssignedRoom.SpawnsOrExtensions, supplyTasks);
+      const spawnSupply = Transfer.supply(creep, creep.AssignedRoom.SpawnsOrExtensions);
       if (spawnSupply) return spawnSupply;
     }
 
@@ -267,30 +254,39 @@ export class Worker extends CreepRoleBase implements CreepRole {
       if (repair) return repair;
     }
 
-    const construction = Build.nearestPriority(
-      creep,
-      creep.AssignedRoom.FlatMapOverRoomsInClaimedArea(r =>
-        r instanceof Room ? r.find(FIND_MY_CONSTRUCTION_SITES) : [],
-      ),
-    );
+    const construction = this.NearestConstruction(creep);
     if (construction) return construction;
 
     return null;
   }
 
-  // Closest repair across claimed rooms that have no towers to do the repairing.
+  private NearestConstruction(creep: CreepExtra): Build | null {
+    return Build.nearestPriority(
+      creep,
+      creep.colony.FlatMapOverWorkableRooms(room => room.find(FIND_MY_CONSTRUCTION_SITES)),
+    );
+  }
+
   private NearestRepair(creep: CreepExtra): Repair | null {
-    for (const [room] of creep.AssignedRoom.MapWithRoomsInClaimedArea<RoomExtra | Room | string>(r => r)) {
-      if (typeof room === 'string') continue;
-      if (room.find(FIND_MY_STRUCTURES, { filter: Filters.StructureTower }).length > 0) continue;
-
-      const group =
-        room instanceof RoomExtra
-          ? room.PendingRepairGroup
-          : FindHighestPriorityRepairGroup(room, CreatePendingRepairs(room));
-      if (!group) continue;
-
-      const repair = Repair.nearestInGroup(creep, group);
+    const groups: RepairPrioritySelection[] = [];
+    const pendingRooms = creep.colony.FlatMapOverWorkableRooms(room => {
+      if (room.controller?.my && room.find(FIND_MY_STRUCTURES, { filter: Filters.StructureTower }).length > 0)
+        return [];
+      return [{ room, pending: CreatePendingRepairs(room) }];
+    });
+    for (const { room, pending } of pendingRooms) {
+      pending.priorities.forEach((priority, index) => {
+        const candidates = pending.candidates.filter(structure =>
+          priority.allowedStructures.includes(structure.structureType),
+        );
+        const selection = priority.callback(room, candidates);
+        groups[index] ??= { repairs: [], maxWorkers: selection.maxWorkers };
+        groups[index].repairs.push(...selection.repairs);
+      });
+    }
+    const inProgress = [...creep.colony.AssignedTasks(Repair, creep)];
+    for (const group of groups) {
+      const repair = Repair.nearestInGroup(creep, group, inProgress);
       if (repair) return repair;
     }
     return null;

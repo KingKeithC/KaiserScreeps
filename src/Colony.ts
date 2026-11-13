@@ -19,6 +19,8 @@ import { AssignedTasksWithEntity, FmtRatios, TasksOfEntities } from 'utils/Colle
 import { ErrorMapper } from 'utils/ErrorMapper';
 import { Logger } from 'utils/Logger';
 import { MakeRoomReport, RoomReport } from 'utils/RoomUtils';
+import { SourceTaker } from 'roles/SourceTaker';
+import { Hauler } from 'roles/Hauler';
 
 declare global {
   interface Memory {
@@ -39,6 +41,8 @@ declare global {
     logFormat?: string;
     cpuSkipRatio?: number;
     minCpuBucket?: number;
+    allies?: string[];
+    rivals?: string[];
   }
 }
 
@@ -53,6 +57,8 @@ export class Colony {
     Scout: new Scout(this),
     Attacker: new Attacker(this),
     Claimer: new Claimer(this),
+    SourceTaker: new SourceTaker(this),
+    Hauler: new Hauler(this),
   } as const;
 
   // Lookup a role from the registry, and throw an error if not found
@@ -107,6 +113,12 @@ export class Colony {
     return ErrorMapper.wrapLoop(lambda);
   }
 
+  get Allies(): string[] {
+    return (Memory.allies ??= []);
+  }
+  get Rivals(): string[] {
+    return (Memory.rivals ??= []);
+  }
   get CpuSkipRatio(): number {
     return (Memory.cpuSkipRatio ??= 0.75);
   }
@@ -141,8 +153,16 @@ export class Colony {
     return (Memory.colonyStateReportFrequency ??= 1000);
   }
 
-  private get IsSimulation(): boolean {
+  get IsSimulation(): boolean {
     return 'sim' in Game.rooms;
+  }
+
+  IsAlly(username: string): boolean {
+    return this.Allies.includes(username);
+  }
+
+  IsRival(username: string): boolean {
+    return this.Rivals.includes(username);
   }
 
   OnGlobalReset(): void {
@@ -229,19 +249,23 @@ export class Colony {
     }
   }
 
+  ShouldSkipTick(): boolean {
+    const skip = Game.cpu.bucket < this.MinCpuBucket;
+    if (skip)
+      this.log.warn('CPU bucket too low, skipping actions.', {
+        bucket: Game.cpu.bucket,
+        MinCpuBucket: this.MinCpuBucket,
+      });
+
+    return skip;
+  }
+
   // Stats are only fetched evey ~90 seconds, so we only need to update them infrequently
   StatsFrequency = 8;
 
   // This is the effectively the loop function invoked each tick.
   private MainLoop(): void {
-    if (Game.cpu.bucket < this.MinCpuBucket) {
-      this.log.warn('CPU bucket too low, skipping actions.', {
-        bucket: Game.cpu.bucket,
-        MinCpuBucket: this.MinCpuBucket,
-      });
-      return;
-    }
-
+    if (this.ShouldSkipTick()) return;
     this.RefreshCaches(); // Must be called before any Creep/Room access on the colony
     this.Logistics.BeginTick(this.LogisticsScope);
     this.ReserveAssignedCollections();
@@ -287,6 +311,15 @@ export class Colony {
   // Owned rooms plus the claimed rooms they work; their stores are indexed each tick.
   private get LogisticsScope(): string[] {
     return unique(flatten(this.MyRooms.map(room => room.WorkableAreaRoomNames)));
+  }
+
+  FlatMapOverWorkableRooms<T>(mapper: (room: Room) => T[]): T[] {
+    const results: T[] = [];
+    for (const name of this.LogisticsScope) {
+      const room = Game.rooms[name];
+      if (room) results.push(...mapper(room));
+    }
+    return results;
   }
 
   // Collections assigned on earlier ticks still hold their capacity this tick.

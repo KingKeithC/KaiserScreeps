@@ -1,44 +1,38 @@
 import { CreepExtra } from 'Creep';
+import { RESOURCES_NON_ENERGY as RESOURCES_NON_ENERGY } from 'Data';
 import { sum } from 'lodash';
 import { RoomExtra } from 'Room';
 import { Mine } from 'tasks';
 import { CreepTask } from 'tasks/types';
 import { Filters, Sorts, MakeBody, SerializeRoomPosition } from 'utils/Collections';
-import { BodyCost, TryCollectFromContainer, TryPickupDropped, TryTransferTo } from 'utils/CreepUtils';
+import { TryCollectFromAdjacent, TryTransferToAdjacent } from 'utils/CreepUtils';
 import { CreepRole, CreepRoleBase } from './Role';
-
-const nonEnergyResources = RESOURCES_ALL.filter(rt => rt !== RESOURCE_ENERGY);
-const isMinerCreep = Filters.CreepRoleGroupName('Miners');
 
 export class Miner extends CreepRoleBase implements CreepRole {
   readonly groupName = 'Miners';
   override readonly roleName: string = 'Miner';
   readonly priority = 5;
 
+  // Don't spawn miners unless there are workers or haulers available.
   IsSpawnNeeded(room: RoomExtra): boolean {
-    if (!this.IsRoleUnderQuota(room)) return false;
-    // We can't spawn miners until we have a worker.
-    return room.AssignedCreeps.filter(Filters.CreepRoleGroupName('Workers')).length > 0;
+    if (room.GetAssignedCreepsOfRole('Worker').length > 0) return true;
+    if (room.GetAssignedCreepsOfRole('Hauler').length > 0) return true;
+    return false;
   }
 
+  PotentialBodies = [
+    MakeBody([CARRY, 1], [WORK, 7], [MOVE, 4]), // 950, containers.
+    // MakeBody([CARRY, 9], [WORK, 5], [MOVE, 7]), // 1300, no containers.
+    MakeBody([CARRY, 1], [WORK, 5], [MOVE, 3]), // 800, containers
+    // MakeBody([CARRY, 7], [WORK, 3], [MOVE, 3]), // 800, no containers
+  ];
+
   GetNewCreepBody(room: RoomExtra): BodyPartConstant[] {
-    // 5 Work seems to be enough to mine a source to empty on the exact tick it recharges.
-    // All miners still need 1 carry to put what they mined into a container.
-
-    const tiers = [
-      MakeBody([CARRY, 1], [WORK, 7], [MOVE, 4]), // 950, containers.
-      // MakeBody([CARRY, 9], [WORK, 5], [MOVE, 7]), // 1300, no containers.
-      MakeBody([CARRY, 1], [WORK, 5], [MOVE, 3]), // 800, containers
-      // MakeBody([CARRY, 7], [WORK, 3], [MOVE, 3]), // 800, no containers
-    ];
-
-    for (const t of tiers) if (BodyCost(t) <= room.energyCapacityAvailable) return t; // Return the first body we can afford
-
-    return MakeBody([CARRY, 2], [WORK, 1], [MOVE, 2]); // 300, Zygote
+    return this.GetFirstAvailableBodyWithZygote(this.PotentialBodies, room, MakeBody([CARRY, 2], [WORK, 1], [MOVE, 2]));
   }
 
   override GetMinQuota(room: RoomExtra) {
-    return room.ClaimedSources.length;
+    return room.WorkableClaimedSources.length;
   }
 
   SelectNextTask(creep: CreepExtra): CreepTask | null {
@@ -56,24 +50,24 @@ export class Miner extends CreepRoleBase implements CreepRole {
     )
       return;
 
-    const nearbyNonMiners = creep.pos.findInRange(this.colony.MyCreeps, 1, {
-      filter: c => c.store.getFreeCapacity() > 0 && !isMinerCreep(c),
+    const nearbyWorkers = creep.pos.findInRange(this.colony.MyCreeps, 1, {
+      filter: c => c.FreeCapacity() > 0 && c.role && c.role.groupName === 'Workers',
     });
-    if (TryTransferTo(creep, nearbyNonMiners, [RESOURCE_ENERGY])) return;
-    if (TryPickupDropped(creep)) return;
+    if (TryTransferToAdjacent(creep, nearbyWorkers, [RESOURCE_ENERGY]) === OK) return;
+    if (TryCollectFromAdjacent(creep, creep.pos.findInRange(FIND_DROPPED_RESOURCES, 1)) === OK) return;
 
     const nearbyContainers = creep.pos.findInRange(FIND_STRUCTURES, 1).filter(Filters.StructureContainer);
-    if (TryTransferTo(creep, nearbyContainers, nonEnergyResources)) return;
+    if (TryTransferToAdjacent(creep, nearbyContainers, RESOURCES_NON_ENERGY) === OK) return;
 
     const nearbyTowers = creep.pos.findInRange(FIND_MY_STRUCTURES, 1).filter(Filters.StructureTower);
     const nearbyLinks = creep.AssignedRoom.LinkSenders.filter(link => link.pos.isNearTo(creep));
     const nearbyEnergyDemand =
       sum(nearbyTowers.map(tower => tower.store.getFreeCapacity(RESOURCE_ENERGY))) +
       sum(nearbyLinks.map(link => link.store.getFreeCapacity(RESOURCE_ENERGY)));
-    if (TryCollectFromContainer(creep, nearbyContainers, nearbyEnergyDemand * 2, [RESOURCE_ENERGY])) return;
-    if (TryTransferTo(creep, nearbyTowers, [RESOURCE_ENERGY])) return;
-    if (TryTransferTo(creep, nearbyLinks, [RESOURCE_ENERGY])) return;
-    if (TryTransferTo(creep, nearbyContainers, [RESOURCE_ENERGY])) return;
+    if (TryCollectFromAdjacent(creep, nearbyContainers, [RESOURCE_ENERGY], nearbyEnergyDemand * 2) === OK) return;
+    if (TryTransferToAdjacent(creep, nearbyTowers, [RESOURCE_ENERGY]) === OK) return;
+    if (TryTransferToAdjacent(creep, nearbyLinks, [RESOURCE_ENERGY]) === OK) return;
+    if (TryTransferToAdjacent(creep, nearbyContainers, [RESOURCE_ENERGY]) === OK) return;
 
     if (!(creep.currentTask instanceof Mine && creep.currentTask.target instanceof Source)) return;
     if (creep.currentTask.target.energy > 0) return;

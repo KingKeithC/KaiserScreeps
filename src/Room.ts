@@ -87,8 +87,15 @@ export class RoomExtra extends Room {
   }
 
   private cachedAssignedCreepsOfRole: { [roleName: CreepRole['roleName']]: CreepExtra[] } = {};
-  GetAssignedCreepsOfRole(roleName: string): CreepExtra[] {
-    return (this.cachedAssignedCreepsOfRole[roleName] ??= this.AssignedCreeps.filter(Filters.CreepRoleName(roleName)));
+  GetAssignedCreepsOfRole(...roleNames: string[]): CreepExtra[] {
+    if (roleNames.length === 0) return [];
+    const ret: CreepExtra[] = [];
+    for (const roleName of roleNames) {
+      if (!this.cachedAssignedCreepsOfRole[roleName] || this.cachedAssignedCreepsOfRole[roleName].length === 0)
+        this.cachedAssignedCreepsOfRole[roleName] = this.AssignedCreeps.filter(Filters.CreepRoleName(roleName));
+      ret.push(...this.cachedAssignedCreepsOfRole[roleName]);
+    }
+    return ret;
   }
 
   private cachedAssignedCreepsOfRoleGroup: { [roleGroupName: CreepRole['groupName']]: CreepExtra[] } = {};
@@ -477,13 +484,13 @@ export class RoomExtra extends Room {
     );
   }
 
-  private cachedClaimedSources?: (Id<Source> | Id<StructureExtractor>)[];
-  get ClaimedSources(): (Id<Source> | Id<StructureExtractor>)[] {
-    if (this.cachedClaimedSources === undefined) {
+  private cachedWorkableClaimedSources?: (Id<Source> | Id<StructureExtractor>)[];
+  get WorkableClaimedSources(): (Id<Source> | Id<StructureExtractor>)[] {
+    if (this.cachedWorkableClaimedSources === undefined) {
       const mineSources = this.WorkableClaimedMiningPositions.map(pair => pair[1].map(mp => mp.source));
-      this.cachedClaimedSources = unique(flatten(mineSources));
+      this.cachedWorkableClaimedSources = unique(flatten(mineSources));
     }
-    return this.cachedClaimedSources;
+    return this.cachedWorkableClaimedSources;
   }
 
   /**
@@ -779,17 +786,24 @@ export class RoomExtra extends Room {
   GetSpawnableRoles(): SpawnableRoleDetails[] {
     const rolesSpawnable: SpawnableRoleDetails[] = [];
     for (const role of Object.values(this.colony.Roles)) {
-      const roomQuota = role.GetQuota(this);
-      const roomCount = role.GetRoomCreepsInRole(this).length;
-      const timeSinceLastSpawn = Game.time - this.LastSpawnTick(role.roleName);
-
-      if (role.IsSpawnNeeded(this)) {
+      if (role.IsRoleUnderGlobalQuota() && role.IsRoleUnderRoomQuota(this) && role.IsSpawnNeeded(this)) {
         const body = role.GetNewCreepBody(this);
         const available = this.energyAvailable;
         const needed = BodyCost(body);
         if (available < needed) continue;
         const name = `${role.GetNewCreepName(this)}, ${role.roleName}`;
-        rolesSpawnable.push({ role, name, body, available, needed, roomQuota, roomCount, timeSinceLastSpawn });
+        rolesSpawnable.push({
+          role,
+          name,
+          body,
+          available,
+          needed,
+          globalQuota: role.GetGlobalQuota(),
+          globalCount: role.GetGlobalCreepsInRole().length,
+          roomQuota: role.GetRoomQuota(this),
+          roomCount: role.GetRoomCreepsInRole(this).length,
+          timeSinceLastSpawn: Game.time - this.LastSpawnTick(role.roleName),
+        });
       }
     }
     return rolesSpawnable;
@@ -819,7 +833,18 @@ export class RoomExtra extends Room {
       maxSpawns,
     });
 
-    for (const { role, name, body, available, needed, roomCount, roomQuota, timeSinceLastSpawn } of spawnable) {
+    for (const {
+      role,
+      name,
+      body,
+      available,
+      needed,
+      roomCount,
+      roomQuota,
+      timeSinceLastSpawn,
+      globalQuota,
+      globalCount,
+    } of spawnable) {
       const success = this.TrySpawnRole(role, name, body);
       if (!success) {
         this.log.crit('Spawn failed despite having enough energy.', {
@@ -830,6 +855,8 @@ export class RoomExtra extends Room {
           timeSinceLastSpawn,
           available,
           needed,
+          globalQuota,
+          globalCount,
         });
         continue;
       }
@@ -842,6 +869,8 @@ export class RoomExtra extends Room {
         timeSinceLastSpawn,
         available,
         needed,
+        globalQuota,
+        globalCount,
       });
       this.SetLastSpawnTick(role.roleName, Game.time);
       role.OnSpawnScheduled(this, name);
@@ -890,7 +919,7 @@ export class RoomExtra extends Room {
       }
 
       const spawnNeeded = role.IsSpawnNeeded(this);
-      const roomQuota = role.GetQuota(this);
+      const roomQuota = role.GetRoomQuota(this);
       const roomCount = role.GetRoomCreepsInRole(this).length;
       const spawnable = roomCount >= roomQuota;
       const spawnableStr = spawnable ? '+' : '';
@@ -930,7 +959,7 @@ export class RoomExtra extends Room {
     }
 
     // Get info about claimed sources
-    msg += `\n\tClaimedSources: ${[...this.ClaimedSources]}`;
+    msg += `\n\tClaimedSources: ${[...this.WorkableClaimedSources]}`;
 
     // Get info about claimed rooms
     for (const claim of this.ClaimedNearby)
@@ -1048,4 +1077,6 @@ interface SpawnableRoleDetails {
   roomQuota: number;
   roomCount: number;
   timeSinceLastSpawn: number;
+  globalQuota?: number;
+  globalCount: number;
 }

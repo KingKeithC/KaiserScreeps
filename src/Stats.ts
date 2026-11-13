@@ -263,7 +263,7 @@ export function GetColonyStats(colony: Colony): ColonyStats {
       cpu_tick_limit: Game.cpu.tickLimit,
       resource_amount: resources,
       heap_stat_bytes: meminfo,
-      role_room_quota: MapNamed(Object.values(colony.Roles), r => MapNamed(colony.MyRooms, ro => r.GetQuota(ro))),
+      role_room_quota: MapNamed(Object.values(colony.Roles), r => MapNamed(colony.MyRooms, ro => r.GetRoomQuota(ro))),
       role_room_assigned_creep_count: MapNamed(Object.values(colony.Roles), r =>
         MapNamed(colony.MyRooms, ro => r.GetRoomCreepsInRole(ro).length),
       ),

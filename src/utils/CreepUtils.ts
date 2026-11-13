@@ -9,6 +9,22 @@ export function ClosestByPath<T extends _HasRoomPosition>(creep: CreepExtra, tar
   });
 }
 
+export function PickByLocation<T extends _HasRoomPosition>(
+  creep: CreepExtra,
+  items: T[],
+  rankRemote: (tier: T[]) => T | undefined,
+): T | null {
+  const claims = creep.AssignedRoom.WorkableAreaRoomNames;
+  const tiers: T[][] = [[], [], [], []];
+  for (const item of items) {
+    const roomName = item.pos.roomName;
+    const tier =
+      roomName === creep.room.name ? 0 : roomName === creep.AssignedRoom.name ? 1 : claims.includes(roomName) ? 2 : 3;
+    tiers[tier].push(item);
+  }
+  return ClosestByPath(creep, tiers[0]) ?? rankRemote(tiers[1]) ?? rankRemote(tiers[2]) ?? rankRemote(tiers[3]) ?? null;
+}
+
 export function BodyCost(body: (BodyPartConstant | BodyPartDefinition)[]): number {
   let cost = 0;
   for (const p of body) cost += BODYPART_COST[p instanceof Object ? p.type : p];
@@ -37,60 +53,38 @@ export function FromEdgeIntoRoom(exit: ExitConstant | null): DirectionConstant |
   else return null;
 }
 
-export function TryCollectFromContainer(
+export function TryCollectFromAdjacent<T extends AnyStoreStructure | Resource | Ruin | Tombstone | Creep>(
   creep: Creep,
-  containers: StructureContainer[],
-  collectionLimit = 0,
+  sources: T[],
   resources: ResourceConstant[] = RESOURCES_ALL,
-): boolean {
-  if (creep.store.getFreeCapacity() === 0 || collectionLimit === 0) return false;
-  for (const rt of resources) {
-    for (const container of containers)
-      if ((container.store.getUsedCapacity(rt) ?? 0) > 0 && creep.withdraw(container, rt, collectionLimit) === OK)
-        return true;
+  amount?: number,
+): ScreepsReturnCode {
+  for (const source of sources) {
+    if (!creep.pos.isNearTo(source)) continue;
+    for (const rt of resources) {
+      if (source instanceof Resource)
+        if (rt === source.resourceType && source.amount > 0 && creep.pickup(source) === OK) return OK;
+        else continue;
+      else if ((source.store.getUsedCapacity(rt) ?? 0) > 0)
+        if (source instanceof Structure && creep.withdraw(source, rt, amount) === OK) return OK;
+        else if (source instanceof Creep) if (source.transfer(creep, rt, amount) === OK) return OK;
+    }
   }
-  return false;
+  return ERR_NOT_FOUND;
 }
 
-export function TryCollectFromTombs(
-  creep: Creep,
-  resources: ResourceConstant[] = RESOURCES_ALL,
-  collectionLimit: number = creep.store.getFreeCapacity(),
-): boolean {
-  if (creep.store.getFreeCapacity() === 0) return false;
-  for (const rt of resources) {
-    if (collectionLimit <= 0) continue;
-    for (const tomb of creep.pos.findInRange(FIND_TOMBSTONES, 1))
-      if ((tomb.store.getUsedCapacity(rt) ?? 0) > 0 && creep.withdraw(tomb, rt, collectionLimit) === OK) return true;
-  }
-  return false;
-}
-
-export function TryPickupDropped(creep: Creep, resources: ResourceConstant[] = RESOURCES_ALL): boolean {
-  if (creep.store.getFreeCapacity() === 0) return false;
-  for (const rt of resources) {
-    for (const d of creep.pos.findInRange(FIND_DROPPED_RESOURCES, 1, { filter: { resourceType: rt } }))
-      if (creep.pickup(d) === OK) return true;
-  }
-
-  return false;
-}
-
-export function TryTransferTo<T extends AnyStoreStructure | Creep>(
+export function TryTransferToAdjacent<T extends AnyStoreStructure | Creep>(
   creep: Creep,
   targets: T[],
   resources: ResourceConstant[] = RESOURCES_ALL,
-  minimumFreeCapacity = 0,
-): boolean {
+  amount?: number,
+): ScreepsReturnCode {
   for (const resource of resources) {
     if (creep.store.getUsedCapacity(resource) <= 0) continue;
     for (const target of targets)
-      if (
-        (target.store.getFreeCapacity(resource) ?? 0) > minimumFreeCapacity &&
-        creep.transfer(target, resource) === OK
-      )
-        return true;
+      if (!creep.pos.isNearTo(target)) continue;
+      else if ((target.store.getFreeCapacity(resource) ?? 0) > 0 && creep.transfer(target, resource, amount) === OK)
+        return OK;
   }
-
-  return false;
+  return ERR_NOT_FOUND;
 }

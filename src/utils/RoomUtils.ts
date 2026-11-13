@@ -33,6 +33,7 @@ export interface HostileInfo {
 export interface MiningPosition {
   source: Id<Source> | Id<StructureExtractor>;
   pos: RoomPositionString;
+  priority: 1 | 2 | 3;
 }
 
 export function isEqualTo(a: MiningPosition, b: MiningPosition): boolean {
@@ -131,7 +132,7 @@ export function FormatHostileInfos(infos: HostileInfo[]): string {
  * @param terrain A reference to the room's terrain (if you already have one available).
  * @returns `true` if a Creep would be able to stand on the given position.
  */
-export function CouldCreepStandAt(x: number, y: number, room: Room, terrain: RoomTerrain = room.getTerrain()): boolean {
+export function IsWalkable(x: number, y: number, room: Room, terrain: RoomTerrain = room.getTerrain()): boolean {
   // Get a reference to the actual position
   const pos = room.getPositionAt(x, y);
 
@@ -178,10 +179,10 @@ export function GetMiningPositions(room: Room): MiningPosition[] {
   }
 
   let searched = 0;
-  let found = 0;
   const terrain = room.getTerrain();
-  const ret = [];
+  const miningPositions = [];
 
+  // Find all walkable positions around each mineable source or extractor.
   for (const s of sources)
     // Given the source.pos is the centre point
     // get the positions of all the surrounding spaces
@@ -189,15 +190,30 @@ export function GetMiningPositions(room: Room): MiningPosition[] {
       for (let y = s.pos.y - 1; y <= s.pos.y + 1; y++) {
         searched++;
         if (x === s.pos.x && y === s.pos.y) continue; // Skip centre point
-        if (CouldCreepStandAt(x, y, room, terrain)) {
+        if (IsWalkable(x, y, room, terrain)) {
           // Must be a valid spot for a creep to sit
-          ret.push({ source: s.id, pos: SerializeRoomPositionTriple(x, y, room.name) });
-          found++;
+          const position = room.getPositionAt(x, y);
+          if (!position) continue;
+          const structures = position.lookFor(LOOK_STRUCTURES);
+
+          // Rank positions by priority:
+          // If the position has a container on it, 1
+          // Else if it is not on a road, 2
+          // Else, 3
+          const priority: MiningPosition['priority'] = structures.some(
+            structure => structure.structureType === STRUCTURE_CONTAINER,
+          )
+            ? 1
+            : structures.some(structure => structure.structureType === STRUCTURE_ROAD)
+              ? 3
+              : 2;
+
+          miningPositions.push({ source: s.id, pos: SerializeRoomPositionTriple(x, y, room.name), priority });
         }
       }
 
-  Logger.info('Found mineable positions.', { '<room>': room, found, searched, sources });
-  return ret;
+  Logger.info('Found mineable positions.', { '<room>': room, searched, sources });
+  return miningPositions;
 }
 
 /**
@@ -344,4 +360,62 @@ export function GetMinesForRoom(room: Room | string, myUsername: string): Mining
     Memory.scoutingReports[room.name].mines = mines;
     return mines;
   }
+}
+
+export function FindClosestOfRoom(roomNames: string[], targetRoomName: string): string | null {
+  let closestRoom: string | null = null;
+  let closestDistance = 10_000;
+  for (const roomName of roomNames) {
+    const distance = Game.map.getRoomLinearDistance(roomName, targetRoomName);
+    if (distance < closestDistance) {
+      closestRoom = roomName;
+      closestDistance = distance;
+    }
+  }
+  return closestRoom;
+}
+
+export function AddDirectionToPosition(
+  pos: RoomPosition,
+  direction: DirectionConstant,
+  distance: number,
+): RoomPosition {
+  let newX = pos.x;
+  let newY = pos.y;
+  switch (direction) {
+    case TOP:
+      newY -= distance;
+      break;
+    case TOP_RIGHT:
+      newY -= distance;
+      newX += distance;
+      break;
+    case RIGHT:
+      newX += distance;
+      break;
+    case BOTTOM_RIGHT:
+      newY += distance;
+      newX += distance;
+      break;
+    case BOTTOM:
+      newY += distance;
+      break;
+    case BOTTOM_LEFT:
+      newY += distance;
+      newX -= distance;
+      break;
+    case LEFT:
+      newX -= distance;
+      break;
+    case TOP_LEFT:
+      newY -= distance;
+      newX -= distance;
+      break;
+  }
+
+  // Clamp x and y to 0-49
+  newX = Math.max(0, Math.min(49, newX));
+  newY = Math.max(0, Math.min(49, newY));
+
+  return new RoomPosition(newX, newY, pos.roomName);
 }
