@@ -31,37 +31,6 @@ import {
   PendingRepairs as PendingRepairCollection,
 } from 'utils/RepairUtils';
 
-declare global {
-  interface RoomMemory {
-    lastSpawnTick?: { [roleName: string]: number };
-    roleLimits?: { [roleName: string]: number };
-    enableVisuals?: boolean;
-    enableRepairOverlay?: boolean;
-    foreverRepair?: boolean;
-    attackHostiles?: boolean;
-    disableWarriors?: boolean;
-    disableTowers?: boolean;
-    disableTowerAttacks?: boolean;
-    towerAttackRange?: number;
-    towerAttackRangeTiles?: number;
-    eventCounts?: Dictionary<number>;
-    eventAmounts?: Dictionary<number>;
-    towerCriticalSupplyRatio?: number;
-    hostileNotificationThreshold?: number;
-    claimedNearby?: string[];
-    mines?: MiningPosition[];
-    storageWartimeEnergyBuffer?: number;
-    linkGroups?: Dictionary<Id<StructureLink>[]>;
-    enableCostMatrixOverlay?: boolean;
-    pathfindingCostMatrixDate?: number;
-    pathfindingCostMatrix?: number[];
-    storeOverUpgrade?: boolean;
-    allowStorageDraw?: boolean;
-    lastViewed?: number;
-    minHostilesForResponse?: number;
-  }
-}
-
 export class RoomExtra extends Room {
   readonly colony: Colony;
   readonly log: Logger<RoomExtra> = new Logger(this, { formatArgs: { '<room>': this } });

@@ -1,5 +1,5 @@
 import { CreepExtra } from 'Creep';
-import { Dictionary, flatten, unique } from 'lodash';
+import { flatten, unique } from 'lodash';
 import { Attacker } from 'roles/Attacker';
 import { Claimer } from 'roles/Claimer';
 import { Defender } from 'roles/Defender';
@@ -18,29 +18,7 @@ import { TradingSystem } from 'Trading';
 import { AssignedTasksWithEntity, FmtRatios, TasksOfEntities } from 'utils/Collections';
 import { ErrorMapper } from 'utils/ErrorMapper';
 import { Logger } from 'utils/Logger';
-import { MakeRoomReport, RoomReport } from 'utils/RoomUtils';
-
-declare global {
-  interface Memory {
-    profiler: object;
-    rooms: Record<Room['name'], RoomMemory>;
-    flags: Record<Flag['name'], FlagMemory>;
-    creeps: Record<Creep['name'], CreepMemory>;
-    terminals: Record<Id<StructureTerminal>, TerminalMemory>;
-    globalEnableProfiling?: boolean;
-    globalEnableErrorMapper?: boolean;
-    globalEnablePathVisuals?: boolean;
-    scoutingReports?: Dictionary<RoomReport>;
-    scoutInterval?: number;
-    username?: string;
-    colonyStateReportFrequency?: number;
-    stats?: ColonyStats;
-    logLevelName?: string;
-    logFormat?: string;
-    cpuSkipRatio?: number;
-    minCpuBucket?: number;
-  }
-}
+import { MakeRoomReport } from 'utils/RoomUtils';
 
 declare const global: { Colony: Colony };
 

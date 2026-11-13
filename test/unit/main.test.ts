@@ -11,11 +11,7 @@ describe('unit_main', () => {
   });
 
   beforeEach(() => {
-    // runs before each test in this block
-    // @ts-ignore : allow adding Game to global
-    global.Game = _.clone(Game);
-    // @ts-ignore : allow adding Memory to global
-    global.Memory = _.clone(Memory);
+    Object.assign(global, { Game: _.clone(Game), Memory: _.clone(Memory) });
   });
 
   it('should export a loop function', () => {
@@ -30,9 +26,9 @@ describe('unit_main', () => {
     Memory.creeps.persistValue = { room: 'W0N0' };
     Memory.creeps.notPersistValue = { room: 'W0N0' };
 
-    Game.creeps.persistValue = 'any value';
+    Game.creeps.persistValue = { name: 'persistValue' };
 
-    new RoomExtra({ name: 'W0N0' } as Room, new Colony()).CleanupDeadCreeps();
+    new RoomExtra(new Room('W0N0'), new Colony()).CleanupDeadCreeps();
 
     assert.isDefined(Memory.creeps.persistValue);
     assert.isUndefined(Memory.creeps.notPersistValue);

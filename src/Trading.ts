@@ -3,13 +3,6 @@ import { RoomExtra } from 'Room';
 import { Sorts } from 'utils/Collections';
 import { Logger } from 'utils/Logger';
 
-declare global {
-  interface TerminalMemory {
-    roomName: Room['name'];
-    lastInventory: StoreDefinition;
-  }
-}
-
 interface OrderAnalysis {
   time: number;
   terminal: Id<StructureTerminal>;
