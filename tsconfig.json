@@ -15,6 +15,6 @@
     "allowUnreachableCode": false,
     "skipLibCheck": true
   },
-  "include": ["src/**/*.ts", "types/**/*.d.ts"],
+  "include": ["src/**/*.ts", "types/**/*.d.ts", "scenarios/**/*.js"],
   "exclude": ["node_modules"]
 }

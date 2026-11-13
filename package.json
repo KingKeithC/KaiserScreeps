@@ -11,7 +11,7 @@
     }
   },
   "scripts": {
-    "lint": "eslint \"src/**/*.ts\"",
+    "lint": "eslint \"src/**/*.ts\" \"scenarios/**/*.js\" \"types/**/*.d.ts\"",
     "test": "yarn run test-integration",
     "test-integration": "yarn run build && node --dns-result-order=ipv4first ./node_modules/screeps-integration-tests/bin/screeps-integration-tests.js --timeout 10000",
     "test:viewer": "yarn run viewer:build && yarn run build && node --dns-result-order=ipv4first ./node_modules/screeps-integration-tests/bin/screeps-integration-tests.js --viewer",
