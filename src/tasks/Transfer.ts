@@ -129,13 +129,21 @@ export class Transfer extends TargetTask<ResourceContainer> {
   }
 
   /** Withdraw energy from storage, but only while it holds more than the room's wartime buffer. */
-  public static fromStorage(roomOrCreep: RoomExtra | CreepExtra): Transfer | null {
+  public static fromStorage(
+    roomOrCreep: RoomExtra | CreepExtra,
+    minBuffer: number,
+    resourceType: ResourceConstant = RESOURCE_ENERGY,
+  ): Transfer | null {
     const room = roomOrCreep instanceof Room ? roomOrCreep : roomOrCreep.AssignedRoom;
-    if (
-      room.storage !== undefined &&
-      room.storage.store.getUsedCapacity(RESOURCE_ENERGY) > room.StorageWartimeEnergyBuffer
-    )
-      return new Transfer(room.storage, [RESOURCE_ENERGY, -MAX_TRANSFER_QUANTITY]);
+    const storage = room.storage;
+    if (storage === undefined) return null;
+    const neededAmount = roomOrCreep instanceof Creep ? roomOrCreep.FreeCapacity(resourceType) : MAX_TRANSFER_QUANTITY;
+    if (neededAmount <= 0) return null;
+    const storedAmount = storage.store.getUsedCapacity(resourceType) ?? 0;
+    const availableAmount = storedAmount - minBuffer;
+    if (!availableAmount) return null;
+    const transferAmount = Math.min(availableAmount, neededAmount);
+    if (transferAmount > 0) return new Transfer(storage, [resourceType, -transferAmount]);
     return null;
   }
 

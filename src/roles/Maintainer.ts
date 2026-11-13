@@ -64,7 +64,7 @@ export class Maintainer extends Worker implements CreepRole {
    */
   DoWithLocalEnergy(creep: CreepExtra, findMainSpendingTask: (c: CreepExtra) => CreepTask | null): CreepTask | null {
     const storeTask = Transfer.stash(creep);
-    const retrieveTask = Transfer.fromStorage(creep.AssignedRoom);
+    const retrieveTask = Transfer.fromStorage(creep.AssignedRoom, 0);
     if (creep.HasNonEnergy && storeTask) return storeTask;
 
     if (creep.HasEnergy) {

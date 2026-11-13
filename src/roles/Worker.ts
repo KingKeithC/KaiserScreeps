@@ -182,7 +182,7 @@ export class Worker extends CreepRoleBase implements CreepRole {
 
       // Fallback to gathering from storage if maintainers are absent and storage exists
       if (maintainers.length === 0 && storage && !storageLow) {
-        return Transfer.fromStorage(creep.AssignedRoom);
+        return Transfer.fromStorage(creep.AssignedRoom, creep.AssignedRoom.StorageWartimeEnergyBuffer);
       }
 
       // If there aren't enough miners, then do mining

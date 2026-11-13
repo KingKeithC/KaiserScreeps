@@ -1,4 +1,5 @@
 import { CreepExtra } from 'Creep';
+import { RESOURCE_NON_ENERGY } from 'Data';
 import { RoomExtra } from 'Room';
 import { Transfer } from 'tasks/Transfer';
 import { CreepTask } from 'tasks/types';
@@ -66,9 +67,13 @@ export class Hauler extends CreepRoleBase implements CreepRole {
     // If the creep is empty, try to gather resources from the environment.
     if (creep.IsEmpty) {
       // If the creep is empty, try to gather resources from the environment.
-      let gather = Transfer.supply(creep, { collect: RESOURCES_ALL, minAmount: creep.FreeCapacity() });
-      gather ??= Transfer.supply(creep, { collect: RESOURCES_ALL });
-      gather ??= Transfer.fromStorage(creep.AssignedRoom);
+      let gather = Transfer.supply(creep, {
+        collect: [RESOURCE_ENERGY],
+        minAmount: creep.FreeCapacity(),
+        sameRoom: true,
+      });
+      gather ??= Transfer.fromStorage(creep.AssignedRoom, 0);
+      gather ??= Transfer.supply(creep, { collect: RESOURCE_NON_ENERGY });
       if (gather) return gather;
     }
 
