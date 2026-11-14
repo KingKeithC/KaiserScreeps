@@ -4,9 +4,7 @@ const assert = require('node:assert/strict');
 const { createWorld, spec } = require('screeps-integration-tests');
 const { assertNoErrors } = require('screeps-integration-tests/assertions');
 const { MOVE } = require('screeps-integration-tests/constants');
-
-const HOME = 'W0N1';
-const DESTINATION = 'W0N2';
+const { MAIN: HOME, TOP: DESTINATION, twoRoomWorld } = require('./fixtures/two-room');
 const CREEP_NAME = 'exit-test-creep';
 
 function isExit(creep) {
@@ -18,8 +16,7 @@ async function run(opts = {}) {
   let observedExit = false;
   let crossedRoom = false;
   const world = await createWorld({
-    rooms: [spec.baseRoom(HOME), { name: DESTINATION }],
-    bots: [{ username: 'bot', rooms: [HOME] }],
+    ...twoRoomWorld(),
     ticks: 9,
     ...opts,
     onTick: async currentWorld => {

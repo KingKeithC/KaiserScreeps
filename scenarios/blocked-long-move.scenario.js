@@ -4,19 +4,22 @@ const assert = require('node:assert/strict');
 const { createWorld, spec } = require('screeps-integration-tests');
 const { assertNoErrors } = require('screeps-integration-tests/assertions');
 const { MOVE, WORK, INVADER_USER_ID } = require('screeps-integration-tests/constants');
+const { MAIN: HOME, twoRoomWorld } = require('./fixtures/two-room');
 
-const HOME = 'W0N1';
 const CREEP_NAME = 'blocked-move-creep';
 const BLOCKER_NAME = 'stationary-blocker';
 const START = { x: 20, y: 20 };
 
 async function run(opts = {}) {
+  const fixture = twoRoomWorld();
   const world = await createWorld({
+    ...fixture,
     rooms: [
       {
-        ...spec.baseRoom(HOME),
+        ...fixture.rooms[0],
         terrain: {
           walls: [
+            ...fixture.rooms[0].terrain.walls,
             { x: 19, y: 19 },
             { x: 20, y: 19 },
             { x: 21, y: 19 },
@@ -27,9 +30,8 @@ async function run(opts = {}) {
           ],
         },
       },
-      { name: 'W0N2' },
+      ...fixture.rooms.slice(1),
     ],
-    bots: [{ username: 'bot', rooms: [HOME] }],
     ticks: 3,
     ...opts,
   });
