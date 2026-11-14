@@ -3,36 +3,13 @@ import type { RoomExtra } from 'Room';
 import { Logger } from 'utils/Logger';
 import { Colony } from 'Colony';
 import { CreepRole } from 'roles/Role';
-import { DeserializeRoomPosition, OK_MOVE_DONE, RoomPositionString, SerializeRoomPosition } from 'utils/Collections';
+import { DeserializeRoomPosition, OK_MOVE_DONE, SerializeRoomPosition } from 'utils/Collections';
 import { CreepTask, DeserializeTask } from 'tasks/types';
 import { FromEdgeIntoRoom as DirectionIntoRoomFromEdge, EdgeStoodOn } from 'utils/CreepUtils';
 import { Scout, ScoutingReport } from 'roles/Scout';
 import { MakeRoomReport } from 'utils/RoomUtils';
 import { Mine, Transfer } from 'tasks';
 import { Miner } from 'roles/Miner';
-
-declare global {
-  interface CreepMemory {
-    role?: string;
-    room?: string;
-    currentTask?: CreepTask | null;
-    stuckTicks?: number;
-    lastPos?: RoomPositionString;
-    moveMode?: 'long' | 'avoidCreeps';
-    successfulAvoidMoves?: number; // In avoidCreeps mode, how many times did we successfully avoid them?
-    spawning?: boolean; // Whether or not we were spawning on the LAST tick.
-    lifetimeIdle?: number; // How many ticks have we gone without moving or performing an action (and not due to fatigue)?
-    lifetimeStuck?: number; // For how many ticks have we tried to move, but ended up not (and not due to fatigue)?
-    intendedToMove?: boolean; // Whether or not we intended to move on the LAST tick.
-    _move?: {
-      // Move object tracked by screeps' internal moveTo method.
-      dest: { x: number; y: number; room: string };
-      time: number;
-      path: string;
-      room: string;
-    };
-  }
-}
 
 export class CreepExtra extends Creep {
   private readonly log = new Logger(this, { formatArgs: { '<creep>': this } });

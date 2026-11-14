@@ -4,22 +4,18 @@
   "main": "main.js",
   "license": "UNLICENSED",
   "devEngines": {
-    "packageManager": [
-      {
-        "name": "yarn",
-        "version": "1.22.22",
-        "onFail": "download"
-      },
-      {
-        "name": "npm"
-      }
-    ]
+    "packageManager": {
+      "name": "yarn",
+      "version": "1.22.22",
+      "onFail": "download"
+    }
   },
   "scripts": {
-    "lint": "eslint \"src/**/*.ts\" \"test/**/*.ts\"",
-    "test": "npm run test-unit && npm run test-integration",
-    "test-unit": "mocha test/unit/**/*.ts",
-    "test-integration": "npm run build && rm -rfv server/ && mocha test/integration/**/*.ts",
+    "lint": "eslint \"src/**/*.ts\" \"scenarios/**/*.js\" \"types/**/*.d.ts\"",
+    "test": "yarn run test-integration",
+    "test-integration": "yarn run build && node --dns-result-order=ipv4first ./node_modules/screeps-integration-tests/bin/screeps-integration-tests.js --timeout 10000",
+    "test:viewer": "yarn run viewer:build && yarn run build && node --dns-result-order=ipv4first ./node_modules/screeps-integration-tests/bin/screeps-integration-tests.js --viewer",
+    "viewer:build": "npm --prefix ./node_modules/screeps-integration-tests/src/tools/viewer/client install --no-audit --no-fund && npm --prefix ./node_modules/screeps-integration-tests/src/tools/viewer/client run build",
     "build": "rollup -c --environment SCREEPS_BUILDONLY=1",
     "push": "rollup -c --environment DEST:bleeding",
     "push-sim": "rollup -c --environment DEST:sim",
@@ -28,33 +24,23 @@
   "devDependencies": {
     "@rollup/plugin-commonjs": "^20.0.0",
     "@rollup/plugin-node-resolve": "^13.0.4",
-    "@types/chai": "^4.1.6",
     "@types/lodash": "3.10.2",
-    "@types/mocha": "^5.2.5",
     "@types/node": "^13.13.1",
     "@types/screeps": "^3.2.3",
-    "@types/sinon": "^5.0.5",
-    "@types/sinon-chai": "^3.2.0",
     "@typescript-eslint/eslint-plugin": "^5.38.1",
     "@typescript-eslint/parser": "^5.62.0",
-    "chai": "^4.2.0",
     "eslint": "^8.57.1",
     "eslint-config-prettier": "^8.5.0",
     "eslint-import-resolver-typescript": "^3.5.1",
     "eslint-plugin-import": "^2.24.0",
     "lodash": "^3.10.1",
-    "mocha": "^5.2.0",
     "prettier": "^3.9.10",
     "prettier-eslint": "^16.4.2",
     "rollup": "^2.56.2",
     "rollup-plugin-clear": "^2.0.7",
     "rollup-plugin-screeps": "^1.0.1",
     "rollup-plugin-typescript2": "^0.31.0",
-    "screeps-server-mockup": "^1.5.1",
-    "sinon": "^6.3.5",
-    "sinon-chai": "^3.2.0",
-    "ts-node": "^10.2.0",
-    "tsconfig-paths": "^3.10.1",
+    "screeps-integration-tests": "https://github.com/kvi05/screeps-integration-tests/archive/f39d35b77bfffcd771c61bdc5a4b1b1482eff6ba.tar.gz",
     "typescript": "^4.9.5"
   },
   "dependencies": {

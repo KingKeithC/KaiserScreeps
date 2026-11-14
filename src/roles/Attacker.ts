@@ -9,14 +9,6 @@ import { CreepRoleBase, CreepRole } from './Role';
 
 type AttackType = 'Rally' | 'NearestStructure' | 'Creeps';
 
-declare global {
-  interface FlagMemory {
-    attackIndex?: number;
-    attackType?: AttackType;
-    done?: boolean;
-  }
-}
-
 export class Attacker extends CreepRoleBase implements CreepRole {
   readonly groupName = 'Warriors';
   readonly roleName = 'Attacker';

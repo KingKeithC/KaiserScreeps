@@ -18,9 +18,23 @@
       "args": ["-r", "dist/", "node_modules/", "server/"]
     },
     {
+      "type": "shell",
+      "label": "install",
+      "command": "yarn",
+      "args": ["install"],
+      "options": { "cwd": "${workspaceFolder}" }
+    },
+    {
       "type": "npm",
       "label": "test",
       "script": "test",
+      "problemMatcher": "$tsc",
+      "options": { "cwd": "${workspaceFolder}" }
+    },
+    {
+      "type": "npm",
+      "label": "test:viewer",
+      "script": "test:viewer",
       "problemMatcher": "$tsc",
       "options": { "cwd": "${workspaceFolder}" }
     },

@@ -6,7 +6,11 @@
   "js/ts.implicitProjectConfig.target": "ES2018",
   "chat.tools.terminal.autoApprove": {
     "/^pnpm exec tsc --noEmit$/": { "approve": true, "matchCommandLine": true },
-    "/^pnpm exec tsc --noEmit && git diff --check$/": { "approve": true, "matchCommandLine": true }
+    "/^pnpm exec tsc --noEmit && git diff --check$/": { "approve": true, "matchCommandLine": true },
+    "/^node --dns-result-order=ipv4first \\./node_modules/screeps-integration-tests/bin/screeps-integration-tests\\.js --only [A-Z0-9a-z\\-_]+ --timeout \\d+": {
+      "approve": true,
+      "matchCommandLine": true
+    }
   },
   "nixEnvSelector.nixFile": "${workspaceFolder}/flake.nix",
   "nixEnvSelector.useFlakes": true,

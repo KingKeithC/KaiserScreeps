@@ -14,7 +14,7 @@ module.exports = {
   plugins: ['@typescript-eslint', 'import'],
   overrides: [
     {
-      files: ['test/**/*.{js,jsx,ts,tsx}'],
+      files: ['scenarios/**/*.{js,jsx,ts,tsx}'],
       rules: {
         '@typescript-eslint/no-unsafe-argument': 'off',
         '@typescript-eslint/no-unsafe-assignment': 'off',
