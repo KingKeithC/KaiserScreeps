@@ -5,13 +5,17 @@ const { createWorld } = require('screeps-integration-tests');
 const { assertBotWorked } = require('screeps-integration-tests/assertions');
 const { MAIN, SPAWN, twoRoomWorld } = require('./fixtures/two-room');
 
+const MAX_TICKS = 5;
+
 async function run(opts = {}) {
-  const world = await createWorld({ ...twoRoomWorld(), ...opts, ticks: 5, logLevel: 'all' });
+  const world = await createWorld({ ...twoRoomWorld(), ...opts, ticks: MAX_TICKS, logLevel: 'all' });
   const logMessages = [];
   const errorMessages = [];
 
   try {
     const bot = world.bots.bot;
+
+    // Capture output streams
     await bot._adapter.pubsub.subscribe(`user:${bot.id}/console`, event => {
       const { messages, error } = JSON.parse(event);
       logMessages.push(...(messages?.log || []));
@@ -19,6 +23,8 @@ async function run(opts = {}) {
     });
 
     await world.run(1);
+
+    // Assert state after initial tick
     assertBotWorked(world.report);
 
     const walls = await world.rooms[MAIN].canonical.terrain.walls;
@@ -34,6 +40,7 @@ async function run(opts = {}) {
     const resetMsg = logMessages.filter(message => /Global state reset./.test(message));
     assert.ok(resetMsg.length === 1, 'bot log channel should have printed reset message');
 
+    // Assert state after the MAX_TICKS'th tick
     await world.run();
     assertBotWorked(world.report);
     assert.equal(world.report.ticksRun, 5, 'the bot must run for all five ticks');
